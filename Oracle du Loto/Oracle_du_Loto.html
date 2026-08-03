@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oracle du Loto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --cream:#faf7f0; --ink:#1a1a1a; --black:#111111;
+    --rust:#a5501a; --gold:#e8b84b; --green:#2f7d5c; --line:#e4ddce;
+    --muted:#6b6558;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:Georgia,'Times New Roman',serif;background:var(--cream);color:var(--ink);}
+  header.top{background:var(--black);color:#fff;padding:18px 28px;display:flex;align-items:center;gap:14px;font-family:Arial,Helvetica,sans-serif;flex-wrap:wrap;}
+  header.top .logo{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#4b6, #263);flex:none;}
+  header.top .title{font-family:Georgia,serif;font-size:19px;}
+  header.top .sub{font-size:10px;letter-spacing:1.5px;color:#bbb;text-transform:uppercase;margin-top:2px;}
+  .lotoSelectWrap{margin-left:auto;display:flex;align-items:center;gap:10px;font-family:Arial,sans-serif;flex-wrap:wrap;}
+  #hdrTirageCount{color:#bbb;font-size:11px;letter-spacing:.5px;text-transform:uppercase;}
+  select, .btn, input[type=text], input[type=number], input[type=date], textarea{
+    font-family:Arial,Helvetica,sans-serif;font-size:13px;padding:8px 12px;border-radius:8px;
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+  }
+  .btn{background:var(--ink);color:#fff;border:none;cursor:pointer;font-weight:600;}
+  .btn:hover{opacity:.88;}
+  .btn.gold{background:var(--gold);color:#1a1a1a;}
+  .btn.outline{background:transparent;color:#fff;border:1px solid #666;}
+  .btn.small-btn{padding:6px 10px;font-size:12px;}
+  nav.tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid var(--line);background:#fff;font-family:Arial,Helvetica,sans-serif;overflow-x:auto;}
+  nav.tabs button{border:none;background:none;padding:16px 14px;font-size:12.5px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;font-weight:600;}
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--rust);}
+  main{max-width:1100px;margin:0 auto;padding:34px 28px 70px;}
+  .badge{display:inline-flex;align-items:center;gap:8px;font-family:Arial,sans-serif;font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--green);}
+  .dot.orange{background:var(--rust);}
+  h1.hero{font-size:34px;line-height:1.15;margin:0 0 10px;}
+  h1.hero .accent{color:var(--rust);font-style:italic;}
+  p.lead{font-family:Arial,Helvetica,sans-serif;color:#3a362e;font-size:15px;max-width:640px;line-height:1.6;}
+  section.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:22px;}
+  section.panel h2{font-family:Georgia,serif;font-size:20px;font-weight:400;margin:0 0 4px;letter-spacing:0;text-transform:none;color:var(--ink);}
+  section.panel h2.small-h2{font-family:Arial,sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:0 0 16px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  @media(max-width:800px){.grid2,.grid3,.grid4{grid-template-columns:1fr;}}
+  table{width:100%;border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;}
+  .balls{display:flex;gap:8px;flex-wrap:wrap;}
+  .balls.mini .ball{width:26px;height:26px;font-size:11px;}
+  .ball{width:38px;height:38px;border-radius:50%;background:linear-gradient(#f3c65c,#c98a1f);color:#5a3b0a;display:flex;align-items:center;justify-content:center;font-family:Arial,sans-serif;font-weight:700;font-size:14px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15);}
+  .ball.plain{background:#3a3a3a;color:#fff;box-shadow:none;}
+  .ball.m{background:var(--rust);color:#fff;}
+  .ball.manual{background:#f6d78a;color:#8a5a12;}
+  #historyTable .ball{cursor:pointer;}
+  .barrow{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-family:Arial,sans-serif;font-size:12px;}
+  .barrow .num{width:26px;text-align:right;color:var(--muted);}
+  .barrow .bar{height:12px;background:var(--gold);border-radius:4px;}
+  .barrow .val{width:30px;color:var(--muted);}
+  .stratcard{border:1px solid var(--line);border-radius:12px;padding:16px;font-family:Arial,sans-serif;cursor:pointer;transition:background .15s,color .15s;}
+  .stratcard:hover{border-color:var(--rust);}
+  .stratcard.selected{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .stratcard.selected p{color:#cfcabb;}
+  .stratcard h3{margin:0 0 8px;font-size:15px;font-family:Georgia,serif;font-weight:400;}
+  .stratcard p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.5;}
+  .tag{display:inline-block;background:var(--cream);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted);margin-right:6px;}
+  .source-badge{display:inline-block;border-radius:14px;padding:2px 10px;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;border:1px solid;}
+  .source-badge.manual{color:#a5501a;border-color:#a5501a;background:#fdf1e8;}
+  .source-badge.import{color:#6b6558;border-color:#c9c2ae;background:#f4f1e9;}
+  .footer-note{font-family:Arial,sans-serif;font-size:11px;color:var(--muted);text-align:center;margin-top:40px;padding-top:18px;border-top:1px solid var(--line);}
+  .dropzone{border:2px dashed var(--line);border-radius:12px;padding:34px;text-align:center;font-family:Arial,sans-serif;color:var(--muted);cursor:pointer;}
+  .dropzone.over{border-color:var(--rust);color:var(--rust);}
+  .row-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .small{font-size:11.5px;color:var(--muted);font-family:Arial,sans-serif;}
+  .pred-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-family:Arial,sans-serif;font-size:13px;}
+  .hit{color:var(--green);font-weight:700;}
+  .miss{color:var(--muted);}
+  textarea{width:100%;min-height:110px;font-family:monospace;font-size:12px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:8px;font-family:Arial,sans-serif;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:99;}
+  .toast.show{opacity:1;}
+  .num5{display:flex;gap:6px;}
+  .num5 input{width:52px;text-align:center;padding:8px 4px;}
+  .filterRow{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;padding:12px;background:var(--cream);border-radius:10px;}
+  .resultPanel{margin-top:18px;}
+  .resultPanel .row-between{align-items:flex-start;}
+  .genList{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+  .genRow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:Arial,sans-serif;}
+  .yr-btn{font-family:Arial,sans-serif;font-size:12px;padding:5px 12px;border-radius:16px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+  .yr-btn.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .cmp-cols{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;}
+  .cmp-cols.fit2{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow-x:hidden;}
+  .cmp-col{min-width:230px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;flex-shrink:0;}
+  .cmp-cols.fit2 .cmp-col{min-width:0;width:100%;}
+  .cmp-hdr{background:var(--ink);color:#fff;text-align:center;padding:8px;font-family:Georgia,serif;font-weight:400;font-size:14px;}
+  .cmp-hdr small{display:block;font-family:Arial,sans-serif;font-size:10px;opacity:.75;font-weight:400;}
+  .cmp-body{max-height:60vh;overflow-y:auto;}
+  .cmp-row{display:grid;grid-template-columns:0.7fr 1fr repeat(5,1fr) 0.9fr;align-items:center;gap:2px;padding:5px 3px;font-family:Arial,sans-serif;font-size:11px;border-bottom:1px solid var(--line);text-align:center;}
+  .cmp-row.odd{background:#faf8f2;}
+  .cmp-tot{border-radius:4px;padding:2px 3px;font-weight:700;}
+  @media(max-width:420px){.cmp-row{font-size:9.5px;}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo"></div>
+  <div>
+    <div class="title">Oracle · <span id="hdrLotoName">Loto</span></div>
+    <div class="sub">Forecast · Statistiques · Backtest</div>
+  </div>
+  <div class="lotoSelectWrap">
+    <span id="hdrTirageCount"></span>
+    <select id="lotoSelect"></select>
+    <button class="btn gold" id="btnAddLoto">+ Loto</button>
+    <button class="btn outline" id="btnExportJuxtapose">⬇ Excel juxtaposé</button>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="forecast" class="active">Forecast</button>
+  <button data-tab="stats">Statistiques</button>
+  <button data-tab="backtest">Backtest</button>
+  <button data-tab="predictions">Prédictions</button>
+  <button data-tab="compare">Comparaison</button>
+  <button data-tab="import">Historique &amp; Import</button>
+</nav>
+
+<main>
+
+  <!-- FORECAST -->
+  <section id="tab-forecast">
+    <div class="badge"><span class="dot"></span><span class="dot orange"></span>&nbsp;<span id="fcMeta">5 numéros · 1 à 90 · 0 tirages en mémoire</span></div>
+    <h1 class="hero">L'Oracle du <span class="accent">Loto</span>.</h1>
+    <p class="lead">Comparez les 8 stratégies, générez plusieurs combinaisons d'un coup, sauvegardez vos prédictions et mesurez leur performance dans le temps.</p>
+
+    <section class="panel">
+      <div class="row-between">
+        <h2 class="small-h2" style="margin:0;">Numéros chauds, en retard &amp; tendances</h2>
+      </div>
+      <div class="grid3">
+        <div>
+          <div class="small" style="margin-bottom:8px;">🔥 Top 5 chauds (historique)</div>
+          <div class="balls" id="hotBalls"></div>
+        </div>
+        <div>
+          <div class="small" style="margin-bottom:8px;">⏳ Top 5 en retard</div>
+          <div class="balls" id="overdueBalls"></div>
+        </div>
+        <div>
+          <div class="small" style="margin-bottom:8px;">📈 Top 5 tendance (20 derniers)</div>
+          <div class="balls" id="trendBalls"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row-between">
+        <h2 style="margin:0;">Comparer les 8 stratégies</h2>
+        <button class="btn" id="btnGenTop">⟳ Générer</button>
+      </div>
+      <p class="small" style="margin-top:6px;">8 approches</p>
+      <div class="grid4" id="strategyGrid" style="margin-top:14px;"></div>
+
+      <div class="resultPanel" id="resultPanel" style="display:none;">
+        <div class="row-between">
+          <div>
+            <div class="small" id="resultLabel">COMBINAISON</div>
+            <h2 style="margin:6px 0;">Somme <span class="accent" id="resultSum" style="color:var(--rust);">—</span></h2>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn outline" style="color:#1a1a1a;border-color:#ccc;" id="btnRegen">↻ Régénérer</button>
+            <button class="btn" id="btnSaveResult">💾 Sauvegarder</button>
+          </div>
+        </div>
+        <div class="balls" id="resultBalls" style="margin:14px 0;"></div>
+        <p class="small" id="resultDesc"></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row-between">
+        <div>
+          <h2 style="margin:0;">Générateur multiple</h2>
+          <p class="small" style="margin-top:4px;" id="multiDesc">Plusieurs combinaisons avec la stratégie sélectionnée</p>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:10px;">
+          <div>
+            <div class="small" style="margin-bottom:4px;">NB COMBINAISONS</div>
+            <select id="multiCount"><option>3</option><option selected>5</option><option>10</option><option>20</option></select>
+          </div>
+          <button class="btn" id="btnMultiGen">⧉ Générer</button>
+        </div>
+      </div>
+      <div class="genList" id="genList"></div>
+    </section>
+  </section>
+
+  <!-- STATS -->
+  <section id="tab-stats" style="display:none;">
+    <section class="panel">
+      <div class="row-between">
+        <h2 style="margin:0;">Fréquence par numéro (1-90)</h2>
+        <span class="small" id="statsMeta"></span>
+      </div>
+      <div id="freqChart" style="margin-top:14px;max-height:420px;overflow-y:auto;"></div>
+    </section>
+    <div class="grid2">
+      <section class="panel">
+        <h2 class="small-h2">Numéros les plus en retard</h2>
+        <table><thead><tr><th>N°</th><th>Dernier vu il y a</th></tr></thead><tbody id="overdueTable"></tbody></table>
+      </section>
+      <section class="panel">
+        <h2 class="small-h2">Paires les plus fréquentes</h2>
+        <table><thead><tr><th>Paire</th><th>Occurrences</th></tr></thead><tbody id="pairsTable"></tbody></table>
+      </section>
+    </div>
+  </section>
+
+  <!-- BACKTEST -->
+  <section id="tab-backtest" style="display:none;">
+    <section class="panel">
+      <h2>Tester une stratégie sur l'historique</h2>
+      <div class="row-between" style="margin-bottom:16px;">
+        <select id="backtestStrategy"></select>
+        <button class="btn" id="btnRunBacktest">Lancer le backtest</button>
+      </div>
+      <div id="backtestResult" class="small"></div>
+    </section>
+  </section>
+
+  <!-- PREDICTIONS -->
+  <section id="tab-predictions" style="display:none;">
+    <section class="panel">
+      <div class="row-between">
+        <h2 style="margin:0;">Prédictions sauvegardées</h2>
+        <span class="small" id="predMeta"></span>
+      </div>
+      <div id="predList" style="margin-top:10px;"></div>
+    </section>
+  </section>
+
+  <!-- COMPARAISON PAR ANNÉES -->
+  <section id="tab-compare" style="display:none;">
+    <section class="panel">
+      <div class="row-between">
+        <h2 style="margin:0;">Comparer les années</h2>
+        <span class="small" id="cmpMeta"></span>
+      </div>
+      <div id="cmpYearPicker" style="margin:14px 0;"></div>
+      <div id="cmpSettings" style="margin-bottom:10px;"></div>
+      <div id="cmpTables"></div>
+    </section>
+  </section>
+
+  <!-- IMPORT -->
+  <section id="tab-import" style="display:none;">
+    <div class="grid2">
+      <section class="panel">
+        <h2 class="small-h2">Ajouter un tirage</h2>
+        <div class="small" style="margin-bottom:6px;">Date</div>
+        <input type="date" id="addDate" style="margin-bottom:12px;">
+        <div class="small" style="margin-bottom:6px;">5 numéros (1-90)</div>
+        <div class="num5" style="margin-bottom:12px;">
+          <input type="number" min="1" max="90" step="1" id="addN1">
+          <input type="number" min="1" max="90" step="1" id="addN2">
+          <input type="number" min="1" max="90" step="1" id="addN3">
+          <input type="number" min="1" max="90" step="1" id="addN4">
+          <input type="number" min="1" max="90" step="1" id="addN5">
+        </div>
+        <button class="btn" id="btnAddTirage">+ Ajouter</button>
+      </section>
+      <section class="panel">
+        <h2 class="small-h2">Importer un fichier (Excel/CSV)</h2>
+        <div class="dropzone" id="dropzone">
+          Glisse un fichier .xlsx/.csv ici, ou clique pour choisir un fichier.
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+        </div>
+        <p class="small" style="margin-top:8px;">Détection auto : colonne date + 5 numéros par ligne (formats N1-N5 ou "tirage" en une cellule).</p>
+        <div class="small" id="importStatus" style="margin-top:6px;"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2 class="small-h2">Ou coller les tirages manuellement</h2>
+      <p class="small">Une ligne par tirage : N° Date N1 N2 N3 N4 N5 (les nombres machine M1-M5 sont optionnels à la suite).</p>
+      <textarea id="pasteArea" placeholder="1 29/9/1962 41 89 80 62 45"></textarea>
+      <div style="margin-top:10px;"><button class="btn" id="btnImportPaste">Importer ce texte</button></div>
+    </section>
+
+    <section class="panel" id="colorPanel">
+      <div class="row-between">
+        <h2 class="small-h2" style="margin:0;">🎨 Coloriage</h2>
+        <div style="display:flex;gap:8px;">
+          <button class="btn outline" style="color:#1a1a1a;border-color:#ccc;" id="btnUndoColor">↩️ Annuler</button>
+          <button class="btn outline" style="color:#a5501a;border-color:#a5501a;" id="btnClearAllColors">🧹 Tout effacer</button>
+        </div>
+      </div>
+      <p class="small" style="margin-top:6px;">Clique un numéro dans le tableau pour le colorier partout où il apparaît (reclique pour l'enlever), ou utilise le coloriage par lot ci-dessous.</p>
+      <div id="batchColorUI" style="margin-top:10px;"></div>
+    </section>
+
+    <section class="panel">
+      <div class="row-between">
+        <h2 style="margin:0;" id="tableTitle">0 TIRAGES</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="btn outline" style="color:#1a1a1a;border-color:#ccc;" id="btnToggleFilters">▽ Filtres</button>
+          <select id="pageSize"><option value="25">25 lignes</option><option value="50" selected>50 lignes</option><option value="100">100 lignes</option><option value="all">Tout</option></select>
+          <button class="btn outline" style="color:#1a1a1a;border-color:#ccc;" id="btnRefreshTable">⟳</button>
+        </div>
+      </div>
+      <div class="filterRow" id="filterRow" style="display:none;">
+        <div><div class="small">Numéro contient</div><input type="number" min="1" max="90" id="filterNum" placeholder="ex: 42"></div>
+        <div><div class="small">Année contient</div><input type="text" id="filterYear" placeholder="ex: 2025"></div>
+        <div style="align-self:flex-end;"><button class="btn outline" style="color:#1a1a1a;border-color:#ccc;" id="btnClearFilters">Réinitialiser</button></div>
+      </div>
+      <table style="margin-top:6px;">
+        <thead><tr><th>Tirage</th><th>Date</th><th>Numéros</th><th>Somme</th><th>Source</th></tr></thead>
+        <tbody id="historyTable"></tbody>
+      </table>
+      <div class="row-between" style="margin-top:16px;">
+        <span class="small" id="historyCount"></span>
+        <button class="btn outline" style="color:#a5501a;border-color:#a5501a;" id="btnClearHistory">Vider l'historique</button>
+      </div>
+    </section>
+  </section>
+
+</main>
+
+<div class="footer-note">Analyses statistiques à titre informatif — les tirages de loterie sont aléatoires, aucune méthode ne garantit de gains.</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════ DONNÉES / CONFIG ═══════════════════════════════ */
+const DEFAULT_LOTOS = [
+  "MATINAL","DIAMANT","CASH","BENZ","MILLION","KADOO","SAM",
+  "GOLD","BOOM","PRESTIGE","SUPER","KING","BINGO","NATIONAL WEEK"
+];
+const STORE_KEY = "oracle_loto_data_v1";
+const PRED_KEY  = "oracle_loto_predictions_v1";
+
+function loadStore(){
+  try{ return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ return {}; }
+}
+function saveStore(store){ localStorage.setItem(STORE_KEY, JSON.stringify(store)); }
+function loadPreds(){
+  try{ return JSON.parse(localStorage.getItem(PRED_KEY)) || {}; }catch(e){ return {}; }
+}
+function savePreds(p){ localStorage.setItem(PRED_KEY, JSON.stringify(p)); }
+
+let store = loadStore();
+let preds = loadPreds();
+let currentLoto = null;
+
+function ensureLotoList(){
+  let list = store.__lotos;
+  if(!list){
+    list = DEFAULT_LOTOS.slice();
+    store.__lotos = list;
+  }
+  DEFAULT_LOTOS.forEach(l=>{ if(!list.includes(l)) list.push(l); });
+  return list;
+}
+
+function tirages(){
+  if(!currentLoto) return [];
+  return store[currentLoto] || [];
+}
+
+/* ═══════════════════════════════ PARSER EXCEL / TEXTE / CSV ═══════════════════════════════ */
+function fmtDate(v){
+  if(v===undefined||v===null||v==="") return "";
+  return String(v).trim();
+}
+
+function parseSheetGeneric(json2d){
+  // json2d = tableau de tableaux (lignes brutes), on cherche les colonnes n1..n5 sur plusieurs offsets d'en-tête
+  for(const headerRow of [0,1,2]){
+    if(headerRow>=json2d.length) continue;
+    const header = json2d[headerRow].map(c=>String(c===undefined?"":c).trim().toLowerCase());
+    const numColIdx = [];
+    for(let i=1;i<=5;i++){
+      const idx = header.indexOf("n"+i);
+      if(idx===-1){ numColIdx.length=0; break; }
+      numColIdx.push(idx);
+    }
+    if(numColIdx.length===5){
+      const dateIdx = header.indexOf("date");
+      const noIdx = ["n°","no","num","tirage"].map(k=>header.indexOf(k)).find(i=>i!==-1);
+      const machineIdx = [];
+      for(let i=1;i<=5;i++){ const idx = header.indexOf("m"+i); if(idx!==-1) machineIdx.push(idx); }
+      for(let i=6;i<=10;i++){ const idx = header.indexOf("n"+i); if(idx!==-1) machineIdx.push(idx); }
+      const out=[];
+      for(let r=headerRow+1;r<json2d.length;r++){
+        const row = json2d[r];
+        if(!row) continue;
+        const p = numColIdx.map(i=>row[i]).filter(v=>v!==undefined&&v!==null&&v!=="").map(v=>parseInt(v));
+        if(p.length===5 && p.every(n=>!isNaN(n))){
+          const m = machineIdx.map(i=>row[i]).filter(v=>v!==undefined&&v!==null&&v!=="").map(v=>parseInt(v)).filter(n=>!isNaN(n)&&n!==0);
+          out.push({
+            num: noIdx!==undefined ? parseInt(row[noIdx])||0 : 0,
+            date: dateIdx!==-1 ? fmtDate(row[dateIdx]) : "",
+            p, m, tot: p.reduce((a,b)=>a+b,0), source:"import"
+          });
+        }
+      }
+      if(out.length) return out;
+    }
+  }
+  // Format "tirage" en une seule cellule (nombres séparés par espace), en-tête sur plusieurs offsets possibles
+  for(const headerRow of [0,1,2]){
+    if(headerRow>=json2d.length) continue;
+    const header0 = json2d[headerRow].map(c=>String(c===undefined?"":c).trim().toLowerCase());
+    const tIdx = header0.indexOf("tirage");
+    if(tIdx===-1) continue;
+    const dateIdx = header0.indexOf("date");
+    const out=[];
+    for(let r=headerRow+1;r<json2d.length;r++){
+      const row = json2d[r]; if(!row) continue;
+      const cell = row[tIdx];
+      if(cell===undefined||cell===null) continue;
+      const nums = String(cell).split(/\s+/).map(s=>parseInt(s)).filter(n=>!isNaN(n));
+      if(nums.length>=5){
+        out.push({num:r, date: dateIdx!==-1?fmtDate(row[dateIdx]):"", p:nums.slice(0,5), m:nums.slice(5), tot:nums.slice(0,5).reduce((a,b)=>a+b,0), source:"import"});
+      }
+    }
+    if(out.length) return out;
+  }
+  return [];
+}
+
+function csvToAOA(text){
+  const sep = text.includes(";") && !text.includes(",") ? ";" : ",";
+  return text.split(/\r?\n/).filter(l=>l.length).map(l=>l.split(sep).map(c=>c.trim()));
+}
+
+function importWorkbook(wb, lotoName){
+  let all = [];
+  wb.SheetNames.forEach(name=>{
+    const ws = wb.Sheets[name];
+    const json2d = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
+    const rows = parseSheetGeneric(json2d);
+    all = all.concat(rows);
+  });
+  if(!all.length) return 0;
+  // le plus récent en premier : si numéros décroissants on garde, sinon on inverse
+  if(all.length>1 && (all[0].num||0) < (all[all.length-1].num||0)) all.reverse();
+  store[lotoName] = all;
+  saveStore(store);
+  return all.length;
+}
+
+function importPastedText(text, lotoName){
+  const lines = text.split("\n").map(l=>l.trim()).filter(Boolean);
+  const out=[];
+  lines.forEach(line=>{
+    const parts = line.split(/\s+/);
+    const dateIdx = parts.findIndex(p=>p.includes("/"));
+    const numeric = parts.map(p=>parseFloat(p)).map((v,i)=> parts[i].includes("/")?NaN:v);
+    const validNums = numeric.filter(n=>!isNaN(n));
+    if(validNums.length>=5){
+      const noVal = parts[0] && !parts[0].includes("/") ? parseInt(parts[0]) : 0;
+      const afterDate = dateIdx!==-1 ? numeric.slice(dateIdx+1).filter(n=>!isNaN(n)) : numeric.slice(1);
+      const five = afterDate.slice(0,5).map(n=>parseInt(n));
+      const rest = afterDate.slice(5).map(n=>parseInt(n)).filter(n=>n!==0);
+      if(five.length===5){
+        out.push({num:noVal||out.length+1, date:dateIdx!==-1?parts[dateIdx]:"", p:five, m:rest, tot:five.reduce((a,b)=>a+b,0), source:"manual"});
+      }
+    }
+  });
+  if(out.length){
+    store[lotoName] = out.concat(store[lotoName]||[]);
+    saveStore(store);
+  }
+  return out.length;
+}
+
+/* ═══════════════════════════════ STATISTIQUES ═══════════════════════════════ */
+function computeFrequency(data, maxN=90){
+  const freq = new Array(maxN+1).fill(0);
+  data.forEach(t=>t.p.forEach(n=>{ if(n>=1&&n<=maxN) freq[n]++; }));
+  return freq;
+}
+function computeOverdue(data, maxN=90){
+  const overdue = new Array(maxN+1).fill(data.length);
+  for(let i=0;i<data.length;i++){
+    data[i].p.forEach(n=>{ if(n>=1&&n<=maxN && overdue[n]===data.length) overdue[n]=i; });
+  }
+  return overdue;
+}
+function computePairs(data, topN=10){
+  const counts = {};
+  data.forEach(t=>{
+    const nums = t.p.slice().sort((a,b)=>a-b);
+    for(let i=0;i<nums.length;i++){
+      for(let j=i+1;j<nums.length;j++){
+        const key = nums[i]+"-"+nums[j];
+        counts[key] = (counts[key]||0)+1;
+      }
+    }
+  });
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,topN);
+}
+function topNumbersByFreq(data, n=5, maxN=90){
+  if(!data.length) return [];
+  const freq = computeFrequency(data, maxN);
+  return freq.map((v,i)=>[i,v]).filter(([i])=>i>0).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+}
+function topNumbersByOverdue(data, n=5, maxN=90){
+  if(!data.length) return [];
+  const overdue = computeOverdue(data, maxN);
+  return overdue.map((v,i)=>[i,v]).filter(([i])=>i>0).sort((a,b)=>b[1]-a[1]).slice(0,n).map(x=>x[0]);
+}
+function bottomNumbersByFreq(data, n=5, maxN=90){
+  if(!data.length) return [];
+  const freq = computeFrequency(data, maxN);
+  return freq.map((v,i)=>[i,v]).filter(([i])=>i>0).sort((a,b)=>a[1]-b[1]).slice(0,n).map(x=>x[0]);
+}
+function weightedRandomDraw(data, n=5, maxN=90){
+  if(!data.length) return [];
+  const freq = computeFrequency(data, maxN);
+  const weights = freq.map(v=>v+1);
+  const chosen = new Set();
+  let guard = 0;
+  while(chosen.size<n && guard<20000){
+    guard++;
+    let total = 0;
+    for(let i=1;i<=maxN;i++){ if(!chosen.has(i)) total += weights[i]; }
+    if(total<=0) break;
+    let r = Math.random()*total;
+    for(let i=1;i<=maxN;i++){
+      if(chosen.has(i)) continue;
+      r -= weights[i];
+      if(r<=0){ chosen.add(i); break; }
+    }
+  }
+  return [...chosen];
+}
+
+/* ═══════════════════════════════ 8 STRATÉGIES ═══════════════════════════════ */
+const STRATEGIES = [
+  { id:"chauds_hist", name:"Chauds (Historique)", desc:"5 plus fréquents (toute l'historique)",
+    run(data){ return topNumbersByFreq(data,5); } },
+  { id:"chauds50", name:"Chauds récents (50)", desc:"5 plus fréquents sur les 50 derniers tirages",
+    run(data){ return topNumbersByFreq(data.slice(0,50),5); } },
+  { id:"chauds20", name:"Chauds récents (20)", desc:"5 plus fréquents sur les 20 derniers tirages",
+    run(data){ return topNumbersByFreq(data.slice(0,20),5); } },
+  { id:"froids_hist", name:"Froids (Historique)", desc:"5 moins fréquents (retour attendu)",
+    run(data){ return bottomNumbersByFreq(data,5); } },
+  { id:"retards", name:"Retards maximums", desc:"5 numéros non-sortis depuis le plus longtemps",
+    run(data){ return topNumbersByOverdue(data,5); } },
+  { id:"pondere_alea", name:"Pondéré aléatoire", desc:"5 tirés au sort pondérés par leur fréquence",
+    run(data){ return weightedRandomDraw(data,5); } },
+  { id:"paires", name:"Paires fréquentes", desc:"5 numéros issus des paires les plus fréquentes",
+    run(data){
+      if(!data.length) return [];
+      const hot = topNumbersByFreq(data,1)[0];
+      if(!hot) return [];
+      const pairs = computePairs(data, 300);
+      const partners = [];
+      pairs.forEach(([key])=>{
+        const [a,b] = key.split("-").map(Number);
+        if(a===hot && !partners.includes(b)) partners.push(b);
+        if(b===hot && !partners.includes(a)) partners.push(a);
+      });
+      return [hot, ...partners.slice(0,4)];
+    } },
+  { id:"equilibree", name:"Combinaison équilibrée", desc:"Mélange chauds + froids + retards",
+    run(data){
+      if(!data.length) return [];
+      const hot = topNumbersByFreq(data,3);
+      const overdue = topNumbersByOverdue(data,90).filter(n=>!hot.includes(n));
+      const combo = [...hot.slice(0,2)];
+      overdue.slice(0,3).forEach(n=>{ if(combo.length<4 && !combo.includes(n)) combo.push(n); });
+      const cold = bottomNumbersByFreq(data,90).filter(n=>!combo.includes(n));
+      if(cold.length) combo.push(cold[0]);
+      let pool = [...hot, ...overdue].filter(n=>!combo.includes(n));
+      while(combo.length<5 && pool.length) combo.push(pool.shift());
+      return combo.slice(0,5);
+    } },
+];
+
+/* ═══════════════════════════════ BACKTEST ═══════════════════════════════ */
+function runBacktest(strategyId, data){
+  const strat = STRATEGIES.find(s=>s.id===strategyId);
+  if(!strat || data.length<40) return {error:"Pas assez de tirages pour un backtest fiable (40 minimum)."};
+  const MIN_HISTORY = 30;
+  let totalMatches=0, tests=0;
+  const distribution=[0,0,0,0,0,0];
+  // data[0] = plus récent. On teste du plus ancien testable vers le plus récent.
+  for(let i = data.length - MIN_HISTORY - 1; i>=0; i--){
+    const past = data.slice(i+1); // tirages antérieurs au tirage i (strictement)
+    if(past.length < MIN_HISTORY) continue;
+    const predicted = strat.run(past);
+    if(!predicted.length) continue;
+    const actual = data[i].p;
+    const matches = predicted.filter(n=>actual.includes(n)).length;
+    distribution[matches]++;
+    totalMatches += matches;
+    tests++;
+  }
+  if(!tests) return {error:"Pas assez de tirages pour un backtest fiable."};
+  return {
+    tests, avgMatches: (totalMatches/tests).toFixed(2), distribution,
+    hitRate2: ((distribution[2]+distribution[3]+distribution[4]+distribution[5])/tests*100).toFixed(1)
+  };
+}
+
+/* ═══════════════════════════════ EXPORT EXCEL JUXTAPOSÉ ═══════════════════════════════ */
+function yearOf(dateStr){
+  if(!dateStr) return "";
+  const m = String(dateStr).match(/(\d{4})/);
+  return m ? m[1] : String(dateStr).slice(0,4);
+}
+
+function buildJuxtaposeAOA(data, lotoName, blockSize=400){
+  const chrono = data.slice().reverse(); // du plus ancien au plus récent
+  const blocks = [];
+  for(let i=0;i<chrono.length;i+=blockSize) blocks.push(chrono.slice(i,i+blockSize));
+  const headerCols = ["Tirage","Date","N1","N2","N3","N4","N5","TOT1","M1","M2","M3","M4","M5","TOT_MACHINE"];
+  const gap = 1;
+  const blockWidth = headerCols.length + gap;
+  const maxRows = blocks.length ? Math.max(...blocks.map(b=>b.length)) : 0;
+  const aoa = [];
+  for(let r=0;r<maxRows+2;r++) aoa.push([]);
+  const merges = [];
+  blocks.forEach((block, bi)=>{
+    const off = bi*blockWidth;
+    const first = block[0], last = block[block.length-1];
+    const title = `${lotoName} ${yearOf(first&&first.date)}-${yearOf(last&&last.date)} (${block.length} tirages)`;
+    aoa[0][off] = title;
+    headerCols.forEach((h,ci)=>{ aoa[1][off+ci] = h; });
+    block.forEach((t,ri)=>{
+      const row = 2+ri;
+      aoa[row][off+0] = t.num || "";
+      aoa[row][off+1] = t.date || "";
+      for(let k=0;k<5;k++) aoa[row][off+2+k] = t.p[k] !== undefined ? t.p[k] : "";
+      aoa[row][off+7] = t.tot!==undefined ? t.tot : "";
+      for(let k=0;k<5;k++) aoa[row][off+8+k] = (t.m && t.m[k]!==undefined) ? t.m[k] : "";
+      aoa[row][off+13] = (t.m && t.m.length) ? t.m.reduce((a,b)=>a+b,0) : "";
+    });
+    merges.push({s:{r:0,c:off}, e:{r:0,c:off+headerCols.length-1}});
+  });
+  return {aoa, merges};
+}
+
+function exportExcelJuxtapose(){
+  const data = tirages();
+  if(!data.length){ showToast("Aucun tirage à exporter pour ce loto."); return; }
+  try{
+    const {aoa, merges} = buildJuxtaposeAOA(data, currentLoto);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = merges;
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, (currentLoto||"Loto").slice(0,28));
+    XLSX.writeFile(wb, `${currentLoto}_juxtapose.xlsx`);
+  }catch(err){
+    showToast("Erreur export : "+err.message);
+  }
+}
+
+/* ═══════════════════════════════ COLORIAGE ═══════════════════════════════ */
+const COLOR_KEY = "oracle_loto_colors_v1";
+const BATCH_COLOR_KEY = "oracle_batch_default_color_v1";
+function loadColors(){ try{ return JSON.parse(localStorage.getItem(COLOR_KEY)) || {}; }catch(e){ return {}; } }
+function saveColorsStore(){ localStorage.setItem(COLOR_KEY, JSON.stringify(colorsStore)); }
+let colorsStore = loadColors(); // { [lotoName]: { colored:{}, coloredCells:{}, colorIdx:0, undoStack:[] } }
+
+function colorState(){
+  if(!colorsStore[currentLoto]) colorsStore[currentLoto] = { colored:{}, coloredCells:{}, colorIdx:0, undoStack:[] };
+  const cs = colorsStore[currentLoto];
+  if(!cs.colored) cs.colored = {};
+  if(!cs.coloredCells) cs.coloredCells = {};
+  if(!cs.undoStack) cs.undoStack = [];
+  return cs;
+}
+function saveColorState(){ saveColorsStore(); }
+
+const CC = [['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#fff'],['#22C55E','#fff'],
+            ['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff'],['#6366F1','#fff'],['#F59E0B','#000']];
+const SWATCHES = ['#EF4444','#3B82F6','#EAB308','#8B5CF6','#22C55E','#EC4899','#14B8A6','#F97316'];
+
+function lumFg(hex){
+  const h = (hex||'#000000').replace('#','');
+  const full = h.length===3 ? h.split('').map(c=>c+c).join('') : h;
+  const r = parseInt(full.slice(0,2),16), g = parseInt(full.slice(2,4),16), b = parseInt(full.slice(4,6),16);
+  const lum = (0.299*r + 0.587*g + 0.114*b);
+  return lum > 150 ? '#000' : '#fff';
+}
+function nextPaletteColor(){
+  const cs = colorState();
+  const [bg,fg] = CC[cs.colorIdx % CC.length];
+  cs.colorIdx++;
+  return {bg, fg};
+}
+
+function tirageKey(t){ return (t.date||'') + '#' + (t.p||[]).join(','); }
+function cellId(t, idx){ return tirageKey(t) + '_' + idx; }
+
+function pushColorUndo(){
+  const cs = colorState();
+  cs.undoStack.push(JSON.stringify({colored:cs.colored, coloredCells:cs.coloredCells, colorIdx:cs.colorIdx}));
+  if(cs.undoStack.length>20) cs.undoStack.shift();
+}
+function undoColorAction(){
+  const cs = colorState();
+  const snap = cs.undoStack.pop();
+  if(!snap){ showToast("Rien à annuler."); renderColorPanel(); return; }
+  try{
+    const d = JSON.parse(snap);
+    cs.colored = d.colored || {};
+    cs.coloredCells = d.coloredCells || {};
+    cs.colorIdx = d.colorIdx || 0;
+  }catch(e){}
+  saveColorState();
+  renderHistoryTable();
+  renderColorPanel();
+}
+function clearAllColors(){
+  if(!confirm(`Tout effacer les couleurs de ${currentLoto} ?\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.`)) return;
+  pushColorUndo();
+  const cs = colorState();
+  cs.colored = {}; cs.coloredCells = {}; cs.colorIdx = 0;
+  saveColorState();
+  renderHistoryTable();
+  renderColorPanel();
+}
+function toggleNumberColor(n){
+  pushColorUndo();
+  const cs = colorState();
+  if(cs.colored[n]) delete cs.colored[n];
+  else cs.colored[n] = batchColor.fixed ? {bg:batchColor.fixed, fg:lumFg(batchColor.fixed)} : nextPaletteColor();
+  saveColorState();
+  renderHistoryTable();
+  renderColorPanel();
+}
+
+// Panneau "Coloriage par lot" : dernier(s) tirage(s) / tirage N° / intervalle, position N1-N5 ou Tous,
+// portée "Partout" (valeur peu importe la position) ou "Position identique uniquement",
+// et choix de couleur (Automatique = palette qui tourne, ou fixe avec mémorisation par défaut).
+let batchColor = {
+  mode:'last', n:3, tirageNo:'', step:2, range:20, pos:'all', scope:'global',
+  fixed: localStorage.getItem(BATCH_COLOR_KEY) || ''
+};
+function setBatchFixedColor(hex){
+  batchColor.fixed = hex || '';
+  localStorage.setItem(BATCH_COLOR_KEY, batchColor.fixed);
+  renderColorPanel();
+}
+function getBatchColor(){
+  return batchColor.fixed ? {bg:batchColor.fixed, fg:lumFg(batchColor.fixed)} : nextPaletteColor();
+}
+function numsForBatchPosition(row, pos){
+  if(pos==='all') return row.p.slice();
+  const i = parseInt(pos.slice(1))-1;
+  return (row.p[i]!=null) ? [row.p[i]] : [];
+}
+function colorBatch(){
+  const data = tirages(); // index 0 = tirage le plus récent
+  let rows = [];
+  if(batchColor.mode==='last'){
+    const n = Math.max(1, parseInt(batchColor.n)||1);
+    rows = data.slice(0, Math.min(n, data.length));
+  }else if(batchColor.mode==='tirage'){
+    const tn = parseInt(batchColor.tirageNo);
+    const found = data.find(t=>t.num===tn);
+    if(isNaN(tn) || !found){ showToast("N° de tirage introuvable pour ce loto."); return; }
+    rows = [found];
+  }else if(batchColor.mode==='interval'){
+    const step = Math.max(1, parseInt(batchColor.step)||1);
+    const range = Math.max(step, parseInt(batchColor.range)||step);
+    const windowRows = data.slice(0, Math.min(range, data.length));
+    rows = windowRows.filter((_,i)=>i%step===0);
+  }
+  if(!rows.length){ showToast("Aucun tirage trouvé pour ces réglages."); return; }
+  pushColorUndo();
+  const cs = colorState();
+  if(batchColor.scope==='position'){
+    // "Position identique" : colore uniquement les cases qui ont LA MÊME valeur À LA MÊME position (N1..N5).
+    const posList = batchColor.pos==='all' ? [0,1,2,3,4] : [parseInt(batchColor.pos.slice(1))-1];
+    rows.forEach(srcRow=>{
+      const c = getBatchColor();
+      posList.forEach(idx=>{
+        const val = srcRow.p[idx];
+        if(val==null) return;
+        data.forEach(r=>{
+          if(r.p[idx]===val) cs.coloredCells[cellId(r, idx)] = c;
+        });
+      });
+    });
+  }else{
+    // "Partout" : colore la valeur, peu importe sa position.
+    rows.forEach(row=>{
+      const c = getBatchColor();
+      numsForBatchPosition(row, batchColor.pos).forEach(v=>{ cs.colored[v] = c; });
+    });
+  }
+  saveColorState();
+  renderHistoryTable();
+  renderColorPanel();
+}
+function batchColorHTML(){
+  const cs = colorState();
+  const mode = batchColor.mode;
+  const posOptions = [['all','Tous'],['n1','N1'],['n2','N2'],['n3','N3'],['n4','N4'],['n5','N5']];
+  return `<div style="background:var(--cream);border-radius:8px;padding:10px 12px;">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+      <button class="btn ${mode==='last'?'':'outline'}" style="${mode==='last'?'':'color:#1a1a1a;border-color:#ccc;'}font-size:11px;padding:5px 10px;" onclick="batchColor.mode='last';renderColorPanel();">Dernier(s) tirage(s)</button>
+      <button class="btn ${mode==='tirage'?'':'outline'}" style="${mode==='tirage'?'':'color:#1a1a1a;border-color:#ccc;'}font-size:11px;padding:5px 10px;" onclick="batchColor.mode='tirage';renderColorPanel();">Tirage N°</button>
+      <button class="btn ${mode==='interval'?'':'outline'}" style="${mode==='interval'?'':'color:#1a1a1a;border-color:#ccc;'}font-size:11px;padding:5px 10px;" onclick="batchColor.mode='interval';renderColorPanel();">Intervalle</button>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+      ${mode==='last'?`<span class="small">Colorier les</span><input type="number" min="1" value="${batchColor.n}" style="width:56px;" oninput="batchColor.n=this.value;"><span class="small">dernier(s) tirage(s)</span>`:''}
+      ${mode==='tirage'?`<span class="small">Tirage N°</span><input type="number" min="1" value="${batchColor.tirageNo}" placeholder="ex: 620" style="width:80px;" oninput="batchColor.tirageNo=this.value;">`:''}
+      ${mode==='interval'?`<span class="small">1 tirage sur</span><input type="number" min="1" value="${batchColor.step}" style="width:48px;" oninput="batchColor.step=this.value;"><span class="small">parmi les</span><input type="number" min="1" value="${batchColor.range}" style="width:60px;" oninput="batchColor.range=this.value;"><span class="small">derniers tirages</span>`:''}
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+      <span class="small" style="font-weight:600;">Numéro à colorier :</span>
+      ${posOptions.map(([k,lbl])=>`<button class="btn ${batchColor.pos===k?'':'outline'}" style="${batchColor.pos===k?'':'color:#1a1a1a;border-color:#ccc;'}font-size:10.5px;padding:3px 9px;border-radius:14px;" onclick="batchColor.pos='${k}';renderColorPanel();">${lbl}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+      <span class="small" style="font-weight:600;">Où chercher cette valeur :</span>
+      <button class="btn ${batchColor.scope==='global'?'':'outline'}" style="${batchColor.scope==='global'?'':'color:#1a1a1a;border-color:#ccc;'}font-size:10.5px;padding:3px 9px;border-radius:14px;" title="Colore ce numéro partout où il apparaît, quelle que soit sa position" onclick="batchColor.scope='global';renderColorPanel();">Partout</button>
+      <button class="btn ${batchColor.scope==='position'?'':'outline'}" style="${batchColor.scope==='position'?'':'color:#1a1a1a;border-color:#ccc;'}font-size:10.5px;padding:3px 9px;border-radius:14px;" title="Colore uniquement quand la même position a exactement la même valeur, dans les autres tirages" onclick="batchColor.scope='position';renderColorPanel();">Position identique uniquement</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <span class="small" style="font-weight:600;">Couleur :</span>
+      <button class="btn ${!batchColor.fixed?'':'outline'}" style="${!batchColor.fixed?'':'color:#1a1a1a;border-color:#ccc;'}font-size:10.5px;padding:3px 9px;border-radius:14px;" onclick="setBatchFixedColor('');">🔄 Automatique</button>
+      ${SWATCHES.map(c=>`<span onclick="setBatchFixedColor('${c}')" style="display:inline-block;width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${batchColor.fixed===c?'2.5px solid #1a1a1a':'1.5px solid #ccc'};"></span>`).join('')}
+      <label style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;position:relative;overflow:hidden;">
+        <span style="font-size:10px;">🎨</span>
+        <input type="color" value="${batchColor.fixed||'#a5501a'}" oninput="setBatchFixedColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+      </label>
+      ${batchColor.fixed?`<span class="small">défaut : <b>${batchColor.fixed}</b></span>`:''}
+    </div>
+    <button class="btn gold" style="font-size:12px;" onclick="colorBatch();">🎨 Colorier</button>
+    <span class="small" style="margin-left:10px;">${cs.undoStack.length?cs.undoStack.length+' annulation(s) possible(s)':''}</span>
+  </div>`;
+}
+function renderColorPanel(){
+  const el = document.getElementById("batchColorUI");
+  if(el) el.innerHTML = batchColorHTML();
+  const undoBtn = document.getElementById("btnUndoColor");
+  if(undoBtn){
+    const n = colorState().undoStack.length;
+    undoBtn.textContent = n ? `↩️ Annuler (${n})` : '↩️ Annuler';
+    undoBtn.disabled = !n;
+    undoBtn.style.opacity = n ? 1 : .5;
+  }
+}
+
+/* ═══════════════════════════════ RENDU UI ═══════════════════════════════ */
+let selectedStrategyId = STRATEGIES[0].id;
+let lastCombo = [];
+
+function ball(n, cls, colorObj){
+  const style = colorObj ? ` style="background:${colorObj.bg};color:${colorObj.fg};box-shadow:none;"` : '';
+  return `<div class="ball ${cls||''}" data-numball="${n}"${style}>${n}</div>`;
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+function renderLotoSelect(){
+  const sel = document.getElementById("lotoSelect");
+  const list = ensureLotoList();
+  sel.innerHTML = list.map(l=>`<option value="${l}">${l}</option>`).join("");
+  if(!currentLoto) currentLoto = list[0];
+  sel.value = currentLoto;
+}
+
+function renderHeader(){
+  document.getElementById("hdrLotoName").textContent = currentLoto;
+  document.getElementById("fcMeta").textContent = `5 numéros · 1 à 90 · ${tirages().length} tirages en mémoire`;
+  document.getElementById("hdrTirageCount").textContent = `${tirages().length} tirages`;
+}
+
+function renderStrategyGrid(){
+  const grid = document.getElementById("strategyGrid");
+  grid.innerHTML = STRATEGIES.map(s=>`
+    <div class="stratcard ${s.id===selectedStrategyId?'selected':''}" data-card="${s.id}">
+      <h3>${s.name}</h3>
+      <p>${s.desc}</p>
+    </div>
+  `).join("");
+  grid.querySelectorAll("[data-card]").forEach(card=>{
+    card.addEventListener("click", ()=>{
+      selectedStrategyId = card.getAttribute("data-card");
+      renderStrategyGrid();
+      generateResult();
+    });
+  });
+}
+
+function generateResult(){
+  const strat = STRATEGIES.find(s=>s.id===selectedStrategyId);
+  const combo = strat.run(tirages());
+  lastCombo = combo;
+  const panel = document.getElementById("resultPanel");
+  if(!combo.length){
+    panel.style.display = "block";
+    document.getElementById("resultLabel").textContent = `COMBINAISON · ${strat.name.toUpperCase()}`;
+    document.getElementById("resultSum").textContent = "—";
+    document.getElementById("resultBalls").innerHTML = "<span class='small'>Pas assez de données pour ce loto.</span>";
+    document.getElementById("resultDesc").textContent = strat.desc;
+    return;
+  }
+  panel.style.display = "block";
+  document.getElementById("resultLabel").textContent = `COMBINAISON · ${strat.name.toUpperCase()}`;
+  document.getElementById("resultSum").textContent = combo.reduce((a,b)=>a+b,0);
+  document.getElementById("resultBalls").innerHTML = combo.map(n=>ball(n)).join("");
+  document.getElementById("resultDesc").textContent = strat.desc;
+}
+
+function renderForecast(){
+  const data = tirages();
+  document.getElementById("hotBalls").innerHTML = topNumbersByFreq(data,5).map(n=>ball(n,"plain")).join("") || "<span class='small'>—</span>";
+  document.getElementById("overdueBalls").innerHTML = topNumbersByOverdue(data,5).map(n=>ball(n,"plain")).join("") || "<span class='small'>—</span>";
+  document.getElementById("trendBalls").innerHTML = topNumbersByFreq(data.slice(0,20),5).map(n=>ball(n,"plain")).join("") || "<span class='small'>—</span>";
+  renderStrategyGrid();
+  generateResult();
+}
+
+function renderStats(){
+  const data = tirages();
+  const freq = computeFrequency(data,90);
+  const maxFreq = Math.max(1,...freq);
+  const chart = document.getElementById("freqChart");
+  let html="";
+  for(let n=1;n<=90;n++){
+    const w = Math.round(freq[n]/maxFreq*100);
+    html += `<div class="barrow"><span class="num">${n}</span><div class="bar" style="width:${w}%;"></div><span class="val">${freq[n]}</span></div>`;
+  }
+  chart.innerHTML = html;
+  document.getElementById("statsMeta").textContent = `${data.length} tirages analysés`;
+
+  const overdue = computeOverdue(data,90);
+  const overdueRows = overdue.map((v,i)=>[i,v]).filter(([i])=>i>0).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  document.getElementById("overdueTable").innerHTML = overdueRows.map(([n,v])=>`<tr><td>${n}</td><td>${v} tirages</td></tr>`).join("");
+
+  const pairs = computePairs(data,15);
+  document.getElementById("pairsTable").innerHTML = pairs.map(([k,v])=>`<tr><td>${k.replace('-',' · ')}</td><td>${v}</td></tr>`).join("");
+}
+
+function renderBacktestSelect(){
+  const sel = document.getElementById("backtestStrategy");
+  sel.innerHTML = STRATEGIES.map(s=>`<option value="${s.id}">${s.name}</option>`).join("");
+}
+
+function renderPredictions(){
+  const list = preds[currentLoto] || [];
+  document.getElementById("predMeta").textContent = `${list.length} prédiction(s)`;
+  const data = tirages();
+  const container = document.getElementById("predList");
+  if(!list.length){ container.innerHTML = "<p class='small'>Aucune prédiction sauvegardée pour ce loto.</p>"; return; }
+  container.innerHTML = list.slice().reverse().map((p)=>{
+    let hitInfo = "<span class='small'>en attente du prochain tirage</span>";
+    const match = data.find(t=>t.date===p.date);
+    if(match){
+      const hits = p.numbers.filter(n=>match.p.includes(n)).length;
+      hitInfo = `<span class="${hits>=2?'hit':'miss'}">${hits}/5 numéros trouvés</span>`;
+    }
+    return `<div class="pred-item">
+      <div><b>${p.strategy}</b> — ${p.numbers.join(", ")} <span class="small">(${p.date})</span></div>
+      <div>${hitInfo}</div>
+    </div>`;
+  }).join("");
+}
+
+let filters = {num:"", year:""};
+let pageSize = 50;
+
+function filteredTirages(){
+  return tirages().filter(t=>{
+    if(filters.num && !t.p.includes(parseInt(filters.num))) return false;
+    if(filters.year && yearOf(t.date) !== String(filters.year).trim()) return false;
+    return true;
+  });
+}
+
+function renderHistoryTable(){
+  const all = tirages();
+  const filtered = filteredTirages();
+  const shown = pageSize==="all" ? filtered : filtered.slice(0, pageSize);
+  document.getElementById("tableTitle").textContent = `${all.length} TIRAGES`;
+  document.getElementById("historyCount").textContent = `${all.length} tirages en mémoire · ${filtered.length} après filtre · ${shown.length} affiché(s) pour ${currentLoto}.`;
+  const cs = colorState();
+  document.getElementById("historyTable").innerHTML = shown.map(t=>{
+    const src = t.source || "import";
+    const ballsHtml = t.p.map((n,ni)=>{
+      const colorObj = cs.coloredCells[cellId(t,ni)] || cs.colored[n] || null;
+      return ball(n, src==='manual'?'manual':'plain', colorObj);
+    }).join("");
+    return `<tr>
+      <td>${t.num || "—"}</td>
+      <td>${t.date || ""}</td>
+      <td><div class="balls mini">${ballsHtml}</div></td>
+      <td>${t.tot!==undefined?t.tot:""}</td>
+      <td><span class="source-badge ${src}">${src==='manual'?'MANUAL':'IMPORT'}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function renderImportTab(){
+  renderHistoryTable();
+  renderColorPanel();
+}
+
+/* ═══════════════════════════════ COMPARAISON PAR ANNÉES ═══════════════════════════════ */
+function totColor(tot){
+  if(tot==null) return ['#f4f1e9','#6b6558'];
+  if(tot<150) return ['#dcfce7','#166534'];
+  if(tot<250) return ['#fef9c3','#854d0e'];
+  if(tot<300) return ['#ffedd5','#9a3412'];
+  return ['#fecaca','#991b1b'];
+}
+let cmpYears = {}; // { [lotoName]: Set<string année> }
+let cmpInit = {}; // { [lotoName]: true si la sélection par défaut a déjà été posée (une fois que des données existent) }
+let cmpFont = localStorage.getItem('oracle_cmpFont') || 'Georgia';
+let cmpFontSize = parseFloat(localStorage.getItem('oracle_cmpFontSize')) || 13;
+let cmpRowPad = parseFloat(localStorage.getItem('oracle_cmpRowPad')) || 5;
+function renderCmpSettings(){
+  const el = document.getElementById("cmpSettings");
+  if(!el) return;
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;background:var(--cream);border-radius:8px;font-family:Arial,sans-serif;font-size:11px;">
+    <label style="display:flex;align-items:center;gap:4px">🔤<select onchange="cmpFont=this.value;localStorage.setItem('oracle_cmpFont',this.value);renderCompareTab();" style="font-size:11px;padding:2px 4px;">
+      ${['Georgia','Poppins','Arial','Open Sans','monospace'].map(f=>`<option value="${f}" ${cmpFont===f?'selected':''}>${f}</option>`).join('')}
+    </select></label>
+    <label style="display:flex;align-items:center;gap:4px">Taille<input type="number" min="8" max="20" step="0.5" value="${cmpFontSize}" onchange="cmpFontSize=parseFloat(this.value)||13;localStorage.setItem('oracle_cmpFontSize',cmpFontSize);renderCompareTab();" style="width:48px;font-size:11px;padding:2px 4px;"></label>
+    <label style="display:flex;align-items:center;gap:4px">Espacement<input type="number" min="0" max="16" step="1" value="${cmpRowPad}" onchange="cmpRowPad=parseFloat(this.value)||0;localStorage.setItem('oracle_cmpRowPad',cmpRowPad);renderCompareTab();" style="width:44px;font-size:11px;padding:2px 4px;"></label>
+  </div>`;
+}
+function availableYears(){
+  const set = new Set();
+  tirages().forEach(t=>{ const y=yearOf(t.date); if(y) set.add(y); });
+  return [...set].sort((a,b)=>b-a);
+}
+function toggleCmpYear(y){
+  const sel = cmpYears[currentLoto];
+  if(sel.has(y)) sel.delete(y); else sel.add(y);
+  renderCompareTab();
+}
+function renderCmpYearPicker(){
+  const years = availableYears();
+  if(!cmpYears[currentLoto]) cmpYears[currentLoto] = new Set();
+  if(!cmpInit[currentLoto] && years.length){
+    cmpYears[currentLoto] = new Set(years.slice(0,2));
+    cmpInit[currentLoto] = true;
+  }
+  const sel = cmpYears[currentLoto];
+  const el = document.getElementById("cmpYearPicker");
+  if(!el) return;
+  if(!years.length){ el.innerHTML = "<p class='small'>Pas de données pour ce loto.</p>"; return; }
+  el.innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+    ${years.map(y=>`<button class="yr-btn ${sel.has(y)?'on':''}" onclick="toggleCmpYear('${y}')">${y}</button>`).join('')}
+  </div>`;
+}
+function renderCmpTables(){
+  const el = document.getElementById("cmpTables");
+  const meta = document.getElementById("cmpMeta");
+  if(!el) return;
+  const sel = [...(cmpYears[currentLoto]||[])].sort((a,b)=>b-a);
+  if(!sel.length){ el.innerHTML = "<p class='small'>Sélectionne au moins une année ci-dessus.</p>"; if(meta) meta.textContent=""; return; }
+  if(meta) meta.textContent = `${sel.length} année(s) sélectionnée(s)`;
+  const byYear = {}; sel.forEach(y=>byYear[y]=[]);
+  tirages().forEach(t=>{ const y=yearOf(t.date); if(byYear[y]) byYear[y].push(t); });
+  const cls = sel.length===2 ? "cmp-cols fit2" : "cmp-cols";
+  let html = `<div class="${cls}" style="font-family:'${cmpFont}',sans-serif">`;
+  sel.forEach(y=>{
+    const rows = byYear[y];
+    html += `<div class="cmp-col">
+      <div class="cmp-hdr" style="font-size:${cmpFontSize+2}px">${currentLoto} ${y}<small>${rows.length} tirages</small></div>
+      <div class="cmp-hdr" style="background:#efe9da;color:var(--muted);grid-template-columns:0.7fr 1fr repeat(5,1fr) 0.9fr;font-size:9px;padding:4px 3px;font-family:Arial,sans-serif;font-weight:700;display:grid;">
+        <div>N°</div><div>Date</div><div>N1</div><div>N2</div><div>N3</div><div>N4</div><div>N5</div><div>TOT</div>
+      </div>
+      <div class="cmp-body">
+        ${rows.length?rows.map((t,i)=>{
+          const [bg,fg] = totColor(t.tot);
+          return `<div class="cmp-row ${i%2?'odd':''}" style="font-size:${cmpFontSize}px;padding-top:${cmpRowPad}px;padding-bottom:${cmpRowPad}px">
+            <div>${t.num||'—'}</div><div>${t.date||''}</div>
+            ${t.p.map(n=>`<div>${n}</div>`).join('')}
+            <div class="cmp-tot" style="background:${bg};color:${fg}">${t.tot!==undefined?t.tot:''}</div>
+          </div>`;
+        }).join(''):'<div class="small" style="padding:14px;text-align:center;">Aucun tirage</div>'}
+      </div>
+    </div>`;
+  });
+  html += `</div>`;
+  el.innerHTML = html;
+}
+function renderCompareTab(){
+  renderCmpYearPicker();
+  renderCmpSettings();
+  renderCmpTables();
+}
+
+function renderAll(){
+  renderHeader();
+  renderForecast();
+  renderStats();
+  renderBacktestSelect();
+  renderPredictions();
+  renderCompareTab();
+  renderImportTab();
+}
+
+/* ═══════════════════════════════ EVENEMENTS ═══════════════════════════════ */
+document.getElementById("tabs").addEventListener("click", e=>{
+  const btn = e.target.closest("button[data-tab]");
+  if(!btn) return;
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  ["forecast","stats","backtest","predictions","compare","import"].forEach(t=>{
+    document.getElementById("tab-"+t).style.display = (t===btn.dataset.tab) ? "block" : "none";
+  });
+});
+
+document.getElementById("lotoSelect").addEventListener("change", e=>{
+  currentLoto = e.target.value;
+  renderAll();
+});
+
+document.getElementById("btnAddLoto").addEventListener("click", ()=>{
+  const name = prompt("Nom du nouveau loto :");
+  if(name && name.trim()){
+    const nom = name.trim().toUpperCase();
+    const list = ensureLotoList();
+    if(!list.includes(nom)) list.push(nom);
+    store.__lotos = list;
+    saveStore(store);
+    currentLoto = nom;
+    renderLotoSelect();
+    renderAll();
+  }
+});
+
+document.getElementById("btnExportJuxtapose").addEventListener("click", exportExcelJuxtapose);
+
+document.getElementById("btnGenTop").addEventListener("click", generateResult);
+document.getElementById("btnRegen").addEventListener("click", generateResult);
+document.getElementById("btnSaveResult").addEventListener("click", ()=>{
+  if(!lastCombo.length){ showToast("Génère d'abord une combinaison."); return; }
+  const strat = STRATEGIES.find(s=>s.id===selectedStrategyId);
+  preds[currentLoto] = preds[currentLoto] || [];
+  preds[currentLoto].push({ date:new Date().toISOString().slice(0,10), strategy:strat.name, numbers:lastCombo.slice(), checked:false, hits:null });
+  savePreds(preds);
+  showToast("Prédiction sauvegardée !");
+  renderPredictions();
+});
+
+document.getElementById("btnMultiGen").addEventListener("click", ()=>{
+  const n = parseInt(document.getElementById("multiCount").value);
+  const strat = STRATEGIES.find(s=>s.id===selectedStrategyId);
+  const list = document.getElementById("genList");
+  const rows = [];
+  for(let i=0;i<n;i++){
+    const combo = strat.run(tirages());
+    rows.push(combo);
+  }
+  list.innerHTML = rows.map((combo,i)=>`
+    <div class="genRow">
+      <div class="balls mini">${combo.map(x=>ball(x)).join("") || "<span class='small'>—</span>"}</div>
+      <div class="small">Somme ${combo.reduce((a,b)=>a+b,0)}</div>
+      <button class="btn small-btn" data-multisave="${i}">💾 Sauvegarder</button>
+    </div>
+  `).join("");
+  list.querySelectorAll("[data-multisave]").forEach((btn,i)=>{
+    btn.addEventListener("click", ()=>{
+      preds[currentLoto] = preds[currentLoto] || [];
+      preds[currentLoto].push({ date:new Date().toISOString().slice(0,10), strategy:strat.name, numbers:rows[i].slice(), checked:false, hits:null });
+      savePreds(preds);
+      showToast("Prédiction sauvegardée !");
+      renderPredictions();
+    });
+  });
+});
+
+document.getElementById("btnRunBacktest").addEventListener("click", ()=>{
+  const id = document.getElementById("backtestStrategy").value;
+  const res = runBacktest(id, tirages());
+  const box = document.getElementById("backtestResult");
+  if(res.error){ box.innerHTML = `<p>${res.error}</p>`; return; }
+  box.innerHTML = `
+    <p><b>${res.tests}</b> simulations sur l'historique disponible.</p>
+    <p>Moyenne de numéros trouvés par tirage : <b>${res.avgMatches} / 5</b></p>
+    <p>Taux de tirages avec 2 numéros ou plus trouvés : <b>${res.hitRate2}%</b></p>
+    <table style="margin-top:12px;"><thead><tr><th>Numéros trouvés</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr></thead>
+    <tbody><tr><td>Occurrences</td>${res.distribution.map(d=>`<td>${d}</td>`).join("")}</tr></tbody></table>
+  `;
+});
+
+document.getElementById("historyTable").addEventListener("click", e=>{
+  const el = e.target.closest("[data-numball]");
+  if(!el) return;
+  toggleNumberColor(parseInt(el.getAttribute("data-numball")));
+});
+document.getElementById("btnUndoColor").addEventListener("click", undoColorAction);
+document.getElementById("btnClearAllColors").addEventListener("click", clearAllColors);
+
+document.getElementById("btnClearHistory").addEventListener("click", ()=>{
+  if(confirm(`Vider tout l'historique de ${currentLoto} ? Cette action est irréversible.`)){
+    delete store[currentLoto];
+    saveStore(store);
+    renderAll();
+  }
+});
+
+document.getElementById("btnImportPaste").addEventListener("click", ()=>{
+  const text = document.getElementById("pasteArea").value;
+  const n = importPastedText(text, currentLoto);
+  document.getElementById("importStatus").textContent = n ? `${n} tirage(s) importé(s).` : "Aucune ligne valide détectée.";
+  renderAll();
+});
+
+// N'accepte que des nombres ENTIERS de 1 à 90 (rejette vide, décimales, négatifs, zéro, texte).
+function parseLotoNum(raw){
+  const s = (raw||"").trim();
+  if(!/^\d{1,2}$/.test(s)) return NaN;
+  const n = parseInt(s, 10);
+  return (n>=1 && n<=90) ? n : NaN;
+}
+document.getElementById("btnAddTirage").addEventListener("click", ()=>{
+  const dateVal = document.getElementById("addDate").value;
+  const ids = ["addN1","addN2","addN3","addN4","addN5"];
+  const nums = ids.map(id=>parseLotoNum(document.getElementById(id).value));
+  if(!dateVal || nums.some(n=>isNaN(n))){
+    showToast("Renseigne une date et 5 numéros ENTIERS entre 1 et 90 (pas de décimales, ni négatif, ni zéro).");
+    return;
+  }
+  if(new Set(nums).size !== 5){
+    showToast("Les 5 numéros doivent être différents.");
+    return;
+  }
+  const tirage = { num:null, date:dateVal, p:nums, m:[], tot:nums.reduce((a,b)=>a+b,0), source:"manual" };
+  store[currentLoto] = [tirage, ...(store[currentLoto]||[])];
+  saveStore(store);
+  ids.forEach(id=>document.getElementById(id).value="");
+  showToast("Tirage ajouté !");
+  renderAll();
+});
+
+document.getElementById("btnToggleFilters").addEventListener("click", ()=>{
+  const row = document.getElementById("filterRow");
+  row.style.display = row.style.display==="none" ? "flex" : "none";
+});
+document.getElementById("filterNum").addEventListener("input", e=>{ filters.num = e.target.value; renderHistoryTable(); });
+document.getElementById("filterYear").addEventListener("input", e=>{ filters.year = e.target.value; renderHistoryTable(); });
+document.getElementById("btnClearFilters").addEventListener("click", ()=>{
+  filters = {num:"",year:""};
+  document.getElementById("filterNum").value="";
+  document.getElementById("filterYear").value="";
+  renderHistoryTable();
+});
+document.getElementById("pageSize").addEventListener("change", e=>{
+  pageSize = e.target.value==="all" ? "all" : parseInt(e.target.value);
+  renderHistoryTable();
+});
+document.getElementById("btnRefreshTable").addEventListener("click", renderHistoryTable);
+
+function handleFile(file){
+  const status = document.getElementById("importStatus");
+  status.textContent = "Lecture en cours...";
+  if(file.name.toLowerCase().endsWith(".csv")){
+    const reader = new FileReader();
+    reader.onload = e=>{
+      try{
+        const aoa = csvToAOA(e.target.result);
+        const rows = parseSheetGeneric(aoa);
+        if(rows.length){
+          if(rows.length>1 && (rows[0].num||0) < (rows[rows.length-1].num||0)) rows.reverse();
+          store[currentLoto] = rows;
+          saveStore(store);
+          status.textContent = `${rows.length} tirage(s) importé(s) pour ${currentLoto}.`;
+        } else {
+          status.textContent = "Format non reconnu dans ce fichier CSV.";
+        }
+        renderAll();
+      }catch(err){ status.textContent = "Erreur de lecture : "+err.message; }
+    };
+    reader.readAsText(file);
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const wb = XLSX.read(e.target.result, {type:"binary"});
+      const n = importWorkbook(wb, currentLoto);
+      status.textContent = n ? `${n} tirage(s) importé(s) pour ${currentLoto}.` : "Format non reconnu dans ce fichier.";
+      renderAll();
+    }catch(err){
+      status.textContent = "Erreur de lecture : "+err.message;
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+const dz = document.getElementById("dropzone");
+dz.addEventListener("click", ()=>document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", e=>{
+  if(e.target.files[0]) handleFile(e.target.files[0]);
+});
+dz.addEventListener("dragover", e=>{ e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", ()=> dz.classList.remove("over"));
+dz.addEventListener("drop", e=>{
+  e.preventDefault(); dz.classList.remove("over");
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+/* ═══════════════════════════════ INIT ═══════════════════════════════ */
+(function initDate(){
+  const el = document.getElementById("addDate");
+  if(el) el.value = new Date().toISOString().slice(0,10);
+})();
+renderLotoSelect();
+renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+DOSSIER À DÉPLOYER — LOTO MULTI JEUX
+====================================
+
+Contenu (les deux fichiers sont indispensables) :
+
+  index.html      le code de l'application        0,6 Mo
+  loto-data.js    tous les tirages                1,9 Mo
+
+COMMENT DÉPLOYER
+  Glisse CE DOSSIER ENTIER sur Netlify — pas un fichier isolé.
+  Les deux doivent rester côte à côte.
+  Si tu ne déploies que le HTML, l'application démarre sans aucune donnée.
+
+POUR TESTER EN LOCAL
+  Double-clique sur index.html. Ça fonctionne aussi hors ligne, car les
+  données sont chargées par une balise <script>, pas par fetch().
+
+POUR AJOUTER DES RÉSULTATS
+  C'est loto-data.js qu'il faut modifier, plus le HTML.
+  Chaque jeu y est stocké sous la forme :
+
+      window.LOTO_DATA.RAW_SUPER = `
+      158|30/07|2026|11|18|8|21|85|143
+      157|23/07|2026|3|27|53|45|83|211
+      ...
+      `;
+
+  Format d'une ligne :
+      n° | jj/mm | aaaa | N1 | N2 | N3 | N4 | N5 | total [| M1..M5] [| X1 | X2]
+  Le plus récent est en haut. Les crochets signalent les parties facultatives :
+  les 5 numéros machine (ou ZONE B, ou 5 derniers), puis les 2 XTRAS du Cameroun.
+
+  Le fichier index.html ne contient plus qu'une référence par jeu :
+      const RAW_SUPER = window.LOTO_DATA.RAW_SUPER;
+  Il n'y a donc rien à y changer quand tu ajoutes un tirage.
+
+RENOMMAGE
+  Le HTML a été renommé index.html : Netlify sert automatiquement ce nom-là
+  à la racine du site, tu n'as plus besoin de taper le nom du fichier dans l'URL.

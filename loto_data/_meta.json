@@ -1,0 +1,233 @@
+[
+ {
+  "name": "DIAMANT",
+  "icon": "💎",
+  "day": "Lundi 13h",
+  "hasM": false,
+  "count": 1324
+ },
+ {
+  "name": "GOLD",
+  "icon": "🏆",
+  "day": "Lundi 18h",
+  "hasM": false,
+  "count": 157
+ },
+ {
+  "name": "CASH",
+  "icon": "💵",
+  "day": "Mardi 13h",
+  "hasM": false,
+  "count": 158
+ },
+ {
+  "name": "BOOM",
+  "icon": "💥",
+  "day": "Mardi 18h",
+  "hasM": false,
+  "count": 158
+ },
+ {
+  "name": "BENZ",
+  "icon": "🎯",
+  "day": "Mercredi 13h",
+  "hasM": false,
+  "count": 1851
+ },
+ {
+  "name": "PRESTIGE",
+  "icon": "🎖️",
+  "day": "Mercredi 18h",
+  "hasM": false,
+  "count": 158
+ },
+ {
+  "name": "MILLION",
+  "icon": "💵",
+  "day": "Jeudi 13h",
+  "hasM": false,
+  "count": 155
+ },
+ {
+  "name": "SUPER",
+  "icon": "⚡",
+  "day": "Jeudi 18h",
+  "hasM": false,
+  "count": 155
+ },
+ {
+  "name": "KADOO",
+  "icon": "🎁",
+  "day": "Vendredi 13h",
+  "hasM": false,
+  "count": 916
+ },
+ {
+  "name": "KING",
+  "icon": "👑",
+  "day": "Vendredi 18h",
+  "hasM": false,
+  "count": 158
+ },
+ {
+  "name": "SAM",
+  "icon": "🎲",
+  "day": "Samedi 13h",
+  "hasM": false,
+  "count": 471
+ },
+ {
+  "name": "BINGO",
+  "icon": "🎱",
+  "day": "Samedi 18h",
+  "hasM": false,
+  "count": 158
+ },
+ {
+  "name": "MATINAL",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 620
+ },
+ {
+  "name": "MATINAL LUNDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 104
+ },
+ {
+  "name": "MATINAL MARDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 103
+ },
+ {
+  "name": "MATINAL MERCREDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 104
+ },
+ {
+  "name": "MATINAL JEUDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 102
+ },
+ {
+  "name": "MATINAL VENDREDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 104
+ },
+ {
+  "name": "MATINAL SAMEDI",
+  "icon": "🌅",
+  "day": null,
+  "hasM": true,
+  "count": 103
+ },
+ {
+  "name": "MID-WEEK",
+  "icon": "📆",
+  "day": null,
+  "hasM": true,
+  "count": 334
+ },
+ {
+  "name": "SUNDAY ASEDA",
+  "icon": "🙏",
+  "day": null,
+  "hasM": true,
+  "count": 127
+ },
+ {
+  "name": "PRECISE",
+  "icon": "🎯",
+  "day": null,
+  "hasM": true,
+  "count": 338
+ },
+ {
+  "name": "ALPHA LOTTO",
+  "icon": "🅰️",
+  "day": null,
+  "hasM": true,
+  "count": 1197
+ },
+ {
+  "name": "TOUT BENIN",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 587
+ },
+ {
+  "name": "BENIN LUNDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 80
+ },
+ {
+  "name": "BENIN MARDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 83
+ },
+ {
+  "name": "BENIN MERCREDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 87
+ },
+ {
+  "name": "BENIN JEUDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 84
+ },
+ {
+  "name": "BENIN VENDREDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 85
+ },
+ {
+  "name": "BENIN SAMEDI",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 85
+ },
+ {
+  "name": "BENIN DIMANCHE",
+  "icon": "🇧🇯",
+  "day": null,
+  "hasM": true,
+  "count": 83
+ },
+ {
+  "name": "CAGLIARI",
+  "icon": "🇮🇹",
+  "day": null,
+  "hasM": false,
+  "count": 313
+ },
+ {
+  "name": "MALTA",
+  "icon": "🇲🇹",
+  "day": null,
+  "hasM": false,
+  "count": 105
+ }
+]

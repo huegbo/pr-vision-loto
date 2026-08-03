@@ -1,0 +1,1432 @@
+ORGANISATION DU DOSSIER "SAUVEGARDE MULTIJEUX 1ER"
+(mis à jour le 16/07/2026, 23h)
+
+=== APPS (fichiers .html) ===
+
+1. LOTO MULTI JEUX 4 clean 64.html / téléchargement.html (téléchargement.html
+   n'a PAS été mis à jour, seul le fichier "LOTO MULTI JEUX 4 clean 64.html"
+   a reçu la modif ci-dessous)
+   → Version 64, déployée en ligne sur Netlify le 16/07.
+     À considérer comme la version de référence actuelle de l'app principale.
+
+   26/07 : PRONOSTIC — deux vrais défauts corrigés (signalés à l'usage).
+   1. NUMÉROS SUPPRIMÉS EN SILENCE. Le champ « Nombre de numéros » vaut 2 par
+      défaut. En touchant 6 numéros, l'app en effaçait 4 sans rien dire
+      (state.pronosticNums.shift()) et n'en gardait que les 2 derniers.
+      À l'écran on voyait ses 6 numéros, l'affiche en sortait d'autres — d'où
+      l'impression que l'export « inventait » des numéros.
+      Désormais : toucher un numéro au-delà du format AUGMENTE le format
+      automatiquement (plafonné à 90). Aucun numéro n'est perdu, et un message
+      vert « ↑ format porté à N — aucun numéro perdu » l'indique.
+   2. ORDRE IMPOSÉ. L'affiche ET le texte partagé triaient toujours les numéros
+      par ordre croissant, alors que la sélection à l'écran gardait l'ordre de
+      saisie. Nouveau réglage « Ordre à l'export : Comme saisi / Croissant »,
+      sous la grille des numéros. Par défaut : COMME SAISI.
+   Vérifié : 6 numéros touchés (38-5-72-19-66-41) avec le format à 2 → les 6
+   sont conservés, dans cet ordre exact, sur l'affiche et dans le texte partagé.
+
+   26/07 : COMPARER PLUSIEURS LOTOS — accessibilité corrigée.
+   - L'onglet nommé COMPARAISON compare des PLAGES d'un même loto ; comparer des
+     lotos entre eux se faisait uniquement dans NAVIGATION, ce qui était
+     introuvable. Le bouton « 🎮 Comparer plusieurs lotos » est maintenant
+     présent dans les trois onglets (Navigation, Comparaison, Analyses), et
+     l'onglet Comparaison affiche un bandeau expliquant la différence.
+   - La liste de sélection (106 jeux) a reçu un champ de filtre instantané,
+     un compteur, un bouton « Vider la sélection » et un rappel des jeux cochés.
+     Sans ça, 106 pastilles d'affilée étaient inutilisables.
+
+   26/07 (soir) : NIGERIA étendu à 17 jeux — Baba Ijebu (Premier Lotto), 5/90.
+   - Source : babaijeburesults.ng, export CSV officiel du site.
+     Le format de l'URL est : /archive/export?month=AAAA-MM (un mois = les 24 jeux),
+     ou ?game=N&month=AAAA-MM pour un seul jeu. 9 mois d'archive disponibles
+     (déc. 2025 → août 2026). Ici : juin et juillet 2026 seulement.
+   - 16 NOUVEAUX jeux : 06, Bingo, Club Master, Diamond, Fairchance, Gold,
+     International, Jackpot, King, Mark II, Metro, Peoples, Royal, Super, Tota, Vag.
+     15-16 tirages chacun (8 pour King, qui ne sort que le samedi), avec numéros
+     machine. Total app : 106 lotos.
+   - ENUGU CORRIGÉ : le fichier Excel d'origine avait les numéros TRIÉS par ordre
+     croissant, ce qui détruisait l'information de position. Exemple du 22/07 :
+     la source donne 02-34-83-44-60 (ordre du tirage), le fichier avait
+     2-34-44-60-83. 15 tirages ont été remis dans le bon ordre.
+     ATTENTION : seuls les tirages de juin-juillet 2026 ont pu être corrigés.
+     Le reste de l'historique Enugu (2021 → mai 2026) est TOUJOURS TRIÉ, donc
+     les recherches PAR POSITION (N1..N5, diagonales, séquence avec position)
+     ne sont pas fiables sur cette période. Les fréquences et les sommes, elles,
+     restent justes. À corriger en récupérant les mois manquants à la source.
+   - 7 jeux VOLONTAIREMENT EXCLUS car ils rediffusent des tirages ghanéens déjà
+     présents dans l'app (vérifié sur deux sites indépendants, numéros machine
+     compris) : National = National Weekly, Bonanza = Friday Bonanza,
+     Fortune = Fortune Thursday, Midweek = Mid Week, MSP = Monday Special,
+     Aseda = Sunday Aseda, et Lucky = cas MIXTE (ses mardis 19h15 sont ceux du
+     Lucky Tuesday ghanéen, ses autres créneaux sont bien nigérians).
+   - Fichier Excel associé : « Nigeria 5-90 Baba Ijebu (juin-juillet 2026).xlsx »
+     — les 17 jeux juxtaposés sur UNE feuille (un bloc de 13 colonnes par jeu,
+     une couleur par jeu), plus une feuille filtrable de 263 tirages et un README
+     détaillant les exclusions. TOT et TOT.M sont des formules =SUM.
+
+   26/07 : NIGERIA ajouté — 🇳🇬 NG ENUGU (Enugu Lotto / Baba Ijebu Premier Lotto).
+   - Source : enugu_lotto_archives_v3.xlsx. 503 tirages, 03/01/2021 → 22/07/2026,
+     tirages les mercredis et dimanches. 332 tirages ont les numéros machine.
+   - Données contrôlées avant intégration : aucune anomalie, les 503 sommes
+     correspondent au calcul, aucune date en doublon.
+   - LACUNE DE SOURCE connue et assumée : 11/03/2024 → 22/10/2024 (~7 mois).
+     Les tirages ont bien eu lieu (données avant et après), mais aucune archive
+     publique n'a été trouvée. La numérotation reste continue (1 → 503), donc
+     l'app n'affiche pas de « trous » : c'est un manque de dates, pas de N°.
+   - Total : 90 lotos dans le sélecteur.
+
+   26/07 : mise à jour globale des données + gestion des trous de numérotation.
+   - MATINAL Togo : tirages 640 à 645 ajoutés (20 → 25/07), avec numéros machine.
+     Les 6 blocs par jour (Lundi → Samedi) sont aussi à jour.
+   - BÉNIN : 18 tirages qui manquaient, dont 5 trous anciens non signalés :
+     23/07 Digital 20H et Fortune 11H, 19/07 Digital 00H, 18/07 Digital 20H et
+     Star 18H. RAW_BENIN_ALL a été retrié chronologiquement.
+     TOUT BENIN va jusqu'au N°10074 (26/07) ; 2 trous ont été insérés au milieu
+     avec renumérotation des 17 lignes suivantes.
+     NOTE : le dimanche 26/07 n'a que 3 tirages publiés (Digital 00H, Star 11H,
+     Star 14H) — les autres n'étaient pas encore sortis.
+   - GHANA : Friday Bonanza du 24/07 (absent), VAG Saturday et Saturday Noon
+     Rush du 25/07, + numéros machine ajoutés au Noon Rush et VAG du 24/07.
+     Les 35 blocs RAW_GH_* ont été régénérés depuis RAW_GHANA_ALL (source
+     unique) — à refaire systématiquement après toute modif du bloc Ghana.
+   - NATIONAL (National Weekly ghanéen) : 18/07 et 25/07 ajoutés.
+   - NOUVEAU « ➕ Insérer (renumérote) » dans la barre « Agir sur un tirage » :
+     insère un tirage juste après un N° donné et décale automatiquement de +1
+     tous les suivants. Corrige un vrai défaut : l'ancien « Insérer » proposait
+     N°+1 et ÉCRASAIT donc le tirage existant à ce numéro.
+     Les repères liés au N° (coloriages de cellules, lignes repère, lignes
+     colorées en bloc, pronostics) sont décalés en même temps.
+     Comme les données de base sont figées dans le fichier, la renumérotation
+     réécrit l'ensemble du jeu dans le stockage local (qui a priorité).
+   - NOUVEAU LIGNES-TROUS À COMPLÉTER : si un N° manque dans la suite (ex : le
+     20 absent entre 19 et 21), une ligne rose en pointillés apparaît à sa place
+     avec les champs vides (date, N1-N5, machine) et un ✔ pour enregistrer.
+     Ces lignes ne sont pas des données : elles n'entrent dans aucune
+     statistique tant qu'elles ne sont pas validées. L'en-tête de chaque colonne
+     affiche un badge rouge « N trous ». Garde-fou : désactivé si l'écart entre
+     le plus petit et le plus grand N° dépasse 3000 (numérotation non séquentielle).
+   Vérifié : syntaxe JS, chargement réel de chaque jeu touché, dernières dates
+   et sommes contrôlées (MATINAL 645 = 181, TOUT BENIN 10074, NATIONAL 3327,
+   GH VAG Saturday 120), détection des trous (MATINAL 2 en 2026, TOUT BENIN 2 en
+   2025, DIAMANT 0) et saisie complète d'une ligne-trou jusqu'à l'enregistrement.
+
+   24/07 : refonte de la navigation (inspirée d'Oculus et de Cybercast).
+   - Données à jour : Ghana (24 tirages du 17 au 24/07) et Italie
+     (tirages 114 à 117, 17→23/07, sur les 10 roues).
+   - Icônes ✏️/🗑️/➕ RETIRÉES de chaque ligne de tirage, ainsi que la colonne
+     de 84px qui les portait. Une colonne-année passe de 308px à 224px, donc
+     beaucoup plus d'années visibles à la fois.
+   - Nouvelle barre "Agir sur un tirage" (sous "Ajouter un tirage") : on choisit
+     le Loto + le N° de tirage une seule fois, puis Modifier / Supprimer /
+     Colorer / Colorer la ligne / Chercher / Épingler.
+   - Case "↔️ côte à côte" : cochée = années juxtaposées (comme avant) ;
+     décochée = vue normale, une année sous l'autre en pleine largeur.
+     Choix mémorisé (localStorage).
+   - Case "▦ compact" : tableau dense façon Cybercast (colonnes étroites,
+     chiffres sans badges, fond gris alterné par colonne). Mémorisé aussi.
+   - Bouton "⇥ Plage" : plage Début → Fin, au choix par ANNÉE (2023→2026) ou
+     par N° DE TIRAGE (131→159), avec compteur "Résultat (N)". Le mode est
+     explicite car un nombre à 4 chiffres peut être les deux (ex : tirage 1142).
+     On peut aussi écrire directement les années : "2026,2024" ou "2020-2023".
+     Les boutons d'années habituels sont conservés tels quels.
+   - La longue bande horizontale des lotos est remplacée par un bouton
+     "Sélectionner un loto" qui ouvre une fenêtre de pastilles avec recherche
+     instantanée — pensé pour dépasser largement 78 lotos sans gêne.
+   - Nouveau module 🪜 "Séquence libre" dans les Modules de recherche : motif
+     VERTICAL sur plusieurs tirages. On donne un point de départ (des numéros),
+     puis pour chaque niveau un DÉCALAGE en nombre de tirages et des numéros.
+     Ex : [12,13] · +3 → [34] · +5 → [3] · +9 → [6] · +1 → [12,13].
+     Sens réglable ↓ vers le bas / ↑ vers le haut. 2 à 10 niveaux, bornes
+     d'années facultatives, bouton "Exemple" pré-rempli.
+     ATTENTION à ne pas le confondre avec le module 🧬 "Séquence de numéros
+     (niveaux chaînés + décalage)" qui existait déjà : celui-là exige une
+     POSITION FIXE (N1, N2…), le nouveau accepte le numéro à n'importe quelle
+     position. Les deux coexistent (états séparés : seqLevels vs vseqLevels).
+   - 55 NOUVEAUX LOTOS ajoutés (34 → 89 dans le sélecteur) :
+     · GHANA 🇬🇭 — 35 jeux (G1→G35) tirés de RAW_GHANA_ALL, 2020→2026.
+       Fortune Thursday 119, Sunday Aseda 119, Mid Week 118, VAG (tous les
+       jours), 5-39 Direct (tous les jours), Noon Rush (tous les jours),
+       Daywa, Super 6, Golden Souvenir, Obiri, Old Soldier, Pioneer, Sports,
+       Vag East/West… Les numéros machine sont conservés quand ils existent.
+       Le Ghana était déjà dans l'app mais SEULEMENT en vue filtrée : il est
+       maintenant utilisable comme n'importe quel loto (années côte à côte,
+       séquence libre, coloriage, export…). La vue filtrée reste en place.
+     · ITALIE 🇮🇹 — 10 roues (Bari, Firenze, Genova, Milano, Napoli, Palermo,
+       Roma, Torino, Venezia, Nazionale), 2025→2026, ~325 tirages chacune
+       (309 pour Bari, dont l'historique 2025 est plus court à la source).
+       NOTE : le n° d'extraction italien repart à 1 chaque année, donc le N°
+       affiché est composite = AA + n° (ex : 26117 = extraction 117 de 2026,
+       25207 = extraction 207 de 2025). À changer si tu préfères autre chose.
+     · CAMEROUN 🇨🇲 — Premier Bet Loto 5/90, 10 tirages (Moungo, Wouri,
+       Mfoundi, Logone, Mont Cameroun, Noun, Sanaga, Lions, Mboa, Continent),
+       14-15 tirages chacun, 01→23/07/2026, source
+       Resultats_Loteries_Togo_Benin_Cameroun_28.xlsx.
+       Ils ont 4 numéros bonus (BONUS 1, BONUS 2, N6, N7) : parseLines() a été
+       étendu pour gérer les bonus à 3 ET à 4 numéros (il ne gérait que 2 ou 5).
+   Vérifié : syntaxe JS, rendu jsdom, alignement en-tête/lignes (8 colonnes),
+   filtre de la fenêtre, plage année et plage tirage, saisie libre des années,
+   et pour la Séquence libre : une séquence connue construite depuis les vraies
+   données (N°145 → +2 N°147 → +4 N°151) est bien retrouvée, décalage
+   impossible géré, bascule du sens OK, module 🧬 existant intact.
+
+   17/07 : MATINAL décomposé par jour (Lundi → Samedi).
+   - RAW_MATINAL (620 tirages) reste intact, inchangé.
+   - 6 nouveaux blocs ajoutés : RAW_MATINAL_LUNDI/MARDI/MERCREDI/JEUDI/
+     VENDREDI/SAMEDI, calculés à partir de la date exacte de chaque tirage
+     (aucun tirage MATINAL n'a lieu le dimanche — confirmé, 0 tirage dimanche).
+   - 6 nouvelles entrées dans GAMES : MATINAL LUNDI, MATINAL MARDI, MATINAL
+     MERCREDI, MATINAL JEUDI, MATINAL VENDREDI, MATINAL SAMEDI — elles
+     apparaissent automatiquement partout (menu du haut, comparateur,
+     multi-jeux, etc.) puisque tout se construit depuis l'objet GAMES.
+   ✅ Vérifié : 104+103+104+102+104+103 = 620 tirages, aucun doublon de N°
+   entre les jours, RAW_MATINAL d'origine inchangé, syntaxe JS du fichier
+   validée (node --check).
+
+   17/07 (2) : bouton "↩️ Annuler" pour le coloriage.
+   - Avant, il n'y avait aucun moyen d'annuler une action de coloriage
+     (ex: "Colorier les 3 derniers tirages") sans tout effacer.
+   - Ajout d'un historique d'annulation (jusqu'à 20 actions) qui couvre
+     TOUTES les actions de coloriage (colorier un numéro, une case, une
+     ligne entière, un repère, un bloc de couleur, les 3 derniers tirages...).
+   - Bouton disponible à deux endroits : dans le menu ⊞ (à côté de
+     "Colorier les 3 derniers tirages"), et à côté du bouton "Tout effacer"
+     dans le panneau de coloriage. Il indique combien d'annulations sont
+     possibles, ex: "↩️ Annuler (2)".
+   - Bonus : le bouton "Tout effacer" ne sauvegardait pas son effacement
+     (donc un refresh de page faisait parfois réapparaître les couleurs) —
+     corrigé au passage.
+   ✅ Testé (Node) : enchaînement de plusieurs actions puis annulations
+   successives, l'état (couleurs + compteur de palette) revient bien pas
+   à pas à l'état précédent, sans erreur si on annule plus que ce qu'il y a
+   dans l'historique.
+
+   17/07 (3) : deux corrections suite à tes remarques.
+   - Palette de couleurs réordonnée pour que "Colorier les 3 derniers
+     tirages" (et le coloriage en général) donne des couleurs vraiment
+     distinctes à l'oeil, au lieu d'avoir parfois 2-3 teintes proches
+     (ex: orange/jaune/ambre) qui se ressemblaient trop.
+   - Tirage n°632 (10/07/2026, Vendredi) corrigé : il ne contenait que 3
+     chiffres machine au lieu de 5 (39-49-37) dans RAW_MATINAL et dans
+     MATINAL_VENDREDI. Les 2 chiffres manquants (18 et 51) ont été
+     retrouvés dans le fichier source excel de meta et ajoutés — le
+     tirage a maintenant bien ses 10 chiffres partout.
+   - Nouveau fichier Excel : "excel de meta/MATINAL_par_jour_LUNDI_a_SAMEDI.xlsx"
+     (onglet complet + 6 onglets Lundi→Samedi, mêmes données que dans l'app).
+
+   17/07 (4) : bouton "🧹 Tout annuler" (menu ⊞) + validation stricte à la saisie.
+   - Nouveau bouton qui efface d'un coup couleurs/cases/repères/blocs pour le
+     jeu affiché (avec confirmation), lui-même annulable via ↩️ juste après.
+   - Formulaire "Ajouter un tirage" (LOTO MULTI JEUX + Oracle du Loto) : les
+     champs numéros n'acceptent plus que des ENTIERS de 1 à 90 — refusés :
+     décimales (7.5), négatifs, zéro, texte, et tout au-dessus de 90.
+     Testé (Node) sur une série de cas limites, tout est bien filtré.
+
+   17/07 (5) : "Coloriage par lot" (menu ⊞ → 🎨🔢) + correction affichage "mode Excel".
+   - Nouveau panneau dans l'onglet Analyses, sous "Coloriage manuel" : permet de
+     colorier plusieurs tirages d'un coup, avec :
+     · Mode : "Dernier(s) tirage(s)" (N paramétrable), "Tirage N°" (un tirage
+       précis par son numéro), ou "Intervalle" (1 tirage sur K parmi les R
+       derniers, ex: 1 sur 2 parmi les 20 derniers).
+     · Numéro à colorier : Tous, ou une position précise (N1..N5, M1..M5).
+     · Où chercher cette valeur : "Partout" (colore la valeur peu importe sa
+       position, comme avant) ou "Position identique uniquement" (colore
+       seulement quand LA MÊME position a EXACTEMENT la même valeur dans les
+       autres tirages — ex: colorier tous les "1" en position N1 uniquement,
+       sans toucher aux "1" ailleurs).
+     · Couleur : "🔄 Automatique" (une couleur différente par tirage/lot, comme
+       avant) ou une couleur fixe choisie dans une palette de nuanciers ou via
+       le sélecteur libre 🎨 — la couleur choisie devient la couleur par défaut
+       (mémorisée), réutilisée au prochain lot tant qu'on ne repasse pas en
+       Automatique.
+   - Les boutons rapides existants ("Colorier le dernier tirage", "Colorier les
+     3 derniers tirages") restent inchangés et utilisent toujours la palette
+     automatique.
+   - Toute action de ce panneau reste annulable avec ↩️ Annuler.
+   ✅ Testé (Node) : couleur fixe appliquée correctement en mode "Partout" et en
+   mode "Position identique", palette automatique intacte quand aucune couleur
+   fixe n'est choisie, sauvegarde/rechargement de la couleur par défaut, retour
+   au mode automatique.
+
+   - Corrigé au passage : dans "📊 Excel" (vue tableau façon Excel, dispo pour
+     comparer années ou jeux), certaines lignes/blocs pouvaient sembler
+     "décalés" ou mal alignés une fois qu'on scrollait — colonnes qui ne
+     tombaient plus sous le bon en-tête. Cause : le nombre de colonnes déclaré
+     pour chaque bloc (case titre + lignes vides de remplissage) était erroné
+     de 1 dans les 3 vues concernées (multi-jeux, multi-années, Analyses),
+     ce qui décalait tout le reste du tableau dès qu'un jeu/année avait moins
+     de tirages que les autres. Corrigé aux 3 endroits.
+   ✅ Vérifié : syntaxe JS du fichier validée (node --check) après correction.
+
+=== ORACLE DU LOTO — coloriage complet ajouté (17/07) ===
+- Oracle du Loto n'avait aucun système de coloriage jusqu'ici (design différent
+  de LOTO MULTI JEUX : cartes de stratégies, pas de grille). Ajouté dans
+  l'onglet "Historique & Import", juste au-dessus du tableau des tirages :
+  · Clique un numéro dans le tableau → le colorie partout où il apparaît pour
+    ce loto (reclique pour l'enlever).
+  · Panneau "Coloriage par lot" : mêmes options que LOTO MULTI JEUX — mode
+    (Dernier(s) tirage(s) / Tirage N° / Intervalle), numéro à colorier (Tous
+    ou N1..N5), portée (Partout / Position identique uniquement), et choix de
+    couleur (🔄 Automatique ou couleur fixe mémorisée par défaut).
+  · Boutons "↩️ Annuler" et "🧹 Tout effacer" (par loto, jusqu'à 20 actions
+    d'historique).
+  - Les couleurs sont sauvegardées par loto dans le navigateur (localStorage),
+    indépendamment des autres lotos.
+  ✅ Testé (Node + jsdom, page complète chargée) : ajout de tirages, clic de
+  coloriage manuel, coloriage par lot dans les 3 modes et les 2 portées,
+  couleur fixe + palette automatique, annuler, rendu du tableau — tout passe.
+
+=== STREAMLIT — coloriage par lot + annuler (17/07) ===
+- Dans "🔀 Comparer 2 plages de tirages", le coloriage manuel existant
+  (numéro + couleur libre) est maintenant complété par :
+  · Un panneau "🎨🔢 Coloriage par lot" (mêmes 3 modes, position N1-N5/Tous,
+    portée Partout/Position identique, couleur auto ou fixe) qui s'applique
+    aux tirages du loto de référence (celui de gauche).
+  · Des boutons "↩️ Annuler" et "🧹 Tout effacer les couleurs" qui couvrent à
+    la fois le coloriage manuel et le coloriage par lot.
+  - Les champs numériques Streamlit (number_input min=1/max=90) empêchaient
+    déjà les valeurs invalides — rien à changer de ce côté.
+  ✅ Testé (Python, fonctions extraites du fichier avec ast + `st` simulé) :
+  les 3 modes, la portée "position identique", le cas tirage N° introuvable,
+  l'annulation et le "tout effacer", et la priorité couleur cellule > couleur
+  globale dans le rendu HTML — tout passe.
+  ⚠️ Rappel : contrairement aux apps HTML (localStorage du navigateur), les
+  couleurs Streamlit vivent dans la session en cours — elles ne survivent pas
+  à un redémarrage du serveur/de la session.
+
+=== LOTO MULTI JEUX — TOUT BENIN décomposé par jour (17/07) ===
+- Bug corrigé : tous les tirages de TOUT BENIN (573 tirages) étaient étiquetés
+  année 2026 alors qu'ils sont en réalité de 2025 — vérifié en croisant avec le
+  fichier "excel de meta/Loto_Tout_Benin_5et10chiffres_Part1_8583-8899_Couleur.xlsx"
+  (colonne "Jour" 100% cohérente avec les vraies dates 2025 sur 298 tirages
+  vérifiés, et les numéros/tirages concordent parfaitement avec l'app à
+  l'exception de la date). 14 tirages avaient aussi un jour/mois erroné
+  (ex: "11/06" au lieu de "11/04") — corrigés en utilisant l'excel comme
+  référence pour la plage qu'il couvre (tirages 8584 à 8898).
+- 14 nouveaux tirages ajoutés (8883 à 8898, du 11/07/2025 au 16/07/2025),
+  y compris des tirages du DIMANCHE — contrairement à MATINAL, BENIN LOTO
+  tire bien 7j/7.
+- TOUT BENIN décomposé par jour comme MATINAL : 7 nouvelles entrées BENIN
+  LUNDI/MARDI/MERCREDI/JEUDI/VENDREDI/SAMEDI/DIMANCHE (80 à 87 tirages par
+  jour, 587 au total, aucun doublon, aucun tirage orphelin — vérifié).
+- Les 7 anciens jeux "F.LUNDI / F.MARDI / STAR MER. / F.JEUDI / F.VENDREDI /
+  STAR SAM. / STAR DIM." (catégorie "Autres jeux hors calendrier LONATO") ont
+  été supprimés (jeux + données), remplacés par les 7 jeux BENIN par jour.
+  ✅ Vérifié : plus aucune référence à ces jeux dans le fichier, syntaxe JS
+  validée (node --check).
+
+=== IDÉE À CREUSER ===
+- Remplacer le stockage localStorage (couleurs, prédictions, journal...) par
+  une vraie base de données (type Supabase) pour ne plus dépendre du
+  navigateur/appareil et pouvoir synchroniser entre appareils. À rediscuter.
+
+2. files/ (+ files.zip, même contenu en double)
+   - LOTO_MULTI_JEUX_4_clean_v60_NATIONAL_WEEK_CORRECTED.html
+   - NATIONAL_WEEK_1962-2026_CORRECTED.txt
+   - NATIONAL_WEEK_1962-2026_MULTI_CORRECTED.xlsx
+   - NATIONAL_WEEK_1962-2026_SINGLE_CORRECTED.xlsx
+   - NATIONAL_WEEK_1962-2026_STREAMLIT_CORRECTED.xlsx
+   - NATIONAL_WEEK_MULTI_JEUX_CORRECTED.txt
+   - NATIONAL_WEEK_complete.txt
+   - NATIONAL_WEEK_CORRECTED_GUIDE.txt
+   → Variante basée sur la v60 avec des corrections spécifiques "National Week"
+     (données 1962-2026) + fichiers de données associés.
+   → Module séparé, lié à une app Streamlit (d'où le fichier ...STREAMLIT_CORRECTED.xlsx).
+     Ne remplace pas la v64 : c'est un module complémentaire pour le calcul
+     "National Week", pas la même appli.
+
+3. Forecast Loto 90.html (+ dossier Forecast Loto 90_files/)
+   → Ancienne sauvegarde de l'app en ligne, faite le 10/07, AVANT le
+     déploiement de la v64. Dépassée.
+
+=== DONNÉES / TABLEURS (dossier "excel de meta") ===
+- MATINAL_2024_PARFAIT_1-158_Couleur_Par_Jour.xlsx
+- MATINAL_2025_PARFAIT_Couleur_Par_Jour.xlsx
+- MATINAL_2025_PARFAIT_Lundi_Samedi.xlsx
+- MATINAL_2026_Par_Jour_JusquEn_Juillet.xlsx
+- ALPHA_LOTTO_Juxtapose_Par_Annee_Une_Feuille.xlsx
+- ALPHA_LOTTO_LUNDI_Unique_1994-1997_10chiffres.xlsx
+- 📊-ALPHA_LOTTO_FORMAT_DDMMYYYY.xlsx
+- Loto_Tout_Benin_5et10chiffres_Part1_8583-8899_Couleur.xlsx
+⚠️ Ces fichiers ont des doublons temporaires "~$..." à côté d'eux : ça veut dire
+   qu'ils étaient (ou sont encore) ouverts dans Excel sur ton Mac. Pense à les
+   fermer et sauvegarder si tu as des modifs en cours.
+
+=== AUTRE ===
+- guileless-panda-5bdec1.netlify.app.webloc → lien vers l'app en ligne
+- y.app.textClipping → fragment de texte/lien sans contenu utile
+
+=== ORACLE DU LOTO (sous-dossier "Oracle du Loto") ===
+- Oracle_du_Loto.html
+  → Nouvelle app autonome (style Netlify, comme les autres), inspirée de la
+    capture "Oracle · Loto 5/90" (emergent.sh). Fonctionne pour TOUS les lotos
+    (sélecteur : les 13 lotos TOGO + NATIONAL WEEK + possibilité d'en ajouter).
+  Onglets : Forecast (chauds/retards/tendances + 8 stratégies) · Statistiques
+  (fréquence, retards, paires) · Backtest (teste une stratégie sur l'historique) ·
+  Prédictions (sauvegarde tes combis générées et suit si elles sortent) ·
+  Historique & Import (upload .xlsx ou copier-coller).
+  Pas de partie IA pour l'instant (ajoutable plus tard si tu veux, avec ta
+  propre clé API Claude).
+  ✅ Testé : import du vrai fichier NATIONAL_WEEK (1632 tirages), les 8
+  stratégies, le backtest et le rendu de la page, tout fonctionne sans erreur.
+  Les données s'enregistrent dans le navigateur (localStorage) — donc à héberger
+  toi-même (drag-drop sur Netlify comme pour les autres apps) pour un usage
+  durable.
+
+  MISE À JOUR (d'après tes captures de l'app emergent) :
+  - En-tête : compteur de tirages + bouton "Excel juxtaposé" (export style
+    "National Week — Résultats juxtaposés" : blocs de tirages côte à côte,
+    colonnes Tirage/Date/N1-N5/TOT1/M1-M5/TOT_MACHINE).
+  - Les 8 stratégies renommées pour matcher la capture : Chauds (Historique),
+    Chauds récents (50), Chauds récents (20), Froids (Historique), Retards
+    maximums, Pondéré aléatoire (vrai tirage aléatoire pondéré, différent à
+    chaque clic), Paires fréquentes, Combinaison équilibrée.
+  - Sélection par carte (clic = carte noire) + panneau de résultat unique
+    (Somme, Régénérer, Sauvegarder) + "Générateur multiple" (génère N combis
+    d'un coup).
+  - Onglet Historique & Import repensé : formulaire "Ajouter un tirage" (date +
+    5 numéros), import Excel/CSV, tableau avec pagination (25/50/100/Tout),
+    filtres (numéro, année) et badge Source (MANUAL/IMPORT).
+  ✅ Testé (Node + jsdom) : sélection de stratégie, génération, ajout manuel,
+  générateur multiple, filtres, export Excel juxtaposé (structure vérifiée en
+  relisant le fichier généré) — tout fonctionne sans erreur.
+
+=== GOODLUCK IMMO INVEST (sous-dossier "Goodluck Immo Invest") ===
+- GOODLUCK IMMO INVEST — Locataires complets.html (+ dossier _files)
+  → Plateforme de gestion locative (Lomé, Togo) : 48 locataires, 6 immeubles,
+    2,95M FCFA/mois. Projet séparé, sans lien avec le loto.
+
+=== STREAMLIT - LOTO FORECAST PRO (sous-dossier "Streamlit - Loto Forecast Pro") ===
+- app.py, core/ (picker.py, comparator.py, classification.py, __init__.py)
+- + tous les fichiers NATIONAL_WEEK (copie de "files/")
+→ App Python "Loto Forecast Pro" (13 lotos TOGO : MATINAL, DIAMANT, CASH,
+  BENZ, MILLION, KADOO, SAM, GOLD, BOOM, PRESTIGE, SUPER, KING, BINGO).
+
+16/07 : NATIONAL WEEK intégré comme 14ème loto dans app.py
+  - Ajouté à LOTOS_CONFIG (catégorie "🌍 National")
+  - Le parseur (parse_excel) reconnaît maintenant le format du fichier
+    NATIONAL_WEEK_1962-2026_SINGLE_CORRECTED.xlsx (Tirage/Date/N1-N5/N6-N10)
+  - Testé : les 1632 tirages (1962-2026) se chargent correctement.
+  - Pour l'utiliser : dans l'app, section "Uploader les fichiers" → uploader
+    NATIONAL_WEEK_1962-2026_SINGLE_CORRECTED.xlsx pour le loto "NATIONAL WEEK".
+  ⚠️ Fichiers MATINAL de "excel de meta" (ex: MATINAL_2025_PARFAIT_Couleur_Par_Jour.xlsx)
+    utilisent des en-têtes différents ("M1-1".."M1-5") que le parseur actuel ne
+    reconnaît pas encore — à adapter séparément si besoin.
+
+================================================================
+31/07/2026 — MISE A JOUR BENIN 2026 + "TOUT BENIN PLUS DIGITAL"
+================================================================
+Source : API officielle LNB — https://www.lnbloto.bj/api/results?monthYear=<mois année>
+(archive disponible depuis mai 2023). Vérifié aussi sur la page /resultats.
+
+1) RAW_BENIN_ALL : 4778 -> 4797 lignes (+19 tirages de juillet 2026)
+   Manquaient : 26/07 S18 ; 27→30/07 (D00,F11,F14,F18 ou S11,S14,S18) ; 31/07 D00+F11.
+   2026 est désormais complet : jan 155, fév 140, mars 155, avr 150, mai 155,
+   juin 150, juil 152  = 1057 tirages.
+   Contrôle juin 2026 : 150/150 présents, 0 divergence avec la source.
+
+2) Le jeu "TOUT BENIN" est renommé "TOUT BENIN PLUS DIGITAL".
+   Il contenait déjà le Digital, mais seulement ~60 % des tirages.
+   Reconstruit par FUSION (ancien TOUT BENIN ∪ BENIN_ALL), dédoublonné sur
+   (année, date, 5 numéros) : 1768 -> 5391 lignes. 0 ligne supprimée
+   (594 tirages de l'ancien TOUT BENIN, surtout 2025 jan-juil, n'existent pas
+   dans BENIN_ALL et ont été conservés).
+   Répartition : 2026=1059, 2025=2417, 2024=1281, 2023=634.
+   /!\ Les numéros de tirage (t) ont été renumérotés 1..5391 en ordre
+   chronologique. Les coloriages/blocs enregistrés sur l'ancien "TOUT BENIN"
+   ne pointent donc plus sur les mêmes lignes.
+
+3) Sous-jeux BENIN LUNDI..DIMANCHE regénérés depuis la série complète
+   (245->766, 261->771, 245->776, 263->774, 249->770, 249->768, 236->766).
+
+Note horaires : le tirage du soir s'appelait "Digital 21H" (code D21) jusqu'au
+14/06/2026, puis "Digital 20H" (code D20) à partir du 15/06/2026.
+
+Vérifications : node --check OK ; jsdom — les 106 jeux parsent sans erreur.
+Sauvegarde avant modification : LOTO MULTI JEUX 4 clean 64.html.bak-benin2026
+
+--- 31/07/2026 (suite) : harmonisation Digital 21H -> Digital 20H ---
+Le tirage du soir portait le code D21 ("Digital 21H") du 01/10/2024 au
+14/06/2026, puis D20 ("Digital 20H") depuis le 15/06/2026.
+Les deux ont été fusionnés sous le seul code D20 :
+  - RAW_BENIN_ALL : 622 lignes D21 -> D20 (D20 passe de 46 à 668,
+    soit exactement le même nombre que D00 : 1 tirage du soir par jour).
+  - BENIN_JEU_LABELS / BENIN_JEU_ORDER / BENIN_JEU_COLORS : entrée D21 supprimée.
+Plus aucune occurrence de "D21" ni de "21H" dans le fichier.
+Vérifications : node --check OK ; jsdom — 106 jeux parsent sans erreur.
+Sauvegarde avant cette étape : LOTO MULTI JEUX 4 clean 64.html.bak-d21
+
+--- 31/07/2026 (suite) : Excel ALL BENIN + 4 nouveaux jeux + couches par défaut ---
+
+FICHIER EXCEL
+  « ALL BENIN - historique complet (mai 2023 - juillet 2026).xlsx »
+  Feuilles : LISEZ-MOI / Tous les tirages (4 797 lignes, filtres sur toutes les
+  colonnes) / Par heure / Par jour / Par famille.
+  Colonnes : N°, Date, Année, Mois, Jour, Famille, Jeu, Nom d'origine, Heure,
+  N1..N5, Total (=SUM, jamais une valeur figée).
+  « Jeu » = nom harmonisé (Digital 20H partout) ; « Nom d'origine » = nom LNB du
+  moment (Digital 21H jusqu'au 14/06/2026).
+  Exemple d'usage : filtrer Jour=Lundi et Heure=18H -> 168 tirages.
+  recalc.py : 4 919 formules, 0 erreur. Tous les totaux croisés tombent sur 4 797.
+
+NOUVEAUX JEUX DANS L'APP (110 jeux au total)
+  ALL BENIN (officiel) : 4 797 tirages — la série officielle LNB complète
+     (à distinguer de TOUT BENIN PLUS DIGITAL, 5 391, qui contient en plus
+      594 tirages hérités absents de la source officielle)
+  TOUT DIGITAL : 1 336   |   DIGITAL 00H : 668   |   DIGITAL 20H : 668
+
+PANNEAU « BENIN — Filtre Jour / Jeu »
+  Ajout de deux filtres : Heure (00H, 11H, 14H, 18H, 20H) et Famille
+  (Fortune, Star, Digital), plus un bouton « Tout réinitialiser ».
+  Deux colonnes ajoutées au tableau : « Nom d'origine » et « Heure ».
+
+COUCHES D'ANALYSE ACTIVES PAR DÉFAUT (toutes décochables, cumulables)
+  🪞 Miroir même ligne         (déjà en place)
+  🪞 Miroir superposé          (mirP — miroir à la même position, tirage voisin)
+  🪜 Mêmes numéros superposés  (superpos — même numéro/position, écart réglable)
+  Elles se cumulent à l'analyse choisie sans l'écraser ; priorité mirL > mirP >
+  superpos si plusieurs touchent la même case. Les libellés d'export les citent.
+
+Vérifications : node --check OK ; jsdom — 110 jeux parsent sans erreur, le
+panneau filtre se rend, anMark colorie bien avec les 3 couches par défaut.
+Sauvegarde avant cette étape : LOTO MULTI JEUX 4 clean 64.html.bak-digital
+
+--- 31/07/2026 : CORRECTION IMPORTANTE — le tirage de 14H se joue en 2 ZONES ---
+
+Ce que je croyais être des "numéros machine" sur les tirages de 14H sont en fait
+la ZONE B : un DEUXIEME TIRAGE COMPLET de 5 numéros.
+
+Le tirage de 14H (LOTO FORTUNE et LOTO STAR) est découpé en deux zones
+géographiques : "14H (ZONE A)" et "14H (ZONE B)". Chacune tire 5 numéros.
+D'où les 10 numéros. Aux autres heures (00H, 11H, 18H, 20H/21H) il n'y a qu'un
+seul tirage de 5 numéros.
+
+Preuve — 23/07/2026, LOTO FORTUNE :
+   14H (ZONE A) : 20 - 83 - 51 - 35 - 29
+   14H (ZONE B) : 30 - 56 - 07 - 86 - 54
+C'est exactement ce que le fichier stockait en M1-M5. Source :
+https://www.loteriebenin.bj/publication/resultats?resultats[startedAt]=2026-07-23&resultats[endedAt]=2026-07-23
+
+DEUX SOURCES OFFICIELLES, DEUX CONTENUS :
+  • lnbloto.bj/api/results  : tout l'historique depuis mai 2023, mais ZONE A
+    seulement. C'est la source de RAW_BENIN_ALL.
+  • loteriebenin.bj/publication/resultats?resultats[startedAt]=AAAA-MM-JJ
+    &resultats[endedAt]=AAAA-MM-JJ : donne ZONE A **et** ZONE B, paginé
+    (~3 pages par mois).
+
+ETAT ACTUEL
+  1 175 tirages de 14H dans le fichier ; 80 ont leur ZONE B (avril->juin 2026,
+  relevés manuellement par l'utilisateur). Les 1 095 autres restent à compléter
+  depuis loteriebenin.bj.
+  Une coquille du relevé manuel a été écartée : 26/04/2026 Star 14H ZONE A,
+  le fichier utilisateur donnait 72 en 5e numéro, la source officielle donne 75.
+
+RENOMMAGE DES COLONNES (app + Excel)
+  M1-M5 / TOT.M  ->  B1-B5 / Total B   (ZONE B)
+  N1-N5 / TOT    ->  A1-A5 / Total A   (ZONE A)
+
+AUTRES CHANGEMENTS DE CETTE PASSE
+  • +1 tirage : 31/07/2026 Fortune 14H = 62 60 49 29 74
+    RAW_BENIN_ALL 4797 -> 4798 ; TOUT BENIN PLUS DIGITAL 5391 -> 5392.
+  • Ordre intra-journée de TOUT BENIN recalculé à partir des codes de jeu
+    (00H, 11H, 14H, 18H, 20H) au lieu de l'ordre d'insertion.
+  • DIGITAL 00H / 20H / TOUT DIGITAL passés en hasM:false (jamais de 2e zone).
+  • Excel : nouvelle feuille « Tirages 14H (10 numeros) », 1 175 lignes.
+
+NOTE recalc.py : le classeur dépasse maintenant ~9 600 formules et LibreOffice
+ne termine pas dans la limite de temps du bac à sable. Les formules avaient été
+validées à 0 erreur sur la version précédente (4 919 formules) et n'ont pas
+changé de forme ; Excel les recalcule à l'ouverture.
+
+--- 31/07/2026 : rattrapage ZONE B depuis loteriebenin.bj ---
+
+RESULTAT DE LA RECHERCHE : le double tirage 14H (ZONE A + ZONE B) n'existe
+QUE DEPUIS LE 13/04/2026. Vérifié sur loteriebenin.bj : zéro occurrence de
+"ZONE A"/"ZONE B" en mars 2026, janvier 2026 et juin 2025. Avant cette date,
+le 14H était un tirage unique de 5 numéros. Il n'y a donc RIEN à rattraper
+avant avril 2026 — le "trou" de 1 095 tirages annoncé plus tôt n'existe pas.
+
+Pages parcourues : avril, mai, juin, juillet 2026 (3 pages chacune) sur
+https://www.loteriebenin.bj/publication/resultats?resultats[startedAt]=AAAA-MM-JJ&resultats[endedAt]=AAAA-MM-JJ&page=N
+66 couples ZONE A / ZONE B relevés. Après fusion : 84 tirages ont leur ZONE B
+(48 Fortune 14H, 36 Star 14H), du 13/04/2026 au 31/07/2026.
+Les quelques 14H sans ZONE B sur cette période manquent à la source elle-même
+(loteriebenin.bj ne liste pas tous les jours).
+
+/!\ DEUX DIVERGENCES ENTRE LES DEUX SITES OFFICIELS — NON TRANCHEES
+    13/07/2026 Fortune 14H ZONE A : lnbloto.bj donne 28-36-08-50-59
+                                    loteriebenin.bj donne 20-36-08-50-59
+    24/07/2026 Fortune 14H ZONE A : lnbloto.bj donne 67-33-29-44-14
+                                    loteriebenin.bj donne 66-33-29-44-14
+    Seul le 1er numéro diffère dans les deux cas. La valeur de lnbloto.bj a été
+    CONSERVEE dans le fichier (c'est la source de RAW_BENIN_ALL). A noter que
+    pour le 13/07, l'ancien enregistrement TOUT BENIN donnait aussi 20, ce qui
+    fait 2 sources contre 1 en faveur de 20. A vérifier avant de trancher.
+
+--- 31/07/2026 : 2 nouveaux modules de recherche + LOTO SUPER 158 ---
+
+LOTO SUPER (LONATO Togo)
+  Ajout du tirage n°158 du 30/07/2026 : 11 - 18 - 08 - 21 - 85 (total 143).
+  /!\ Le tirage n°157 du 23/07/2026 est toujours MANQUANT — le trou reste
+  visible dans l'app, à compléter quand tu auras le résultat.
+
+MODULE « ➕ DOUBLE MÊME TOTAL »  (onglet Recherche)
+  Cherche deux paires de numéros qui donnent le même total.
+  Exemple validé — SUPER n°158 : 11+18 = 29 et 08+21 = 29.
+  Les paires retenues sont toujours DISJOINTES : un numéro n'est jamais
+  compté deux fois.
+  3 modes :
+    • Même ligne            — les deux paires dans le même tirage
+    • Même total au voisin  — le total d'une paire se retrouve au tirage
+                              du dessus (plus récent) ou du dessous (plus ancien)
+    • Paire à cheval        — un numéro du tirage + un numéro du tirage voisin
+  Seuil de paires réglable (2 par défaut).
+  Sur LOTO SUPER : 23 résultats en « même ligne », 254 en « voisin »,
+  472 en « à cheval ».
+
+MODULE « 🧩 NUMÉRO + UN DE SES ÉLÉMENTS »  (onglet Recherche)
+  Cherche un numéro et l'un de ses dérivés de classification.
+  2 modes :
+    • Même ligne  — le numéro et son élément sortent dans le même tirage
+    • Superposés  — le numéro à une position, son élément à la MÊME position
+                    dans un tirage plus haut ou plus bas (écart réglable)
+  Les 10 éléments sont sélectionnables individuellement, avec un raccourci
+  « Miroir seul ». Sur LOTO SUPER : 179 résultats en même ligne (tous éléments),
+  124 en superposés à écart 1, 20 pour le miroir seul.
+
+  /!\ BUG CORRIGÉ AU PASSAGE : la liste CL_DEF (celle du coloriage) avait
+  OUBLIÉ l'élément « Code », alors que getCL() le calcule bien. Résultat :
+  getDerivsByType() ne renvoyait jamais le Code. Une liste complète ELM_DEF
+  (10 éléments, Code inclus) a été créée pour ce module. De plus CODE[]
+  stocke des chaînes ("77") et non des nombres : la comparaison avec les
+  numéros du tirage échouait en silence — le type est maintenant forcé.
+  Vérifié sur le 44 : Counter 89, Bonanza 76, Malta 46, Key 60, Turning 44,
+  Partner 47, Shadow 11, Code 77, Equiv 55 — identique à la fiche de l'app.
+
+Vérifications : node --check OK ; jsdom — 110 jeux parsent, les deux panneaux
+se rendent, l'exemple du 158 ressort bien, les 90 numéros renvoient des
+éléments tous numériques.
+
+--- 31/07/2026 : « avec ses éléments » directement dans le menu d'un numéro ---
+
+En cliquant sur n'importe quel numéro dans les colonnes, le menu contient
+désormais, sous « ℹ️ Classifications », une section « 🧩 <n> avec ses éléments » :
+  • un bouton par élément de la classification, avec SA VALEUR pour ce numéro
+    (ex. sur le 79 : Counter 34, Bonanza 41, Malta 11, Key 56, Partner 76,
+     Shadow 56, Code 42, Equiv 20) ;
+  • chaque bouton se coche / décoche, avec la couleur propre à l'élément ;
+  • raccourcis « Tout » / « Rien » ;
+  • deux boutons de recherche : « 🧩 Même ligne » et « 🪜 Superposés ».
+Les éléments qui valent le numéro lui-même (ex. Turning 79 = 79) ou qui sortent
+de 1-90 (ex. miroir de 79 = 97) ne sont pas proposés.
+
+La recherche lancée depuis le menu ne porte QUE sur ce numéro : un bandeau
+« numéro N uniquement ✕ » s'affiche dans le panneau de recherche, cliquable
+pour repasser sur tous les numéros. Le bouton « Chercher » du panneau efface
+lui aussi le focus.
+
+Résultats colorés par élément : la cellule Élément prend la couleur du type
+(Counter bleu, Bonanza orange, Malta violet, Key vert foncé, Turning jaune,
+Partner rouge, Shadow ardoise, Code turquoise, Equiv vert, Miroir mauve) et
+une légende en pastilles donne le décompte par élément.
+
+Vérifications : node --check OK ; jsdom — showMenu(79) contient bien la section,
+la recherche ciblée ne renvoie que le numéro visé, les 10 couleurs sont
+distinctes, la légende affiche 10 pastilles.
+
+--- 31/07/2026 : éléments de la classification EN EXERGUE dans les colonnes ---
+
+Nouvelle barre « 🧩 Éléments de la classification en exergue », placée dans le
+bandeau Analyse, juste sous les trois couches (Miroir même ligne / Miroir
+superposé / Mêmes numéros superposés).
+
+  • Les 10 éléments sont listés en pastilles, chacun se coche / décoche.
+  • Chaque élément coché colorie DIRECTEMENT dans les colonnes, dans SA propre
+    couleur, le numéro et son élément : Counter bleu, Bonanza orange,
+    Malta violet, Key vert foncé, Turning jaune, Partner rouge,
+    Shadow ardoise, Code turquoise, Equiv vert, Miroir mauve.
+  • Boutons « Tous » / « Aucun ».
+  • Bascule 📄 Même ligne / 🪜 Superposés, avec écart réglable pour le second.
+  • Si un numéro relève de plusieurs éléments cochés, c'est le premier de la
+    liste ELM_DEF qui donne la couleur (règle affichée sous les pastilles).
+  • Cette couche se cumule à l'analyse choisie sans l'écraser, et n'écrase pas
+    non plus les couleurs déjà posées par les trois couches du dessus.
+  • Le libellé d'export cite les éléments actifs, ex :
+    « ... + Éléments (Code, Malta même ligne) ».
+
+Mesures sur LOTO SUPER (80 premiers tirages) : aucune couche = 0 case colorée ;
+Code seul en même ligne = 16 cases ; tous les éléments en même ligne = 131 ;
+tous les éléments superposés à écart 1 = 39.
+
+Vérifications : node --check OK ; jsdom — la barre rend ses 10 pastilles,
+anRender() se construit, les 9 couleurs présentes dans les données sont bien
+distinctes les unes des autres.
+
+--- 31/07/2026 : correctif exergue + bouton de validation ---
+
+BUG TROUVÉ (signalé par l'utilisateur sur le numéro 48)
+  Les 3 couches actives par défaut (Miroir même ligne / Miroir superposé /
+  Mêmes numéros superposés) coloraient les cases AVANT la couche « éléments en
+  exergue », qui ne repassait pas dessus (test `if(!out[i])`). Résultat : une
+  partie des occurrences de l'élément coché n'apparaissait jamais.
+  Mesure sur LOTO SUPER, élément Code : 37 cases visibles avec les 3 couches
+  actives, contre 48 sans elles — un tiers perdu.
+
+  CORRECTION : le bloc « exergue » est remonté AVANT les couches par défaut et
+  écrase désormais ce qui s'y trouve. C'est un choix explicite de l'utilisateur,
+  il passe donc devant l'analyse choisie et devant les 3 couches.
+  Après correctif : 48 cases dans les deux cas, et 48 aussi avec une analyse
+  active (Chauds & Froids).
+
+BOUTON DE VALIDATION
+  Les pastilles alimentent maintenant un BROUILLON. Rien ne change à l'écran
+  tant qu'on n'a pas cliqué sur « ✅ Appliquer ».
+  • Le cadre passe en orange et affiche « Modifié — clique Appliquer » dès
+    qu'une pastille, le mode ou l'écart changent.
+  • Après validation : « ✔ N éléments appliqués — X cases mises en évidence ».
+    Si X = 0, le message le dit franchement (« aucune occurrence sur ce jeu »)
+    au lieu de laisser croire à une panne.
+  • Bouton « Effacer » pour tout remettre à zéro.
+
+À SAVOIR SUR LE CAS 48
+  Sur LOTO SUPER, le 48 ne sort qu'avec un seul de ses éléments, l'Equiv (51),
+  et seulement 2 fois : tirage 86 (51 88 38 48 78) et tirage 15 (52 48 82 51 63).
+  Son Code (73), son Counter (3), son Bonanza (12) etc. ne l'accompagnent jamais
+  dans ce jeu. Ce n'est donc pas un bug si rien ne ressort en cochant Code :
+  le compteur du bouton Appliquer permet maintenant de le vérifier d'un coup d'oeil.
+
+Vérifications : node --check OK ; jsdom — brouillon/dirty/Appliquer testés,
+priorité confirmée à 48 cases dans les 3 configurations, cas 48 reproduit.
+
+--- 31/07/2026 : mode « 🌐 PARTOUT » — le numéro et ses éléments sans condition ---
+
+Les deux premiers modes de l'exergue n'affichent un numéro que s'il COHABITE
+avec son élément (même ligne, ou superposé). D'où l'impression que « ça ne
+marche pas entièrement » : sur LOTO SUPER, le 48 ne rencontre son Equiv que
+2 fois et ne rencontre jamais son Code.
+
+Nouveau 3e mode « 🌐 Partout » : on choisit UN numéro de référence, et l'app
+colorie, à TOUTES LES POSITIONS et dans TOUS LES TIRAGES :
+  • le numéro lui-même en gris foncé (#1F2937) ;
+  • chacun de ses éléments cochés dans la couleur propre à cet élément ;
+  • sans exiger qu'ils sortent ensemble.
+
+Deux façons d'y accéder :
+  • dans la barre d'exergue : bascule 3 modes (Même ligne / Superposés /
+    Partout) + un champ « numéro » ; une légende affiche la valeur de chaque
+    élément coché pour ce numéro (ex. Code 73, Equiv 51...) dans sa couleur ;
+  • dans le menu d'un numéro : bouton pleine largeur
+    « 🌐 Colorier 48 et ses éléments partout » — applique directement.
+
+Mesures sur LOTO SUPER avec le 48 :
+  tous éléments  -> 77 cases  (48 lui-même 8, Bonanza 11, Code 13, Key 11,
+                               Turning 13, Counter 7, Malta 5, Equiv 9)
+  Code seul      -> 21 cases  (le 48 en gris + le 73 en turquoise)
+Contrôle de cohérence : le 48 est présent dans 8 tirages et il est colorié
+exactement 8 fois, jamais sur une autre valeur.
+Les modes « même ligne » (48 cases pour Code) et « superposés » (14) sont
+inchangés.
+
+Vérifications : node --check OK ; jsdom — les 3 modes présents dans la barre,
+bouton Partout présent dans le menu du 48, décompte par élément cohérent.
+
+--- 31/07/2026 : le bouton Appliquer était invisible (signalé sur le 16) ---
+
+CAUSE : la barre d'exergue était construite dans anRender(), qui n'est appelé
+QUE dans l'onglet Analyses. Or le coloriage s'applique aux colonnes, qui sont
+dans l'onglet Navigation. L'utilisateur cochait donc des éléments sans jamais
+voir ni le bouton « ✅ Appliquer » ni le résultat.
+
+CORRECTIONS
+  • La barre est maintenant affichée AUSSI dans l'onglet Navigation, juste
+    sous le sélecteur de jeu — donc au-dessus des colonnes qu'elle colorie.
+  • Le bouton « 🌐 Colorier N et ses éléments partout » du menu d'un numéro
+    ne bloque plus avec une alerte quand aucun élément n'est coché : il les
+    prend TOUS par défaut.
+  • Après application depuis le menu, l'app bascule automatiquement sur
+    l'onglet des colonnes et fait défiler jusqu'à la barre.
+  • scrollIntoView protégé (absent de certains contextes).
+
+Test sur le 16, depuis son menu et sans rien cocher au préalable :
+  mode=partout, numéro=16, 10 éléments, onglet=0 -> 68 cases coloriées
+  (16 lui-même 9, Equiv 13, Code 11, Counter 10, Key 8, Malta 8, Shadow 5,
+   Bonanza 4). Le 16 est présent dans 9 tirages et colorié 9 fois, 0 erreur.
+
+--- 31/07/2026 : l'exergue fonctionne maintenant AUSSI dans Navigation ---
+
+CONSTAT (question de l'utilisateur : « c'est dans Analyse qu'on voit ça ou
+ailleurs aussi ? », puis « elle n'était même pas active dans la barre de
+navigation, j'aimerais l'avoir aussi dans la navigation »).
+anMark() n'était appelé que dans anRender() — l'onglet 📊 Analyses — et dans
+l'export Excel. L'onglet Navigation ne colorait donc rien, et j'avais eu tort
+d'affirmer le contraire.
+
+CORRECTION APPORTÉE
+  Le coloriage par éléments a été extrait de anMark() dans une fonction
+  autonome elmHLMark(row) :
+    • anMark() l'appelle toujours en premier (onglet Analyses + export Excel) ;
+    • les QUATRE vues de l'onglet Navigation l'appellent directement :
+        - colonnes par années,
+        - vue Excel compacte,
+        - comparaison multi-jeux (tableau),
+        - comparaison multi-jeux (colonnes).
+  La barre complète (pastilles + bouton ✅ Appliquer) est présente dans les
+  deux onglets, et le bouton du menu d'un numéro ramène sur les colonnes.
+  Dans Navigation, le repère "miroir" automatique s'efface quand une exergue
+  occupe déjà la case, pour ne pas se superposer à elle.
+
+Vérifié sur le 16, tous éléments, mode Partout :
+  elmHLMark seule = 68 cases · anMark = 9 fois le 16 en gris foncé ·
+  rendu Navigation = 9 numéros entourés en gris foncé ·
+  bouton Appliquer présent dans Navigation ET dans Analyses ·
+  après « Effacer » : 0 cercle. Les 110 jeux se chargent toujours.
+
+--- 31/07/2026 : (étape intermédiaire, corrigée juste au-dessus) ---
+
+Vérification faite à la demande de l'utilisateur (« c'est dans Analyse qu'on
+voit ça ou ailleurs aussi ? ») : anMark() n'est appelé qu'à DEUX endroits,
+tous deux dans anRender() — donc l'onglet 📊 Analyses — plus une fois dans
+l'export Excel. L'onglet Navigation n'utilise PAS anMark.
+
+CONSÉQUENCE : le coloriage (analyse, 3 couches, et éléments en exergue) se voit
+UNIQUEMENT dans l'onglet Analyses — dans sa vue colonnes comme dans sa vue
+Excel — et dans le fichier Excel exporté. Pas dans les colonnes de Navigation.
+
+J'avais affirmé l'inverse au message précédent, et j'avais placé la barre
+d'exergue dans l'onglet Navigation où elle n'avait aucun effet visible.
+
+CORRIGÉ
+  • La barre complète (pastilles + bouton Appliquer) reste dans l'onglet
+    Analyses, avec la mention « coloriage visible dans cet onglet Analyses
+    et dans l'export Excel ».
+  • Dans l'onglet Navigation, elle est remplacée par un simple rappel
+    cliquable, affiché seulement si une exergue est active :
+    « 🧩 16 et ses éléments en exergue — le coloriage se voit dans l'onglet
+    Analyses, appuie ici pour y aller › ». Un clic bascule sur Analyses.
+  • Le bouton « 🌐 Colorier N et ses éléments partout » du menu d'un numéro
+    bascule maintenant sur l'onglet Analyses (2) et non plus sur Navigation.
+
+Vérifié : en Navigation, bouton Appliquer absent / rappel présent ; en Analyses,
+bouton Appliquer présent / rappel absent ; le 16 est bien colorié 9 fois.
+
+--- 31/07/2026 : ⚓ ALIGNEMENT DES COLONNES (ancrage + verrou) ---
+
+Besoin : « bloquer des positions des tirages lors de mes ajustements, par ex
+08 80 à jouer tirage 45, et la même chose une autre année ; je veux les
+coulisser au même niveau et bloquer ». Fonctionne avec 3, 4 colonnes ou plus.
+
+PRINCIPE — une ancre par colonne
+  state.anchors["<jeu>|<année>"] = n° de tirage.
+  L'app calcule la profondeur de chaque ancre (lignes de calendrier + trous de
+  numérotation situés avant + rang dans la liste), prend la plus grande, et
+  insère en tête des autres colonnes le nombre de lignes vides qu'il faut pour
+  que toutes les ancres tombent exactement sur la même ligne.
+
+UTILISATION
+  • Barre « ⚓ Alignement des colonnes », au-dessus des colonnes (Navigation).
+    Une pastille par année : cliquer demande le n° de tirage à caler.
+    La pastille affiche ⚓ 4686 et, s'il y a lieu, le décalage appliqué ↓452.
+  • Ou directement le badge ⚓ dans l'en-tête de chaque colonne.
+  • Un n° inexistant dans la colonne est refusé avec un message.
+  • Champ vidé = ancre retirée.
+  • Le calage ne s'applique qu'à partir de DEUX colonnes ancrées (avec une
+    seule, un message le signale).
+
+REPÈRES VISUELS
+  • Les lignes de décalage en tête de colonne sont hachurées orange avec ⇕.
+  • La ligne ancrée est encadrée en orange épais, fond #FFEDD5.
+
+VERROU — PAR LIGNE ET PAR COLONNE
+  Le verrou n'est pas global : il porte sur un couple (colonne, ligne ancrée).
+    state.anchorLocks["<jeu>|<année>"] = n° de tirage verrouillé.
+  • Chaque pastille de la barre a son propre cadenas 🔓/🔒, à droite du n°.
+  • Une colonne verrouillée refuse tout changement d'ancre, avec un message
+    qui nomme la colonne et la ligne concernées ; les autres colonnes restent
+    librement modifiables.
+  • L'effacement global est refusé tant qu'au moins une colonne est verrouillée,
+    et le message liste lesquelles.
+  • Bouton « 🔓 Tout verrouiller » / « 🔒 Tout libérer » avec le compteur (n/N).
+  • La ligne ancrée verrouillée porte un 🔒 devant son numéro dans la colonne.
+  • Si l'ancre change, son verrou tombe automatiquement (le verrou est lié au
+    n° de tirage, pas seulement à la colonne).
+  Ancrages et verrous sont enregistrés avec le jeu (même stockage que les
+  coloriages), donc conservés au changement d'année, de plage et de session.
+
+  Test 3 colonnes LOTO SUPER (ancres 138 / 95 / 44, alignement OK) :
+  verrou posé sur 2025 seule -> 2026 🔓, 2025 🔒, 2024 🔓 ;
+  modification de 2025 refusée, modification de 2026 acceptée (ancre -> 131) ;
+  effacement global refusé en nommant 2025 ; « Tout verrouiller » -> 3/3 ;
+  après libération, effacement OK. Rendu : 3 cadenas dans la barre.
+
+Test sur 4 colonnes de TOUT BENIN PLUS DIGITAL (2026, 2025, 2024, 2023) :
+  ancres 4686 / 2721 / 1062 / 212 -> profondeurs 353 / 805 / 427 / 211
+  décalages appliqués 452 / 0 / 378 / 594 -> lignes finales 805, 805, 805, 805.
+Test sur 3 colonnes de LOTO SUPER : lignes finales 17, 17, 17.
+Verrou : blocage confirmé, persistance confirmée, effacement après
+déverrouillage confirmé, et une seule ancre ne produit aucun décalage.
+
+Note technique : la fonction de sauvegarde s'appelle saveColorState() et non
+saveColors() — 17 appels corrigés.
+
+--- 31/07/2026 : ⚓ alignement aussi dans « 🎮 Comparer plusieurs lotos » ---
+
+L'ancrage n'existait que dans la vue « 📅 Par années » (colonnes = années du
+même jeu). Or l'utilisateur travaille dans « 🎮 Comparer plusieurs lotos »
+(colonnes = jeux différents, ex. BENZ · DIAMANT · IT NAZIONALE), où rien
+n'apparaissait.
+
+Ajout d'une variante complète pour cette vue :
+  clés state.anchors["G:<jeu>|<année mgYear>"] et mêmes verrous par colonne.
+  Barre « ⚓ Alignement des jeux (2026) » au-dessus des colonnes, une pastille
+  par jeu avec son cadenas, badge ⚓ dans chaque en-tête, lignes de décalage
+  hachurées orange, ligne ancrée encadrée, 🔒 devant son numéro si verrouillée,
+  boutons « Tout verrouiller / Tout libérer » et « Effacer ».
+
+Test BENZ (27 tirages) · DIAMANT (27) · IT NAZIONALE (117) en 2026 :
+  ancres 1828 / 1299 / 26011 -> profondeurs 3 / 1 / 10
+  décalages 7 / 9 / 0 -> lignes finales 10, 10, 10 (même niveau).
+  Verrou posé sur DIAMANT : modification refusée, les autres restent libres.
+  Rendu : barre présente, 16 lignes de décalage, 3 ancres encadrées.
+
+Reste non couvert : la vue Excel (case 📊 Excel cochée), dans les deux modes.
+
+--- 31/07/2026 : les repères ancrés n'étaient pas alignés — cause et correctif ---
+
+CAUSE RÉELLE : après chaque render(), l'app faisait défiler CHAQUE colonne
+jusqu'en bas (`el.scrollTop=el.scrollHeight`, dans le setTimeout de 50 ms).
+Comme les colonnes n'ont pas la même longueur, les lignes ancrées se
+retrouvaient à des hauteurs différentes. Les lignes vides de décalage étaient
+donc bien calculées, mais annulées juste après par ce défilement automatique.
+
+CORRECTIFS
+  1. Le défilement automatique vers le bas est désactivé dès que DEUX colonnes
+     ou plus sont ancrées ; alignAnchorRows() est appelé à la place.
+  2. Alignement AU PIXEL : chaque ligne ancrée porte un id (anch-<colonne>) ;
+     alignAnchorRows() mesure sa position réelle dans la colonne et ajuste le
+     scrollTop des autres pour que toutes tombent sur la même hauteur d'écran.
+     Cela absorbe aussi toute différence de hauteur de ligne entre colonnes,
+     que les lignes vides ne pouvaient pas corriger.
+  3. syncScroll() reporte désormais l'ÉCART entre les lignes ancrées au lieu
+     d'imposer le même scrollTop à toutes les colonnes : l'alignement tient
+     donc pendant le défilement.
+  4. Recalage automatique après chaque pose d'ancre, verrou ou libération.
+  5. Sans ancre, le comportement d'origine (défilement vers le bas) est intact.
+
+Correction annexe : collision de variable `ids` dans syncScroll (renommée `all`).
+
+Vérifié : les ids d'ancre sont bien émis dans les deux vues, anchorColIds()
+les retrouve, alignAnchorRows() et syncScroll() s'exécutent sans erreur,
+et sans ancre on retombe sur le comportement d'origine. 110 jeux OK.
+
+--- 31/07/2026 : 🔒 FIGER À L'INSTANT — la méthode simple demandée ---
+
+Idée de l'utilisateur, bien meilleure que l'ancrage par numéro :
+« je coulisse comme je veux et je fige tout, il bouge ensemble, ils descendent
+ensemble, c'est plus facile et mieux ».
+
+FONCTIONNEMENT
+  1. Décoche 🔗 pour que les colonnes défilent séparément.
+  2. Fais coulisser chaque colonne à la hauteur voulue, à la main.
+  3. Clique « 🔒 figer à l'instant » dans la barre de réglages
+     (à côté de Excel / côte à côte / compact / fige 1re col / 🔗).
+  L'app mémorise la position exacte de chaque colonne. Ensuite, faire défiler
+  n'importe laquelle déplace toutes les autres du MÊME nombre de pixels : elles
+  descendent ensemble en gardant exactement le décalage choisi.
+  Le bouton devient « 🔒 figé » (vert) ; recliquer libère les colonnes.
+
+  • Le figeage survit au re-rendu (restoreFreeze) et neutralise le défilement
+    automatique vers le bas qui cassait l'alignement.
+  • Butées respectées : aucune colonne ne dépasse son début ni sa fin.
+  • Disponible dans les deux vues : « Par années » et « Comparer plusieurs
+    lotos ». Il faut au moins deux colonnes affichées.
+  • Un rappel « décoche 🔗 pour les régler séparément » s'affiche si besoin.
+
+Test (3 colonnes BENZ · DIAMANT · IT NAZIONALE) :
+  positions réglées à 120 / 40 / 300, puis figé -> mémorisé tel quel.
+  BENZ déplacé de +200 (120 -> 320) : DIAMANT 40 -> 240, IT NAZIONALE 300 -> 500.
+  Écarts conservés au pixel. Libération OK, bouton repassé en « figer ».
+
+L'ancrage par numéro de tirage (⚓) reste disponible pour qui veut désigner
+une ligne précise, mais n'est plus nécessaire pour le cas courant.
+
+--- 01/08/2026 : l'ancrage ⚓ est retiré, seul « figer à l'instant » reste ---
+
+L'utilisateur a tranché : « j'ajuste manuellement et je fige tout ».
+L'ancrage par numéro de tirage ajoutait des lignes vides dans les colonnes et
+entrait en conflit avec le figeage — deux mécanismes pour le même besoin,
+dont un bien plus compliqué. La barre ⚓ et ses lignes de décalage sont donc
+retirées de l'affichage ; getAnchor/anchorOffsets renvoient désormais vide, ce
+qui neutralise aussi les ancres déjà enregistrées chez l'utilisateur.
+Le code reste dans le fichier (inactif) au cas où.
+
+MÉTHODE RETENUE, EN TROIS GESTES
+  1. décocher 🔗 (sinon toutes les colonnes défilent ensemble) ;
+  2. faire coulisser chaque colonne à la main où on veut ;
+  3. cliquer « 🔒 figer à l'instant » dans la barre de réglages.
+  Ensuite tout descend ensemble en gardant les décalages choisis.
+  Second clic = « 🔓 Libérer ».
+
+Test 4 colonnes (positions réglées à 300 / 80 / 520 / 10, puis figées) :
+  la 1re descendue de +150 -> 2026=450, 2025=230, 2024=670, 2023=160.
+  Chacune a bougé de +150, les écarts sont conservés au pixel.
+  Après re-rendu, les positions mémorisées sont intactes. 110 jeux OK.
+
+Incident corrigé au passage : getAnchor() et getAnchorG() tenaient sur une
+seule ligne ; le commentaire de neutralisation avait avalé leur accolade
+fermante et cassait tout le script. Rétabli, node --check OK.
+
+--- 01/08/2026 : SAM — le 6e numéro (complémentaire) intégré ---
+
+L'utilisateur a signalé que SAM a parfois 6 numéros alors que l'app n'en
+stockait que 5, et a fourni « SAM_Resultats_2017_2026 (2).xlsx ».
+
+DANS L'APP
+  • parseLines() accepte désormais UN seul numéro bonus (il gérait 2, 3, 4 et 5
+    mais pas 1) : `p.length>=10 && p[9]!=='' -> m=[+p[9],NaN,NaN,NaN,NaN]`.
+  • GAMES.sam passe en hasM:true, bonusN:1 — la colonne du complémentaire
+    s'affiche, seule, sans les 4 cases vides d'un bonus à 5.
+  • RAW_SAM : 471 -> 475 tirages, dont 106 avec complémentaire.
+
+FUSION, PAS REMPLACEMENT
+  • +4 tirages venus du fichier : n°472 à 475 (11/07 -> 01/08/2026).
+  • 12 tirages (n°277 à 288) absents du fichier fourni : CONSERVÉS depuis l'app.
+  • 2 dates corrigées, tranchées par la continuité hebdomadaire du samedi :
+      n°408 : 18/01/2025 -> 18/04/2025 (entre le 12/04 et le 26/04)
+      n°466 : 30/06/2026 -> 30/05/2026 (entre le 23/05 et le 06/06)
+    Dans les deux cas l'app avait la coquille, le fichier fourni avait raison.
+  • Deux lignes de statistiques en bas du fichier source ont été écartées :
+    « Nombre total de tirages saisis : 463 » et « Moyenne des sommes : 231 »
+    auraient été lues comme les tirages n°463 et n°231.
+
+FICHIER EXCEL « SAM - historique 2017-2026.xlsx »
+  Feuilles : LISEZ-MOI / Tirages SAM / Par année.
+  475 tirages du 01/07/2017 au 01/08/2026, en ordre CHRONOLOGIQUE CROISSANT :
+  le fichier source allait de 2026 vers 2017, il a été inversé pour que chaque
+  mois commence par son premier tirage.
+  Filtres actifs sur toutes les colonnes (A1:M476) : Année, Mois, Jour, et une
+  colonne « 6 numéros ? » (oui/non) pour isoler d'un clic les tirages à 6.
+  Total = formule =SOMME(N1:N5). recalc.py : 508 formules, 0 erreur.
+
+Vérifications app : SAM charge 475 tirages, le n°474 rend bien 50 54 60 79 12
++ complémentaire 56, 106 tirages ont leur 6e numéro, aucun NaN parasite,
+les n°277-288 sont toujours là, les 110 jeux se chargent.
+
+--- 01/08/2026 : filtrer le Bénin par heure — 9 jeux isolés ---
+
+Besoin : « je peux vouloir afficher que le jeu de X h ». Le panneau BÉNIN filtre
+déjà par jour/jeu/heure/famille, mais il ne s'applique pas aux colonnes de
+Navigation (coloriage, figeage, comparaison). Plutôt que de dupliquer le filtre,
+chaque heure devient un JEU à part entière, utilisable avec tous les outils.
+
+  FORTUNE 11H  638      STAR 11H  477      TOUT 11H  1 115
+  FORTUNE 14H  672      STAR 14H  502      TOUT 14H  1 174   (ZONE A + ZONE B)
+  FORTUNE 18H  671      STAR 18H  502      TOUT 18H  1 173
+
+Les jeux « TOUT <heure> » réunissent Fortune et Star de la même heure. Comme
+Fortune et Star ne tombent jamais le même jour (Fortune : lundi, mardi, jeudi,
+vendredi ; Star : mercredi, samedi, dimanche), on obtient une série QUOTIDIENNE
+continue par heure — c'est ce qu'il faut pour la superposition et l'ancrage.
+
+Les trois jeux de 14H portent hasM:true et affichent la ZONE B (84 tirages
+renseignés à ce jour). Les autres heures n'ont qu'un seul tirage de 5 numéros.
+
+Contrôle de cohérence : 3 462 (Fortune+Star) + 1 336 (Digital) = 4 798,
+exactement le total de ALL BENIN (officiel). TOUT 11H = 638 + 477 = 1 115.
+
+L'app compte désormais 119 jeux, tous parsent sans erreur.
+
+Rappel des jeux Bénin disponibles :
+  ALL BENIN (officiel) 4 798 · TOUT BENIN PLUS DIGITAL 5 392
+  TOUT DIGITAL 1 336 · DIGITAL 00H 668 · DIGITAL 20H 668
+  + les 9 ci-dessus + les 7 BENIN LUNDI..DIMANCHE
+
+--- 01/08/2026 : filtre Bénin DANS LES COLONNES + noms d'origine ---
+
+Besoin : « je peux vouloir afficher que les jeux Star, je peux vouloir afficher
+que Fortune du jeudi, et il faut garder les noms originaux ».
+
+Barre « 🇧🇯 Filtrer les tirages affichés », au-dessus des colonnes, visible
+uniquement sur les jeux Bénin multi-tirages (ALL BENIN, TOUT BENIN PLUS DIGITAL,
+TOUT DIGITAL, TOUT 11H/14H/18H, BENIN LUNDI..DIMANCHE).
+
+  4 rangées de pastilles cumulables : FAMILLE (Fortune/Star/Digital) ·
+  HEURE (00H, 11H, 14H, 18H, 20H — les heures officielles LNB) ·
+  JOUR (Lundi..Dimanche) · JEU (les 8 tirages nommés).
+  Compteur des tirages affichés + bouton « Tout afficher ».
+
+Le filtre agit sur rowsForYear(), donc il vaut pour TOUT ce qui découle des
+colonnes : coloriage, exergue des éléments, figeage, comparaison, export Excel.
+
+NOMS D'ORIGINE CONSERVÉS
+  Chaque ligne porte devant sa date une pastille colorée avec le code du tirage
+  (F11, F14, F18, S11, S14, S18, D00, D20), dans la couleur du jeu, avec le nom
+  complet en infobulle. Le code est retrouvé en rapprochant (année, date,
+  5 numéros) de RAW_BENIN_ALL — aucune donnée n'a été modifiée pour ça.
+
+Tests sur ALL BENIN, année 2026 (1 058 tirages) :
+  « que Star »              -> 270 tirages
+  « Fortune du jeudi »      ->  93 tirages, le 1er est bien un F11 du 01/01
+  « Fortune 14H du jeudi »  ->  31 tirages, tous F14 et tous un jeudi
+  « heure 11H »             -> 212 tirages, codes F11 et S11 uniquement
+  Sur un jeu non-Bénin (SUPER), la barre ne s'affiche pas.
+  Pastilles F11 / S14 / D00 bien rendues dans les colonnes.
+
+--- 01/08/2026 : heures OFFICIELLES respectées + tirages du jour ---
+
+HEURE RÉELLE DE CHAQUE TIRAGE
+  Le tirage du soir s'appelait officiellement « Digital 21H » jusqu'au
+  14/06/2026, puis « Digital 20H » depuis le 15/06/2026. L'app affiche
+  désormais l'heure telle qu'elle était le jour du tirage :
+  • la pastille devant la date montre D21 ou D20 selon la date,
+    avec le nom complet en infobulle ;
+  • le filtre HEURE propose les six valeurs 00H, 11H, 14H, 18H, 20H et 21H,
+    avec la mention « 21H = soir avant le 15/06/2026 ».
+  Contrôle : 669 tirages du soir, dont 622 en 21H et 47 en 20H ;
+  filtrer 20H + 21H redonne exactement le même total que filtrer le jeu D20.
+  Les données elles-mêmes restent harmonisées sous le code unique D20 :
+  seul l'AFFICHAGE distingue les deux appellations.
+
+TIRAGES DU 01/08/2026 AJOUTÉS (samedi, jour Star)
+  Star 11H   17 15 18 62 69
+  Star 14H   74 28 79 46 34
+  Star 18H   04 10 90 35 42
+  Digital 20H 79 42 77 63 35
+  Digital 00H 41 43 28 80 59
+  VÉRIFIÉ SUR LA SOURCE OFFICIELLE : l'utilisateur a fourni ensuite une capture
+  de lnbloto.bj (semaine du 01/08 au 02/08/2026) qui confirme les CINQ tirages
+  au numéro près. Le Digital 00H, absent de la première capture, a été ajouté
+  grâce à elle. Les 4 premiers venaient d'une application tierce et se sont
+  révélés exacts.
+  Cette capture confirme aussi les horaires béninois : 11:00, 14:00, 18:00,
+  20:00 — le « Digital 21h » qui y figure porte le drapeau ivoirien.
+
+  Ajout ensuite du 31/07 Digital 20H (34 32 69 89 46) et Fortune 18H
+  (9 69 40 8 48), qui manquaient encore.
+  RAW_BENIN_ALL 4 798 -> 4 805 · TOUT BENIN PLUS DIGITAL 5 392 -> 5 399
+
+CONTRÔLE FINAL contre les captures lnbloto.bj (30/07, 31/07, 01/08) :
+  les 15 tirages de ces trois jours correspondent au numéro près,
+  0 anomalie, 0 manquant. Dernier tirage couvert : 01/08/2026.
+  Tous les blocs dérivés régénérés (13 blocs + les 7 jours).
+  119 jeux, tous parsent sans erreur.
+
+--- 01/08/2026 : MATINAL rattrapé (n°646 à 651) ---
+
+MATINAL s'arrêtait au n°645 du 25/07. Ajout des 6 tirages manquants :
+  646  27/07  67 54 25 76 43  (265)  |  80 59 78 39 58
+  647  28/07  77 22 74 11 40  (224)  |   8 14 41 60 81
+  648  29/07  86 84 29 76  9  (284)  |  58 74 27 18 88
+  649  30/07  19 49 68  6 70  (212)  |  59 12 51 81  3
+  650  31/07  55 75 76 81 40  (327)  |  68 19 74 63 25
+  651  01/08  59 37 12 27 66  (201)  |  88 16 81 56 84
+Les six sommes recalculées correspondent à celles affichées à l'écran.
+Le n°651 est confirmé par l'affiche officielle LONATO (samedi 01/08/2026,
+tirage n°651, 09H00) : 5 premières boules 59-37-12-27-66, 5 dernières
+88-16-81-56-84. Identique au numéro près.
+
+Pas de tirage le dimanche : on passe bien du 645 (samedi 25/07) au 646
+(lundi 27/07). Aucun trou entre 640 et 651.
+RAW_MATINAL 633 -> 639 lignes ; les 6 blocs par jour régénérés.
+
+--- 01/08/2026 : LOTO BINGO + confirmation LOTO SUPER ---
+
+BINGO (LONATO, samedi 18h) s'arrêtait au n°158 du 04/07/2026.
+Ajout du n°162 du 01/08/2026 : 78 35 30 39 67 (total 249),
+d'après la photo de l'écran LONATO.
+Puis ajout des n°159 (11/07 : 10 89 36 12 25), n°160 (18/07 : 73 46 44 5 84)
+et n°161 (25/07 : 73 3 32 79 2) depuis une seconde capture.
+Les trois sommes recalculées (172, 252, 189) correspondent à l'affichage.
+BINGO est désormais COMPLET : 162 tirages, n°1 à n°162, aucun trou,
+et tous tombent bien un samedi.
+Les n°156, 157, 158 et 162 déjà présents ont été recontrôlés : identiques.
+
+SUPER : la photo de l'écran (tirage n°158 du 30/07/2026, 11-18-08-21-85)
+confirme au numéro près ce qui avait été saisi. Le n°157 du 23/07 manque
+toujours.
+
+--- 01/08/2026 : rattrapage général des jeux LONATO (Togo) ---
+
+Tous les jeux togolais ont été mis à jour depuis les captures de l'utilisateur
+(vues « <JEU> 2026 » de l'app + photos des écrans LONATO en agence).
+
+  MATINAL   n°651 du 01/08   639 tirages   (+6 : 646 à 651)
+  SAM       n°475 du 01/08   475 tirages   à jour
+  BINGO     n°162 du 01/08   162 tirages   (+4 : 159 à 162) — plus aucun trou
+  SUPER     n°158 du 30/07   158 tirages   (+2 : 157 et 158) — plus aucun trou
+  KING      n°161 du 31/07   161 tirages   (+3 : 159 à 161)
+  MILLION   n°158 du 30/07   158 tirages   (+3 : 156 à 158)
+  PRESTIGE  n°161 du 29/07   161 tirages   (+3 : 159 à 161)
+  BOOM      n°161 du 28/07   161 tirages   (+3 : 159 à 161)
+  BENZ      n°1854 du 29/07  1854 tirages  (+5 : 1850 à 1854)
+  CASH      n°161 du 28/07   161 tirages   (+3 : 159 à 161)
+  GOLD      n°160 du 27/07   160 tirages   (+3 : 158 à 160)
+  DIAMANT   n°1327 du 27/07  1327 tirages  (+3 : 1325 à 1327)
+  KADOO     n°919 du 31/07   919 tirages   (+2 : 918 et 919)
+Aucun trou de numérotation dans aucun de ces jeux (MATINAL garde 12 trous
+anciens, antérieurs à cette mise à jour).
+Toutes les sommes saisies ont été recalculées et comparées à celles affichées.
+
+DEUX ERREURS DE DONNÉES CORRIGÉES
+  • KADOO n°916 (10/07) portait le bonus « 65 16 », qui est en réalité celui
+    du n°915. La capture montre que le 916 n'a pas de bonus. Bonus supprimé.
+  • BOOM n°157 (30/06) : l'app avait 6-84-44-46-67, la capture donne
+    6-84-46-44-67. Les 3e et 4e numéros étaient inversés — l'ordre compte
+    pour l'analyse par position. Corrigé.
+
+NOUVEAU JEU : DETENTE (🌴)
+  Nouveau loto togolais annoncé par l'utilisateur, 1er tirage le dimanche
+  02/08/2026, cadence hebdomadaire du dimanche, format 5/90.
+  Le jeu est créé avec une ligne d'attente (n°1 du 02/08, numéros à zéro) :
+  il suffira de la modifier dimanche avec le vrai résultat.
+  L'app compte désormais 120 jeux.
+
+ZONE B DU BÉNIN ÉTENDUE
+  La vue STAR DIMANCHE de l'utilisateur a confirmé 11 ZONE B déjà présentes
+  (0 divergence) et en a apporté 4 nouvelles : 26/04, 21/06, 28/06 et 05/07.
+  Total ZONE B renseignées : 84 -> 88.
+
+--- 01/08/2026 : ZONE B massivement complétée (vue TOUT BENIN 2026) ---
+
+Les captures de la vue « TOUT BENIN 2026 » de l'utilisateur portent la ZONE B
+sur la ligne du milieu de chaque journée (le tirage de 14H). 76 lignes relevées
+du 18/05 au 01/08/2026.
+
+Résultat de la confrontation :
+  52 ZONE B déjà présentes -> IDENTIQUES, 0 divergence
+  23 ZONE B nouvelles -> ajoutées
+   1 écart de lecture sur la ZONE A du 12/07 : la capture se lit « 51 58 34 90 85 »
+     alors que lnbloto.bj ET la vue STAR DIMANCHE donnent « 51 58 37 90 85 ».
+     Deux sources contre une : la ZONE B a été rattachée à la version officielle.
+
+ZONE B renseignées : 88 -> 111 tirages de 14H.
+Sur 2026 uniquement, la couverture est désormais quasi complète depuis mi-avril.
+
+PRÉCISION DE L'UTILISATEUR : « la ZONE B est l'équivalent des numéros machine ».
+C'est bien ainsi qu'elle est stockée dans l'app (champ m des tirages, celui des
+numéros machine des autres pays), ce qui la rend utilisable par toutes les
+fonctions existantes. Seul l'affichage porte le nom officiel « ZONE B », car
+c'est ainsi que la LNB la publie — et parce qu'il s'agit d'un vrai second
+tirage de 5 numéros, pas d'un tirage de contrôle.
+
+--- 01/08/2026 : ZONE B COMPLÈTE depuis le début du double tirage ---
+
+Les captures du 13/04 au 22/05 envoyées par l'utilisateur ont été confrontées
+aux données : 29 lignes relevées, TOUTES déjà présentes et IDENTIQUES,
+0 divergence, 0 manquante. Elles avaient été récupérées plus tôt sur
+loteriebenin.bj — cette double lecture les confirme.
+
+ÉTAT : 111 tirages de 14H depuis le 13/04/2026, 111 avec ZONE B -> 100 %.
+Plage réelle : 13/04/2026 (début du double tirage) au 01/08/2026.
+Il ne manque plus aucune ZONE B.
+
+(Note : un affichage précédent annonçait « plage 01/05 -> 31/07 ». C'était un
+tri alphabétique des dates jj/mm, pas chronologique — les données d'avril
+étaient bien là.)
+
+STRUCTURE CONFIRMÉE PAR L'UTILISATEUR
+  TOUT BENIN = 3 tirages par jour : 11H, 14H, 18H (Fortune ou Star selon le jour)
+  ALL BENIN  = TOUT BENIN + les 2 Digital (00H et 20H/21H) = 5 tirages par jour
+  Vérifié sur 2026 : 213 jours x 3 = 639 tirages Fortune/Star,
+  213 x 2 = 426 Digital, total 1 065 = ALL BENIN. La structure de l'app
+  correspond exactement.
+
+--- 01/08/2026 : Cameroun — tirages du 31/07 + structure clarifiée ---
+
+Le tirage camerounais publie 12 numéros par jeu :
+  7 PREMIERS (5 blancs + 2 XTRAS en rouge) et 5 DERNIERS.
+L'app ne peut en stocker que 10 (5 principaux + 5 « machine »), format partagé
+avec le Ghana, le Nigeria et le MATINAL.
+
+CHOIX RETENU (validé par l'utilisateur) : 5 PREMIERS + 5 DERNIERS.
+Les 2 XTRAS ne sont pas conservés pour l'instant. C'est ce qui rend le Cameroun
+directement comparable aux autres pays dans les colonnes et les analyses.
+bonusN des 10 jeux camerounais passé de 4 à 5.
+
+Tirages du 31/07/2026 ajoutés (source : page Facebook PREMIERBET Cameroun,
+affiche officielle 5/90 « RÉSULTATS : 31/07/26 ») :
+  08H00 MOUNGO         28 56 41 14 09 | 02 43 86 81 31
+  09H30 WOURI          31 59 24 15 48 | 21 09 77 46 54
+  11H00 MFOUNDI        47 40 43 79 11 | 81 77 52 87 01
+  12H30 LOGONE         60 27 04 69 61 | 46 70 66 50 76
+  14H00 MONT CAMEROUN  76 42 70 36 59 | 82 65 88 26 74
+  15H30 NOUN           30 20 29 31 15 | 40 21 51 08 34
+  17H00 SANAGA         38 65 85 57 78 | 86 75 53 44 14
+  18H30 LIONS          30 43 79 33 28 | 48 86 40 46 38
+  20H00 MBOA           75 06 19 21 70 | 66 79 81 76 01
+  21H00 CONTINENT      50 04 13 29 37 | 61 72 65 52 44
+Les 10 jeux passent du 23/07 au 31/07 — il reste un trou du 24/07 au 30/07.
+
+À FAIRE (demandé par l'utilisateur) : des fichiers Excel paramétrables pour le
+Cameroun, permettant de travailler sur les 12 numéros (7 premiers dont XTRAS
++ 5 derniers), puisque l'app est limitée à 10. À traiter dans un second temps.
+
+--- 01/08/2026 : PERFORMANCE — cause de l'instabilité et correctif ---
+
+SYMPTÔME signalé : « l'appli n'est plus très stable ».
+
+DIAGNOSTIC : ce n'étaient pas les nouvelles fonctions (mesurées : bjCodeOf sur
+4 805 lignes = 14 ms, elmHLMark = 1 ms, numSpan = 49 ms). C'est le VOLUME.
+render() construisait tout l'historique d'un coup : pour ALL BENIN sur 4 ans,
+cela faisait ~8 Mo de HTML injectés en une fois, soit 19,5 secondes de blocage.
+
+CAUSE DE FOND : les jeux Bénin créés aujourd'hui (ALL BENIN 4 805 tirages,
+TOUT BENIN PLUS DIGITAL 5 399) sont environ 3 fois plus gros que le précédent
+maximum (BENZ, 1 854). L'app rendait toutes les lignes sans limite — ça passait
+avant, plus maintenant.
+
+CORRECTIF : limite du nombre de lignes AFFICHÉES par colonne.
+  • rowsForYearFull() garde le comportement complet (filtres, plage) ;
+  • rowsForYear() n'en renvoie que les N plus récentes ;
+  • barre « Lignes affichées » au-dessus des colonnes : 100 / 200 / 500 / 1000 /
+    tout, avec le compte réel (« 800 affichées sur 4 805 ») et un avertissement
+    quand c'est tronqué.
+  • Valeur par défaut : 200 par colonne.
+
+/!\ IMPORTANT : la limite ne touche QUE l'affichage. Les analyses, statistiques,
+recherches, fréquences et backtests continuent de porter sur TOUT l'historique
+(ils utilisent T, pas rowsForYear). Vérifié : anCalc porte bien sur 4 805.
+
+Mesures avant/après sur ALL BENIN, 4 années (sous jsdom, nettement plus lent
+qu'un vrai navigateur) :
+  sans limite   19 520 ms
+  limite 500     7 974 ms
+  limite 200     3 357 ms   <- défaut retenu
+Les autres jeux ne bougent pas : BENZ 646 ms, CM MOUNGO 257 ms, analyses 833 ms.
+
+Note : l'erreur « Cannot set properties of null (textAlign) » vue sur l'onglet
+Pronostic n'est pas un bug de l'app — jsdom n'implémente pas canvas.
+
+--- 02/08/2026 : VIRTUALISATION de la vue colonnes ---
+
+Le pansement de la veille (limite à 200 lignes) est remplacé par le vrai
+correctif : la vue « Par années » n'écrit dans le DOM que les lignes visibles.
+
+PRINCIPE
+  • Chaque colonne construit une fois sa liste d'éléments (VCOL[année]) :
+    en-têtes de calendrier, trous de numérotation et tirages, à plat.
+  • vFill(année) mesure la hauteur d'une ligne sur un premier lot, calcule la
+    fenêtre visible depuis scrollTop et clientHeight, ajoute 12 lignes de marge
+    de part et d'autre, et ne rend QUE cette fenêtre.
+  • Deux cales (vtop / vbot) de hauteur calculée préservent la barre de
+    défilement et la position exacte.
+  • vScroll() recompose la fenêtre au défilement puis synchronise les colonnes.
+  • Le figeage et l'alignement rappellent vFillAll() pour rester cohérents.
+
+RÉSULTAT — ALL BENIN sur 4 années (4 805 tirages), sous jsdom :
+  avant                    19 520 ms
+  avec limite 200           3 357 ms
+  avec virtualisation         234 ms      (83 fois plus rapide)
+  DOM : 112 lignes présentes au lieu de 4 805.
+La limite « Lignes affichées » est repassée sur « tout » par défaut ; elle
+reste disponible mais n'a plus d'utilité.
+
+DEUX VUES NON VIRTUALISÉES, DONC BORNÉES
+  • Panneau BÉNIN / GHANA / TOGO — Filtre Jour / Jeu : 400 lignes affichées,
+    avec la mention « les 400 plus récents sont affichés, affine les filtres ».
+    12 984 ms -> 1 153 ms.
+  • Onglet Analyses : 300 lignes par colonne. 4 388 ms -> 1 281 ms.
+  Dans les deux cas les CALCULS portent toujours sur tout l'historique.
+
+Contrôles de non-régression : coloriage en exergue (535 cases), filtre Bénin
+(Fortune du jeudi 2026 = 93 tirages), comparaison multi-jeux, recherche,
+les 120 jeux se chargent.
+
+RESTE À FAIRE : la séparation des données (sortir les 2,4 Mo de tirages du
+fichier HTML vers un data.js chargé à part, pour la mise en cache et un
+démarrage plus rapide).
+
+--- 02/08/2026 : SÉPARATION DES DONNÉES ---
+
+Les 122 blocs de tirages sont sortis du HTML dans un fichier à part.
+
+  LOTO MULTI JEUX 4 clean 64.html   2,44 Mo  ->  0,60 Mo   (le code)
+  loto-data.js                                   1,85 Mo   (les tirages)
+
+/!\ DEUX FICHIERS À DÉPLOYER DÉSORMAIS. Ils doivent rester côte à côte, dans
+le même dossier. Si tu ne déploies que le HTML, l'app démarrera sans aucune
+donnée. Déploie le DOSSIER, pas le fichier seul.
+
+POURQUOI UN .js ET PAS UN .json
+  loto-data.js est chargé par une balise <script src> classique, pas par fetch.
+  C'est volontaire : fetch() sur un fichier local est bloqué par les
+  navigateurs, l'app ne fonctionnerait plus en ouvrant le HTML directement
+  depuis le dossier. Avec un <script src>, ça marche dans les deux cas.
+
+CE QUE ÇA APPORTE
+  • Le navigateur met loto-data.js en cache : au deuxième chargement, seuls
+    600 Ko de code sont retéléchargés au lieu de 2,44 Mo.
+  • Modifier le code n'invalide plus le cache des données, et inversement.
+  • Le HTML redevient lisible et éditable.
+
+COMMENT AJOUTER DES RÉSULTATS MAINTENANT
+  Les tirages sont dans loto-data.js, sous la forme
+      window.LOTO_DATA.RAW_SUPER = `...`;
+  Le HTML n'en garde qu'une référence : const RAW_SUPER=window.LOTO_DATA.RAW_SUPER;
+  C'est donc loto-data.js qu'il faut modifier pour ajouter un tirage.
+
+CONTRÔLE DE LA SCISSION : 122 blocs avant, 122 après, aucun manquant, aucun en
+trop, aucun contenu différent, 52 549 lignes de tirages de part et d'autre —
+identique. Aucun bloc n'est resté dans le HTML, les 122 références sont créées,
+la balise <script src="loto-data.js"> est en place.
+
+TESTS APRÈS SCISSION (données réinjectées comme le fera le navigateur) :
+  120 jeux chargent · ALL BENIN 4 ans 213 ms · TOUT BENIN 175 ms ·
+  analyses 3 360 ms · filtre Bénin 1 199 ms · comparaison 447 ms ·
+  DOM 112 lignes pour 4 805 tirages · ZONE B 111 · SAM n°475 · MATINAL n°651 ·
+  Cameroun 12 numéros · exergue 535 cases.
+
+--- 02/08/2026 : découpage des colonnes en ANNÉE / SEMESTRE / TRIMESTRE ---
+
+Une colonne n'est plus forcément une année. Barre « Découpage des colonnes »
+au-dessus des colonnes, trois boutons :
+  Année      2026
+  Semestre   2026 S1 (janvier-juin) · 2026 S2 (juillet-décembre)
+  Trimestre  2026 T1 (janv-mars) · T2 (avr-juin) · T3 (juil-sept) · T4 (oct-déc)
+
+La clé d'une colonne devient « 2026 », « 2026-S1 » ou « 2026-T3 ». Tout le
+reste fonctionne à l'identique sur cette clé : ancrage, verrous, figeage,
+virtualisation, défilement synchronisé, compteur de lignes.
+
+Les périodes SANS AUCUN TIRAGE sont masquées : en trimestre sur 2026, seuls
+T1, T2 et T3 apparaissent — T4 n'a pas encore eu lieu.
+
+Changer de découpage remet à zéro les ancres et le figeage : ils visaient les
+anciennes colonnes, les conserver n'aurait aucun sens.
+
+Contrôle sur ALL BENIN 2026 (1 066 tirages) :
+  semestre   S1 905 + S2 161 = 1 066
+  trimestre  T1 450 + T2 455 + T3 161 = 1 066   -> cohérent
+Vérifié aussi sur SUPER (hebdomadaire) : 2026 S1 = 25, S2 = 5.
+Virtualisation toujours active : 196 lignes dans le DOM pour 7 colonnes.
+
+--- 02/08/2026 : BUG — impossible d'ajouter un tirage à 5 numéros au Bénin ---
+
+SIGNALÉ : « quand j'ai voulu modifier, l'appli me dit de mettre 10 chiffres
+or l'ajout était 5 chiffres ».
+
+CAUSE : tous les jeux béninois portaient sum10:true, hérité du MATINAL qui tire
+réellement 10 numéros. Le formulaire exigeait donc les 5 numéros supplémentaires,
+alors que la ZONE B n'existe QUE pour le tirage de 14H, et seulement depuis le
+13/04/2026 (111 tirages sur 1 175). Impossible de saisir un Star 11H ou 18H.
+
+CORRECTIONS
+  • sum10 retiré de tous les jeux béninois. Le total affiché reste la somme des
+    5 numéros de la ZONE A — c'est déjà ce que contenaient les données.
+  • Nouveau drapeau zoneB:true sur les 12 jeux qui peuvent en avoir une :
+    ALL BENIN, TOUT BENIN PLUS DIGITAL, FORTUNE 14H, STAR 14H, TOUT 14H et les
+    7 jeux BENIN LUNDI..DIMANCHE.
+  • Les 9 jeux qui n'ont JAMAIS de second tirage (Fortune 11H et 18H, Star 11H
+    et 18H, TOUT 11H et 18H, les 3 Digital) passent en hasM:false : le
+    formulaire n'affiche plus que 5 champs.
+  • Sur les jeux à ZONE B, les champs restent affichés mais deviennent
+    FACULTATIFS, sous le libellé « ZONE B (facultatif) » et les repères B1..B5.
+  • En-têtes de colonnes : B1-B5 et TOT B au lieu de N6-N10, partout.
+
+Le MATINAL (10 vrais numéros) et le Cameroun (X1/X2) ne sont pas touchés.
+
+Test du cas exact qui bloquait — ajout d'un tirage à 5 numéros sur
+BENIN DIMANCHE : ACCEPTÉ, total calculé sur 5. Sur STAR 11H, le formulaire
+n'affiche plus que 5 champs.
+
+Sur les « 4 colonnes seulement » : c'est normal, BENIN DIMANCHE ne couvre que
+2023, 2024, 2025 et 2026. Le nouveau découpage Semestre/Trimestre permet
+maintenant d'en obtenir davantage si besoin.

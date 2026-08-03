@@ -7324,17 +7324,18 @@ function render(){
       </div>
       ${state.selGames.length?`<div style="font-size:9px;color:#1F2D3D;font-weight:600;margin-top:4px">Sélectionnés (${state.selGames.length}) : ${state.selGames.filter(k=>GAMES[k]).map(k=>GAMES[k].name).join(' · ')}</div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}`}
     </div>`;
+    // ═══ Sélecteur d'années pour chaque jeu (indépendant du navMode) ═══
+    const sg=state.selGames.filter(k=>GAMES[k]);
+    if(sg.length){
+      html+=`<div style="padding:8px;background:#f5f5f5;border-radius:8px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        ${sg.map(k=>{const gy=state.gameYears[k]||YEARS[0];return`<div style="display:flex;align-items:center;gap:4px;background:#fff;border-radius:6px;padding:4px 8px;border:1px solid #ddd"><span style="font-size:9px;font-weight:600">${GAMES[k].name}:</span><select data-game="${k}" onchange="setGameYear(this.getAttribute('data-game'),this.value)" style="padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:10px"><option value="${gy}" selected>${gy}</option>${YEARS.map(y=>y!==gy?`<option value="${y}">${y}</option>`:'').join('')}</select></div>`;}).join('')}
+        <button onclick="state.syncScroll=!state.syncScroll;render()" style="margin-left:auto;padding:4px 10px;background:${state.syncScroll?'#0891B2':'#ccc'};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500">🔗 ${state.syncScroll?'Sync activé':'Scroll indépendant'}</button>
+      </div>`;
+    }
     if(state.navMode==='games'){
-      const sg=state.selGames.filter(k=>GAMES[k]);
       if(!sg.length){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else{
-        // Afficher sélecteur d'années pour chaque jeu + bouton sync
-        html+=`<div style="padding:8px;background:#f5f5f5;border-radius:8px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-          ${sg.map(k=>{const gy=state.gameYears[k]||YEARS[0];return`<div style="display:flex;align-items:center;gap:4px;background:#fff;border-radius:6px;padding:4px 8px;border:1px solid #ddd"><span style="font-size:9px;font-weight:600">${GAMES[k].name}:</span><select data-game="${k}" onchange="setGameYear(this.getAttribute('data-game'),this.value)" style="padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:10px"><option value="${gy}" selected>${gy}</option>${YEARS.map(y=>y!==gy?`<option value="${y}">${y}</option>`:'').join('')}</select></div>`;}).join('')}
-          <button onclick="state.syncScroll=!state.syncScroll;render()" style="margin-left:auto;padding:4px 10px;background:${state.syncScroll?'#0891B2':'#ccc'};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500">🔗 ${state.syncScroll?'Sync activé':'Scroll indépendant'}</button>
-        </div>`;
-      }
       if(sg.length && state.excelMode){
         // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
         const cols=sg.map(key=>{const g=GAMES[key],gd=gameData(key),yr=state.gameYears[key]||YEARS[0];return{key,g,yr,color:YC[yr]||'1F2D3D',rows:gd.BY_YEAR[yr]||[]};});

@@ -1642,8 +1642,8 @@ let state={
   genTotalOn:false, genTotal:222, genTotalTol:5,
 };
 state.mgYear=YEARS[0];
-// Initialiser les années de jeux (chaque jeu avec son année)
-Object.keys(GAMES).forEach(k=>{if(!state.gameYears[k])state.gameYears[k]=YEARS[0];});
+// Initialiser les années de jeux (chaque jeu avec son année INDÉPENDANTE)
+Object.keys(GAMES).forEach(k=>{state.gameYears[k]=YEARS[0];});
 
 // ── Persistance des couleurs/repères par jeu (survit au refresh) ──
 function saveColorState(){

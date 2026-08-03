@@ -1577,7 +1577,7 @@ let state={
   showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[],
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
-  navMode:'years', selGames:['benz','diamant'], mgYear:'', gameYears:{},
+  navMode:'years', selGames:['benz','diamant'], mgYear:'', gameYears:{}, syncScroll:false,
   // nav
   selYears:YEARS.slice(0,4), showAllYears:false,
   searchInput:'', search:[], pin:null, sync:false, freezeCol:false, excelMode:false, excelTextSize:(localStorage.getItem('excelTextSize')||'normal'),
@@ -6154,6 +6154,7 @@ function alignAnchorRows(){
   });
 }
 function syncScroll(id){
+  if(!state.syncScroll)return; // Scroll synchronisé désactivé par défaut
   if(typeof VCOL!=='undefined'&&VCOL[id])setTimeout(()=>{Object.keys(VCOL).forEach(k=>{if(k!==id)vFill(k);});},0);
   // Mode figé : on reporte le DÉPLACEMENT de la colonne bougée sur toutes les
   // autres, en conservant les positions mémorisées au moment du figeage.
@@ -7328,9 +7329,10 @@ function render(){
       if(!sg.length){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else{
-        // Afficher sélecteur d'années pour chaque jeu
+        // Afficher sélecteur d'années pour chaque jeu + bouton sync
         html+=`<div style="padding:8px;background:#f5f5f5;border-radius:8px;margin-bottom:8px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
           ${sg.map(k=>{const gy=state.gameYears[k]||YEARS[0];return`<div style="display:flex;align-items:center;gap:4px;background:#fff;border-radius:6px;padding:4px 8px;border:1px solid #ddd"><span style="font-size:9px;font-weight:600">${GAMES[k].name}:</span><select onchange="setGameYear('${k}',this.value)" style="padding:2px 4px;border:1px solid #ccc;border-radius:4px;font-size:10px"><option value="${gy}" selected>${gy}</option>${YEARS.map(y=>y!==gy?`<option value="${y}">${y}</option>`:'').join('')}</select></div>`;}).join('')}
+          <button onclick="state.syncScroll=!state.syncScroll;render()" style="margin-left:auto;padding:4px 10px;background:${state.syncScroll?'#0891B2':'#ccc'};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:10px;font-weight:500">🔗 ${state.syncScroll?'Sync activé':'Scroll indépendant'}</button>
         </div>`;
       }
       if(sg.length && state.excelMode){

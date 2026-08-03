@@ -7335,7 +7335,7 @@ function render(){
     if(state.navMode==='games'){
       if(!sg.length){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
-      }else{
+      }
       if(sg.length && state.excelMode){
         // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
         const cols=sg.map(key=>{const g=GAMES[key],gd=gameData(key),yr=state.gameYears[key]||YEARS[0];return{key,g,yr,color:YC[yr]||'1F2D3D',rows:gd.BY_YEAR[yr]||[]};});

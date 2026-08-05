@@ -4687,6 +4687,7 @@ async function exportColoredExcel(){
     const blockCols=2+nNums+(hasM?5:0)+1; // N°,Date,N1..N5,(M1..M5),TOT
     const gap=1; // colonne vide entre chaque bloc année
     const colsPerYear=blockCols+gap;
+    ws.views=[{state:'frozen',xSplit:blockCols,ySplit:3}]; // fige la 1re année (colonnes) + les 3 lignes d'en-tête
     const heads=['N°','Date','N1','N2','N3','N4','N5',...(hasM?['M1','M2','M3','M4','M5']:[]),'TOT'];
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
 

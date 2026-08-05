@@ -72,7 +72,7 @@ button{touch-action:manipulation;font-family:inherit;}
 /* === Vue normale (pas côte à côte) : chaque année empilée, pleine largeur === */
 .cols.stacked{display:block;overflow-x:visible;}
 .cols.stacked .col,.cols.stacked .col.has-m{width:100%;min-width:0;max-width:none;margin-bottom:10px;}
-.cols.stacked .col-body{max-height:none;}
+.cols.stacked .col-body{max-height:60dvh;overscroll-behavior:contain;}
 .cols.frozen{position:relative;}
 .cols.frozen .col:first-child{position:sticky;left:0;z-index:5;background:#fff;box-shadow:4px 0 10px rgba(31,45,61,.22);isolation:isolate;}
 .cols.frozen .col:first-child .col-hdr{position:sticky;top:0;}
@@ -84,7 +84,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);}
 th.excel-frozen{z-index:9;}
 .excel-td.excel-frozen{background:#fff;}
-.col-body{overflow-y:auto;max-height:calc(100vh - 220px);}
+.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
 .col-hdr{text-align:center;padding:6px 3px;font-weight:600;font-size:12px;position:sticky;top:0;z-index:2;letter-spacing:.3px;}
 .popup{position:fixed;z-index:999;background:rgba(24,30,38,.72);color:#fff;border-radius:8px;padding:4px 7px;min-width:80px;max-width:190px;box-shadow:0 6px 22px rgba(0,0,0,.35);pointer-events:none;backdrop-filter:blur(4px);}
 .popup-overlay{position:fixed;inset:0;z-index:998;}
@@ -4631,6 +4631,32 @@ function colorBg(c){
   if(typeof c==='string')return c;
   return c.bg||null;
 }
+// Reproduit EXACTEMENT le rendu écran de numSpan() dans Excel :
+// - coloriage manuel style 'fill'  -> fond coloré + texte fg
+// - styles 'box' / 'underline' / 'text' -> pas de fond, texte de la couleur (+ bordure / soulignement)
+// - marque d'analyse (an)  -> à l'écran c'est une pastille blanche cerclée : fond blanc + texte coloré + bordure
+// - aucun coloriage         -> texte noir (violet pour les machines), pas de fond
+function xlNumStyle(manual,an,isM){
+  const st={};
+  const setFill=hex=>{st.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hex)}};};
+  if(manual&&typeof manual==='object'&&manual.bg){
+    const style=manual.style||'fill';
+    if(style==='fill'){setFill(manual.bg);st.font={color:{argb:hexToARGB(manual.fg||'#ffffff')},bold:true};}
+    else if(style==='box'){st.font={color:{argb:hexToARGB('#1a1a1a')},bold:true};st.border={top:{style:'medium',color:{argb:hexToARGB(manual.bg)}},bottom:{style:'medium',color:{argb:hexToARGB(manual.bg)}},left:{style:'medium',color:{argb:hexToARGB(manual.bg)}},right:{style:'medium',color:{argb:hexToARGB(manual.bg)}}};}
+    else if(style==='underline'){st.font={color:{argb:hexToARGB(manual.bg)},bold:true,underline:true};}
+    else{st.font={color:{argb:hexToARGB(manual.bg)},bold:true};}
+    return st;
+  }
+  if(typeof manual==='string'){setFill(manual);st.font={color:{argb:'FFFFFFFF'},bold:true};return st;}
+  if(an&&an[0]){
+    setFill('#FFFFFF');
+    st.font={color:{argb:hexToARGB(an[0])},bold:true};
+    st.border={top:{style:'thin',color:{argb:hexToARGB(an[0])}},bottom:{style:'thin',color:{argb:hexToARGB(an[0])}},left:{style:'thin',color:{argb:hexToARGB(an[0])}},right:{style:'thin',color:{argb:hexToARGB(an[0])}}};
+    return st;
+  }
+  st.font={color:{argb:hexToARGB(isM?'#7B1FA2':'#1a1a1a')}};
+  return st;
+}
 // Exporte les ANNÉES SÉLECTIONNÉES À L'ÉCRAN (state.selYears), juxtaposées côte à côte
 // dans une seule feuille (comme la vue "Par années"), avec les couleurs (coloriage manuel + Total).
 async function exportColoredExcel(){
@@ -4695,12 +4721,10 @@ async function exportColoredExcel(){
           cell.value=v;
           const cid=r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
-          if(bg){
-            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-            cell.font={color:{argb:hexToARGB(fg)},bold:true};
-          }
+          const st=xlNumStyle(manual,mk&&mk[ni],false);
+          if(st.fill)cell.fill=st.fill;
+          if(st.font)cell.font=st.font;
+          if(st.border)cell.border=st.border;
         });
         if(hasM&&r.m){
           r.m.forEach((v,mi)=>{
@@ -4708,12 +4732,11 @@ async function exportColoredExcel(){
             cell.value=v;
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
-            let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-            if(!bg&&D){const am=anValMark(v,ctx);if(am){bg=am[0];fg=am[1]||'#ffffff';}}
-            if(bg){
-              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-              cell.font={color:{argb:hexToARGB(fg)},bold:true};
-            }
+            const am=D?anValMark(v,ctx):null;
+            const st=xlNumStyle(manual,am,true);
+            if(st.fill)cell.fill=st.fill;
+            if(st.font)cell.font=st.font;
+            if(st.border)cell.border=st.border;
           });
         }
         const totCell=row.getCell(startCol+2+nNums+(hasM?5:0));

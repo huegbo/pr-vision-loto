@@ -69,6 +69,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.compact .num{font-weight:500;padding:0;border-radius:2px;}
 .cols.compact .grid-nav>div:last-child,.cols.compact .grid-nav-m>div:last-child{background:rgba(0,0,0,.055) !important;color:#222 !important;font-weight:600;border-radius:0;}
 .cols.compact .grid-nav-m>div:nth-child(8){background:rgba(0,0,0,.055) !important;color:#222 !important;border-left:none !important;}
+.cols.compact .grid-nav>div.mir-tot-badge,.cols.compact .grid-nav-m>div.mir-tot-badge{background:#F3E5F5 !important;color:#4A148C !important;}
 /* === Vue normale (pas côte à côte) : chaque année empilée, pleine largeur === */
 .cols.stacked{display:block;overflow-x:visible;}
 .cols.stacked .col,.cols.stacked .col.has-m{width:100%;min-width:0;max-width:none;margin-bottom:10px;}
@@ -7326,7 +7327,7 @@ function vRowHTML(it,ri,C){
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${row.t}</div>
             <div style="font-size:${fS}px;color:#555">${(()=>{const c=(typeof bjCodeOf==='function'&&BJ_MULTI.includes(GAME.key))?bjCodeOf(row):null;if(!c)return '';const o=bjOfficiel(row,c);return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;})()}${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),fs:fN},row.t+'_'+ni)).join('');})()}
-            ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
+            ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}
           </div>`;
@@ -7773,7 +7774,7 @@ function anRender(){
         <div style="font-weight:500;color:#${color};font-size:8px">${row.t}</div>
         <div style="font-size:8px;color:#555">${row.d}</div>
         ${row.n.map((n,ni)=>numSpan(n,{an:mk[ni]},row.t+'_'+ni)).join('')}
-        <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+        <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
         ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,an:anValMark(row.m[mi],ctx)},row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
         ${GAME.hasM?(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>'):''}
       </div>`;
@@ -8025,7 +8026,7 @@ function render(){
                   <div style="font-weight:500;color:#${color};font-size:8px">${_lkA?'🔒':''}${row.t}</div>
                   <div style="font-size:8px;color:#555">${row.d}</div>
                   ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
-                  <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+                  <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
                   ${g.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
                   ${g.hasM?(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>'):''}
                 </div>`;
@@ -8219,6 +8220,7 @@ function render(){
           const hD=!hC&&row.n.some(n=>la.numDeriv[n]);
           const pairMk=state.coloring?rowPairMark(row):[null,null,null,null,null];
           const tc=tC(row.s);
+          const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
           const rowBg=state.coloring&&hC?pc[2]:state.coloring&&hD?'#F5F5F5':li%2===0?'#fff':'#f7f7f7';
           html+=`<div class="grid-comp" style="background:${rowBg};border-bottom:${hC&&state.coloring?`1.5px solid ${pc[1]}`:'1px solid #eee'}">
             <div style="font-weight:500;color:${pc[0]};font-size:8px">${row.t}</div>
@@ -8228,7 +8230,7 @@ function render(){
               const clKey=!iC?la.numDeriv[n]:null;
               return numSpan(n,{isComm:iC&&state.coloring,commBg:pc[1],clKey:clKey&&state.coloring?clKey:null,pair:!iC&&!clKey?pairMk[ni]:null},'p'+pi+'_'+row.t+'_'+ni);
             }).join('')}
-            <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+            <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
           </div>`;
         });
         html+=`</div></div>`;

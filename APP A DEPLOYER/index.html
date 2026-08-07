@@ -310,7 +310,37 @@ input[type=text],input[type=number]{font-family:inherit;}
       <div style="display:flex;gap:4px;margin-bottom:6px">
         <button onclick="state.navMode=&#39;years&#39;;render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid #ddd;background:#f5f5f5;color:#555;font-weight:500;font-size:11px;cursor:pointer">📅 Par années</button>
         <button onclick="state.navMode=&#39;games&#39;;render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid #1F2D3D;background:#1F2D3D;color:#fff;font-weight:700;font-size:11px;cursor:pointer" title="Afficher plusieurs lotos côte à côte, même d&#39;un pays différent">🎮 Comparer plusieurs lotos</button>
+        <button onclick="state.alignPanel=!state.alignPanel;render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.alignMode?'#6A1B9A':'#7B1FA2'};background:${state.alignMode?'#6A1B9A':'#F3E5F5'};color:${state.alignMode?'#fff':'#6A1B9A'};font-weight:700;font-size:11px;cursor:pointer" title="Aligner les années sélectionnées sur une même semaine du mois, ou sur le N-ième tirage de l&#39;année">🔗 Comparaison et Alignement</button>
       </div>
+      ${state.alignPanel?`<div style="border:1.5px solid #7B1FA2;border-radius:8px;padding:8px;margin-bottom:8px;background:#FAF5FC">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <button onclick="state.alignMode=state.alignMode==='week'?null:'week';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='week'?'#7B1FA2':'#fff'};color:${state.alignMode==='week'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🗓️ Semaine du mois</button>
+          <button onclick="state.alignMode=state.alignMode==='index'?null:'index';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='index'?'#7B1FA2':'#fff'};color:${state.alignMode==='index'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🔢 N° de tirage de l&#39;année</button>
+          ${state.alignMode?`<button onclick="state.alignMode=null;render()" style="padding:4px 8px;border-radius:6px;border:1.5px solid #B71C1C;background:#fff;color:#B71C1C;font-weight:600;font-size:10px;cursor:pointer">✕ Désactiver</button>`:''}
+        </div>
+        ${state.alignMode==='week'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:9px;font-weight:500">Mois:</span>
+          <select onchange="state.alignMonth=this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
+            ${['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i)=>`<option value="${m}" ${state.alignMonth===m?'selected':''}>${['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][i]}</option>`).join('')}
+          </select>
+          <span style="font-size:9px;font-weight:500">Semaine:</span>
+          <select onchange="state.alignWeek=+this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
+            <option value="1" ${state.alignWeek===1?'selected':''}>1ère (jours 1-7)</option>
+            <option value="2" ${state.alignWeek===2?'selected':''}>2ème (jours 8-14)</option>
+            <option value="3" ${state.alignWeek===3?'selected':''}>3ème (jours 15-21)</option>
+            <option value="4" ${state.alignWeek===4?'selected':''}>4ème (jours 22-28)</option>
+            <option value="5" ${state.alignWeek===5?'selected':''}>5ème (jours 29-31)</option>
+          </select>
+          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...)</span>
+        </div>`:''}
+        ${state.alignMode==='index'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:9px;font-weight:500">N° de tirage dans l&#39;année (1 = premier tirage de janvier):</span>
+          <input type="text" value="${state.alignIndexN}" onchange="state.alignIndexN=this.value;render()" placeholder="ex: 11" style="width:55px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
+          <span style="font-size:9px;font-weight:500">Décalage (tirages avant/après):</span>
+          <input type="text" value="${state.alignSpan}" onchange="state.alignSpan=this.value;render()" placeholder="0" style="width:45px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
+          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...). Ex: N°11 + décalage 2 → affiche les tirages 9 à 13 de chaque année.</span>
+        </div>`:''}
+      </div>`:''}
       
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:500">Année de référence:</span>
@@ -2249,6 +2279,9 @@ let state={
   sideBySide:(localStorage.getItem('sideBySide')!=='0'),
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
+  // Module « Comparaison et Alignement » : aligne les années soit sur une semaine du mois (jours fixes 1-7/8-14/15-21/22-28/29-31),
+  // soit sur le N-ième tirage de l'année (position relative, 1 = premier tirage de janvier de chaque année)
+  alignMode:null, alignMonth:'01', alignWeek:1, alignIndexN:'', alignSpan:0, alignPanel:false,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -4469,11 +4502,32 @@ function bjBarHTML(){
 // ALL BENIN (4 805 tirages) génère ~8 Mo de HTML et fige l'application pendant
 // une vingtaine de secondes. On n'affiche donc que les N plus récentes.
 // Les analyses et statistiques continuent de porter sur TOUT l'historique (T).
+function dayInWeekOfMonth(day,week){
+  const ranges={1:[1,7],2:[8,14],3:[15,21],4:[22,28],5:[29,31]};
+  const r=ranges[week];
+  return !!r&&day>=r[0]&&day<=r[1];
+}
 function rowsForYearFull(yr){
   let rows=BY_YEAR[yr]||[];
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
   if(bjFilterActive())rows=rows.filter(bjKeep);
+  if(state.alignMode==='week'){
+    rows=rows.filter(r=>{
+      const p=(r.d||'').split('/');
+      if(p.length<2)return false;
+      const day=parseInt(p[0],10),mon=p[1];
+      return mon===state.alignMonth&&dayInWeekOfMonth(day,state.alignWeek);
+    });
+  }else if(state.alignMode==='index'){
+    const n=parseInt(state.alignIndexN,10);
+    const span=Math.max(0,parseInt(state.alignSpan,10)||0);
+    const full=BY_YEAR[yr]||[];
+    if(!isNaN(n)&&n>=1){
+      const lo=Math.max(1,n-span),hi=Math.min(full.length,n+span);
+      rows=(lo<=hi)?full.slice(lo-1,hi):[];
+    }else rows=[];
+  }
   return rows;
 }
 function rowsForYear(yr){

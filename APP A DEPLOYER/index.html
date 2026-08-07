@@ -2214,7 +2214,7 @@ const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#
 const PC=[['#0D47A1','#1565C0','#E3F2FD'],['#1B5E20','#2E7D32','#E8F5E9'],['#B71C1C','#C62828','#FFEBEE'],['#4A148C','#6A1B9A','#F3E5F5']];
 
 function isMirrorTotal(s){const str=String(s);return str.length>=2&&str===str.split('').reverse().join('');}
-function tC(s){if(isMirrorTotal(s))return['#6A1B9A','#FFFFFF'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
+function tC(s){if(isMirrorTotal(s))return['#F3E5F5','#4A148C'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
 
 // STATE
 let state={
@@ -2294,6 +2294,8 @@ let state={
   anMode:'premiers', anWin:50, supGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
+  // Totaux miroir (palindromes : 101, 121, 212, 303, 515…) : surligne toute la ligne
+  mirTotalAlways:true,
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
   // saisie de tirages
@@ -4677,6 +4679,7 @@ async function exportColoredExcel(){
     if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';
     if(state.superposAlways&&(!D||D.key!=='superpos'))exportLabel+=' + Mêmes numéros superposés';
+    if(state.mirTotalAlways)exportLabel+=' + Totaux miroir';
     if(state.elmHL&&state.elmHL.length)exportLabel+=' + Éléments ('+state.elmHL.map(k=>{const c=ELM_DEF.find(x=>x.key===k);return c?c.label:k;}).join(', ')+(state.elmHLMode==='superpose'?' superposés':' même ligne')+')';
     const sanitizeSheet=s=>s.replace(/[*?:\\/\[\]]/g,'-').slice(0,31);
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
@@ -7317,7 +7320,8 @@ function vRowHTML(it,ri,C){
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
           const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
-          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
+          const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
+          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':isMirTot?'#F3E5F5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${row.t}</div>
             <div style="font-size:${fS}px;color:#555">${(()=>{const c=(typeof bjCodeOf==='function'&&BJ_MULTI.includes(GAME.key))?bjCodeOf(row):null;if(!c)return '';const o=bjOfficiel(row,c);return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;})()}${row.d}</div>
@@ -7581,6 +7585,10 @@ function anRender(){
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés <span style="font-size:9px;font-weight:400;color:#888">(écart ${Math.max(1,state.supGap||1)})</span>
       </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#4A148C;cursor:pointer">
+        <input type="checkbox" ${state.mirTotalAlways?'checked':''} onchange="state.mirTotalAlways=this.checked;render()">
+        🪞 Totaux miroir <span style="font-size:9px;font-weight:400;color:#888">(101, 212, 303, 515…)</span>
+      </label>
     </div>
     ${elmHLBarHTML()}
     <div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#FEF9C3;border-radius:6px;padding:4px 7px">
@@ -7729,7 +7737,7 @@ function anRender(){
         if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:#fff;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;
           if(ci===cols.length-1)html+=`<td style="background:#fff;width:66px;min-width:66px"></td>`;
           return;}
-        const mk=anMark(row,ctx);const hM=mk.some(Boolean);const bg=isMark?'#FEF9C3':hM?'#FFFDE7':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
+        const mk=anMark(row,ctx);const hM=mk.some(Boolean);const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMark?'#FEF9C3':hM?'#FFFDE7':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
         html+=`<td style="${fz(ci,0)}background:${bg};font-weight:500;color:#${c.color};font-size:9px;width:${W_T}px;min-width:${W_T}px;border-top:${isMark?'2px solid #EAB308':''};border-bottom:${isMark?'2px solid #EAB308':''}">${row.t}</td>`;
         html+=`<td style="${fz(ci,1)}background:${bg};color:#555;font-size:9px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
         row.n.forEach((n,ni)=>{html+=`<td style="${fz(ci,2+ni)}background:${bg};width:${W_N}px;min-width:${W_N}px">${numSpan(n,{an:mk[ni]},'an'+ci+'_'+row.t+'_'+ni)}</td>`;});
@@ -7759,7 +7767,8 @@ function anRender(){
       <div class="col-body" id="col-${yr}" onscroll="syncScroll('${yr}')">`;
     rows.forEach((row,ri)=>{
       const mk=marks[ri];const hM=mk.some(Boolean);
-      const bg=hM?'#FFFDE7':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
+      const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
+      const bg=hM?'#FFFDE7':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
       html+=`<div class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};border-bottom:1px solid #eee">
         <div style="font-weight:500;color:#${color};font-size:8px">${row.t}</div>
         <div style="font-size:8px;color:#555">${row.d}</div>

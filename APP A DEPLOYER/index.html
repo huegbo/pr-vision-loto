@@ -109,6 +109,7 @@ input[type=text],input[type=number]{font-family:inherit;}
 /* VISIBILITE AMELIOREE */
 .grid-nav:nth-child(even), .grid-nav-m:nth-child(even){background:#F8FAFF !important;}
 .grid-nav[style*="F3E5F5"],.grid-nav-m[style*="F3E5F5"]{background:#F3E5F5 !important;}
+.grid-nav[style*="EDE7F6"],.grid-nav-m[style*="EDE7F6"]{background:#EDE7F6 !important;}
 .grid-nav-m > div:nth-child(n+9):nth-child(-n+13){color:#6D28D9;font-weight:700;}
 .grid-nav > div:last-child, .grid-nav-m > div:nth-child(8){background:#FFF3CD !important;color:#7A5A00 !important;font-weight:800;border-radius:3px;}
 .grid-nav-m > div:last-child{background:#EDE7FF !important;color:#4A2D8A !important;font-weight:800;border-radius:3px;}
@@ -2101,6 +2102,7 @@ function remainingWeeklyDraws(yr){
 // Lignes vides du 1er janvier jusqu'au premier tirage réel de l'année
 // (pour un jeu qui a débuté en cours d'année, ex: CASH dont l'historique commence en juillet 2023)
 function precedingWeeklyPlaceholders(yr){
+  // Alignement : on garde aussi les placeholders pour que l'année entière soit visible
   if(!GAME.day)return [];
   const joursIdx={'Dimanche':0,'Lundi':1,'Mardi':2,'Mercredi':3,'Jeudi':4,'Vendredi':5,'Samedi':6};
   const jourNom=GAME.day.split(' ')[0];
@@ -2249,8 +2251,8 @@ let state={
   sideBySide:(localStorage.getItem('sideBySide')!=='0'),
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
-  // Module « Comparaison et Alignement » : aligne les années soit sur une semaine du mois (jours fixes 1-7/8-14/15-21/22-28/29-31),
-  // soit sur le N-ième tirage de l'année (position relative, 1 = premier tirage de janvier de chaque année)
+  // Module « Comparaison et Alignement » : surligne + synchronise le scroll sur une semaine du mois
+  // (jours 1-7/8-14/…) ou le N-ième tirage de l'année — l'année entière reste visible
   alignMode:null, alignMonth:'01', alignWeek:1, alignIndexN:'', alignSpan:0, alignPanel:false,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -4482,23 +4484,67 @@ function rowsForYearFull(yr){
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
   if(bjFilterActive())rows=rows.filter(bjKeep);
-  if(state.alignMode==='week'){
-    rows=rows.filter(r=>{
-      const p=(r.d||'').split('/');
-      if(p.length<2)return false;
-      const day=parseInt(p[0],10),mon=p[1];
-      return mon===state.alignMonth&&dayInWeekOfMonth(day,state.alignWeek);
-    });
-  }else if(state.alignMode==='index'){
-    const n=parseInt(state.alignIndexN,10);
-    const span=Math.max(0,parseInt(state.alignSpan,10)||0);
-    const full=BY_YEAR[yr]||[];
-    if(!isNaN(n)&&n>=1){
-      const lo=Math.max(1,n-span),hi=Math.min(full.length,n+span);
-      rows=(lo<=hi)?full.slice(lo-1,hi):[];
-    }else rows=[];
-  }
+  // Comparaison et Alignement : on NE filtre PLUS les tirages.
+  // Toute l'année reste visible ; la ligne cible est surlignée et les colonnes
+  // défilent automatiquement jusqu'à elle (voir isAlignMatch + scrollToAlign).
   return rows;
+}
+// La ligne correspond-elle à la cible d'alignement (semaine du mois ou N° relatif) ?
+function isAlignMatch(row, yr){
+  if(!state.alignMode||!row)return false;
+  if(state.alignMode==='week'){
+    const p=(row.d||'').split('/');
+    if(p.length<2)return false;
+    const day=parseInt(p[0],10),mon=p[1];
+    return mon===state.alignMonth&&dayInWeekOfMonth(day,state.alignWeek);
+  }
+  if(state.alignMode==='index'){
+    const n=parseInt(state.alignIndexN,10);
+    if(isNaN(n)||n<1)return false;
+    const full=BY_YEAR[yr]||[];
+    // index 1-based dans l'année (ordre chronologique = full tel que stocké)
+    // full est généralement du plus ancien au plus récent ou inversé selon le jeu.
+    // On se base sur la position dans rowsForYearFull (même ordre d'affichage).
+    const rows=rowsForYearFull(yr);
+    // rows = plus récent en premier (T[0] style) si maxRows slice from start
+    // Pour index mode : N = N-ième tirage de l'année en ordre chronologique croissant
+    const chrono=full.slice().sort((a,b)=>a.t-b.t);
+    const target=chrono[n-1];
+    if(!target)return false;
+    const span=Math.max(0,parseInt(state.alignSpan,10)||0);
+    const idx=chrono.findIndex(r=>r.t===target.t);
+    const lo=Math.max(0,idx-span),hi=Math.min(chrono.length-1,idx+span);
+    for(let i=lo;i<=hi;i++)if(chrono[i].t===row.t)return true;
+    return false;
+  }
+  return false;
+}
+// Index de l'item virtuel correspondant à la 1ère ligne alignée dans une colonne
+function findAlignItemIndex(yr){
+  const V=VCOL[yr];
+  if(!V||!state.alignMode)return -1;
+  for(let i=0;i<V.items.length;i++){
+    if(V.items[i].t==='row'&&isAlignMatch(V.items[i].r,yr))return i;
+  }
+  return -1;
+}
+// Fait défiler chaque colonne jusqu'à sa ligne d'alignement (synchronisation visuelle)
+function scrollToAlign(){
+  if(!state.alignMode)return;
+  const years=state.selYears||[];
+  years.forEach(yr=>{
+    const body=document.getElementById('col-'+yr);
+    if(!body)return;
+    const idx=findAlignItemIndex(yr);
+    if(idx<0)return;
+    // S'assurer que VH est mesurée
+    if(!VH[yr])vFill(yr);
+    const h=VH[yr]||26;
+    // Centrer approximativement la ligne dans la fenêtre visible
+    const target=Math.max(0, idx*h - body.clientHeight*0.35);
+    body.scrollTop=target;
+    vFill(yr);
+  });
 }
 function rowsForYear(yr){
   const rows=rowsForYearFull(yr);
@@ -7346,11 +7392,13 @@ function vRowHTML(it,ri,C){
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const isAnchor=_aT===row.t;const isAlign=isAlignMatch(row,yr);const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
-          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':isMirTot?'#F3E5F5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
-          out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
-            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${row.t}</div>
+          // Priorité de fond : ancre > alignement > pin > search > miroir total > colorié > alternance
+          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isAnchor?'#FFEDD5':isAlign?'#EDE7F6':isPi?'#FFF9C4':isM?'#D1FAE5':isMirTot?'#F3E5F5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
+          const borderStyle=isAnchor?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':(isAlign?'border-top:2.5px solid #7B1FA2;border-bottom:2.5px solid #7B1FA2;':(isPi?'border-bottom:2px solid #F59E0B;':'border-bottom:1px solid #eee;'));
+          out+=`<div ${isAnchor?`id="anch-${yr}"`:''}${isAlign?` id="align-${yr}" data-align="1"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${borderStyle}padding-top:${rP}px;padding-bottom:${rP}px">
+            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${isAlign?'🔗':''}${row.t}</div>
             <div style="font-size:${fS}px;color:#555">${(()=>{const c=(typeof bjCodeOf==='function'&&BJ_MULTI.includes(GAME.key))?bjCodeOf(row):null;if(!c)return '';const o=bjOfficiel(row,c);return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;})()}${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),fs:fN},row.t+'_'+ni)).join('');})()}
             ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
@@ -7953,37 +8001,7 @@ function render(){
       <div style="display:flex;gap:4px;margin-bottom:6px">
         <button onclick="state.navMode='years';render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.navMode==='years'?'#1F2D3D':'#ddd'};background:${state.navMode==='years'?'#1F2D3D':'#f5f5f5'};color:${state.navMode==='years'?'#fff':'#555'};font-weight:500;font-size:11px;cursor:pointer">📅 Par années</button>
         <button onclick="state.navMode='games';render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.navMode==='games'?'#1F2D3D':'#2E7D32'};background:${state.navMode==='games'?'#1F2D3D':'#E8F5E9'};color:${state.navMode==='games'?'#fff':'#1B5E20'};font-weight:700;font-size:11px;cursor:pointer" title="Afficher plusieurs lotos côte à côte, même d'un pays différent">🎮 Comparer plusieurs lotos</button>
-        <button onclick="state.alignPanel=!state.alignPanel;render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.alignMode?'#6A1B9A':'#7B1FA2'};background:${state.alignMode?'#6A1B9A':'#F3E5F5'};color:${state.alignMode?'#fff':'#6A1B9A'};font-weight:700;font-size:11px;cursor:pointer" title="Aligner les années sélectionnées sur une même semaine du mois, ou sur le N-ième tirage de l'année">🔗 Comparaison et Alignement</button>
       </div>
-      ${state.alignPanel?`<div style="border:1.5px solid #7B1FA2;border-radius:8px;padding:8px;margin-bottom:8px;background:#FAF5FC">
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <button onclick="state.alignMode=state.alignMode==='week'?null:'week';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='week'?'#7B1FA2':'#fff'};color:${state.alignMode==='week'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🗓️ Semaine du mois</button>
-          <button onclick="state.alignMode=state.alignMode==='index'?null:'index';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='index'?'#7B1FA2':'#fff'};color:${state.alignMode==='index'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🔢 N° de tirage de l'année</button>
-          ${state.alignMode?`<button onclick="state.alignMode=null;render()" style="padding:4px 8px;border-radius:6px;border:1.5px solid #B71C1C;background:#fff;color:#B71C1C;font-weight:600;font-size:10px;cursor:pointer">✕ Désactiver</button>`:''}
-        </div>
-        ${state.alignMode==='week'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:9px;font-weight:500">Mois:</span>
-          <select onchange="state.alignMonth=this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
-            ${['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i)=>`<option value="${m}" ${state.alignMonth===m?'selected':''}>${['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][i]}</option>`).join('')}
-          </select>
-          <span style="font-size:9px;font-weight:500">Semaine:</span>
-          <select onchange="state.alignWeek=+this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
-            <option value="1" ${state.alignWeek===1?'selected':''}>1ère (jours 1-7)</option>
-            <option value="2" ${state.alignWeek===2?'selected':''}>2ème (jours 8-14)</option>
-            <option value="3" ${state.alignWeek===3?'selected':''}>3ème (jours 15-21)</option>
-            <option value="4" ${state.alignWeek===4?'selected':''}>4ème (jours 22-28)</option>
-            <option value="5" ${state.alignWeek===5?'selected':''}>5ème (jours 29-31)</option>
-          </select>
-          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...)</span>
-        </div>`:''}
-        ${state.alignMode==='index'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:9px;font-weight:500">N° de tirage dans l'année (1 = premier tirage de janvier):</span>
-          <input type="text" value="${state.alignIndexN}" onchange="state.alignIndexN=this.value;render()" placeholder="ex: 11" style="width:55px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
-          <span style="font-size:9px;font-weight:500">Décalage (tirages avant/après):</span>
-          <input type="text" value="${state.alignSpan}" onchange="state.alignSpan=this.value;render()" placeholder="0" style="width:45px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
-          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...). Ex: N°11 + décalage 2 → affiche les tirages 9 à 13 de chaque année.</span>
-        </div>`:''}
-      </div>`:''}
       ${state.navMode==='years'?`
       <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;align-items:center">
         <span style="font-size:9px;font-weight:500">Années:</span>
@@ -7998,9 +8016,11 @@ function render(){
         ${!state.showAllYears?`<button onclick="state.showAllYears=true;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #aaa;background:#f0f0f0;color:#555;cursor:pointer">▼</button>`:''}
             </div>
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-        <button onclick="state.alignPanel=!state.alignPanel;render()" style="padding:4px 8px;border-radius:6px;border:2px solid ${state.alignMode?'#6A1B9A':'#7B1FA2'};background:${state.alignMode?'#6A1B9A':'#F3E5F5'};color:${state.alignMode?'#fff':'#6A1B9A'};font-weight:700;font-size:11px;cursor:pointer" title="Aligner les années sélectionnées sur une même semaine du mois, ou sur le N-ième tirage de l'année">🔗 Comparaison et Alignement</button>
+        <button onclick="state.alignPanel=!state.alignPanel;render()" style="padding:4px 8px;border-radius:6px;border:2px solid ${state.alignMode?'#6A1B9A':'#7B1FA2'};background:${state.alignMode?'#6A1B9A':'#F3E5F5'};color:${state.alignMode?'#fff':'#6A1B9A'};font-weight:700;font-size:11px;cursor:pointer" title="Surligne et synchronise toutes les années sur une même semaine du mois (ou N° de tirage relatif) — l'année entière reste visible">🔗 Comparaison et Alignement</button>
+        <button onclick="state.alignMode='week';state.alignMonth='07';state.alignWeek=1;state.alignPanel=false;render()" style="padding:4px 8px;border-radius:6px;border:2px solid #7B1FA2;background:${state.alignMode==='week'&&state.alignMonth==='07'&&state.alignWeek===1?'#7B1FA2':'#fff'};color:${state.alignMode==='week'&&state.alignMonth==='07'&&state.alignWeek===1?'#fff':'#7B1FA2'};font-weight:600;font-size:11px;cursor:pointer" title="Raccourci : surligne et fait défiler chaque année jusqu'à la 1ère semaine de juillet (jours 1-7) — année entière visible">📅 Aligner 1ère semaine de juillet</button>
         ${state.alignMode?`<span style="font-size:9px;color:#6A1B9A;font-weight:600">${state.alignMode==='week'?'🗓️ actif':'🔢 actif'}</span>`:''}
       </div>
+      ${state.alignMode?`<div style="font-size:9px;color:#6A1B9A;background:#F3E5F5;border:1px solid #CE93D8;border-radius:6px;padding:4px 8px;margin-bottom:6px">🔗 <b>Alignement actif</b> — année entière visible · lignes cibles surlignées en violet · colonnes synchronisées sur la même semaine / N°</div>`:''}
       ${state.alignPanel?`<div style="border:1.5px solid #7B1FA2;border-radius:8px;padding:8px;margin-bottom:8px;background:#FAF5FC">
         <div style="display:flex;gap:6px;margin-bottom:6px">
           <button onclick="state.alignMode=state.alignMode==='week'?null:'week';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='week'?'#7B1FA2':'#fff'};color:${state.alignMode==='week'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🗓️ Semaine du mois</button>
@@ -8027,7 +8047,7 @@ function render(){
           <input type="text" value="${state.alignIndexN}" onchange="state.alignIndexN=this.value;render()" placeholder="ex: 11" style="width:55px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
           <span style="font-size:9px;font-weight:500">Décalage (tirages avant/après):</span>
           <input type="text" value="${state.alignSpan}" onchange="state.alignSpan=this.value;render()" placeholder="0" style="width:45px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
-          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...). Ex: N°11 + décalage 2 → affiche les tirages 9 à 13 de chaque année.</span>
+          <span style="font-size:9px;color:#888">— pour les années cochées. Ex: N°11 + décalage 2 → surligne les tirages 9 à 13 de chaque année (année entière visible, colonnes synchronisées).</span>
         </div>`:''}
       </div>`:''}
       `:`
@@ -8353,6 +8373,8 @@ function render(){
     setTimeout(()=>{
       vFillAll();                       // remplit la fenêtre visible de chaque colonne
       if(state.freezeOn&&state.freezeOffsets){restoreFreeze();vFillAll();return;}
+      // Comparaison et Alignement : synchroniser toutes les colonnes sur la semaine / N° choisi
+      if(state.alignMode){scrollToAlign();return;}
       const anch=(typeof anchorColIds==='function')?anchorColIds():[];
       if(anch.length>1){alignAnchorRows();return;}
       state.selYears.forEach(yr=>{

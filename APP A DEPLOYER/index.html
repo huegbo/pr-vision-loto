@@ -2213,7 +2213,8 @@ function getDerivsByType(n){
 const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#fff'],['#22C55E','#fff'],['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff'],['#6366F1','#fff'],['#F59E0B','#000']];
 const PC=[['#0D47A1','#1565C0','#E3F2FD'],['#1B5E20','#2E7D32','#E8F5E9'],['#B71C1C','#C62828','#FFEBEE'],['#4A148C','#6A1B9A','#F3E5F5']];
 
-function tC(s){if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
+function isMirrorTotal(s){const str=String(s);return str.length>=2&&str===str.split('').reverse().join('');}
+function tC(s){if(isMirrorTotal(s))return['#F3E5F5','#4A148C'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
 
 // STATE
 let state={

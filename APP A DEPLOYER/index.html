@@ -69,7 +69,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.compact .num{font-weight:500;padding:0;border-radius:2px;}
 .cols.compact .grid-nav>div:last-child,.cols.compact .grid-nav-m>div:last-child{background:rgba(0,0,0,.055) !important;color:#222 !important;font-weight:600;border-radius:0;}
 .cols.compact .grid-nav-m>div:nth-child(8){background:rgba(0,0,0,.055) !important;color:#222 !important;border-left:none !important;}
-.cols.compact .grid-nav>div.mir-tot-badge,.cols.compact .grid-nav-m>div.mir-tot-badge{background:#F3E5F5 !important;color:#4A148C !important;}
+.cols.compact .grid-nav>div.mir-tot-badge,.cols.compact .grid-nav-m>div.mir-tot-badge{background:#7B1FA2 !important;color:#FFFFFF !important;}
 /* === Vue normale (pas côte à côte) : chaque année empilée, pleine largeur === */
 .cols.stacked{display:block;overflow-x:visible;}
 .cols.stacked .col,.cols.stacked .col.has-m{width:100%;min-width:0;max-width:none;margin-bottom:10px;}
@@ -113,7 +113,7 @@ input[type=text],input[type=number]{font-family:inherit;}
 .grid-nav > div:last-child, .grid-nav-m > div:nth-child(8){background:#FFF3CD !important;color:#7A5A00 !important;font-weight:800;border-radius:3px;}
 .grid-nav-m > div:last-child{background:#EDE7FF !important;color:#4A2D8A !important;font-weight:800;border-radius:3px;}
 .grid-nav-m > div:nth-child(8), .grid-hdr-m > div:nth-child(8){border-left:2.5px solid #FF6B35 !important;}
-.grid-nav>div.mir-tot-badge,.grid-nav-m>div.mir-tot-badge{background:#F3E5F5 !important;color:#4A148C !important;}
+.grid-nav>div.mir-tot-badge,.grid-nav-m>div.mir-tot-badge{background:#7B1FA2 !important;color:#FFFFFF !important;}
 
 
 /* FIT2 - si jeu à 10 numéros, passe en 1 colonne pour rester lisible */
@@ -2217,7 +2217,7 @@ const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#
 const PC=[['#0D47A1','#1565C0','#E3F2FD'],['#1B5E20','#2E7D32','#E8F5E9'],['#B71C1C','#C62828','#FFEBEE'],['#4A148C','#6A1B9A','#F3E5F5']];
 
 function isMirrorTotal(s){const str=String(s);return str.length>=2&&str===str.split('').reverse().join('');}
-function tC(s){if(isMirrorTotal(s))return['#F3E5F5','#4A148C'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
+function tC(s){if(isMirrorTotal(s))return['#7B1FA2','#FFFFFF'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
 
 // STATE
 let state={

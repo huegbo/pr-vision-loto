@@ -7991,7 +7991,7 @@ function render(){
           cols.forEach((c,ci)=>{
             const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0&&k<2?'excel-frozen':''}" style="${ci===0&&k<2?`left:${k===0?0:34}px;`:''}"></td>`;return;}
-            const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
+            const tc=tC(row.s);const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;':''}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:34px;':''}">${row.d}</td>`;
             const _e=elmHLMark(row);row.n.forEach((n,ni)=>{html+=`<td class="excel-td" style="background:${bg}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
@@ -8019,7 +8019,8 @@ function render(){
               ${rows.length?rows.map((row,ri)=>{
                 const tc=tC(row.s);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[key+'_'+row.t+'_'+ni]);
                 const _isA=getAnchorG(key)===row.t;const _lkA=_isA&&isAnchorLockedG(key);
-                const bg=_isA?'#FFEDD5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7';
+                const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
+                const bg=_isA?'#FFEDD5':hC?'#FFF7ED':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
                 return`<div ${_isA?`id="anch-${key}"`:''} class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${_isA?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':'border-bottom:1px solid #eee;'}">
                   <div style="font-weight:500;color:#${color};font-size:8px">${_lkA?'🔒':''}${row.t}</div>
                   <div style="font-size:8px;color:#555">${row.d}</div>
@@ -8077,7 +8078,7 @@ function render(){
       for(let ri=0;ri<maxRows;ri++){
         html+=`<tr>`;
         cols.forEach((c,ci)=>{
-          const row=c.rows[ri];const bg=ri%2===0?'#fff':'#f7f7f7';
+          const row=c.rows[ri];const isMirTot=row&&state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
           if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;return;}
           const tc=tC(row.s);
           html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${row.t}</td>`;

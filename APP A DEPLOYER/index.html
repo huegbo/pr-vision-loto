@@ -69,7 +69,6 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.compact .num{font-weight:500;padding:0;border-radius:2px;}
 .cols.compact .grid-nav>div:last-child,.cols.compact .grid-nav-m>div:last-child{background:rgba(0,0,0,.055) !important;color:#222 !important;font-weight:600;border-radius:0;}
 .cols.compact .grid-nav-m>div:nth-child(8){background:rgba(0,0,0,.055) !important;color:#222 !important;border-left:none !important;}
-.cols.compact .grid-nav>div.mir-tot-badge,.cols.compact .grid-nav-m>div.mir-tot-badge{background:#7B1FA2 !important;color:#FFFFFF !important;}
 /* === Vue normale (pas côte à côte) : chaque année empilée, pleine largeur === */
 .cols.stacked{display:block;overflow-x:visible;}
 .cols.stacked .col,.cols.stacked .col.has-m{width:100%;min-width:0;max-width:none;margin-bottom:10px;}
@@ -108,13 +107,10 @@ input[type=text],input[type=number]{font-family:inherit;}
 
 /* VISIBILITE AMELIOREE */
 .grid-nav:nth-child(even), .grid-nav-m:nth-child(even){background:#F8FAFF !important;}
-.grid-nav[style*="F3E5F5"],.grid-nav-m[style*="F3E5F5"]{background:#F3E5F5 !important;}
-.grid-nav[style*="EDE7F6"],.grid-nav-m[style*="EDE7F6"]{background:#EDE7F6 !important;}
 .grid-nav-m > div:nth-child(n+9):nth-child(-n+13){color:#6D28D9;font-weight:700;}
 .grid-nav > div:last-child, .grid-nav-m > div:nth-child(8){background:#FFF3CD !important;color:#7A5A00 !important;font-weight:800;border-radius:3px;}
 .grid-nav-m > div:last-child{background:#EDE7FF !important;color:#4A2D8A !important;font-weight:800;border-radius:3px;}
 .grid-nav-m > div:nth-child(8), .grid-hdr-m > div:nth-child(8){border-left:2.5px solid #FF6B35 !important;}
-.grid-nav>div.mir-tot-badge,.grid-nav-m>div.mir-tot-badge{background:#7B1FA2 !important;color:#FFFFFF !important;}
 
 
 /* FIT2 - si jeu à 10 numéros, passe en 1 colonne pour rester lisible */
@@ -2102,7 +2098,6 @@ function remainingWeeklyDraws(yr){
 // Lignes vides du 1er janvier jusqu'au premier tirage réel de l'année
 // (pour un jeu qui a débuté en cours d'année, ex: CASH dont l'historique commence en juillet 2023)
 function precedingWeeklyPlaceholders(yr){
-  // Alignement : on garde aussi les placeholders pour que l'année entière soit visible
   if(!GAME.day)return [];
   const joursIdx={'Dimanche':0,'Lundi':1,'Mardi':2,'Mercredi':3,'Jeudi':4,'Vendredi':5,'Samedi':6};
   const jourNom=GAME.day.split(' ')[0];
@@ -2218,8 +2213,7 @@ function getDerivsByType(n){
 const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#fff'],['#22C55E','#fff'],['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff'],['#6366F1','#fff'],['#F59E0B','#000']];
 const PC=[['#0D47A1','#1565C0','#E3F2FD'],['#1B5E20','#2E7D32','#E8F5E9'],['#B71C1C','#C62828','#FFEBEE'],['#4A148C','#6A1B9A','#F3E5F5']];
 
-function isMirrorTotal(s){const str=String(s);return str.length>=2&&str===str.split('').reverse().join('');}
-function tC(s){if(isMirrorTotal(s))return['#7B1FA2','#FFFFFF'];if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
+function tC(s){if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
 
 // STATE
 let state={
@@ -2251,9 +2245,6 @@ let state={
   sideBySide:(localStorage.getItem('sideBySide')!=='0'),
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
-  // Module « Comparaison et Alignement » : surligne + synchronise le scroll sur une semaine du mois
-  // (jours 1-7/8-14/…) ou le N-ième tirage de l'année — l'année entière reste visible
-  alignMode:null, alignMonth:'01', alignWeek:1, alignIndexN:'', alignSpan:0, alignPanel:false,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -2302,8 +2293,6 @@ let state={
   anMode:'premiers', anWin:50, supGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
-  // Totaux miroir (palindromes : 101, 121, 212, 303, 515…) : surligne toute la ligne
-  mirTotalAlways:true,
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
   // saisie de tirages
@@ -4474,77 +4463,12 @@ function bjBarHTML(){
 // ALL BENIN (4 805 tirages) génère ~8 Mo de HTML et fige l'application pendant
 // une vingtaine de secondes. On n'affiche donc que les N plus récentes.
 // Les analyses et statistiques continuent de porter sur TOUT l'historique (T).
-function dayInWeekOfMonth(day,week){
-  const ranges={1:[1,7],2:[8,14],3:[15,21],4:[22,28],5:[29,31]};
-  const r=ranges[week];
-  return !!r&&day>=r[0]&&day<=r[1];
-}
 function rowsForYearFull(yr){
   let rows=BY_YEAR[yr]||[];
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
   if(bjFilterActive())rows=rows.filter(bjKeep);
-  // Comparaison et Alignement : on NE filtre PLUS les tirages.
-  // Toute l'année reste visible ; la ligne cible est surlignée et les colonnes
-  // défilent automatiquement jusqu'à elle (voir isAlignMatch + scrollToAlign).
   return rows;
-}
-// La ligne correspond-elle à la cible d'alignement (semaine du mois ou N° relatif) ?
-function isAlignMatch(row, yr){
-  if(!state.alignMode||!row)return false;
-  if(state.alignMode==='week'){
-    const p=(row.d||'').split('/');
-    if(p.length<2)return false;
-    const day=parseInt(p[0],10),mon=p[1];
-    return mon===state.alignMonth&&dayInWeekOfMonth(day,state.alignWeek);
-  }
-  if(state.alignMode==='index'){
-    const n=parseInt(state.alignIndexN,10);
-    if(isNaN(n)||n<1)return false;
-    const full=BY_YEAR[yr]||[];
-    // index 1-based dans l'année (ordre chronologique = full tel que stocké)
-    // full est généralement du plus ancien au plus récent ou inversé selon le jeu.
-    // On se base sur la position dans rowsForYearFull (même ordre d'affichage).
-    const rows=rowsForYearFull(yr);
-    // rows = plus récent en premier (T[0] style) si maxRows slice from start
-    // Pour index mode : N = N-ième tirage de l'année en ordre chronologique croissant
-    const chrono=full.slice().sort((a,b)=>a.t-b.t);
-    const target=chrono[n-1];
-    if(!target)return false;
-    const span=Math.max(0,parseInt(state.alignSpan,10)||0);
-    const idx=chrono.findIndex(r=>r.t===target.t);
-    const lo=Math.max(0,idx-span),hi=Math.min(chrono.length-1,idx+span);
-    for(let i=lo;i<=hi;i++)if(chrono[i].t===row.t)return true;
-    return false;
-  }
-  return false;
-}
-// Index de l'item virtuel correspondant à la 1ère ligne alignée dans une colonne
-function findAlignItemIndex(yr){
-  const V=VCOL[yr];
-  if(!V||!state.alignMode)return -1;
-  for(let i=0;i<V.items.length;i++){
-    if(V.items[i].t==='row'&&isAlignMatch(V.items[i].r,yr))return i;
-  }
-  return -1;
-}
-// Fait défiler chaque colonne jusqu'à sa ligne d'alignement (synchronisation visuelle)
-function scrollToAlign(){
-  if(!state.alignMode)return;
-  const years=state.selYears||[];
-  years.forEach(yr=>{
-    const body=document.getElementById('col-'+yr);
-    if(!body)return;
-    const idx=findAlignItemIndex(yr);
-    if(idx<0)return;
-    // S'assurer que VH est mesurée
-    if(!VH[yr])vFill(yr);
-    const h=VH[yr]||26;
-    // Centrer approximativement la ligne dans la fenêtre visible
-    const target=Math.max(0, idx*h - body.clientHeight*0.35);
-    body.scrollTop=target;
-    vFill(yr);
-  });
 }
 function rowsForYear(yr){
   const rows=rowsForYearFull(yr);
@@ -4707,32 +4631,6 @@ function colorBg(c){
   if(typeof c==='string')return c;
   return c.bg||null;
 }
-// Reproduit EXACTEMENT le rendu écran de numSpan() dans Excel :
-// - coloriage manuel style 'fill'  -> fond coloré + texte fg
-// - styles 'box' / 'underline' / 'text' -> pas de fond, texte de la couleur (+ bordure / soulignement)
-// - marque d'analyse (an)  -> à l'écran c'est une pastille blanche cerclée : fond blanc + texte coloré + bordure
-// - aucun coloriage         -> texte noir (violet pour les machines), pas de fond
-function xlNumStyle(manual,an,isM){
-  const st={};
-  const setFill=hex=>{st.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hex)}};};
-  if(manual&&typeof manual==='object'&&manual.bg){
-    const style=manual.style||'fill';
-    if(style==='fill'){setFill(manual.bg);st.font={color:{argb:hexToARGB(manual.fg||'#ffffff')},bold:true};}
-    else if(style==='box'){st.font={color:{argb:hexToARGB('#1a1a1a')},bold:true};st.border={top:{style:'medium',color:{argb:hexToARGB(manual.bg)}},bottom:{style:'medium',color:{argb:hexToARGB(manual.bg)}},left:{style:'medium',color:{argb:hexToARGB(manual.bg)}},right:{style:'medium',color:{argb:hexToARGB(manual.bg)}}};}
-    else if(style==='underline'){st.font={color:{argb:hexToARGB(manual.bg)},bold:true,underline:true};}
-    else{st.font={color:{argb:hexToARGB(manual.bg)},bold:true};}
-    return st;
-  }
-  if(typeof manual==='string'){setFill(manual);st.font={color:{argb:'FFFFFFFF'},bold:true};return st;}
-  if(an&&an[0]){
-    setFill('#FFFFFF');
-    st.font={color:{argb:hexToARGB(an[0])},bold:true};
-    st.border={top:{style:'thin',color:{argb:hexToARGB(an[0])}},bottom:{style:'thin',color:{argb:hexToARGB(an[0])}},left:{style:'thin',color:{argb:hexToARGB(an[0])}},right:{style:'thin',color:{argb:hexToARGB(an[0])}}};
-    return st;
-  }
-  st.font={color:{argb:hexToARGB(isM?'#7B1FA2':'#1a1a1a')}};
-  return st;
-}
 // Exporte les ANNÉES SÉLECTIONNÉES À L'ÉCRAN (state.selYears), juxtaposées côte à côte
 // dans une seule feuille (comme la vue "Par années"), avec les couleurs (coloriage manuel + Total).
 async function exportColoredExcel(){
@@ -4752,7 +4650,6 @@ async function exportColoredExcel(){
     if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';
     if(state.superposAlways&&(!D||D.key!=='superpos'))exportLabel+=' + Mêmes numéros superposés';
-    if(state.mirTotalAlways)exportLabel+=' + Totaux miroir';
     if(state.elmHL&&state.elmHL.length)exportLabel+=' + Éléments ('+state.elmHL.map(k=>{const c=ELM_DEF.find(x=>x.key===k);return c?c.label:k;}).join(', ')+(state.elmHLMode==='superpose'?' superposés':' même ligne')+')';
     const sanitizeSheet=s=>s.replace(/[*?:\\/\[\]]/g,'-').slice(0,31);
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
@@ -4764,7 +4661,6 @@ async function exportColoredExcel(){
     const blockCols=2+nNums+(hasM?5:0)+1; // N°,Date,N1..N5,(M1..M5),TOT
     const gap=1; // colonne vide entre chaque bloc année
     const colsPerYear=blockCols+gap;
-    ws.views=[{state:'frozen',xSplit:blockCols,ySplit:3}]; // fige la 1re année (colonnes) + les 3 lignes d'en-tête
     const heads=['N°','Date','N1','N2','N3','N4','N5',...(hasM?['M1','M2','M3','M4','M5']:[]),'TOT'];
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
 
@@ -4799,10 +4695,12 @@ async function exportColoredExcel(){
           cell.value=v;
           const cid=r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          const st=xlNumStyle(manual,mk&&mk[ni],false);
-          if(st.fill)cell.fill=st.fill;
-          if(st.font)cell.font=st.font;
-          if(st.border)cell.border=st.border;
+          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
+          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
+          if(bg){
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
+            cell.font={color:{argb:hexToARGB(fg)},bold:true};
+          }
         });
         if(hasM&&r.m){
           r.m.forEach((v,mi)=>{
@@ -4810,11 +4708,12 @@ async function exportColoredExcel(){
             cell.value=v;
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
-            const am=D?anValMark(v,ctx):null;
-            const st=xlNumStyle(manual,am,true);
-            if(st.fill)cell.fill=st.fill;
-            if(st.font)cell.font=st.font;
-            if(st.border)cell.border=st.border;
+            let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
+            if(!bg&&D){const am=anValMark(v,ctx);if(am){bg=am[0];fg=am[1]||'#ffffff';}}
+            if(bg){
+              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
+              cell.font={color:{argb:hexToARGB(fg)},bold:true};
+            }
           });
         }
         const totCell=row.getCell(startCol+2+nNums+(hasM?5:0));
@@ -7039,7 +6938,7 @@ function runBacktestUI(){
 }
 
 const AN_DEF=[
-  {key:'doubles',label:'👯 Doubles',bg:'#BE185D',fg:'#fff',desc:'Numéros doubles: 11, 22, 33, 44, 55, 66, 77, 88'},
+  {key:'premiers',label:'🟣 Premiers',bg:'#7B1FA2',fg:'#fff',desc:'Nombres premiers : 2,3,5,7,11,13...83,89'},
   {key:'carres',label:'⬛ Carrés parfaits',bg:'#00838F',fg:'#fff',desc:'1, 4, 9, 16, 25, 36, 49, 64, 81'},
   {key:'pairs',label:'🔵 Pairs',bg:'#1565C0',fg:'#fff',desc:'Numéros pairs'},
   {key:'impairs',label:'🟠 Impairs',bg:'#EF6C00',fg:'#fff',desc:'Numéros impairs'},
@@ -7060,7 +6959,7 @@ const AN_DEF=[
   {key:'geo',label:'✖️ Suite géométrique',bg:'#7C3AED',fg:'#fff',desc:'Au moins 3 numéros formant une suite à rapport constant (ex: 2-4-8)'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
-  {key:'premiers',label:'🟣 Premiers',bg:'#7B1FA2',fg:'#fff',desc:'Nombres premiers : 2,3,5,7,11,13...83,89'},
+  {key:'doubles',label:'👯 Doubles',bg:'#BE185D',fg:'#fff',desc:'Numéros doubles: 11, 22, 33, 44, 55, 66, 77, 88'},
   {key:'dizaine',label:'🔟 Dizaine',bg:'#B45309',fg:'#fff',desc:'Numéros d\'une même dizaine (réglable): 20-29, 30-39...'},
   {key:'groupe',label:'9️⃣ Groupe (preuve par 9)',bg:'#4338CA',fg:'#fff',desc:'Racine numérique: 89→8+9=17→1+7=8, groupe 8 (réglable 1-9)'},
   {key:'rep',label:'🔁 Répétés tirage suivant',bg:'#EF6C00',fg:'#fff',desc:'Numéros déjà sortis au tirage précédent'},
@@ -7070,6 +6969,7 @@ const AN_DEF=[
   {key:'retard',label:'⏳ En retard',bg:'#6A1B9A',fg:'#fff',desc:'Top 10 des numéros qui ne sont plus sortis depuis longtemps'},
   {key:'freq',label:'📈 Fréquences',bg:'#C62828',fg:'#fff',desc:"Top 10 (rouge) et Flop 10 (bleu) sur tout l'historique"},
   {key:'paires',label:'🔗 Paires & triplets',bg:'#0D9488',fg:'#fff',desc:'Numéros qui sortent le plus souvent ensemble dans un même tirage'},
+  {key:'intervalles',label:'🔁 Motifs à intervalle fixe',bg:'#DB2777',fg:'#fff',desc:'Paires ou triplets qui reviennent ensemble avec un écart régulier de tirages'},
   {key:'graph',label:'📊 Graphiques',bg:'#1D4ED8',fg:'#fff',desc:'Histogramme des fréquences et courbe des totaux'},
   {key:'backtest',label:'🧪 Backtest stratégies',bg:'#B91C1C',fg:'#fff',desc:"Teste 8 stratégies de pronostic sur tout l'historique et mesure leur taux de réussite réel (porté depuis Oracle du Loto)"},
 ];
@@ -7094,6 +6994,34 @@ function anCalc(){
     });
     res.pairs=Object.entries(pairCount).map(([k,c])=>({k,c})).sort((a,b)=>b.c-a.c).slice(0,15);
     res.trips=Object.entries(tripCount).map(([k,c])=>({k,c})).sort((a,b)=>b.c-a.c).slice(0,12);
+    res.nT=T.length;
+  }
+  if(m==='intervalles'){
+    const size=state.intervalSize===3?3:2;
+    const chrono=T.slice().reverse(); // plus ancien → plus récent
+    const combosMap={};
+    chrono.forEach(r=>{
+      const ns=[...new Set(r.n)].filter(n=>n>=1&&n<=90).sort((a,b)=>a-b);
+      const combos=[];
+      for(let i=0;i<ns.length;i++){
+        if(size===2){
+          for(let j=i+1;j<ns.length;j++)combos.push(ns[i]+'-'+ns[j]);
+        }else{
+          for(let j=i+1;j<ns.length;j++)for(let l=j+1;l<ns.length;l++)combos.push(ns[i]+'-'+ns[j]+'-'+ns[l]);
+        }
+      }
+      combos.forEach(k=>{(combosMap[k]=combosMap[k]||[]).push(r.t);});
+    });
+    const results=Object.entries(combosMap).filter(([k,occ])=>occ.length>=2).map(([k,occ])=>{
+      const gaps=[];for(let i=1;i<occ.length;i++)gaps.push(occ[i]-occ[i-1]);
+      const gapCount={};gaps.forEach(g=>gapCount[g]=(gapCount[g]||0)+1);
+      let bestGap=null,bestCount=0;
+      Object.entries(gapCount).forEach(([g,c])=>{if(c>bestCount){bestCount=c;bestGap=+g;}});
+      return{k,occ,gaps,bestGap,bestCount};
+    });
+    results.sort((a,b)=>(b.bestCount-a.bestCount)||(b.occ.length-a.occ.length)||(a.bestGap-b.bestGap));
+    res.interResults=results.slice(0,60);
+    res.interSize=size;
     res.nT=T.length;
   }
   if(m==='chauds'||m==='freq'){
@@ -7392,16 +7320,13 @@ function vRowHTML(it,ri,C){
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isAlign=isAlignMatch(row,yr);const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
-          const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
-          // Priorité de fond : ancre > alignement > pin > search > miroir total > colorié > alternance
-          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isAnchor?'#FFEDD5':isAlign?'#EDE7F6':isPi?'#FFF9C4':isM?'#D1FAE5':isMirTot?'#F3E5F5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
-          const borderStyle=isAnchor?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':(isAlign?'border-top:2.5px solid #7B1FA2;border-bottom:2.5px solid #7B1FA2;':(isPi?'border-bottom:2px solid #F59E0B;':'border-bottom:1px solid #eee;'));
-          out+=`<div ${isAnchor?`id="anch-${yr}"`:''}${isAlign?` id="align-${yr}" data-align="1"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${borderStyle}padding-top:${rP}px;padding-bottom:${rP}px">
-            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${isAlign?'🔗':''}${row.t}</div>
+          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
+          out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
+            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${row.t}</div>
             <div style="font-size:${fS}px;color:#555">${(()=>{const c=(typeof bjCodeOf==='function'&&BJ_MULTI.includes(GAME.key))?bjCodeOf(row):null;if(!c)return '';const o=bjOfficiel(row,c);return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;})()}${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),fs:fN},row.t+'_'+ni)).join('');})()}
-            ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
+            ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}
           </div>`;
@@ -7660,10 +7585,6 @@ function anRender(){
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés <span style="font-size:9px;font-weight:400;color:#888">(écart ${Math.max(1,state.supGap||1)})</span>
       </label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#4A148C;cursor:pointer">
-        <input type="checkbox" ${state.mirTotalAlways?'checked':''} onchange="state.mirTotalAlways=this.checked;render()">
-        🪞 Totaux miroir <span style="font-size:9px;font-weight:400;color:#888">(101, 212, 303, 515…)</span>
-      </label>
     </div>
     ${elmHLBarHTML()}
     <div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#FEF9C3;border-radius:6px;padding:4px 7px">
@@ -7675,6 +7596,7 @@ function anRender(){
     </div>
     ${batchColorHTML()}
     ${state.anMode==='chauds'?` • Fenêtre: <input type="number" value="${state.anWin}" min="5" max="1000" onchange="state.anWin=parseInt(this.value)||50;render()" style="width:55px;padding:1px 4px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px"> derniers tirages`:''}
+    ${state.anMode==='intervalles'?` • Combinaison: ${[2,3].map(sz=>`<button onclick="state.intervalSize=${sz};render()" style="padding:1px 10px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${(state.intervalSize||2)===sz?D.bg:'#ddd'};background:${(state.intervalSize||2)===sz?D.bg:'#fff'};color:${(state.intervalSize||2)===sz?'#fff':'#888'};cursor:pointer;font-weight:500">${sz===2?'Paires':'Triplets'}</button>`).join('')}`:''}
     ${state.anMode==='superpos'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.supGap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.supGap===g?D.bg:'#ddd'};background:${state.supGap===g?D.bg:'#fff'};color:${state.supGap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} tirage(s)`:''}
     ${(state.anMode==='contient'||state.anMode==='finit')?` • Chiffre: ${[0,1,2,3,4,5,6,7,8,9].map(dg=>`<button onclick="state.digitFilter=${dg};render()" style="padding:1px 7px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.digitFilter===dg?D.bg:'#ddd'};background:${state.digitFilter===dg?D.bg:'#fff'};color:${state.digitFilter===dg?'#fff':'#888'};cursor:pointer;font-weight:500">${dg}</button>`).join('')}`:''}
     ${state.anMode==='dizaine'?` • Dizaine: ${[0,1,2,3,4,5,6,7,8].map(dz=>`<button onclick="state.dizaineFilter=${dz};render()" style="padding:1px 6px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.dizaineFilter===dz?D.bg:'#ddd'};background:${state.dizaineFilter===dz?D.bg:'#fff'};color:${state.dizaineFilter===dz?'#fff':'#888'};cursor:pointer;font-weight:500">${dz}0-${dz}9</button>`).join('')}`:''}
@@ -7722,6 +7644,27 @@ function anRender(){
       <div style="border:1px solid #E0F2F1;border-radius:10px;overflow:hidden;margin-bottom:12px">${ctx.pairs.map((p,i)=>row(p,i)).join('')}</div>
       <div style="font-size:12px;font-weight:700;color:#0D9488;margin-bottom:6px">🔺 Triplets les plus fréquents</div>
       <div style="border:1px solid #E0F2F1;border-radius:10px;overflow:hidden">${ctx.trips.length?ctx.trips.map((p,i)=>row(p,i)).join(''):'<div style="padding:10px;font-size:10px;color:#999;text-align:center">Aucun triplet récurrent</div>'}</div>
+    </div>`;
+  }
+  if(state.anMode==='intervalles'){
+    const ballI=(n)=>`<span style="width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#EC4899,#DB2777);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2)">${n}</span>`;
+    const rowI=(item,rank)=>{
+      const nums=item.k.split('-');
+      const regular=item.bestCount>=2;
+      return`<div style="padding:6px 8px;background:${rank%2?'#FDF2F8':'#fff'};border-bottom:1px solid #FCE7F3">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:9px;color:#9AA6B5;font-weight:600;width:18px">${rank+1}.</span>
+          <div style="display:flex;gap:4px">${nums.map(ballI).join('<span style=\"color:#DB2777;font-weight:700;align-self:center\">+</span>')}</div>
+          ${regular?`<span style="font-size:10px;font-weight:700;color:#fff;background:#DB2777;border-radius:10px;padding:2px 8px;margin-left:auto">↻ tous les ${item.bestGap} tirages ×${item.bestCount}</span>`:`<span style="font-size:9px;color:#999;margin-left:auto">écart irrégulier</span>`}
+        </div>
+        <div style="font-size:9px;color:#888;margin-top:3px;margin-left:23px">Tirages n° ${item.occ.join(', ')} <span style="color:#DB2777">(écarts: ${item.gaps.join(', ')})</span></div>
+      </div>`;
+    };
+    const list=ctx.interResults||[];
+    html+=`<div class="card">
+      <div style="font-size:12px;font-weight:700;color:#DB2777;margin-bottom:2px">🔁 ${ctx.interSize===3?'Triplets':'Paires'} qui reviennent ensemble <span style="font-size:9px;font-weight:400;color:#999">(sur ${ctx.nT} tirages)</span></div>
+      <div style="font-size:9px;color:#888;margin-bottom:6px">Les combinaisons en tête reviennent avec le même écart de tirages plus d'une fois (motif régulier). Les autres sont triées par nombre d'apparitions.</div>
+      <div style="border:1px solid #FCE7F3;border-radius:10px;overflow:hidden">${list.length?list.map((p,i)=>rowI(p,i)).join(''):'<div style="padding:10px;font-size:10px;color:#999;text-align:center">Aucune combinaison répétée trouvée</div>'}</div>
     </div>`;
   }
   if(state.anMode==='retard'){
@@ -7812,7 +7755,7 @@ function anRender(){
         if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:#fff;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;
           if(ci===cols.length-1)html+=`<td style="background:#fff;width:66px;min-width:66px"></td>`;
           return;}
-        const mk=anMark(row,ctx);const hM=mk.some(Boolean);const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMark?'#FEF9C3':hM?'#FFFDE7':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
+        const mk=anMark(row,ctx);const hM=mk.some(Boolean);const bg=isMark?'#FEF9C3':hM?'#FFFDE7':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
         html+=`<td style="${fz(ci,0)}background:${bg};font-weight:500;color:#${c.color};font-size:9px;width:${W_T}px;min-width:${W_T}px;border-top:${isMark?'2px solid #EAB308':''};border-bottom:${isMark?'2px solid #EAB308':''}">${row.t}</td>`;
         html+=`<td style="${fz(ci,1)}background:${bg};color:#555;font-size:9px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
         row.n.forEach((n,ni)=>{html+=`<td style="${fz(ci,2+ni)}background:${bg};width:${W_N}px;min-width:${W_N}px">${numSpan(n,{an:mk[ni]},'an'+ci+'_'+row.t+'_'+ni)}</td>`;});
@@ -7842,13 +7785,12 @@ function anRender(){
       <div class="col-body" id="col-${yr}" onscroll="syncScroll('${yr}')">`;
     rows.forEach((row,ri)=>{
       const mk=marks[ri];const hM=mk.some(Boolean);
-      const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
-      const bg=hM?'#FFFDE7':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
+      const bg=hM?'#FFFDE7':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
       html+=`<div class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};border-bottom:1px solid #eee">
         <div style="font-weight:500;color:#${color};font-size:8px">${row.t}</div>
         <div style="font-size:8px;color:#555">${row.d}</div>
         ${row.n.map((n,ni)=>numSpan(n,{an:mk[ni]},row.t+'_'+ni)).join('')}
-        <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+        <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
         ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,an:anValMark(row.m[mi],ctx)},row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
         ${GAME.hasM?(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>'):''}
       </div>`;
@@ -8014,43 +7956,7 @@ function render(){
       <div style="display:flex;flex-wrap:wrap;gap:2px">
         ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);const hr=state.search.length>0&&(BY_YEAR[y]||[]).some(r=>searchMatch(r,state.search,state.searchPosMode,state.searchPosIdx));return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:hr?'2px solid #10B981':'1px solid #ddd'};background:${sel?`#${color}`:hr?'#F0FDF4':'#f9f9f9'};color:${sel?(parseInt(color,16)>0x888888?'#000':'#fff'):hr?'#059669':'#777'}">${y}${hr?'🎯':''}</button>`;}).join('')}
         ${!state.showAllYears?`<button onclick="state.showAllYears=true;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #aaa;background:#f0f0f0;color:#555;cursor:pointer">▼</button>`:''}
-            </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-        <button onclick="state.alignPanel=!state.alignPanel;render()" style="padding:4px 8px;border-radius:6px;border:2px solid ${state.alignMode?'#6A1B9A':'#7B1FA2'};background:${state.alignMode?'#6A1B9A':'#F3E5F5'};color:${state.alignMode?'#fff':'#6A1B9A'};font-weight:700;font-size:11px;cursor:pointer" title="Surligne et synchronise toutes les années sur une même semaine du mois (ou N° de tirage relatif) — l'année entière reste visible">🔗 Comparaison et Alignement</button>
-        <button onclick="state.alignMode='week';state.alignMonth='07';state.alignWeek=1;state.alignPanel=false;render()" style="padding:4px 8px;border-radius:6px;border:2px solid #7B1FA2;background:${state.alignMode==='week'&&state.alignMonth==='07'&&state.alignWeek===1?'#7B1FA2':'#fff'};color:${state.alignMode==='week'&&state.alignMonth==='07'&&state.alignWeek===1?'#fff':'#7B1FA2'};font-weight:600;font-size:11px;cursor:pointer" title="Raccourci : surligne et fait défiler chaque année jusqu'à la 1ère semaine de juillet (jours 1-7) — année entière visible">📅 Aligner 1ère semaine de juillet</button>
-        ${state.alignMode?`<span style="font-size:9px;color:#6A1B9A;font-weight:600">${state.alignMode==='week'?'🗓️ actif':'🔢 actif'}</span>`:''}
-      </div>
-      ${state.alignMode?`<div style="font-size:9px;color:#6A1B9A;background:#F3E5F5;border:1px solid #CE93D8;border-radius:6px;padding:4px 8px;margin-bottom:6px">🔗 <b>Alignement actif</b> — année entière visible · lignes cibles surlignées en violet · colonnes synchronisées sur la même semaine / N°</div>`:''}
-      ${state.alignPanel?`<div style="border:1.5px solid #7B1FA2;border-radius:8px;padding:8px;margin-bottom:8px;background:#FAF5FC">
-        <div style="display:flex;gap:6px;margin-bottom:6px">
-          <button onclick="state.alignMode=state.alignMode==='week'?null:'week';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='week'?'#7B1FA2':'#fff'};color:${state.alignMode==='week'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🗓️ Semaine du mois</button>
-          <button onclick="state.alignMode=state.alignMode==='index'?null:'index';render()" style="flex:1;padding:4px;border-radius:6px;border:1.5px solid #7B1FA2;background:${state.alignMode==='index'?'#7B1FA2':'#fff'};color:${state.alignMode==='index'?'#fff':'#6A1B9A'};font-weight:600;font-size:10px;cursor:pointer">🔢 N° de tirage de l'année</button>
-          ${state.alignMode?`<button onclick="state.alignMode=null;render()" style="padding:4px 8px;border-radius:6px;border:1.5px solid #B71C1C;background:#fff;color:#B71C1C;font-weight:600;font-size:10px;cursor:pointer">✕ Désactiver</button>`:''}
-        </div>
-        ${state.alignMode==='week'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:9px;font-weight:500">Mois:</span>
-          <select onchange="state.alignMonth=this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
-            ${['01','02','03','04','05','06','07','08','09','10','11','12'].map((m,i)=>`<option value="${m}" ${state.alignMonth===m?'selected':''}>${['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][i]}</option>`).join('')}
-          </select>
-          <span style="font-size:9px;font-weight:500">Semaine:</span>
-          <select onchange="state.alignWeek=+this.value;render()" style="padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px">
-            <option value="1" ${state.alignWeek===1?'selected':''}>1ère (jours 1-7)</option>
-            <option value="2" ${state.alignWeek===2?'selected':''}>2ème (jours 8-14)</option>
-            <option value="3" ${state.alignWeek===3?'selected':''}>3ème (jours 15-21)</option>
-            <option value="4" ${state.alignWeek===4?'selected':''}>4ème (jours 22-28)</option>
-            <option value="5" ${state.alignWeek===5?'selected':''}>5ème (jours 29-31)</option>
-          </select>
-          <span style="font-size:9px;color:#888">— pour les années cochées ci-dessus (Années: ...)</span>
-        </div>`:''}
-        ${state.alignMode==='index'?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="font-size:9px;font-weight:500">N° de tirage dans l'année (1 = premier tirage de janvier):</span>
-          <input type="text" value="${state.alignIndexN}" onchange="state.alignIndexN=this.value;render()" placeholder="ex: 11" style="width:55px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
-          <span style="font-size:9px;font-weight:500">Décalage (tirages avant/après):</span>
-          <input type="text" value="${state.alignSpan}" onchange="state.alignSpan=this.value;render()" placeholder="0" style="width:45px;padding:2px 5px;border:1.5px solid #7B1FA2;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
-          <span style="font-size:9px;color:#888">— pour les années cochées. Ex: N°11 + décalage 2 → surligne les tirages 9 à 13 de chaque année (année entière visible, colonnes synchronisées).</span>
-        </div>`:''}
-      </div>`:''}
-      `:`
+      </div>`:`
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:500">Année de référence:</span>
         <input type="text" value="${state.mgYear}" onchange="state.mgYear=this.value;render()" style="width:55px;padding:2px 5px;border:1.5px solid #1F2D3D;border-radius:4px;font-size:11px;font-weight:500;text-align:center">
@@ -8102,7 +8008,7 @@ function render(){
           cols.forEach((c,ci)=>{
             const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0&&k<2?'excel-frozen':''}" style="${ci===0&&k<2?`left:${k===0?0:34}px;`:''}"></td>`;return;}
-            const tc=tC(row.s);const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
+            const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;':''}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:34px;':''}">${row.d}</td>`;
             const _e=elmHLMark(row);row.n.forEach((n,ni)=>{html+=`<td class="excel-td" style="background:${bg}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
@@ -8130,13 +8036,12 @@ function render(){
               ${rows.length?rows.map((row,ri)=>{
                 const tc=tC(row.s);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[key+'_'+row.t+'_'+ni]);
                 const _isA=getAnchorG(key)===row.t;const _lkA=_isA&&isAnchorLockedG(key);
-                const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
-                const bg=_isA?'#FFEDD5':hC?'#FFF7ED':isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
+                const bg=_isA?'#FFEDD5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7';
                 return`<div ${_isA?`id="anch-${key}"`:''} class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${_isA?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':'border-bottom:1px solid #eee;'}">
                   <div style="font-weight:500;color:#${color};font-size:8px">${_lkA?'🔒':''}${row.t}</div>
                   <div style="font-size:8px;color:#555">${row.d}</div>
                   ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
-                  <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+                  <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
                   ${g.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
                   ${g.hasM?(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>'):''}
                 </div>`;
@@ -8189,7 +8094,7 @@ function render(){
       for(let ri=0;ri<maxRows;ri++){
         html+=`<tr>`;
         cols.forEach((c,ci)=>{
-          const row=c.rows[ri];const isMirTot=row&&state.mirTotalAlways&&isMirrorTotal(row.s);const bg=isMirTot?'#F3E5F5':ri%2===0?'#fff':'#f7f7f7';
+          const row=c.rows[ri];const bg=ri%2===0?'#fff':'#f7f7f7';
           if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;return;}
           const tc=tC(row.s);
           html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${row.t}</td>`;
@@ -8330,7 +8235,6 @@ function render(){
           const hD=!hC&&row.n.some(n=>la.numDeriv[n]);
           const pairMk=state.coloring?rowPairMark(row):[null,null,null,null,null];
           const tc=tC(row.s);
-          const isMirTot=state.mirTotalAlways&&isMirrorTotal(row.s);
           const rowBg=state.coloring&&hC?pc[2]:state.coloring&&hD?'#F5F5F5':li%2===0?'#fff':'#f7f7f7';
           html+=`<div class="grid-comp" style="background:${rowBg};border-bottom:${hC&&state.coloring?`1.5px solid ${pc[1]}`:'1px solid #eee'}">
             <div style="font-weight:500;color:${pc[0]};font-size:8px">${row.t}</div>
@@ -8340,7 +8244,7 @@ function render(){
               const clKey=!iC?la.numDeriv[n]:null;
               return numSpan(n,{isComm:iC&&state.coloring,commBg:pc[1],clKey:clKey&&state.coloring?clKey:null,pair:!iC&&!clKey?pairMk[ni]:null},'p'+pi+'_'+row.t+'_'+ni);
             }).join('')}
-            <div class="${isMirTot?'mir-tot-badge':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
+            <div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>
           </div>`;
         });
         html+=`</div></div>`;
@@ -8373,8 +8277,6 @@ function render(){
     setTimeout(()=>{
       vFillAll();                       // remplit la fenêtre visible de chaque colonne
       if(state.freezeOn&&state.freezeOffsets){restoreFreeze();vFillAll();return;}
-      // Comparaison et Alignement : synchroniser toutes les colonnes sur la semaine / N° choisi
-      if(state.alignMode){scrollToAlign();return;}
       const anch=(typeof anchorColIds==='function')?anchorColIds():[];
       if(anch.length>1){alignAnchorRows();return;}
       state.selYears.forEach(yr=>{

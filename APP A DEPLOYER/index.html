@@ -4996,6 +4996,7 @@ function quickColorPosHTML(){
 // ou un intervalle (1 tirage sur K parmi les R derniers) — avec choix de la position à colorer.
 function batchColorHTML(){
   const mode=state.batchColorMode;
+  const pos=state.batchColorPos;
   const posOptions=[['all','Tous'],['nAll','Normal seul']];
   if(GAME.hasM)posOptions.push(['mAll','Machine seule'],['dual','Normal+Machine (2 couleurs)']);
   posOptions.push(...[1,2,3,4,5].map(i=>['n'+i,'N'+i]));

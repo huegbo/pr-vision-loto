@@ -2234,6 +2234,7 @@ let state={
   batchColorMode:'last', batchColorN:3, batchColorTirage:'', batchColorStep:2, batchColorRange:20, batchColorPos:'all',
   batchColorScope:'global', // 'global' = colore la valeur partout (peu importe la position) ; 'position' = colore uniquement quand la même position a la même valeur
   batchColorFixed:lsGetOr('lmj_batchDefaultColor',''), // '' = couleur automatique (palette qui tourne) ; sinon un hex fixe utilisé pour tout le lot
+  batchColorFixed2:lsGetOr('lmj_batchDefaultColor2',''), // 2e couleur fixe, utilisée pour les numéros Machine quand batchColorPos==='dual'
   hlColor:null, hlStyle:'fill', menuCtx:null,
   showPass:false, passN:3,
   passMode:'year', passYearInput:String(new Date().getFullYear()), passTirageInput:'', passRows:null, passDiag:false,
@@ -5488,6 +5489,8 @@ function colorLastNDraws(n){
 function numsForPosition(row,pos){
   if(!row)return[];
   if(pos==='all')return GAME.hasM&&row.m?[...row.n,...row.m]:[...row.n];
+  if(pos==='nAll')return row.n?[...row.n]:[];
+  if(pos==='mAll')return row.m?[...row.m]:[];
   if(pos[0]==='n'){const i=parseInt(pos.slice(1))-1;return(row.n&&row.n[i]!=null)?[row.n[i]]:[];}
   if(pos[0]==='m'){const i=parseInt(pos.slice(1))-1;return(row.m&&row.m[i]!=null)?[row.m[i]]:[];}
   return[];
@@ -5500,10 +5503,14 @@ function posKeyToIdx(posKey){
 // Toutes les positions individuelles à traiter pour un choix de position donné
 // ('all' → les 5 principales + les 5 machine si le jeu en a).
 function allPositionsFor(pos){
-  if(pos!=='all')return[posKeyToIdx(pos)];
-  const list=[0,1,2,3,4].map(i=>({type:'n',idx:i}));
-  if(GAME.hasM)list.push(...[0,1,2,3,4].map(i=>({type:'m',idx:i})));
-  return list;
+  if(pos==='all'){
+    const list=[0,1,2,3,4].map(i=>({type:'n',idx:i}));
+    if(GAME.hasM)list.push(...[0,1,2,3,4].map(i=>({type:'m',idx:i})));
+    return list;
+  }
+  if(pos==='nAll')return[0,1,2,3,4].map(i=>({type:'n',idx:i}));
+  if(pos==='mAll')return[0,1,2,3,4].map(i=>({type:'m',idx:i}));
+  return[posKeyToIdx(pos)];
 }
 // Coloriage par lot : dernier(s) tirage(s) N, un tirage précis par son N°, ou un intervalle
 // (1 tirage sur K parmi les R derniers) — avec choix de la position à colorer.
@@ -5529,6 +5536,43 @@ function colorBatch(){
   // Couleur à utiliser pour ce lot : si l'utilisateur a choisi une couleur fixe (state.batchColorFixed),
   // on l'utilise pour tout le lot ; sinon on reprend le comportement historique (palette qui tourne).
   const getBatchColor=()=>state.batchColorFixed?{bg:state.batchColorFixed,fg:lumFg(state.batchColorFixed),style:state.hlStyle}:nextPaletteColor();
+  // 2e couleur (numéros Machine) pour le mode 'dual' — même logique, fixe ou automatique (tourne indépendamment).
+  const getBatchColor2=()=>state.batchColorFixed2?{bg:state.batchColorFixed2,fg:lumFg(state.batchColorFixed2),style:state.hlStyle}:nextPaletteColor();
+  if(pos==='dual'){
+    // Normal (N1-N5) et Machine (M1-M5) coloriés en même temps mais avec deux couleurs distinctes.
+    if(state.batchColorScope==='position'){
+      const nList=[0,1,2,3,4].map(i=>({type:'n',idx:i}));
+      const mList=GAME.hasM?[0,1,2,3,4].map(i=>({type:'m',idx:i})):[];
+      rows.forEach(srcRow=>{
+        const cN=getBatchColor();
+        nList.forEach(({idx})=>{
+          const val=srcRow.n&&srcRow.n[idx];
+          if(val==null)return;
+          T.forEach(r=>{if(r.n&&r.n[idx]===val)state.coloredCells[r.t+'_'+idx]=cN;});
+        });
+        if(mList.length){
+          const cM=getBatchColor2();
+          mList.forEach(({idx})=>{
+            const val=srcRow.m&&srcRow.m[idx];
+            if(val==null)return;
+            T.forEach(r=>{if(r.m&&r.m[idx]===val)state.coloredCells[r.t+'_m'+idx]=cM;});
+          });
+        }
+      });
+    }else{
+      rows.forEach(row=>{
+        const cN=getBatchColor();
+        (row.n||[]).forEach(v=>{state.colored[v]=cN;});
+        if(GAME.hasM&&row.m){
+          const cM=getBatchColor2();
+          row.m.forEach(v=>{state.colored[v]=cM;});
+        }
+      });
+    }
+    saveColorState();
+    render();
+    return;
+  }
   if(state.batchColorScope==='position'){
     // "Position identique" : on colore uniquement les cases qui ont LA MÊME valeur À LA MÊME position,
     // partout dans l'historique du jeu (pas la valeur n'importe où, comme en mode "Partout").
@@ -5562,11 +5606,18 @@ function setBatchColorFixed(hex){
   lsSet('lmj_batchDefaultColor',state.batchColorFixed);
   render();
 }
+function setBatchColorFixed2(hex){
+  state.batchColorFixed2=hex||'';
+  lsSet('lmj_batchDefaultColor2',state.batchColorFixed2);
+  render();
+}
 // Panneau "Coloriage par lot" : dernier(s) tirage(s) (N paramétrable), un tirage précis par son N°,
 // ou un intervalle (1 tirage sur K parmi les R derniers) — avec choix de la position à colorer.
 function batchColorHTML(){
   const mode=state.batchColorMode;
-  const posOptions=[['all','Tous']].concat([1,2,3,4,5].map(i=>['n'+i,'N'+i]));
+  const posOptions=[['all','Tous'],['nAll','Normal seul']];
+  if(GAME.hasM)posOptions.push(['mAll','Machine seule'],['dual','Normal+Machine (2 couleurs)']);
+  posOptions.push(...[1,2,3,4,5].map(i=>['n'+i,'N'+i]));
   if(GAME.hasM)posOptions.push(...[1,2,3,4,5].map(i=>[GAME.sum10?'m'+i:'m'+i,GAME.sum10?'N'+(i+5):'M'+i]));
   return `<div style="margin-top:6px;background:#EDE9FE;border-radius:6px;padding:6px 8px">
     <div style="font-size:10px;font-weight:600;color:#5B21B6;margin-bottom:5px">🎨🔢 Coloriage par lot</div>
@@ -5590,7 +5641,7 @@ function batchColorHTML(){
       <button onclick="state.batchColorScope='position';render()" title="Colore uniquement quand la même position (ex: N1) a exactement la même valeur, dans les autres tirages" style="padding:2px 8px;border-radius:8px;font-size:9px;font-weight:500;cursor:pointer;border:1.5px solid ${state.batchColorScope==='position'?'#6D28D9':'#ccc'};background:${state.batchColorScope==='position'?'#6D28D9':'#fff'};color:${state.batchColorScope==='position'?'#fff':'#666'}">Position identique uniquement</button>
     </div>
     <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-      <span style="font-size:9px;color:#5B21B6;font-weight:500">Couleur :</span>
+      <span style="font-size:9px;color:#5B21B6;font-weight:500">${pos==='dual'?'Couleur Normal :':'Couleur :'}</span>
       <button onclick="setBatchColorFixed('')" title="Chaque tirage/lot reçoit une couleur différente, à tour de rôle" style="padding:2px 8px;border-radius:8px;font-size:9px;font-weight:500;cursor:pointer;border:1.5px solid ${!state.batchColorFixed?'#6D28D9':'#ccc'};background:${!state.batchColorFixed?'#6D28D9':'#fff'};color:${!state.batchColorFixed?'#fff':'#666'}">🔄 Automatique</button>
       ${PAL.map(c=>`<span onclick="setBatchColorFixed('${c}')" title="${c}" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.batchColorFixed===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
       <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
@@ -5599,6 +5650,16 @@ function batchColorHTML(){
       </label>
       ${state.batchColorFixed?`<span style="font-size:9px;color:#5B21B6">couleur par défaut : <b>${state.batchColorFixed}</b></span>`:''}
     </div>
+    ${pos==='dual'?`<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#5B21B6;font-weight:500">Couleur Machine :</span>
+      <button onclick="setBatchColorFixed2('')" title="Chaque tirage/lot reçoit une couleur différente, à tour de rôle" style="padding:2px 8px;border-radius:8px;font-size:9px;font-weight:500;cursor:pointer;border:1.5px solid ${!state.batchColorFixed2?'#6D28D9':'#ccc'};background:${!state.batchColorFixed2?'#6D28D9':'#fff'};color:${!state.batchColorFixed2?'#fff':'#666'}">🔄 Automatique</button>
+      ${PAL.map(c=>`<span onclick="setBatchColorFixed2('${c}')" title="${c}" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.batchColorFixed2===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
+      <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+        <span style="font-size:10px">🎨</span>
+        <input type="color" value="${state.batchColorFixed2||'#EAB308'}" oninput="setBatchColorFixed2(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+      </label>
+      ${state.batchColorFixed2?`<span style="font-size:9px;color:#5B21B6">couleur par défaut : <b>${state.batchColorFixed2}</b></span>`:''}
+    </div>`:''}
     <button onclick="colorBatch()" style="padding:5px 14px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:11px">🎨 Colorier</button>
   </div>`;
 }

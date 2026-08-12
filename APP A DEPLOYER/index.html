@@ -747,6 +747,75 @@ function toggleTogoJeu(code){
   if(i>=0)state.togoJeux.splice(i,1);else state.togoJeux.push(code);
   render();
 }
+// ══════ TOUT TOGO — jeu combiné (12 jeux hebdo fusionnés chronologiquement) ══════
+let TOGO_TOUT_RAW=null;
+function buildTogoTout(){
+  if(TOGO_TOUT_RAW)return TOGO_TOUT_RAW;
+  const rows=parseTogoAll(); // déjà trié du plus récent au plus ancien
+  let id=rows.length;
+  const lines=rows.map(r=>{
+    const line=`${id}|${r.d}|${r.y}|${r.n.join('|')}|${r.s}${r.bonus?('|'+r.bonus.join('|')):''}`;
+    id--;
+    return line;
+  });
+  TOGO_TOUT_RAW=lines.join('\n');
+  return TOGO_TOUT_RAW;
+}
+GAMES.togo_tout={name:'TOUT TOGO',icon:'🇹🇬',raw:buildTogoTout(),hasM:true};
+// Recherche du jeu d'origine (couleur/label) pour une ligne de TOUT TOGO, par date+numéros
+let TG_CODE=null;
+function tgCodeMap(){
+  if(TG_CODE)return TG_CODE;
+  TG_CODE={};
+  parseTogoAll().forEach(r=>{
+    const dd=r.d.split('/').map((x,i)=>i===0?x.padStart(2,'0'):x.padStart(2,'0')).join('/');
+    TG_CODE[r.y+'|'+dd+'|'+r.n.join('-')]=r.jeu;
+  });
+  return TG_CODE;
+}
+function tgCodeOf(row){
+  const d=String(row.d).split('/'),dd=d[0].padStart(2,'0')+'/'+(d[1]||'').padStart(2,'0');
+  return tgCodeMap()[row.y+'|'+dd+'|'+row.n.join('-')]||null;
+}
+// Recherche du jeu d'origine pour une ligne de TOUT CAMEROUN, par date+numéros
+let CM_CODE=null;
+function cmCodeMap(){
+  if(CM_CODE)return CM_CODE;
+  CM_CODE={};
+  RAW_CAMEROUN_ALL.trim().split('\n').forEach(l=>{
+    const p=l.split('|');
+    const dd=p[2].split('/').map(x=>x.padStart(2,'0')).join('/');
+    CM_CODE[p[3]+'|'+dd+'|'+p.slice(4,9).join('-')]=p[1];
+  });
+  return CM_CODE;
+}
+function cmCodeOf(row){
+  const d=String(row.d).split('/'),dd=d[0].padStart(2,'0')+'/'+(d[1]||'').padStart(2,'0');
+  return cmCodeMap()[row.y+'|'+dd+'|'+row.n.join('-')]||null;
+}
+// Badge générique "jeu d'origine" pour les jeux combinés (Bénin/Cameroun/Togo)
+function multiBadgeHTML(row,fS){
+  if(!GAME)return '';
+  if(BJ_MULTI.includes(GAME.key)){
+    const c=(typeof bjCodeOf==='function')?bjCodeOf(row):null;
+    if(!c)return '';
+    const o=bjOfficiel(row,c);
+    return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;
+  }
+  if(GAME.key==='cm_tout'){
+    const c=cmCodeOf(row);
+    if(!c)return '';
+    const col=CAMEROUN_JEU_COLORS[c]||'888888';
+    return `<span style="background:#${col};color:${parseInt(col,16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${CAMEROUN_JEU_LABELS[c]||c}">${c}</span>`;
+  }
+  if(GAME.key==='togo_tout'){
+    const c=tgCodeOf(row);
+    if(!c)return '';
+    const col=TOGO_JEU_COLORS[c]||'888888';
+    return `<span style="background:#${col};color:${parseInt(col,16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+  }
+  return '';
+}
 function togoFiltreHTML(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
   let html=`<div id="app-content">
@@ -1683,6 +1752,7 @@ let state={
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
+  cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -3898,7 +3968,53 @@ function rowsForYearFull(yr){
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
   if(bjFilterActive())rows=rows.filter(bjKeep);
+  if(GAME&&GAME.key==='cm_tout'&&state.cmToutJeux&&state.cmToutJeux.length<CAMEROUN_JEU_ORDER.length){
+    rows=rows.filter(r=>{const c=cmCodeOf(r);return c?state.cmToutJeux.includes(c):true;});
+  }
+  if(GAME&&GAME.key==='togo_tout'&&state.togoToutJeux&&state.togoToutJeux.length<TOGO_JEU_ORDER.length){
+    rows=rows.filter(r=>{const c=tgCodeOf(r);return c?state.togoToutJeux.includes(c):true;});
+  }
   return rows;
+}
+function toggleCmToutJeu(code){
+  const i=state.cmToutJeux.indexOf(code);
+  if(i>=0)state.cmToutJeux.splice(i,1);else state.cmToutJeux.push(code);
+  render();
+}
+function toggleTogoToutJeu(code){
+  const i=state.togoToutJeux.indexOf(code);
+  if(i>=0)state.togoToutJeux.splice(i,1);else state.togoToutJeux.push(code);
+  render();
+}
+function multiJeuBarHTML(){
+  if(!GAME)return '';
+  if(GAME.key==='cm_tout'){
+    const act=state.cmToutJeux;
+    return `<div style="margin-top:5px;background:#F0FDF4;border:1.5px solid #86EFAC;border-radius:6px;padding:5px 7px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+        <span style="font-size:10px;font-weight:700;color:#166534">🇨🇲 Jeux inclus dans TOUT CAMEROUN</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${CAMEROUN_JEU_ORDER.map(c=>{const on=act.includes(c);const col=CAMEROUN_JEU_COLORS[c];return `<button onclick="toggleCmToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(parseInt(col,16)>0x888888?'#000':'#fff'):'#888'}">${on?'✓ ':''}${CAMEROUN_JEU_LABELS[c]||c}</button>`;}).join('')}
+        <button onclick="state.cmToutJeux=[...CAMEROUN_JEU_ORDER];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Tous</button>
+        <button onclick="state.cmToutJeux=[];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucun</button>
+      </div>
+    </div>`;
+  }
+  if(GAME.key==='togo_tout'){
+    const act=state.togoToutJeux;
+    return `<div style="margin-top:5px;background:#FEF3F2;border:1.5px solid #FCA5A5;border-radius:6px;padding:5px 7px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+        <span style="font-size:10px;font-weight:700;color:#7C2D12">🇹🇬 Jeux inclus dans TOUT TOGO</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${TOGO_JEU_ORDER.map(c=>{const on=act.includes(c);const col=TOGO_JEU_COLORS[c];return `<button onclick="toggleTogoToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(parseInt(col,16)>0x888888?'#000':'#fff'):'#888'}">${on?'✓ ':''}${TOGO_JEU_LABELS[c]||c}</button>`;}).join('')}
+        <button onclick="state.togoToutJeux=[...TOGO_JEU_ORDER];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Tous</button>
+        <button onclick="state.togoToutJeux=[];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucun</button>
+      </div>
+    </div>`;
+  }
+  return '';
 }
 function rowsForYear(yr){
   const rows=rowsForYearFull(yr);
@@ -6926,8 +7042,8 @@ function vRowHTML(it,ri,C){
           const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
-            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${row.t}</div>
-            <div style="font-size:${fS}px;color:#555">${(()=>{const c=(typeof bjCodeOf==='function'&&BJ_MULTI.includes(GAME.key))?bjCodeOf(row):null;if(!c)return '';const o=bjOfficiel(row,c);return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;})()}${row.d}</div>
+            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
+            <div style="font-size:${fS}px;color:#555">${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),fs:fN},row.t+'_'+ni)).join('');})()}
             ${GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
@@ -7507,6 +7623,7 @@ function __renderBody(){
   </div>
   ${gamePickerHTML()}
   ${state.tab===0?elmHLBarHTML():''}
+  ${state.tab===0?multiJeuBarHTML():''}
   <div style="padding-bottom:calc(20px + env(safe-area-inset-bottom))">  ${state.showSearchHub?searchHubHTML():''}`;
 
   html+=addFormHTML();

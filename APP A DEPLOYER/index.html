@@ -205,6 +205,7 @@ const RAW_GH_G10=window.LOTO_DATA.RAW_GH_G10;
 const RAW_GH_G11=window.LOTO_DATA.RAW_GH_G11;
 const RAW_GH_G12=window.LOTO_DATA.RAW_GH_G12;
 const RAW_GH_INTERNATIONAL=window.LOTO_DATA.RAW_GH_INTERNATIONAL;
+const RAW_CAMEROUN_ALL=window.LOTO_DATA.RAW_CAMEROUN_ALL;
 const RAW_GH_G13=window.LOTO_DATA.RAW_GH_G13;
 const RAW_GH_G14=window.LOTO_DATA.RAW_GH_G14;
 const RAW_GH_G15=window.LOTO_DATA.RAW_GH_G15;
@@ -610,6 +611,84 @@ function ghanaFiltreHTML(){
           <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${tot}</td>
           ${mCells}
           <td style="background:${ms!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${ms!=null?ms:'·'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+// ══════ CAMEROUN (Premier Bet 5/90) — filtre Jour / Jeu (vue dédiée, unifie les 11 jeux) ══════
+const CAMEROUN_JEU_LABELS={CONTINENT:'CONTINENT (21h)',LIONS:'LIONS (18h30)',LOGONE:'LOGONE (12h30)',MBOA:'MBOA (20h)',MFOUNDI:'MFOUNDI (11h)',MONT_CAMEROUN:'MONT CAMEROUN (14h)',MOUNGO:'MOUNGO (8h)',NOUN:'NOUN (15h30)',SANAGA:'SANAGA (17h)',WOURI:'WOURI (9h30)',SUPER4:'SUPER 4 CAGNOTTE'};
+const CAMEROUN_JEU_ORDER=['MOUNGO','WOURI','MFOUNDI','LOGONE','MONT_CAMEROUN','NOUN','SANAGA','LIONS','MBOA','CONTINENT','SUPER4'];
+const CAMEROUN_JEU_COLORS={MOUNGO:'0E7C7B',WOURI:'17A398',MFOUNDI:'2DC6B0',LOGONE:'1D4E89',MONT_CAMEROUN:'2C6FB0',NOUN:'4A90D9',SANAGA:'6D28D9',LIONS:'8B5CF6',MBOA:'B45309',CONTINENT:'D97706',SUPER4:'F59E0B'};
+let CAMEROUN_ALL_ROWS=null;
+function parseCamerounAll(){
+  if(CAMEROUN_ALL_ROWS) return CAMEROUN_ALL_ROWS;
+  CAMEROUN_ALL_ROWS=RAW_CAMEROUN_ALL.trim().split('\n').map(line=>{
+    const p=line.split('|');
+    const n=[+p[4],+p[5],+p[6],+p[7],+p[8]];
+    const mRaw=[p[9],p[10],p[11],p[12],p[13]];
+    const hasM=mRaw.some(v=>v!==''&&v!==undefined);
+    const m=hasM?mRaw.map(v=>v===''||v===undefined?null:+v):null;
+    return {jour:p[0],jeu:p[1],d:p[2],y:p[3],n,m};
+  });
+  return CAMEROUN_ALL_ROWS;
+}
+function toggleCamerounJour(code){
+  const i=state.camerounJours.indexOf(code);
+  if(i>=0)state.camerounJours.splice(i,1);else state.camerounJours.push(code);
+  render();
+}
+function toggleCamerounJeu(code){
+  const i=state.camerounJeux.indexOf(code);
+  if(i>=0)state.camerounJeux.splice(i,1);else state.camerounJeux.push(code);
+  render();
+}
+function camerounFiltreHTML(){
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  let html=`<div id="app-content">
+  <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🇨🇲 CAMEROUN — Filtre Jour / Jeu</div>
+      <button onclick="state.camerounFiltreOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${GHANA_JOUR_ORDER.map(code=>{const sel=state.camerounJours.includes(code);return `<button onclick="toggleCamerounJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #0B2A1E':'1px solid #ddd'};background:${sel?'#0B2A1E':'#f5f5f5'};color:${sel?'#fff':'#777'}">${GHANA_JOUR_LABELS[code]}</button>`;}).join('')}
+        <button onclick="state.camerounJours=[...GHANA_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.camerounJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.camerounJeux.length}/${CAMEROUN_JEU_ORDER.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
+        ${CAMEROUN_JEU_ORDER.map(code=>{const sel=state.camerounJeux.includes(code);const c=CAMEROUN_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<button onclick="toggleCamerounJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${CAMEROUN_JEU_LABELS[code]}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.camerounJeux=[...CAMEROUN_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.camerounJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','X1','X2','X3','X4','X5'].map(h=>`<th style="position:sticky;top:0;background:#0B2A1E;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const jc=CAMEROUN_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const tot=r.n.reduce((a,b)=>a+b,0);
+        const mCells=r.m?r.m.map(v=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${v!=null?v:'·'}</td>`).join(''):Array(5).fill(`<td style="background:${bg};font-size:9.5px;padding:4px;color:#ccc">·</td>`).join('');
+        return `<tr>
+          <td style="background:#E4F0E9;font-weight:600;font-size:9.5px;padding:4px">${GHANA_JOUR_LABELS[r.jour]}</td>
+          <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${CAMEROUN_JEU_LABELS[r.jeu]}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${tot}</td>
+          ${mCells}
         </tr>`;
       }).join('')}
       </tbody></table>
@@ -1600,6 +1679,7 @@ let state={
   beninFiltreOpen:false, beninJours:[...BENIN_JOUR_ORDER], beninJeux:[...BENIN_JEU_ORDER],
   beninHeures:[...BENIN_HEURE_ORDER], beninFamilles:[...BENIN_FAMILLE_ORDER],
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
+  camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
@@ -5148,6 +5228,7 @@ function goNav(id){
   else if(id==='benin'){state.beninFiltreOpen=!state.beninFiltreOpen;state.showSearchHub=false;}
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
   else if(id==='togo'){state.togoFiltreOpen=!state.togoFiltreOpen;state.showSearchHub=false;}
+  else if(id==='cameroun'){state.camerounFiltreOpen=!state.camerounFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else{state.tab=id;state.showSearchHub=false;}
   render();
@@ -5164,11 +5245,12 @@ function bottomNavHTML(){
     ['benin','🇧🇯','Bénin'],
     ['ghana','🇬🇭','Ghana'],
     ['togo','🇹🇬','Togo'],
+    ['cameroun','🇨🇲','Cameroun'],
     ['pronostic','🍀','Pronostic'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub))))));
       return`<div onclick="goNav('${id}')" style="flex:1;text-align:center;padding:5px 2px;cursor:pointer;font-size:8.5px;font-weight:600;letter-spacing:.4px;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:18px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -7369,6 +7451,11 @@ function __renderBody(){
   }
   if(state.togoFiltreOpen){
     document.getElementById('app').innerHTML=togoFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.camerounFiltreOpen){
+    document.getElementById('app').innerHTML=camerounFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

@@ -4824,6 +4824,25 @@ function colorLastNDraws(n){
   saveColorState();
   render();
 }
+// Colorie le dernier tirage en utilisant les éléments de la classification en exergue
+// (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) —
+// chaque numéro prend la couleur de l'élément dont il relève. Active tous les éléments
+// si aucun n'est encore coché, pour que ça marche en un clic.
+function colorLastDrawElements(){
+  if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+  if(typeof ELM_DEF==='undefined'||!ELM_DEF.length){alert('Classification indisponible pour ce jeu');return;}
+  if(!state.elmHL||!state.elmHL.length)state.elmHL=ELM_DEF.map(e=>e.key);
+  pushColorUndo();
+  const row=T[0];
+  const out=elmHLMark(row,[null,null,null,null,null]);
+  let any=false;
+  out.forEach((v,i)=>{
+    if(v){state.coloredCells[row.t+'_'+i]={bg:v[0],fg:v[1]||'#fff',style:state.hlStyle};any=true;}
+  });
+  saveColorState();
+  render();
+  if(!any)alert("Aucun élément de classification ne s'applique à ce tirage précis.");
+}
 // Renvoie les numéros d'un tirage à colorer selon la position choisie :
 // 'all' = tous les numéros (principaux + machine), 'n1'..'n5' = un seul numéro principal,
 // 'm1'..'m5' = un seul numéro machine.
@@ -5061,6 +5080,7 @@ function fabGo(action){
   if(action==='plans'){state.tab=0;state.showSearchHub=false;}
   else if(action==='color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='color1'){state.tab=2;state.showSearchHub=false;colorLastNDraws(1);}
+  else if(action==='color1_elm'){state.tab=2;state.showSearchHub=false;colorLastDrawElements();}
   else if(action==='color3'){state.tab=2;state.showSearchHub=false;colorLastNDraws(3);}
   else if(action==='batch_color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='undo_color'){undoColorAction();return;}
@@ -5124,6 +5144,7 @@ function fabHTML(){
     ['plans','📐','Projets / Plans','#3B82F6','#fff'],
     ['color','🎨','Coloriage manuel','#fff','#E53935'],
     ['color1','🎨1️⃣','Colorier le dernier tirage','#EF5350','#fff'],
+    ['color1_elm','🧩','Dernier tirage + éléments de la classification','#AB47BC','#fff'],
     ['color3','🎨3️⃣','Colorier les 3 derniers tirages','#E53935','#fff'],
     ['batch_color','🎨🔢','Coloriage par lot (nombre, tirage n°, intervalle, position...)','#6D28D9','#fff'],
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],

@@ -1569,6 +1569,7 @@ let state={
   showPass:false, passN:3,
   passMode:'year', passYearInput:String(new Date().getFullYear()), passTirageInput:'', passRows:null, passDiag:false,
   showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[], planColor:'',
+  aiLoading:false, aiResult:'', aiError:'',
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{},
@@ -4843,6 +4844,44 @@ function colorLastDrawElements(){
   render();
   if(!any)alert("Aucun élément de classification ne s'applique à ce tirage précis.");
 }
+// Analyse IA (Claude) des 10 derniers tirages, en tenant compte des éléments de la
+// classification (Bonanza, Malta, Key, Miroir...) pour chaque numéro. Appelle la
+// Cloudflare Pages Function /api/analyse-ia, qui garde la clé API côté serveur.
+async function runAiAnalysis(){
+  if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+  state.aiLoading=true;state.aiError='';state.aiResult='';render();
+  try{
+    const last10=T.slice(0,Math.min(10,T.length)).map(row=>{
+      let elems=[];
+      if(typeof ELM_DEF!=='undefined'&&row.n){
+        elems=row.n.map(n=>{
+          const der=elmDerivs(n);
+          const parts=ELM_DEF.filter(e=>der[e.key]!==undefined&&der[e.key]!==n).map(e=>`${e.label}=${der[e.key]}`);
+          return parts.length?`${n}(${parts.join(',')})`:String(n);
+        });
+      }
+      return{tirage:row.t,date:row.d+'/'+row.y,n:row.n,m:row.m&&row.m.some(v=>!isNaN(v))?row.m:null,elements:elems};
+    });
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:GAME.name,tirages:last10})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.aiError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.aiResult=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.aiError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.aiLoading=false;render();
+}
+function aiAnalysisHTML(){
+  return`<div style="margin-top:6px;background:#F0F9FF;border:1.5px solid #0284C7;border-radius:8px;padding:8px 10px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#075985">🤖 Analyse IA des 10 derniers tirages</span>
+      <button onclick="runAiAnalysis()" ${state.aiLoading?'disabled':''} style="padding:4px 12px;background:${state.aiLoading?'#94A3B8':'#0284C7'};color:#fff;border:none;border-radius:6px;cursor:${state.aiLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiLoading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+    </div>
+    ${state.aiError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiError}</div>`:''}
+    ${state.aiResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#0C4A6E;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.aiResult}</div>`:''}
+    ${!state.aiResult&&!state.aiError&&!state.aiLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Génère un résumé (fréquences, sommes, éléments de la classification) des 10 derniers tirages de ${GAME.name}.</div>`:''}
+  </div>`;
+}
 // Renvoie les numéros d'un tirage à colorer selon la position choisie :
 // 'all' = tous les numéros (principaux + machine), 'n1'..'n5' = un seul numéro principal,
 // 'm1'..'m5' = un seul numéro machine.
@@ -7063,6 +7102,7 @@ function anRender(){
       </label>
     </div>
     ${elmHLBarHTML()}
+    ${aiAnalysisHTML()}
     <div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#FEF9C3;border-radius:6px;padding:4px 7px">
       <span style="font-size:10px;font-weight:500;color:#92400E">📍 Souligner tirage(s):</span>
       <input id="mki" type="text" value="${state.markInput}" placeholder="Ex: 600 601" oninput="state.markInput=this.value" onkeydown="if(event.key==='Enter')markByInput()" style="padding:3px 7px;border:1.5px solid #EAB308;border-radius:5px;font-size:12px;width:120px;outline:none">

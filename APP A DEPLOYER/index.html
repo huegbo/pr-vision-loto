@@ -6467,6 +6467,22 @@ function alignAnchorRows(){
     if(Math.abs(b.scrollTop-want)>0.5)b.scrollTop=want;
   });
 }
+// Défilement "pas à pas" à la molette/trackpad : chaque cran de molette avance
+// d'une seule ligne au lieu du saut natif (souvent plusieurs lignes d'un coup).
+// Le glissement direct du contenu (tactile/scrollbar) n'est pas concerné.
+const _wheelBusy={};
+function stepWheel(e,id){
+  e.preventDefault();
+  if(_wheelBusy[id])return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const rowsEl=el.querySelector('[id^="vrows-"]');
+  const firstRow=(rowsEl&&rowsEl.firstElementChild)||el.firstElementChild;
+  const rowH=(firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:34;
+  el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
+  _wheelBusy[id]=true;
+  setTimeout(()=>{_wheelBusy[id]=false;},110);
+}
 function syncScroll(id){
   if(typeof VCOL!=='undefined'&&VCOL[id])setTimeout(()=>{Object.keys(VCOL).forEach(k=>{if(k!==id)vFill(k);});},0);
   // Mode figé : on reporte le DÉPLACEMENT de la colonne bougée sur toutes les
@@ -7507,7 +7523,7 @@ function anRender(){
     html+=`<div class="col" style="border-color:#${color}">
       <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages • ${cnt} ${D.label.replace(/^[^ ]+ /,'')}</div></div>
       <div class="${GAME.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
-      <div class="col-body" id="col-${yr}" onscroll="syncScroll('${yr}')">`;
+      <div class="col-body" id="col-${yr}" onscroll="syncScroll('${yr}')" onwheel="stepWheel(event,'${yr}')">`;
     rows.forEach((row,ri)=>{
       const mk=marks[ri];const hM=mk.some(Boolean);
       const bg=hM?'#FFFDE7':ri%2===0?'#fff':'#f7f7f7';const tc=tC(row.s);
@@ -7801,7 +7817,7 @@ function __renderBody(){
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
             <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${gy} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
             <div class="${g.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(g.xtra?'X1':'TOT'),...(g.hasM?(g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(g.hasM?[g.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
-            <div class="col-body" id="col-${key}" onscroll="syncScroll('${key}')">
+            <div class="col-body" id="col-${key}" onscroll="syncScroll('${key}')" onwheel="stepWheel(event,'${key}')">
               ${rows.length?rows.map((row,ri)=>{
                 const tc=tC(row.s);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[key+'_'+row.t+'_'+ni]);
                 const _isA=getAnchorG(key)===row.t;const _lkA=_isA&&isAnchorLockedG(key);
@@ -7897,7 +7913,7 @@ function __renderBody(){
         html+=`<div class="col ${GAME.hasM?'has-m':''}" style="border-color:#${color};${GAME.hasM?'min-width:301px;max-width:316px;':''}">
           <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr} ${GAME.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}${_aT?`<span onclick="setAnchor('${yr}')" style="background:#EA580C;color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Ancre sur le tirage ${_aT}">⚓ ${_aT}</span>`:`<span onclick="setAnchor('${yr}')" style="background:rgba(255,255,255,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Poser une ancre d'alignement">⚓</span>`}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages${(()=>{const g=gapCountFor(yr);return g?` • <span style="background:#C62828;color:#fff;padding:0 4px;border-radius:6px">${g} trou${g>1?'s':''}</span>`:'';})()}</div></div>
           <div class="${GAME.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
-          <div class="col-body" id="col-${yr}" onscroll="vScroll('${yr}')">`;
+          <div class="col-body" id="col-${yr}" onscroll="vScroll('${yr}')" onwheel="stepWheel(event,'${yr}')">`;
         {
           let ph0='';
           precedingWeeklyPlaceholders(yr).forEach(ph=>{
@@ -8001,7 +8017,7 @@ function __renderBody(){
         html+=`<div class="col" style="border-color:${pc[0]};border-width:2.5px">
           <div class="col-hdr" style="background:${pc[0]};color:#fff">P${pi+1}—Réf:${cfg.t}<div style="font-size:8px;opacity:.85;font-weight:normal">${rows.length} tirages</div></div>
           <div class="grid-hdr-comp">${['N°','DATE','N1','N2','N3','N4','N5','TOT'].map(h=>`<div>${h}</div>`).join('')}</div>
-          <div class="col-body" id="col-p${pi}" onscroll="syncScroll('p${pi}')">`;
+          <div class="col-body" id="col-p${pi}" onscroll="syncScroll('p${pi}')" onwheel="stepWheel(event,'p${pi}')">`;
         rows.forEach((row,li)=>{
           const la=LA[li]||{comm:new Set(),numDeriv:{}};
           const hC=row.n.some(n=>la.comm.has(n));

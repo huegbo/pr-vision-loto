@@ -1568,7 +1568,7 @@ let state={
   hlColor:null, hlStyle:'fill', menuCtx:null,
   showPass:false, passN:3,
   passMode:'year', passYearInput:String(new Date().getFullYear()), passTirageInput:'', passRows:null, passDiag:false,
-  showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[],
+  showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[], planColor:'',
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{},
@@ -3017,6 +3017,17 @@ function genRender(){
 function doPlan(){
   const v=document.getElementById('pi');
   if(v){const nums=[...new Set(v.value.split(/[\s,;]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=1&&n<=90))];state.planNums=nums;state.planInput=v.value;}
+  render();
+}
+// Colorie, avec la couleur choisie dans le nuancier, tous les numéros du plan courant
+// (partout où ils sortent dans l'historique) — utile pour des simulations visuelles.
+function applyPlanColor(){
+  if(!state.planNums.length){alert("Entre d'abord des numéros dans Tracer Plan");return;}
+  const hex=state.planColor||'#6D28D9';
+  pushColorUndo();
+  const c={bg:hex,fg:lumFg(hex),style:state.hlStyle};
+  state.planNums.forEach(n=>{state.colored[n]=c;});
+  saveColorState();
   render();
 }
 function planAnalyze(){
@@ -7363,6 +7374,16 @@ function __renderBody(){
         <button onclick="doPlan()" style="padding:4px 9px;background:#6D28D9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Analyser</button>
         ${state.planNums.length?`<button onclick="state.planNums=[];state.planInput='';render()" style="padding:4px 7px;background:#EF5350;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">✕</button>`:''}
       </div>
+      ${state.planNums.length?`<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:#F5F3FF;border-radius:6px;padding:5px 7px">
+        <span style="font-size:9px;color:#6D28D9;font-weight:600">🎨 Nuancier — colorier ce plan :</span>
+        ${PAL.map(c=>`<span onclick="state.planColor='${c}';render()" title="${c}" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.planColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
+        <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+          <span style="font-size:10px">🎨</span>
+          <input type="color" value="${state.planColor||'#6D28D9'}" oninput="state.planColor=this.value;render()" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+        </label>
+        <button onclick="applyPlanColor()" style="padding:3px 10px;background:${state.planColor||'#6D28D9'};color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px">🖌️ Appliquer au plan</button>
+        ${state.planColor?`<button onclick="state.planColor='';render()" style="padding:3px 8px;background:#fff;border:1px solid #999;color:#666;border-radius:6px;cursor:pointer;font-weight:500;font-size:9px">✕ couleur</button>`:''}
+      </div>`:''}
       ${state.planNums.length?`<div style="margin-top:6px">${planRender()}</div>`:'<div style="font-size:9px;color:#888;margin-top:4px">Entre tes numéros candidats pour voir combien de fois cette combinaison est déjà sortie</div>'}
       <div style="margin-top:6px">
         <textarea id="plan-note" placeholder="✏️ Notes sur ce plan (mise, stratégie, remarques...)" oninput="state.planNote=this.value" style="width:100%;min-height:50px;padding:6px 8px;border:1.5px solid #6D28D9;border-radius:6px;font-size:11px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box">${state.planNote}</textarea>

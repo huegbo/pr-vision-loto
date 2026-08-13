@@ -7676,6 +7676,14 @@ function _doRender(){
   _renderTimer=null;
   if(_renderBusy){_renderQueued=true;return;}
   _renderBusy=true;_renderQueued=false;
+  // Mémorise les positions de scroll (conteneurs .col-body + fenêtre) avant de
+  // remplacer le DOM, pour éviter que l'affichage ne remonte tout en haut à
+  // chaque re-rendu (ex: coloriage d'un numéro, coche d'une case).
+  const _scrollSave={};
+  try{
+    document.querySelectorAll('.col-body[id]').forEach(el=>{_scrollSave[el.id]=el.scrollTop;});
+    _scrollSave.__win=window.scrollY||window.pageYOffset||0;
+  }catch(_){}
   try{
     __renderBody();
   }catch(err){
@@ -7684,6 +7692,15 @@ function _doRender(){
       if(app)app.innerHTML='<div style="padding:24px;font-family:-apple-system,sans-serif"><b>⚠️ Erreur d\'affichage</b><pre style="font-size:11px;color:#C62828;white-space:pre-wrap">'+((err&&err.message)||err)+'</pre><button onclick="location.reload()" style="margin-top:12px;padding:8px 14px;border-radius:8px;border:none;background:#1E3A8A;color:#fff">Recharger</button></div>';
     }catch(_){}
   }finally{
+    // Restaure les positions de scroll mémorisées après le re-rendu.
+    try{
+      Object.keys(_scrollSave).forEach(id=>{
+        if(id==='__win')return;
+        const el=document.getElementById(id);
+        if(el)el.scrollTop=_scrollSave[id];
+      });
+      if(_scrollSave.__win)window.scrollTo(0,_scrollSave.__win);
+    }catch(_){}
     _renderBusy=false;
     if(_renderQueued){ _renderQueued=false; render(); }
   }

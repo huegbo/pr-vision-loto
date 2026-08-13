@@ -6540,6 +6540,13 @@ function colonneCardHTML(){
 // bouger toutes les autres du même nombre de pixels : elles descendent
 // ensemble en gardant exactement le décalage que tu as choisi.
 function freezeColIds(){
+  // On se base d'abord directement sur les colonnes réellement présentes dans
+  // le DOM (plus fiable que de redéduire les ids depuis le state, qui peut
+  // diverger selon le mode d'affichage actif — navMode, tab, excelMode...
+  // et provoquait à tort « il faut au moins deux colonnes » alors qu'il y en
+  // avait bien plusieurs affichées).
+  const els=Array.from(document.querySelectorAll('.col-body[id^="col-"]'));
+  if(els.length)return els.map(el=>el.id.slice(4));
   if(state.tab===1)return Array.from({length:state.np},(_,i)=>'p'+i);
   if(state.tab!==0)return state.selYears.map(String);
   return (state.navMode==='games')?state.selGames.filter(k=>GAMES[k]):state.selYears.map(String);

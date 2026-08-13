@@ -20,6 +20,7 @@ export async function onRequestPost(context) {
     }
 
     const { gameName, tirages, propose, analyseText } = body;
+    const count = Math.min(90, Math.max(1, parseInt(body.count, 10) || 10));
 
     // Construit un résumé texte lisible des tirages + éléments pour le prompt
     const lignes = tirages.map(t => {
@@ -36,7 +37,7 @@ Voici les 10 derniers tirages du jeu "${gameName}", avec pour chaque numéro les
 
 ${lignes}
 ${analyseText ? `\nAnalyse déjà faite sur ces tirages :\n${analyseText}\n` : ''}
-En te basant sur ces données statistiques, propose exactement 10 numéros (entiers uniques entre 1 et 90) à jouer pour le prochain tirage de "${gameName}". Commence ta réponse par la liste des 10 numéros séparés par des tirets (ex: 12-34-...), puis donne une justification courte (5-8 lignes maximum) de ta sélection basée sur les tendances observées (fréquences, sommes, éléments de classification). Termine par un rappel bref que ceci reste purement statistique et ne garantit aucun gain. Réponds en français, ton simple et direct, sans markdown (pas de titres ni de listes à puces, juste la ligne de numéros puis des paragraphes).`
+En te basant sur ces données statistiques, propose exactement ${count} numéros (entiers uniques entre 1 et 90) à jouer pour le prochain tirage de "${gameName}". Commence ta réponse par la liste des ${count} numéros séparés par des tirets (ex: 12-34-...), puis donne une justification courte (5-8 lignes maximum) de ta sélection basée sur les tendances observées (fréquences, sommes, éléments de classification). Termine par un rappel bref que ceci reste purement statistique et ne garantit aucun gain. Réponds en français, ton simple et direct, sans markdown (pas de titres ni de listes à puces, juste la ligne de numéros puis des paragraphes).`
       : `Tu es un analyste de données pour un jeu de loto (à but purement récréatif/statistique — précise toujours qu'un loto reste un jeu de hasard et qu'aucune analyse ne peut prédire un tirage futur).
 
 Voici les 10 derniers tirages du jeu "${gameName}", avec pour chaque numéro les éléments de sa classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) quand ils s'appliquent :

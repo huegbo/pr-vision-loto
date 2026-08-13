@@ -1807,7 +1807,7 @@ let state={
   sideBySide:(localStorage.getItem('sideBySide')!=='0'),
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
-  ytdOn:false,
+  ytdOn:false, ytdN:0,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -4053,11 +4053,22 @@ function isWithinYtd(r){
   return (mm<c.m)||(mm===c.m&&dd<=c.d);
 }
 function toggleYtd(){state.ytdOn=!state.ytdOn;render();}
+// Variante : au lieu de couper à la date du jour, garde exactement les N
+// premiers tirages de chaque année (utile quand les jeux ont des calendriers
+// différents et qu'on veut comparer « les N premiers tirages » plutôt que
+// « la même période calendaire »). BY_YEAR[yr] est trié du plus ancien au
+// plus récent (voir remainingWeeklyDraws/precedingWeeklyPlaceholders).
+function setYtdN(v){
+  const n=parseInt(v,10);
+  state.ytdN=(n>0)?n:0;
+  if(state.ytdN>0)state.ytdOn=true;
+  render();
+}
 function rowsForYearFull(yr){
   let rows=BY_YEAR[yr]||[];
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
-  if(state.ytdOn)rows=rows.filter(isWithinYtd);
+  if(state.ytdOn)rows=(state.ytdN>0)?rows.slice(0,state.ytdN):rows.filter(isWithinYtd);
   if(bjFilterActive())rows=rows.filter(bjKeep);
   if(GAME&&GAME.key==='cm_tout'&&state.cmToutJeux&&state.cmToutJeux.length<CAMEROUN_JEU_ORDER.length){
     rows=rows.filter(r=>{const c=cmCodeOf(r);return c?state.cmToutJeux.includes(c):true;});
@@ -4190,8 +4201,12 @@ function rangePanelHTML(){
     <button onclick="applyYearsText()" style="padding:2px 8px;font-size:9px;border-radius:4px;border:none;background:#5D4037;color:#fff;cursor:pointer;font-weight:600">Afficher</button>
     <span style="width:100%;height:0"></span>
     <label onclick="toggleYtd()" title="Sur chaque année affichée, ne garde que les tirages du 1er janvier jusqu'à la date du jour (${String(ytdCutoff().d).padStart(2,'0')}/${String(ytdCutoff().m).padStart(2,'0')}) — utile pour comparer la même période d'une année sur l'autre." style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 8px;border-radius:11px;border:1.5px solid ${state.ytdOn?'#166534':'#B08968'};background:${state.ytdOn?'#DCFCE7':'#fff'};font-size:10px;font-weight:600;color:${state.ytdOn?'#166534':'#7A5A3A'}">
-      <input type="checkbox" ${state.ytdOn?'checked':''} style="pointer-events:none;margin:0"> 📅 Depuis le début d'année ${state.ytdOn?`(jusqu'au ${String(ytdCutoff().d).padStart(2,'0')}/${String(ytdCutoff().m).padStart(2,'0')} sur chaque année)`:''}
+      <input type="checkbox" ${state.ytdOn?'checked':''} style="pointer-events:none;margin:0"> 📅 Depuis le début d'année ${state.ytdOn?(state.ytdN>0?`(les ${state.ytdN} premiers tirages de chaque année)`:`(jusqu'au ${String(ytdCutoff().d).padStart(2,'0')}/${String(ytdCutoff().m).padStart(2,'0')} sur chaque année)`):''}
     </label>
+    <span style="font-size:9px;color:#7A5A3A;font-weight:500">ou jusqu'au</span>
+    <input id="ytd-n" type="number" min="1" inputmode="numeric" value="${state.ytdN||''}" placeholder="Nᵉ tirage" onchange="setYtdN(this.value)" style="width:78px;padding:2px 4px;border:1.5px solid #B08968;border-radius:4px;font-size:10px;text-align:center;font-weight:500">
+    <span style="font-size:9px;color:#7A5A3A;font-weight:500">-ème tirage de l'année</span>
+    ${state.ytdN>0?`<button onclick="state.ytdN=0;render()" style="padding:2px 6px;font-size:9px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕</button>`:''}
   </div>`;
 }
 

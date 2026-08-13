@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
       return json({ error: "Requête invalide : 'tirages' manquant ou vide." }, 400);
     }
 
-    const { gameName, tirages } = body;
+    const { gameName, tirages, propose, analyseText } = body;
 
     // Construit un résumé texte lisible des tirages + éléments pour le prompt
     const lignes = tirages.map(t => {
@@ -29,7 +29,15 @@ export async function onRequestPost(context) {
       return `Tirage N°${t.tirage} (${t.date}) : ${nums}${machine}${elems}`;
     }).join('\n');
 
-    const prompt = `Tu es un analyste de données pour un jeu de loto (à but purement récréatif/statistique — précise toujours qu'un loto reste un jeu de hasard et qu'aucune analyse ne peut prédire un tirage futur).
+    const prompt = propose
+      ? `Tu es un analyste de données pour un jeu de loto (à but purement récréatif/statistique — un loto reste un jeu de hasard, aucune analyse ne peut prédire un tirage futur).
+
+Voici les 10 derniers tirages du jeu "${gameName}", avec pour chaque numéro les éléments de sa classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) quand ils s'appliquent :
+
+${lignes}
+${analyseText ? `\nAnalyse déjà faite sur ces tirages :\n${analyseText}\n` : ''}
+En te basant sur ces données statistiques, propose exactement 10 numéros (entiers uniques entre 1 et 90) à jouer pour le prochain tirage de "${gameName}". Commence ta réponse par la liste des 10 numéros séparés par des tirets (ex: 12-34-...), puis donne une justification courte (5-8 lignes maximum) de ta sélection basée sur les tendances observées (fréquences, sommes, éléments de classification). Termine par un rappel bref que ceci reste purement statistique et ne garantit aucun gain. Réponds en français, ton simple et direct, sans markdown (pas de titres ni de listes à puces, juste la ligne de numéros puis des paragraphes).`
+      : `Tu es un analyste de données pour un jeu de loto (à but purement récréatif/statistique — précise toujours qu'un loto reste un jeu de hasard et qu'aucune analyse ne peut prédire un tirage futur).
 
 Voici les 10 derniers tirages du jeu "${gameName}", avec pour chaque numéro les éléments de sa classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) quand ils s'appliquent :
 

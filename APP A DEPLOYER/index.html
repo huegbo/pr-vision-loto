@@ -1796,6 +1796,7 @@ let state={
   passMode:'year', passYearInput:String(new Date().getFullYear()), passTirageInput:'', passRows:null, passDiag:false,
   showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[], planColor:'',
   aiLoading:false, aiResult:'', aiError:'',
+  aiProposeLoading:false, aiProposeResult:'', aiProposeError:'',
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{},
@@ -5121,22 +5122,26 @@ function colorLastDrawElements(){
 // Analyse IA (Claude) des 10 derniers tirages, en tenant compte des éléments de la
 // classification (Bonanza, Malta, Key, Miroir...) pour chaque numéro. Appelle la
 // Cloudflare Pages Function /api/analyse-ia, qui garde la clé API côté serveur.
+// Construit la liste des 10 derniers tirages (+ éléments de classification)
+// utilisée à la fois par l'analyse et par la proposition de numéros.
+function aiLast10(){
+  return T.slice(0,Math.min(10,T.length)).map(row=>{
+    let elems=[];
+    if(typeof ELM_DEF!=='undefined'&&row.n){
+      elems=row.n.map(n=>{
+        const der=elmDerivs(n);
+        const parts=ELM_DEF.filter(e=>der[e.key]!==undefined&&der[e.key]!==n).map(e=>`${e.label}=${der[e.key]}`);
+        return parts.length?`${n}(${parts.join(',')})`:String(n);
+      });
+    }
+    return{tirage:row.t,date:row.d+'/'+row.y,n:row.n,m:row.m&&row.m.some(v=>!isNaN(v))?row.m:null,elements:elems};
+  });
+}
 async function runAiAnalysis(){
   if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
   state.aiLoading=true;state.aiError='';state.aiResult='';render();
   try{
-    const last10=T.slice(0,Math.min(10,T.length)).map(row=>{
-      let elems=[];
-      if(typeof ELM_DEF!=='undefined'&&row.n){
-        elems=row.n.map(n=>{
-          const der=elmDerivs(n);
-          const parts=ELM_DEF.filter(e=>der[e.key]!==undefined&&der[e.key]!==n).map(e=>`${e.label}=${der[e.key]}`);
-          return parts.length?`${n}(${parts.join(',')})`:String(n);
-        });
-      }
-      return{tirage:row.t,date:row.d+'/'+row.y,n:row.n,m:row.m&&row.m.some(v=>!isNaN(v))?row.m:null,elements:elems};
-    });
-    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:GAME.name,tirages:last10})});
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:GAME.name,tirages:aiLast10()})});
     const data=await resp.json().catch(()=>({}));
     if(!resp.ok||data.error){state.aiError=(data&&data.error)||('Erreur HTTP '+resp.status);}
     else state.aiResult=data.analyse||'Réponse vide.';
@@ -5144,6 +5149,21 @@ async function runAiAnalysis(){
     state.aiError='Erreur réseau : '+(e&&e.message||e);
   }
   state.aiLoading=false;render();
+}
+// Demande à l'IA de proposer 10 numéros à jouer, en s'appuyant sur les mêmes
+// tirages (et sur l'analyse déjà générée si disponible, pour affiner la réponse).
+async function runAiPropose(){
+  if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+  state.aiProposeLoading=true;state.aiProposeError='';state.aiProposeResult='';render();
+  try{
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:GAME.name,tirages:aiLast10(),propose:true,analyseText:state.aiResult||''})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.aiProposeError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.aiProposeResult=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.aiProposeError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.aiProposeLoading=false;render();
 }
 function aiAnalysisHTML(){
   return`<div style="margin-top:6px;background:#F0F9FF;border:1.5px solid #0284C7;border-radius:8px;padding:8px 10px">
@@ -5154,6 +5174,13 @@ function aiAnalysisHTML(){
     ${state.aiError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiError}</div>`:''}
     ${state.aiResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#0C4A6E;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.aiResult}</div>`:''}
     ${!state.aiResult&&!state.aiError&&!state.aiLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Génère un résumé (fréquences, sommes, éléments de la classification) des 10 derniers tirages de ${GAME.name}.</div>`:''}
+    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #93C5FD;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#075985">🎯 Proposer 10 numéros à jouer</span>
+      <button onclick="runAiPropose()" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading?'⏳ Génération en cours…':'✨ Proposer 10 numéros'}</button>
+    </div>
+    ${state.aiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiProposeError}</div>`:''}
+    ${state.aiProposeResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#164E63;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.aiProposeResult}</div>`:''}
+    ${!state.aiProposeResult&&!state.aiProposeError&&!state.aiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 10 numéros (1-90) sur la base des mêmes tirages et de l'analyse ci-dessus si disponible. Purement statistique — ne garantit aucun gain.</div>`:''}
   </div>`;
 }
 // Renvoie les numéros d'un tirage à colorer selon la position choisie :

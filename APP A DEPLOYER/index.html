@@ -1807,6 +1807,7 @@ let state={
   sideBySide:(localStorage.getItem('sideBySide')!=='0'),
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
+  ytdOn:false,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -4036,10 +4037,27 @@ function bjBarHTML(){
 // ALL BENIN (4 805 tirages) génère ~8 Mo de HTML et fige l'application pendant
 // une vingtaine de secondes. On n'affiche donc que les N plus récentes.
 // Les analyses et statistiques continuent de porter sur TOUT l'historique (T).
+// Mode « Depuis le début d'année » : ne garde, sur CHAQUE année affichée, que
+// les tirages allant du 1er janvier jusqu'à la date du jour (même mois/jour,
+// années différentes) — permet de comparer la même période d'une année sur
+// l'autre plutôt que des années complètes.
+function ytdCutoff(){
+  const now=new Date();
+  return {m:now.getMonth()+1,d:now.getDate()};
+}
+function isWithinYtd(r){
+  const parts=(r.d||'').split('/');
+  const dd=parseInt(parts[0]),mm=parseInt(parts[1]);
+  if(isNaN(dd)||isNaN(mm))return true;
+  const c=ytdCutoff();
+  return (mm<c.m)||(mm===c.m&&dd<=c.d);
+}
+function toggleYtd(){state.ytdOn=!state.ytdOn;render();}
 function rowsForYearFull(yr){
   let rows=BY_YEAR[yr]||[];
   const rb=rangeBounds();
   if(rb&&rb.mode==='draw')rows=rows.filter(r=>r.t>=rb.lo&&r.t<=rb.hi);
+  if(state.ytdOn)rows=rows.filter(isWithinYtd);
   if(bjFilterActive())rows=rows.filter(bjKeep);
   if(GAME&&GAME.key==='cm_tout'&&state.cmToutJeux&&state.cmToutJeux.length<CAMEROUN_JEU_ORDER.length){
     rows=rows.filter(r=>{const c=cmCodeOf(r);return c?state.cmToutJeux.includes(c):true;});
@@ -4170,6 +4188,10 @@ function rangePanelHTML(){
     <span style="font-size:9px;color:#7A5A3A;font-weight:500">ou écris les années :</span>
     <input id="yr-text" type="text" placeholder="ex: 2026,2024 ou 2020-2023" onkeydown="if(event.key==='Enter')applyYearsText()" style="flex:1;min-width:130px;padding:2px 6px;border:1.5px solid #B08968;border-radius:4px;font-size:10px;font-weight:500">
     <button onclick="applyYearsText()" style="padding:2px 8px;font-size:9px;border-radius:4px;border:none;background:#5D4037;color:#fff;cursor:pointer;font-weight:600">Afficher</button>
+    <span style="width:100%;height:0"></span>
+    <label onclick="toggleYtd()" title="Sur chaque année affichée, ne garde que les tirages du 1er janvier jusqu'à la date du jour (${String(ytdCutoff().d).padStart(2,'0')}/${String(ytdCutoff().m).padStart(2,'0')}) — utile pour comparer la même période d'une année sur l'autre." style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:2px 8px;border-radius:11px;border:1.5px solid ${state.ytdOn?'#166534':'#B08968'};background:${state.ytdOn?'#DCFCE7':'#fff'};font-size:10px;font-weight:600;color:${state.ytdOn?'#166534':'#7A5A3A'}">
+      <input type="checkbox" ${state.ytdOn?'checked':''} style="pointer-events:none;margin:0"> 📅 Depuis le début d'année ${state.ytdOn?`(jusqu'au ${String(ytdCutoff().d).padStart(2,'0')}/${String(ytdCutoff().m).padStart(2,'0')} sur chaque année)`:''}
+    </label>
   </div>`;
 }
 
@@ -7927,7 +7949,7 @@ function __renderBody(){
         ${[3,5,10].map(n=>`<button onclick="state.selYears=YEARS.slice(0,${n});render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #1F2D3D;background:#E8EAF6;color:#1F2D3D;cursor:pointer;font-weight:500">${n}</button>`).join('')}
         <button onclick="state.selYears=[...YEARS];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">All</button>
         <button onclick="state.selYears=[];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕</button>
-        <button onclick="state.rangePanel=!state.rangePanel;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #8D6E63;background:${state.rangePanel||state.rangeOn?'#8D6E63':'#EFEBE9'};color:${state.rangePanel||state.rangeOn?'#fff':'#5D4037'};cursor:pointer;font-weight:600" title="Choisir une plage de début à fin (par année ou par N° de tirage)">⇥ Plage</button>
+        <button onclick="state.rangePanel=!state.rangePanel;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #8D6E63;background:${state.rangePanel||state.rangeOn||state.ytdOn?'#8D6E63':'#EFEBE9'};color:${state.rangePanel||state.rangeOn||state.ytdOn?'#fff':'#5D4037'};cursor:pointer;font-weight:600" title="Choisir une plage de début à fin (par année ou par N° de tirage)">⇥ Plage${state.ytdOn?' 📅':''}</button>
       </div>
       ${state.rangePanel||state.rangeOn?rangePanelHTML():''}
       <div style="display:flex;flex-wrap:wrap;gap:2px">

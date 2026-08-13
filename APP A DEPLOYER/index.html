@@ -1796,7 +1796,7 @@ let state={
   passMode:'year', passYearInput:String(new Date().getFullYear()), passTirageInput:'', passRows:null, passDiag:false,
   showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[], planColor:'',
   aiLoading:false, aiResult:'', aiError:'',
-  aiProposeLoading:false, aiProposeResult:'', aiProposeError:'', aiProposeCount:10,
+  aiProposeLoading:false, aiProposeError:'', aiProposeActive:null, aiProposals:[],
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{},
@@ -5150,21 +5150,38 @@ async function runAiAnalysis(){
   }
   state.aiLoading=false;render();
 }
-// Demande à l'IA de proposer N numéros à jouer, en s'appuyant sur les mêmes
-// tirages (et sur l'analyse déjà générée si disponible, pour affiner la réponse).
-async function runAiPropose(count){
+// Demande à l'IA de proposer des numéros à jouer (numéros seuls ou paires),
+// en s'appuyant sur les mêmes tirages (et sur l'analyse déjà générée si
+// disponible). Chaque nouvelle proposition s'ajoute à l'historique visible
+// (state.aiProposals) au lieu d'effacer les précédentes.
+async function runAiPropose(opts){
   if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
-  state.aiProposeCount=count;
-  state.aiProposeLoading=true;state.aiProposeError='';state.aiProposeResult='';render();
+  state.aiProposeActive=opts;
+  state.aiProposeLoading=true;state.aiProposeError='';render();
   try{
-    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:GAME.name,tirages:aiLast10(),propose:true,count,analyseText:state.aiResult||''})});
+    const body={gameName:GAME.name,tirages:aiLast10(),propose:true,analyseText:state.aiResult||''};
+    if(opts.pairs){body.pairs=true;body.pairsCount=opts.pairsCount;}
+    else{body.count=opts.count;}
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const data=await resp.json().catch(()=>({}));
     if(!resp.ok||data.error){state.aiProposeError=(data&&data.error)||('Erreur HTTP '+resp.status);}
-    else state.aiProposeResult=data.analyse||'Réponse vide.';
+    else{
+      const label=opts.pairs?`${opts.pairsCount} combinaisons de 2 numéros`:`${opts.count} numéros`;
+      state.aiProposals=state.aiProposals||[];
+      state.aiProposals.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),label,text:data.analyse||'Réponse vide.'});
+    }
   }catch(e){
     state.aiProposeError='Erreur réseau : '+(e&&e.message||e);
   }
-  state.aiProposeLoading=false;render();
+  state.aiProposeLoading=false;state.aiProposeActive=null;render();
+}
+function removeAiProposal(id){
+  state.aiProposals=(state.aiProposals||[]).filter(p=>p.id!==id);
+  render();
+}
+function clearAiProposals(){
+  if(!(state.aiProposals||[]).length)return;
+  state.aiProposals=[];render();
 }
 function aiAnalysisHTML(){
   return`<div style="margin-top:6px;background:#F0F9FF;border:1.5px solid #0284C7;border-radius:8px;padding:8px 10px">
@@ -5177,12 +5194,20 @@ function aiAnalysisHTML(){
     ${!state.aiResult&&!state.aiError&&!state.aiLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Génère un résumé (fréquences, sommes, éléments de la classification) des 10 derniers tirages de ${GAME.name}.</div>`:''}
     <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #93C5FD;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span style="font-size:11px;font-weight:700;color:#075985">🎯 Proposer des numéros à jouer</span>
-      <button onclick="runAiPropose(5)" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeCount===5?'⏳ Génération…':'✨ 5 numéros'}</button>
-      <button onclick="runAiPropose(10)" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeCount===10?'⏳ Génération…':'✨ 10 numéros'}</button>
+      <button onclick="runAiPropose({count:5})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&!state.aiProposeActive.pairs&&state.aiProposeActive.count===5?'⏳ Génération…':'✨ 5 numéros'}</button>
+      <button onclick="runAiPropose({count:10})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&!state.aiProposeActive.pairs&&state.aiProposeActive.count===10?'⏳ Génération…':'✨ 10 numéros'}</button>
+      <button onclick="runAiPropose({pairs:true,pairsCount:10})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#B45309'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&state.aiProposeActive.pairs?'⏳ Génération…':'🎲 10 tirages de 2 numéros'}</button>
+      ${(state.aiProposals||[]).length?`<button onclick="clearAiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button>`:''}
     </div>
     ${state.aiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiProposeError}</div>`:''}
-    ${state.aiProposeResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#164E63;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.aiProposeResult}</div>`:''}
-    ${!state.aiProposeResult&&!state.aiProposeError&&!state.aiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 5 ou 10 numéros (1-90) sur la base des mêmes tirages et de l'analyse ci-dessus si disponible. Purement statistique — ne garantit aucun gain.</div>`:''}
+    ${(state.aiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
+        <span onclick="removeAiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
+      </div>
+      <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
+    </div>`).join('')}
+    ${!(state.aiProposals||[]).length&&!state.aiProposeError&&!state.aiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 5 ou 10 numéros, ou 10 tirages de 2 numéros chacun (paires), sur la base des mêmes tirages et de l'analyse ci-dessus si disponible. Chaque proposition reste affichée — les nouvelles s'ajoutent sans effacer les précédentes. Purement statistique — ne garantit aucun gain.</div>`:''}
   </div>`;
 }
 // Renvoie les numéros d'un tirage à colorer selon la position choisie :

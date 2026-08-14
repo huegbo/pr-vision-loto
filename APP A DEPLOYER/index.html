@@ -6860,9 +6860,57 @@ function syncScroll(id){
 
 // Données d'un jeu sans changer le jeu actif (avec cache)
 // ── Numéros repérés (colorés dans le jeu courant, ET/OU prédéfinis manuellement, indépendants du jeu) → recherche dans TOUS les lotos, couleurs conservées ──
+// Repère d'origine (identifié par l'utilisateur sur BENZ) : base fixe, codée en dur, qui ne
+// dépend d'aucun localStorage — visible partout, même après vidage de cache / nouvel appareil /
+// redéploiement. Sert de valeur par défaut tant que rien n'a été explicitement sauvegardé/modifié
+// dans le panneau (si l'utilisateur ajoute, retire ou vide sa liste, sa version prend le dessus).
+const REPERE_ORIGIN_DEFAULT={
+  6:{bg:'#F97316',fg:'#fff'},
+  14:{bg:'#3B82F6',fg:'#fff'},
+  15:{bg:'#8B5CF6',fg:'#fff'},
+  2:{bg:'#8B5CF6',fg:'#fff'},
+  23:{bg:'#EAB308',fg:'#000'},
+  24:{bg:'#EF4444',fg:'#fff'},
+  28:{bg:'#8B5CF6',fg:'#fff'},
+  30:{bg:'#EAB308',fg:'#000'},
+  32:{bg:'#EAB308',fg:'#000'},
+  33:{bg:'#22C55E',fg:'#fff'},
+  35:{bg:'#3B82F6',fg:'#fff'},
+  37:{bg:'#22C55E',fg:'#fff'},
+  40:{bg:'#EF4444',fg:'#fff'},
+  42:{bg:'#3B82F6',fg:'#fff'},
+  56:{bg:'#EAB308',fg:'#000'},
+  57:{bg:'#EF4444',fg:'#fff'},
+  59:{bg:'#EF4444',fg:'#fff'},
+  60:{bg:'#8B5CF6',fg:'#fff'},
+  61:{bg:'#22C55E',fg:'#fff'},
+  67:{bg:'#EAB308',fg:'#000'},
+  70:{bg:'#22C55E',fg:'#fff'},
+  71:{bg:'#8B5CF6',fg:'#fff'},
+  78:{bg:'#EF4444',fg:'#fff'},
+};
 function saveRepereDefinedState(){lsSet('loto_repere_defined',JSON.stringify(state.repereDefined));}
 function loadRepereDefinedState(){
-  try{state.repereDefined=JSON.parse(lsGetOr('loto_repere_defined','{}'))||{};}catch(_){state.repereDefined={};}
+  try{
+    const raw=lsGetOr('loto_repere_defined','');
+    state.repereDefined=raw?(JSON.parse(raw)||{}):{...REPERE_ORIGIN_DEFAULT};
+  }catch(_){state.repereDefined={...REPERE_ORIGIN_DEFAULT};}
+}
+function restoreRepereOrigin(){
+  if(!confirm('Remettre le repère d\'origine (23 numéros identifiés sur BENZ) ? Ça remplace ta liste actuelle.'))return;
+  state.repereDefined={...REPERE_ORIGIN_DEFAULT};
+  saveRepereDefinedState();
+  render();
+}
+// Applique directement les numéros repérés (prédéfinis + coloriage éventuel du jeu courant)
+// dans l'affichage normal du jeu OUVERT ACTUELLEMENT — colorie chaque numéro sans avoir à
+// cliquer un par un. Fonctionne sur n'importe quel loto, à la demande.
+function applyRepereToCurrentGame(){
+  pushColorUndo();
+  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{state.colored[n]={bg:c.bg,fg:c.fg};});
+  saveColorState();
+  closeRepereGlobal();
+  render();
 }
 loadRepereDefinedState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
@@ -6925,6 +6973,10 @@ function repereGlobalHTML(){
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <span style="font-size:15px;font-weight:700;color:#0E7490">🎯 Numéros repérés — dans tous les lotos</span>
         <span onclick="closeRepereGlobal()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <button onclick="applyRepereToCurrentGame()" style="padding:5px 12px;background:#C2410C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px" title="Colorie immédiatement ces numéros dans le jeu ouvert actuellement, sans avoir à cliquer numéro par numéro">✨ Activer ici, sur ${GAME.name}</button>
+        <button onclick="restoreRepereOrigin()" style="padding:5px 12px;background:#fff;color:#0E7490;border:1.5px solid #0E7490;border-radius:8px;cursor:pointer;font-weight:600;font-size:11px" title="Remettre les 23 numéros du repère d'origine identifié sur BENZ">↺ Repère d'origine</button>
       </div>
       <div style="background:#F0F9FF;border:1.5px solid #0E7490;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#0E7490;margin-bottom:5px">✏️ Prédéfinir des numéros à repérer (indépendant du coloriage d'un jeu — reste fixe partout, tant que tu ne les effaces pas)</div>
@@ -7751,7 +7803,8 @@ function anRender(){
   let html=`<div class="card">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
       <span style="font-size:9px;color:#777">Choisis une analyse — les numéros concernés sont colorés dans les colonnes</span>
-      <button onclick="openRepereGlobal()" style="margin-left:auto;padding:3px 10px;background:#E0F2FE;color:#0E7490;border:1.5px solid #0E7490;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Voir tes numéros coloriés (repérés) recherchés dans tous les autres lotos, avec les mêmes couleurs">🎯 Mes repérés (tous lotos)</button>
+      <button onclick="applyRepereToCurrentGame()" style="margin-left:auto;padding:3px 10px;background:#FFF7ED;color:#C2410C;border:1.5px solid #C2410C;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Colorie immédiatement tous tes numéros repérés dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer mes repérés ici</button>
+      <button onclick="openRepereGlobal()" style="padding:3px 10px;background:#E0F2FE;color:#0E7490;border:1.5px solid #0E7490;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Voir tes numéros coloriés (repérés) recherchés dans tous les autres lotos, avec les mêmes couleurs">🎯 Mes repérés (tous lotos)</button>
       <button onclick="goCompareGames()" style="padding:3px 10px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #2E7D32;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Afficher plusieurs lotos côte à côte (onglet Navigation)">🎮 Comparer plusieurs lotos</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:3px">

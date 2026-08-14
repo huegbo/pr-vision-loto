@@ -1809,7 +1809,7 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'',
+  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false,
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -1886,6 +1886,33 @@ function loadColorState(key){
   }catch(_){state.colored={};state.coloredCells={};state.markRows={};state.blockRows={};state.anchors={};state.anchorLocks={};}
 }
 loadColorState(GAME.key);
+// ── Export du coloriage actuel (texte à copier/coller) : sert à figer un coloriage précis
+// ("repère d'origine") de façon permanente dans le code, indépendamment du localStorage
+// (qui peut être vidé par le navigateur/l'appareil, contrairement à ce qui est codé en dur).
+function exportColoringText(){
+  return JSON.stringify({game:GAME.key,colored:state.colored,coloredCells:state.coloredCells},null,0);
+}
+function openColoringExport(){state.showFab=false;state.coloringExportOpen=true;render();}
+function closeColoringExport(){state.coloringExportOpen=false;render();}
+function copyColoringExport(){
+  const ta=document.getElementById('coloring-export-ta');
+  if(ta){ta.select();try{document.execCommand('copy');}catch(_){}}
+  try{navigator.clipboard&&navigator.clipboard.writeText(ta?ta.value:'');}catch(_){}
+}
+function coloringExportHTML(){
+  const txt=exportColoringText();
+  return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeColoringExport()">
+    <div style="background:#fff;border-radius:14px;padding:16px;max-width:560px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700;color:#0E7490">📤 Exporter le coloriage de ${GAME.name}</span>
+        <span onclick="closeColoringExport()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
+      </div>
+      <div style="font-size:10.5px;color:#555;margin-bottom:8px">Copie ce texte exact et envoie-le dans le chat : ça sert à figer ce coloriage comme "repère d'origine" permanent dans le code de l'app, qui ne s'efface plus — ni au déploiement, ni au changement d'appareil, ni au vidage du cache.</div>
+      <textarea id="coloring-export-ta" readonly style="width:100%;height:160px;font-size:10px;font-family:monospace;padding:8px;border:1.5px solid #0E7490;border-radius:8px;box-sizing:border-box" onclick="this.select()">${txt}</textarea>
+      <button onclick="copyColoringExport()" style="margin-top:8px;padding:6px 14px;background:#0E7490;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px">📋 Copier</button>
+    </div>
+  </div>`;
+}
 // ── Annuler la dernière action de coloriage (pile d'historique, 20 étapes max) ──
 function pushColorUndo(){
   try{
@@ -5588,6 +5615,7 @@ function fabGo(action){
   else if(action==='batch_color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='undo_color'){undoColorAction();return;}
   else if(action==='repere_global'){openRepereGlobal();return;}
+  else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
     if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour ce jeu ?\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
       pushColorUndo();
@@ -5655,6 +5683,7 @@ function fabHTML(){
     ['batch_color','🎨🔢','Coloriage par lot (nombre, tirage n°, intervalle, position...)','#6D28D9','#fff'],
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
+    ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
     ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
@@ -8514,6 +8543,7 @@ function __renderBody(){
   html+=downloadAppButtonHTML();
   html+=fabHTML();
   if(state.repereGlobalOpen)html+=repereGlobalHTML();
+  if(state.coloringExportOpen)html+=coloringExportHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
   <div id="popup" class="popup" style="display:none"></div>

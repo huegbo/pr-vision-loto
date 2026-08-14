@@ -8188,7 +8188,7 @@ function anRender(){
   }
   if(state.excelMode){
     // ── MODE EXCEL Analyses : 1re année figée, marquage des dérivés ──
-    const cols=state.selYears.map(yr=>({yr,color:YC[yr]||'1F2D3D',rows:rowsForYear(yr).slice(0,300)}));  // Analyses : non virtualisé, on borne
+    const cols=state.selYears.map(yr=>({yr,color:YC[yr]||'1F2D3D',rows:rowsForYear(yr).slice(0,3000)}));  // Analyses : non virtualisé, on borne large pour couvrir une année complète (jeux combinés type TOUT BENIN PLUS DIGITAL)
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
     const W_T=36,W_D=42,W_N=28,W_TOT=36;const nNums=GAME.n6?6:5;const nCells=GAME.n6?9:(GAME.hasM?14:8);
     const totIdx=2+nNums;
@@ -8242,7 +8242,7 @@ function anRender(){
   }
   html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
   state.selYears.forEach(yr=>{
-    const color=YC[yr]||'1F2D3D';const rows=rowsForYear(yr).slice(0,300);  // Analyses : non virtualisé, on borne
+    const color=YC[yr]||'1F2D3D';const rows=rowsForYear(yr).slice(0,3000);  // Analyses : non virtualisé, on borne large pour couvrir une année complète (jeux combinés type TOUT BENIN PLUS DIGITAL)
     const light=parseInt(color,16)>0x888888;
     let cnt=0;const marks=rows.map(r=>{const mk=anMark(r,ctx);cnt+=mk.filter(Boolean).length;return mk;});
     html+=`<div class="col" style="border-color:#${color}">
@@ -8596,7 +8596,7 @@ function __renderBody(){
       html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne des années</div>`;
     }else if(state.excelMode){
       // ── MODE EXCEL : 1re année entièrement figée à gauche, scroll vertical commun ──
-      const cols=state.selYears.map(yr=>({yr,color:YC[yr]||'1F2D3D',rows:rowsForYear(yr).slice(0,300)}));  // Analyses : non virtualisé, on borne
+      const cols=state.selYears.map(yr=>({yr,color:YC[yr]||'1F2D3D',rows:rowsForYear(yr).slice(0,3000)}));  // Analyses : non virtualisé, on borne large pour couvrir une année complète (jeux combinés type TOUT BENIN PLUS DIGITAL)
       const maxRows=Math.max(...cols.map(c=>c.rows.length));
       // largeurs fixes (px) : N°, DATE, puis chaque numéro, TOT, [machine..., TOTM]
       const SZ_PRESETS={compact:{W_T:18,W_D:22,W_N:17,W_TOT:20},normal:{W_T:22,W_D:26,W_N:20,W_TOT:24},large:{W_T:30,W_D:34,W_N:30,W_TOT:34}};

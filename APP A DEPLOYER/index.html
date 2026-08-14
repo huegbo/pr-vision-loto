@@ -1818,7 +1818,7 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{},
+  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -2053,6 +2053,7 @@ function showMenu(n,cid,x,y){
     </div>
     <div class="nmenu-item" onclick="event.stopPropagation();colorAll(${n})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes numéros'}</div>
     ${cid?`<div class="nmenu-item" onclick="event.stopPropagation();colorCell(${n},'${cid}')">${hasCell?'❌ Enlever ce numéro':'🔹 Ce numéro seulement'}</div>`:''}
+    <div class="nmenu-item" onclick="event.stopPropagation();toggleRepereFromMenu(${n})" style="color:#C2410C;font-weight:600">${state.repereDefined[n]?'❌ Retirer des repérés':'🎯 Ajouter aux repérés (visible partout)'}</div>
     <div class="nmenu-item" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
     ${elmMenuHTML(n)}
     <div style="display:flex;gap:4px;padding:5px 10px 8px;border-top:1px solid #f0f0f0;margin-top:2px">
@@ -6935,6 +6936,53 @@ function toggleRepereActive(n){
   saveRepereDefinedState();
   render();
 }
+// Ajoute/retire un numéro aux repérés directement depuis le menu couleur (clic sur un numéro) —
+// façon la plus rapide de définir de nouveaux repères à l'avenir : colorie comme d'habitude,
+// puis "🎯 Ajouter aux repérés" pour le rendre permanent et visible partout.
+function toggleRepereFromMenu(n){
+  pushColorUndo();
+  if(state.repereDefined[n]){
+    delete state.repereDefined[n];
+    delete state.repereActive[n];
+  }else{
+    const c=state.colored[n]||pickHl();
+    state.repereDefined[n]={bg:c.bg,fg:c.fg};
+    state.repereActive[n]=true;
+  }
+  saveRepereDefinedState();
+  closePopup();render();
+}
+// ── Instantanés : plusieurs "plans" de repères sauvegardés, à recharger à tout moment ──
+function loadRepereSnapshots(){
+  try{state.repereSnapshots=JSON.parse(lsGetOr('loto_repere_snapshots','[]'))||[];}catch(_){state.repereSnapshots=[];}
+}
+function saveRepereSnapshots(){lsSet('loto_repere_snapshots',JSON.stringify(state.repereSnapshots));}
+function saveRepereSnapshot(){
+  if(!Object.keys(state.repereDefined).length){alert('Aucun numéro repéré à enregistrer pour le moment.');return;}
+  const name=prompt('Nom de cet instantané (ex: "Plan BENZ Août 2026") :','');
+  if(name==null)return;
+  const nm=name.trim()||('Instantané '+new Date().toLocaleString('fr-FR'));
+  state.repereSnapshots.unshift({id:Date.now(),name:nm,defined:{...state.repereDefined},active:{...state.repereActive},createdAt:new Date().toISOString()});
+  saveRepereSnapshots();
+  render();
+}
+function loadRepereSnapshot(id){
+  const s=state.repereSnapshots.find(x=>x.id===id);
+  if(!s)return;
+  if(!confirm('Charger l\'instantané "'+s.name+'" ? Ça remplace ta liste actuelle de repères (ton instantané actuel n\'est pas perdu, enregistre-le d\'abord si besoin).'))return;
+  state.repereDefined={...s.defined};
+  state.repereActive={...(s.active||{})};
+  saveRepereDefinedState();
+  render();
+}
+function deleteRepereSnapshot(id){
+  const s=state.repereSnapshots.find(x=>x.id===id);
+  if(!s)return;
+  if(!confirm('Supprimer l\'instantané "'+s.name+'" ?'))return;
+  state.repereSnapshots=state.repereSnapshots.filter(x=>x.id!==id);
+  saveRepereSnapshots();
+  render();
+}
 // Applique directement les numéros repérés ACTIFS (prédéfinis + coloriage éventuel du jeu courant)
 // dans l'affichage normal du jeu OUVERT ACTUELLEMENT — colorie chaque numéro sans avoir à
 // cliquer un par un. Fonctionne sur n'importe quel loto, à la demande.
@@ -6957,6 +7005,7 @@ function applyRepereAutoDefault(){
   });
 }
 loadRepereDefinedState();
+loadRepereSnapshots();
 applyRepereAutoDefault();
 saveColorState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
@@ -7044,6 +7093,20 @@ function repereGlobalHTML(){
         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
           ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
           ${Object.keys(state.repereDefined).length?`<button onclick="clearRepereDefined()" style="padding:2px 8px;background:#fff;border:1px solid #C62828;color:#C62828;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px;margin-left:4px">Tout effacer</button>`:''}
+        </div>
+      </div>
+      <div style="background:#FDF4FF;border:1.5px solid #A21CAF;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:#A21CAF;margin-bottom:5px">📸 Instantanés — plusieurs plans à enregistrer et recharger</div>
+        <div style="font-size:9px;color:#666;margin-bottom:6px">Enregistre ta liste actuelle sous un nom, pour créer d'autres repères à l'avenir sans perdre celui-ci : change les numéros ci-dessus, enregistre un nouvel instantané, puis recharge celui que tu veux à tout moment.</div>
+        <button onclick="saveRepereSnapshot()" style="padding:4px 10px;background:#A21CAF;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-bottom:6px">💾 Enregistrer l'instant actuel</button>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${state.repereSnapshots.length?state.repereSnapshots.map(s=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid #E9D5FF;border-radius:6px;padding:4px 7px">
+            <span style="font-size:10px;font-weight:700;color:#333">${s.name}</span>
+            <span style="font-size:8px;color:#999">${Object.keys(s.defined||{}).length} n°</span>
+            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:160px">${Object.entries(s.defined||{}).slice(0,8).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:3px;padding:0 3px;font-size:9px;font-weight:700">${n}</span>`).join('')}${Object.keys(s.defined||{}).length>8?`<span style="font-size:8px;color:#999">…</span>`:''}</div>
+            <button onclick="loadRepereSnapshot(${s.id})" style="margin-left:auto;padding:2px 8px;background:#A21CAF;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">Charger</button>
+            <span onclick="deleteRepereSnapshot(${s.id})" style="cursor:pointer;color:#C62828;font-size:12px" title="Supprimer">🗑️</span>
+          </div>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun instantané enregistré pour l'instant.</span>`}
         </div>
       </div>
       ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun numéro repéré pour l'instant (ni colorié sur <b>${GAME.name}</b>, ni prédéfini ci-dessus).</div>`:`

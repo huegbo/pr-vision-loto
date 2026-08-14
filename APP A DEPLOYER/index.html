@@ -1808,6 +1808,7 @@ let state={
   // Plage Début → Fin : soit par année (2023→2026), soit par N° de tirage (131→159)
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
+  exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -4287,13 +4288,90 @@ function colorBg(c){
   if(typeof c==='string')return c;
   return c.bg||null;
 }
-// Exporte les ANNÉES SÉLECTIONNÉES À L'ÉCRAN (state.selYears), juxtaposées côte à côte
-// dans une seule feuille (comme la vue "Par années"), avec les couleurs (coloriage manuel + Total).
+// ══════ Panneau de paramétrage de l'export Excel coloré ══════
+function openExportPanel(){
+  state.exportYears=(state.selYears&&state.selYears.length)?state.selYears.slice():YEARS.slice(0,4);
+  state.exportPanel=true;render();
+}
+function closeExportPanel(){state.exportPanel=false;render();}
+function toggleExportYear(y){
+  const i=state.exportYears.indexOf(y);
+  if(i>=0)state.exportYears.splice(i,1);else state.exportYears.push(y);
+  render();
+}
+function exportYearsAll(){state.exportYears=[...YEARS];render();}
+function exportYearsNone(){state.exportYears=[];render();}
+function exportYearsScreen(){state.exportYears=(state.selYears||[]).slice();render();}
+// Export immédiat avec les paramètres par défaut (années à l'écran, couleurs + M activés,
+// toutes les lignes), sans ouvrir le panneau. Ne modifie pas les réglages du panneau
+// si l'utilisateur les avait déjà personnalisés (restaurés juste après l'export).
+async function exportQuickDefault(){
+  const saved={y:state.exportYears,c:state.exportColors,m:state.exportM,mode:state.exportRowMode,n:state.exportRowN,from:state.exportRowFrom,to:state.exportRowTo};
+  state.exportYears=(state.selYears&&state.selYears.length)?state.selYears.slice():YEARS.slice(0,4);
+  state.exportColors=true;
+  state.exportM=true;
+  state.exportRowMode='all';
+  try{await exportColoredExcel();}
+  finally{state.exportYears=saved.y;state.exportColors=saved.c;state.exportM=saved.m;state.exportRowMode=saved.mode;state.exportRowN=saved.n;state.exportRowFrom=saved.from;state.exportRowTo=saved.to;}
+}
+function exportPanelHTML(){
+  const hasM=GAME&&GAME.hasM;
+  return `<div style="margin-bottom:6px;background:#F5F3FF;border:1.5px solid #7C3AED;border-radius:8px;padding:8px 10px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="font-size:11px;font-weight:700;color:#5B21B6">🎨 Paramètres de l'export Excel</span>
+      <span onclick="closeExportPanel()" style="margin-left:auto;cursor:pointer;font-size:13px;color:#7C3AED" title="Fermer">✕</span>
+    </div>
+    <div style="font-size:9.5px;font-weight:700;color:#5B21B6;margin-bottom:3px">Années à inclure (${state.exportYears.length})</div>
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;flex-wrap:wrap">
+      <button onclick="exportYearsScreen()" style="padding:1px 8px;font-size:9px;border-radius:10px;border:1px solid #7C3AED;background:#EDE9FE;color:#5B21B6;cursor:pointer;font-weight:600">Comme à l'écran</button>
+      <button onclick="exportYearsAll()" style="padding:1px 8px;font-size:9px;border-radius:10px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Toutes</button>
+      <button onclick="exportYearsNone()" style="padding:1px 8px;font-size:9px;border-radius:10px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucune</button>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:8px;max-height:70px;overflow-y:auto">
+      ${YEARS.map(y=>{const sel=state.exportYears.includes(y);const c=YC[y]||'1F2D3D';return `<button onclick="toggleExportYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f9f9f9'};color:${sel?(parseInt(c,16)>0x888888?'#000':'#fff'):'#888'}">${y}</button>`;}).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;font-weight:600;color:#5B21B6"><input type="checkbox" ${state.exportColors!==false?'checked':''} onchange="state.exportColors=this.checked">🎨 Couleurs</label>
+      ${hasM?`<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;font-weight:600;color:#5B21B6"><input type="checkbox" ${state.exportM!==false?'checked':''} onchange="state.exportM=this.checked">🔢 Numéros machine (M1-M5 + TOT.M)</label>`:''}
+    </div>
+    <div style="font-size:9.5px;font-weight:700;color:#5B21B6;margin-bottom:3px">Lignes à exporter (par année)</div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+      <select onchange="state.exportRowMode=this.value;render()" style="font-size:9px;padding:2px 4px;border:1px solid #7C3AED;border-radius:4px;font-weight:500">
+        <option value="all" ${(!state.exportRowMode||state.exportRowMode==='all')?'selected':''}>Tout</option>
+        <option value="last" ${state.exportRowMode==='last'?'selected':''}>Les N derniers</option>
+        <option value="range" ${state.exportRowMode==='range'?'selected':''}>Plage de N° tirage</option>
+      </select>
+      ${state.exportRowMode==='last'?`<input type="number" min="1" value="${state.exportRowN||100}" onchange="state.exportRowN=+this.value" style="width:60px;padding:2px 5px;border:1.5px solid #7C3AED;border-radius:4px;font-size:10px;text-align:center;font-weight:500"><span style="font-size:9px;color:#5B21B6">derniers tirages</span>`:''}
+      ${state.exportRowMode==='range'?`<span style="font-size:9px;color:#5B21B6">de</span><input type="number" value="${state.exportRowFrom||''}" placeholder="N° début" onchange="state.exportRowFrom=this.value" style="width:70px;padding:2px 5px;border:1.5px solid #7C3AED;border-radius:4px;font-size:10px;text-align:center;font-weight:500"><span style="font-size:9px;color:#5B21B6">à</span><input type="number" value="${state.exportRowTo||''}" placeholder="N° fin" onchange="state.exportRowTo=this.value" style="width:70px;padding:2px 5px;border:1.5px solid #7C3AED;border-radius:4px;font-size:10px;text-align:center;font-weight:500">`:''}
+    </div>
+    <button onclick="exportColoredExcel()" style="margin-top:9px;width:100%;padding:7px;background:#7C3AED;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📤 Générer le fichier Excel</button>
+  </div>`;
+}
+// Exporte les années choisies dans le panneau de paramétrage (state.exportYears),
+// juxtaposées côte à côte dans une seule feuille (comme la vue "Par années"),
+// avec ou sans couleurs / numéros machine / limite de lignes selon les réglages choisis.
 async function exportColoredExcel(){
   if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
-  const yearsWanted=(state.selYears&&state.selYears.length)?state.selYears.slice():(state.showAllYears?YEARS:YEARS.slice(0,15));
-  const cols=yearsWanted.map(y=>({y,rows:(BY_YEAR[y]||[]).slice()})).filter(c=>c.rows.length);
-  if(!cols.length){alert("Aucune donnée pour les années sélectionnées. Choisis des années dans l'onglet Navigation → Par années, puis relance l'export.");return;}
+  const yearsWanted=(state.exportYears&&state.exportYears.length)?state.exportYears.slice():((state.selYears&&state.selYears.length)?state.selYears.slice():(state.showAllYears?YEARS:YEARS.slice(0,15)));
+  // Utilise rowsForYearFull (pas BY_YEAR brut) pour respecter les filtres déjà actifs
+  // à l'écran (Plage, Depuis le début d'année...), puis applique en plus la limite
+  // de lignes choisie dans le panneau d'export (Tout / N derniers / Plage de N°).
+  let cols=yearsWanted.map(y=>({y,rows:rowsForYearFull(y).slice()}));
+  const rowMode=state.exportRowMode||'all';
+  if(rowMode==='last'){
+    const n=Math.max(1,parseInt(state.exportRowN,10)||100);
+    cols=cols.map(c=>({y:c.y,rows:c.rows.slice(Math.max(0,c.rows.length-n))}));
+  }else if(rowMode==='range'){
+    const a=parseInt(state.exportRowFrom,10),b=parseInt(state.exportRowTo,10);
+    if(!isNaN(a)||!isNaN(b)){
+      const lo=isNaN(a)?-Infinity:a, hi=isNaN(b)?Infinity:b;
+      cols=cols.map(c=>({y:c.y,rows:c.rows.filter(r=>r.t>=lo&&r.t<=hi)}));
+    }
+  }
+  cols=cols.filter(c=>c.rows.length);
+  if(!cols.length){alert("Aucune donnée pour les années/plage choisies. Ajuste la sélection dans le panneau d'export, puis relance.");return;}
+  const includeColors=state.exportColors!==false;
+  const includeM=!!(GAME&&GAME.hasM)&&state.exportM!==false;
   const btns=document.querySelectorAll('.export-colored-btn');
   btns.forEach(b=>b.textContent='⏳ Génération...');
   try{
@@ -4312,12 +4390,13 @@ async function exportColoredExcel(){
 
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet(sanitizeSheet(GAME.name+' - '+exportLabel));
-    const hasM=GAME.hasM;
     const nNums=5;
-    const blockCols=2+nNums+(hasM?5:0)+1; // N°,Date,N1..N5,(M1..M5),TOT
+    // Même ordre que l'affichage à l'écran : N1..N5, TOT juste après (coloré),
+    // puis M1..M5 et TOT.M (coloré) tout à la fin si demandé dans le panneau d'export.
+    const blockCols=2+nNums+1+(includeM?6:0); // N°,Date,N1..N5,TOT,(M1..M5,TOT.M)
     const gap=1; // colonne vide entre chaque bloc année
     const colsPerYear=blockCols+gap;
-    const heads=['N°','Date','N1','N2','N3','N4','N5',...(hasM?['M1','M2','M3','M4','M5']:[]),'TOT'];
+    const heads=['N°','Date','N1','N2','N3','N4','N5','TOT',...(includeM?['M1','M2','M3','M4','M5','TOT.M']:[])];
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
 
     const captionRow=ws.addRow([`${GAME.name} — Export : ${exportLabel}`]);
@@ -4349,6 +4428,7 @@ async function exportColoredExcel(){
         r.n.forEach((v,ni)=>{
           const cell=row.getCell(startCol+2+ni);
           cell.value=v;
+          if(!includeColors)return;
           const cid=r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
           let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
@@ -4358,10 +4438,20 @@ async function exportColoredExcel(){
             cell.font={color:{argb:hexToARGB(fg)},bold:true};
           }
         });
-        if(hasM&&r.m){
+        // TOT juste après N5 (même ordre qu'à l'écran)
+        const totCell=row.getCell(startCol+2+nNums);
+        totCell.value=r.s;
+        if(includeColors){
+          const tc=tC(r.s);
+          totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+          totCell.font={color:{argb:hexToARGB(tc[1])},bold:true};
+        }
+        if(includeM&&r.m){
           r.m.forEach((v,mi)=>{
-            const cell=row.getCell(startCol+2+nNums+mi);
+            if(isNaN(v))return; // case vide (« · » à l'écran) — on laisse la cellule Excel vide
+            const cell=row.getCell(startCol+3+nNums+mi);
             cell.value=v;
+            if(!includeColors)return;
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
             let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
@@ -4371,12 +4461,19 @@ async function exportColoredExcel(){
               cell.font={color:{argb:hexToARGB(fg)},bold:true};
             }
           });
+          // TOT.M : somme des numéros machine réellement présents, comme à l'écran
+          const validM=r.m.filter(v=>!isNaN(v));
+          if(validM.length){
+            const ms=validM.reduce((a,b)=>a+b,0);
+            const totMCell=row.getCell(startCol+3+nNums+5);
+            totMCell.value=ms;
+            if(includeColors){
+              const mc=tC(ms);
+              totMCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(mc[0])}};
+              totMCell.font={color:{argb:hexToARGB(mc[1])},bold:true};
+            }
+          }
         }
-        const totCell=row.getCell(startCol+2+nNums+(hasM?5:0));
-        totCell.value=r.s;
-        const tc=tC(r.s);
-        totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
-        totCell.font={color:{argb:hexToARGB(tc[1])},bold:true};
       });
     }
     ws.columns.forEach(c=>{c.width=8;});
@@ -7665,10 +7762,12 @@ function anRender(){
       <button onclick="state.selYears=[];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕</button>
       <label style="margin-left:auto;font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.excelMode?'#2E7D32':'#aaa'}"><input type="checkbox" ${state.excelMode?'checked':''} onchange="state.excelMode=this.checked;render()">📊 Excel</label>
       ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 9px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:9px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
-      <button class="export-colored-btn" onclick="exportColoredExcel()" style="padding:4px 8px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">🎨 Exporter avec couleurs</button>
+      <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 8px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">🎨 Exporter avec couleurs</button>
+      <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 8px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">⚡ Export rapide</button>
       <label style="font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige</label>
       <label style="font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>
     </div>
+    ${state.exportPanel?exportPanelHTML():''}
     <div style="display:flex;flex-wrap:wrap;gap:2px">
       ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:'1px solid #ddd'};background:${sel?`#${color}`:'#f9f9f9'};color:${sel?(parseInt(color,16)>0x888888?'#000':'#fff'):'#777'}">${y}</button>`;}).join('')}
       ${!state.showAllYears?`<button onclick="state.showAllYears=true;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #aaa;background:#f0f0f0;color:#555;cursor:pointer">▼</button>`:''}
@@ -7935,9 +8034,11 @@ function __renderBody(){
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>`:''}
       ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 10px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:10px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
-      <button class="export-colored-btn" onclick="exportColoredExcel()" style="padding:4px 9px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">🎨 Exporter avec couleurs</button>
+      <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 9px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">🎨 Exporter avec couleurs</button>
+      <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 9px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">⚡ Export rapide</button>
       ${state.search.length&&state.searchPosMode==='same'?`<div style="width:100%;font-size:8px;color:#F59E0B">📍 ${state.search.map((n,i)=>{const idx=(state.searchPosIdx&&state.searchPosIdx[i]!=null)?state.searchPosIdx[i]:i;return n+'→D'+(idx+1);}).join(' · ')}</div>`:''}
-    </div>`;
+    </div>
+    ${state.exportPanel?exportPanelHTML():''}`;
     if(state.search.length){
       const sres=[];YEARS.forEach(yr=>{(BY_YEAR[yr]||[]).forEach(row=>{if(searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx))sres.push(row);});});
       if(sres.length){

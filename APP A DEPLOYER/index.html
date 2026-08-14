@@ -38,7 +38,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .grid-hdr-m>div:not(:last-child),.grid-hdr>div:not(:last-child){border-right:1px solid rgba(255,255,255,.12);}
 .grid-comp{display:grid;grid-template-columns:34px 46px repeat(5,1fr) 36px;font-size:11.5px;text-align:center;padding:4px 1px;align-items:center;border-bottom:1px solid #eee;}
 .grid-hdr-comp{display:grid;grid-template-columns:34px 46px repeat(5,1fr) 36px;background:var(--ink);color:#fff;font-size:9px;font-weight:600;text-align:center;padding:4px 1px;letter-spacing:.3px;}
-.num{font-weight:600;cursor:pointer;border-radius:4px;user-select:none;padding:1px 1px;transition:transform .08s;font-variant-numeric:tabular-nums;line-height:1.1;}
+.num{font-weight:600;cursor:pointer;border-radius:4px;user-select:none;padding:1px 1px;transition:transform .08s;font-variant-numeric:tabular-nums;line-height:1.1;display:inline-block;min-width:1.65em;text-align:center;box-sizing:content-box;}
 .num:active{transform:scale(1.25);}
 .cols{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:12px;scroll-snap-type:x proximity;}
 .col{min-width:224px;max-width:236px;flex-shrink:0;border-radius:11px;overflow:hidden;border:2px solid #ccc;background:#fff;box-shadow:var(--shadow);scroll-snap-align:start;}

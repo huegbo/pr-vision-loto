@@ -1900,7 +1900,7 @@ let state={
   // classifications cochées (toutes activées par défaut)
   clActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true,miroir:true},
   // analyses
-  anMode:'repere', anWin:50, supGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
+  anMode:'repere', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
   // Backtest de stratégies (porté depuis Oracle du Loto)
@@ -7786,14 +7786,18 @@ function anMark(row,ctx){
   });
   if(D&&(m==='mirP'||m==='rep')){
     const gi=IDX[row.t];
-    const prev=gi<T.length-1?T[gi+1]:null; // tirage précédent (plus ancien)
-    const next=gi>0?T[gi-1]:null; // tirage suivant (plus récent)
+    const prev=gi<T.length-1?T[gi+1]:null; // tirage précédent immédiat (pour "Répétés tirage suivant")
+    const mgap=Math.max(1,state.mirPGap||1);
+    const mirPrev=gi+mgap<T.length?T[gi+mgap]:null; // tirage précédent, à l'écart choisi (pour "Miroir superposé")
+    const mirNext=gi-mgap>=0?T[gi-mgap]:null; // tirage suivant, à l'écart choisi
     if(prev)row.n.forEach((n,i)=>{
       if(m==='rep'&&prev.n.includes(n))S(i,D.bg);
-      if(m==='mirP'&&MIR[n]&&prev.n[i]===MIR[n])S(i,D.bg);
     });
-    if(next)row.n.forEach((n,i)=>{
-      if(m==='mirP'&&MIR[n]&&next.n[i]===MIR[n])S(i,D.bg);
+    if(mirPrev)row.n.forEach((n,i)=>{
+      if(m==='mirP'&&MIR[n]&&mirPrev.n[i]===MIR[n])S(i,D.bg);
+    });
+    if(mirNext)row.n.forEach((n,i)=>{
+      if(m==='mirP'&&MIR[n]&&mirNext.n[i]===MIR[n])S(i,D.bg);
     });
   }
   if(m==='superpos'){
@@ -7841,8 +7845,9 @@ function anMark(row,ctx){
   if(state.superposAlways&&m!=='superpos')_always.push('superpos');
   if(_always.length){
     const gi=IDX[row.t];
-    const prevR=(gi!=null&&gi<T.length-1)?T[gi+1]:null;
-    const nextR=(gi!=null&&gi>0)?T[gi-1]:null;
+    const mgap=Math.max(1,state.mirPGap||1);
+    const prevR=(gi!=null&&gi+mgap<T.length)?T[gi+mgap]:null;
+    const nextR=(gi!=null&&gi-mgap>=0)?T[gi-mgap]:null;
     const gap=Math.max(1,state.supGap||1);
     const olderR=(gi!=null&&gi+gap<T.length)?T[gi+gap]:null;
     const newerR=(gi!=null&&gi-gap>=0)?T[gi-gap]:null;
@@ -7988,8 +7993,9 @@ function anRender(){
       </label>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#6A1B9A;cursor:pointer">
         <input type="checkbox" ${state.mirPAlways?'checked':''} onchange="state.mirPAlways=this.checked;render()">
-        🪞 Miroir superposé <span style="font-size:9px;font-weight:400;color:#888">(même position, tirage voisin)</span>
+        🪞 Miroir superposé <span style="font-size:9px;font-weight:400;color:#888">(même position)</span>
       </label>
+      <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#6A1B9A;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.mirPGap||1)}" onchange="state.mirPGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #6A1B9A;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#6A1B9A"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#0891B2;cursor:pointer">
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés

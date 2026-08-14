@@ -1842,7 +1842,7 @@ let state={
   aiProposeLoading:false, aiProposeError:'', aiProposeActive:null, aiProposals:[],
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
-  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{},
+  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],
   // nav
   selYears:YEARS.slice(0,4), showAllYears:false,
   searchInput:'', search:[], pin:null, sync:false, freezeCol:false, excelMode:false, excelTextSize:(localStorage.getItem('excelTextSize')||'normal'),
@@ -7494,6 +7494,32 @@ function anchorKey(yr){return GAME.key+'|'+yr;}
 function mgYearOf(k){const y=(state.mgYears||{})[k];return y||state.mgYear;}
 function setMgYear(k,v){state.mgYears=state.mgYears||{};v=String(v||'').trim();if(!v||v===state.mgYear)delete state.mgYears[k];else state.mgYears[k]=v;render();}
 function resetMgYears(){state.mgYears={};render();}
+// ── Colonnes de comparaison : 1 colonne "de base" par jeu sélectionné (state.selGames),
+// + des colonnes "supplémentaires" (state.mgSlots) permettant de comparer LE MÊME jeu sur
+// plusieurs années différentes en même temps (au lieu qu'une année en remplace une autre).
+function mgColumns(){
+  const base=state.selGames.filter(k=>GAMES[k]).map(k=>({colId:k,key:k,year:mgYearOf(k)}));
+  const extra=(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>({colId:s.key+'~'+s.id,key:s.key,year:s.year}));
+  return [...base,...extra];
+}
+function addMgSlot(key){
+  if(!GAMES[key])return;
+  const years=Object.keys(gameData(key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
+  const used=new Set([mgYearOf(key),...((state.mgSlots||[]).filter(s=>s.key===key).map(s=>s.year))]);
+  const y=years.find(yy=>!used.has(yy))||years[0]||mgYearOf(key);
+  state.mgSlots=state.mgSlots||[];
+  state.mgSlots.push({id:'s'+Date.now()+Math.floor(Math.random()*1000),key,year:y});
+  render();
+}
+function removeMgSlot(id){
+  state.mgSlots=(state.mgSlots||[]).filter(s=>s.id!==id);
+  render();
+}
+function setMgSlotYear(id,v){
+  const s=(state.mgSlots||[]).find(x=>x.id===id);
+  if(s)s.year=v;
+  render();
+}
 function anchorKeyG(k){return 'G:'+k+'|'+mgYearOf(k);}
 function getAnchorG(k){
   return null; // ancrage désactivé (remplacé par « figer à l'instant »)
@@ -8474,7 +8500,7 @@ function __renderBody(){
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
       </div>
       ${state.selGames.filter(k=>GAMES[k]).length?`<div style="margin-top:5px">
-        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">Année par jeu :</div>
+        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">Année par jeu : <span style="font-weight:400;color:#888">(➕ pour comparer le même jeu sur une autre année, en plus — pas à la place)</span></div>
         <div style="display:flex;flex-wrap:wrap;gap:4px">
           ${state.selGames.filter(k=>GAMES[k]).map(k=>{const y=mgYearOf(k);const ys=Object.keys(gameData(k).BY_YEAR).sort((a,b)=>b.localeCompare(a));const c=YC[y]||'1F2D3D';const custom=!!(state.mgYears||{})[k];
             return `<span style="display:inline-flex;align-items:center;gap:3px;border:${custom?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:1px 4px 1px 7px;background:#fff">
@@ -8482,6 +8508,15 @@ function __renderBody(){
               <select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===y?'selected':''}>${o}</option>`).join(''):`<option>${y}</option>`}
               </select>
+              <span onclick="addMgSlot('${k}')" title="Ajouter une autre année de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#2E7D32;padding:0 2px">➕</span>
+            </span>`;}).join('')}
+          ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));const c=YC[s.year]||'1F2D3D';
+            return `<span style="display:inline-flex;align-items:center;gap:3px;border:2px solid #${c};border-radius:11px;padding:1px 4px 1px 7px;background:#FFF7ED">
+              <span style="font-size:9px;font-weight:600;color:#1F2D3D">${GAMES[s.key].icon} ${GAMES[s.key].name}</span>
+              <select onchange="setMgSlotYear('${s.id}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
+                ${ys.length?ys.map(o=>`<option value="${o}" ${o===s.year?'selected':''}>${o}</option>`).join(''):`<option>${s.year}</option>`}
+              </select>
+              <span onclick="removeMgSlot('${s.id}')" title="Retirer cette colonne supplémentaire" style="cursor:pointer;font-weight:700;color:#C62828;padding:0 2px">✕</span>
             </span>`;}).join('')}
         </div></div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}`}
     </div>`;
@@ -8491,7 +8526,7 @@ function __renderBody(){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else if(state.excelMode){
         // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
-        const cols=sg.map(key=>{const g=GAMES[key],gd=gameData(key);const y=mgYearOf(key);return{key,g,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
+        const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
           <table class="excel-tbl"><thead><tr>`;
@@ -8531,19 +8566,19 @@ function __renderBody(){
       }else{
         const _gOff=anchorOffsetsG();
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
-        sg.forEach(key=>{
+        mgColumns().forEach(({colId,key,year:gy})=>{
           const g=GAMES[key], gd=gameData(key);
-          const gy=mgYearOf(key);const color=YC[gy]||'1F2D3D';const light=parseInt(color,16)>0x888888;
+          const color=YC[gy]||'1F2D3D';const light=parseInt(color,16)>0x888888;
           const rows=gd.BY_YEAR[gy]||[];
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
             <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${gy} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
             <div class="${g.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(g.xtra?'X1':'TOT'),...(g.hasM?(g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(g.hasM?[g.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
-            <div class="col-body" id="col-${key}" onscroll="syncScroll('${key}')" onwheel="stepWheel(event,'${key}')" ontouchstart="touchStepStart(event,'${key}')" ontouchmove="touchStepMove(event,'${key}')" ontouchend="touchStepEnd('${key}')" ontouchcancel="touchStepEnd('${key}')">
+            <div class="col-body" id="col-${colId}" onscroll="syncScroll('${colId}')" onwheel="stepWheel(event,'${colId}')" ontouchstart="touchStepStart(event,'${colId}')" ontouchmove="touchStepMove(event,'${colId}')" ontouchend="touchStepEnd('${colId}')" ontouchcancel="touchStepEnd('${colId}')">
               ${rows.length?rows.map((row,ri)=>{
                 const tc=tC(row.s);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[key+'_'+row.t+'_'+ni]);
                 const _isA=getAnchorG(key)===row.t;const _lkA=_isA&&isAnchorLockedG(key);
                 const bg=_isA?'#FFEDD5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7';
-                return`<div ${_isA?`id="anch-${key}"`:''} class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${_isA?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':'border-bottom:1px solid #eee;'}">
+                return`<div ${_isA?`id="anch-${colId}"`:''} class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${_isA?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':'border-bottom:1px solid #eee;'}">
                   <div style="font-weight:500;color:#${color};font-size:8px">${_lkA?'🔒':''}${row.t}</div>
                   <div style="font-size:8px;color:#555">${row.d}</div>
                   ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},key+'_'+row.t+'_'+ni)).join('');})()}

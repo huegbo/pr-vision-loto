@@ -7992,8 +7992,9 @@ function anRender(){
       </label>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#0891B2;cursor:pointer">
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
-        🪜 Mêmes numéros superposés <span style="font-size:9px;font-weight:400;color:#888">(écart ${Math.max(1,state.supGap||1)})</span>
+        🪜 Mêmes numéros superposés
       </label>
+      <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#0891B2;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.supGap||1)}" onchange="state.supGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #0891B2;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#0891B2"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
         <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
         🎯 Mes repérés

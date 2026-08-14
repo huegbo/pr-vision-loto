@@ -1809,6 +1809,7 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
+  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'',
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -6829,9 +6830,39 @@ function syncScroll(id){
 }
 
 // Données d'un jeu sans changer le jeu actif (avec cache)
-// ── Numéros repérés (colorés) du jeu courant → recherche dans TOUS les lotos, couleurs conservées ──
+// ── Numéros repérés (colorés dans le jeu courant, ET/OU prédéfinis manuellement, indépendants du jeu) → recherche dans TOUS les lotos, couleurs conservées ──
+function saveRepereDefinedState(){lsSet('loto_repere_defined',JSON.stringify(state.repereDefined));}
+function loadRepereDefinedState(){
+  try{state.repereDefined=JSON.parse(lsGetOr('loto_repere_defined','{}'))||{};}catch(_){state.repereDefined={};}
+}
+loadRepereDefinedState();
+function setRepDefColor(c){state.repDefColor=c||'';render();}
+function addRepereDefined(){
+  const el=document.getElementById('repdef-num');
+  const n=el?parseInt(el.value,10):NaN;
+  if(isNaN(n)||n<0||n>99)return;
+  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
+  state.repereDefined[n]=c;
+  saveRepereDefinedState();
+  if(el)el.value='';
+  render();
+}
+function removeRepereDefined(n){
+  delete state.repereDefined[n];
+  saveRepereDefinedState();
+  render();
+}
+function clearRepereDefined(){
+  if(!confirm('Effacer tous les numéros prédéfinis ?'))return;
+  state.repereDefined={};
+  saveRepereDefinedState();
+  render();
+}
 function crossGameRepereScan(limit){
-  const marks=state.colored||{};
+  // Fusionne les numéros coloriés du jeu courant (state.colored) et les numéros prédéfinis
+  // manuellement dans le panneau (state.repereDefined, indépendants de tout jeu) ; ces derniers
+  // sont prioritaires en cas de doublon (couleur choisie explicitement dans le panneau).
+  const marks={...(state.colored||{}),...(state.repereDefined||{})};
   const markKeys=Object.keys(marks).map(Number);
   const results=[];
   if(!markKeys.length)return{marks,markKeys,results};
@@ -6866,8 +6897,26 @@ function repereGlobalHTML(){
         <span style="font-size:15px;font-weight:700;color:#0E7490">🎯 Numéros repérés — dans tous les lotos</span>
         <span onclick="closeRepereGlobal()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
       </div>
-      ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:20px 0;text-align:center">Aucun numéro repéré (colorié) pour l'instant sur <b>${GAME.name}</b>. Colorie d'abord un ou plusieurs numéros, puis reviens ici.</div>`:`
-      <div style="font-size:10.5px;color:#555;margin-bottom:8px">Numéros repérés sur <b>${GAME.name}</b> (couleurs conservées), recherchés dans tous les autres lotos — ${results.length} jeu(x) avec au moins une correspondance.</div>
+      <div style="background:#F0F9FF;border:1.5px solid #0E7490;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:#0E7490;margin-bottom:5px">✏️ Prédéfinir des numéros à repérer (indépendant du coloriage d'un jeu — reste fixe partout, tant que tu ne les effaces pas)</div>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+          <input id="repdef-num" type="number" min="0" max="99" placeholder="N°" onkeydown="if(event.key==='Enter')addRepereDefined()" style="width:55px;padding:4px 6px;border:1.5px solid #0E7490;border-radius:5px;font-size:12px;text-align:center;outline:none">
+          <div style="display:flex;gap:3px;align-items:center">
+            ${PAL.map(c=>`<span onclick="setRepDefColor('${c}')" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.repDefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
+            <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+              <span style="font-size:10px">🎨</span>
+              <input type="color" value="${state.repDefColor||'#6D28D9'}" oninput="setRepDefColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+            </label>
+          </div>
+          <button onclick="addRepereDefined()" style="padding:4px 10px;background:#0E7490;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:10px">+ Ajouter</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+          ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
+          ${Object.keys(state.repereDefined).length?`<button onclick="clearRepereDefined()" style="padding:2px 8px;background:#fff;border:1px solid #C62828;color:#C62828;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px;margin-left:4px">Tout effacer</button>`:''}
+        </div>
+      </div>
+      ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun numéro repéré pour l'instant (ni colorié sur <b>${GAME.name}</b>, ni prédéfini ci-dessus).</div>`:`
+      <div style="font-size:10.5px;color:#555;margin-bottom:8px">Numéros repérés (coloriés sur <b>${GAME.name}</b> + prédéfinis), couleurs conservées, recherchés dans tous les lotos — ${results.length} jeu(x) avec au moins une correspondance.</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
         ${markKeys.map(n=>numBadge(n)).join('')}
       </div>

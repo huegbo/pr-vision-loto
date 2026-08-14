@@ -5586,6 +5586,7 @@ function fabGo(action){
   else if(action==='color3'){state.tab=2;state.showSearchHub=false;colorLastNDraws(3);}
   else if(action==='batch_color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='undo_color'){undoColorAction();return;}
+  else if(action==='repere_global'){openRepereGlobal();return;}
   else if(action==='clear_all_colors'){
     if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour ce jeu ?\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
       pushColorUndo();
@@ -5652,6 +5653,7 @@ function fabHTML(){
     ['color3','🎨3️⃣','Colorier les 3 derniers tirages','#E53935','#fff'],
     ['batch_color','🎨🔢','Coloriage par lot (nombre, tirage n°, intervalle, position...)','#6D28D9','#fff'],
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],
+    ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
     ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
@@ -6827,6 +6829,71 @@ function syncScroll(id){
 }
 
 // Données d'un jeu sans changer le jeu actif (avec cache)
+// ── Numéros repérés (colorés) du jeu courant → recherche dans TOUS les lotos, couleurs conservées ──
+function crossGameRepereScan(limit){
+  const marks=state.colored||{};
+  const markKeys=Object.keys(marks).map(Number);
+  const results=[];
+  if(!markKeys.length)return{marks,markKeys,results};
+  const lim=limit&&limit<999999?limit:Infinity;
+  Object.keys(GAMES).forEach(key=>{
+    const gd=gameData(key);
+    const hits=[];
+    for(const r of gd.T){
+      const nums=[...r.n,...(r.m||[])];
+      if(nums.some(n=>marks[n])){
+        hits.push(r);
+        if(hits.length>=lim)break;
+      }
+    }
+    if(hits.length)results.push({key,name:GAMES[key].name,icon:GAMES[key].icon,hits});
+  });
+  return{marks,markKeys,results};
+}
+function openRepereGlobal(){
+  state.showFab=false;
+  state.repereGlobalOpen=true;
+  state.repereGlobalLimit=state.repereGlobalLimit||20;
+  render();
+}
+function closeRepereGlobal(){state.repereGlobalOpen=false;render();}
+function repereGlobalHTML(){
+  const{marks,markKeys,results}=crossGameRepereScan(state.repereGlobalLimit||20);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepereGlobal()">
+    <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700;color:#0E7490">🎯 Numéros repérés — dans tous les lotos</span>
+        <span onclick="closeRepereGlobal()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
+      </div>
+      ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:20px 0;text-align:center">Aucun numéro repéré (colorié) pour l'instant sur <b>${GAME.name}</b>. Colorie d'abord un ou plusieurs numéros, puis reviens ici.</div>`:`
+      <div style="font-size:10.5px;color:#555;margin-bottom:8px">Numéros repérés sur <b>${GAME.name}</b> (couleurs conservées), recherchés dans tous les autres lotos — ${results.length} jeu(x) avec au moins une correspondance.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+        ${markKeys.map(n=>numBadge(n)).join('')}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:9.5px;color:#555">
+        <span>Tirages les plus récents par jeu :</span>
+        <select onchange="state.repereGlobalLimit=+this.value;render()" style="font-size:9px;padding:2px 4px;border:1px solid #0E7490;border-radius:4px">
+          ${[10,20,50,100].map(n=>`<option value="${n}" ${(+state.repereGlobalLimit||20)===n?'selected':''}>${n} derniers</option>`).join('')}
+          <option value="999999" ${state.repereGlobalLimit===999999?'selected':''}>Tout l'historique</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto">
+        ${results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:8px;padding:6px 9px">
+          <div style="font-size:11px;font-weight:700;color:#0E7490;margin-bottom:4px">${res.icon} ${res.name} — ${res.hits.length} tirage(s)</div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            ${res.hits.map(r=>`<div style="font-size:10px;color:#333;display:flex;flex-wrap:wrap;gap:3px;align-items:center">
+              <span style="color:#888">${r.d}</span>
+              ${r.n.map(n=>numBadge(n)).join('')}
+              ${r.m&&r.m.length?`<span style="color:#ccc">|</span>${r.m.map(n=>numBadge(n,true)).join('')}`:''}
+            </div>`).join('')}
+          </div>
+        </div>`).join('')}
+        ${!results.length?`<div style="font-size:11px;color:#888;text-align:center;padding:16px 0">Aucune correspondance trouvée dans les autres lotos.</div>`:''}
+      </div>`}
+    </div>
+  </div>`;
+}
 function gameData(key){
   const g=GAMES[key];
   if(!g._d){
@@ -8396,6 +8463,7 @@ function __renderBody(){
   html+=bottomNavHTML();
   html+=downloadAppButtonHTML();
   html+=fabHTML();
+  if(state.repereGlobalOpen)html+=repereGlobalHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
   <div id="popup" class="popup" style="display:none"></div>

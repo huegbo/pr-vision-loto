@@ -1818,7 +1818,7 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true,
+  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{},
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -2557,9 +2557,13 @@ function numSpan(n, extra, cid){
     else if(c.style==='text'){bg='transparent';fg=c.bg;fs='14px';}
     else{bg=c.bg;fg=c.fg;fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
   };
+  // Numéro repéré (prédéfini, actif) : couleur pleine par défaut (comme un coloriage manuel),
+  // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
+  const repereMark=(state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
   if(extra&&extra.isSrc){bg='#059669';fg='#fff';}
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
+  else if(repereMark)applyHl(repereMark);
   else if(extra&&extra.an){bg='#fff';fg=extra.an[0];fs='13px';sh='0 1px 3px rgba(0,0,0,.15)';rad='50%';bd='2px solid '+extra.an[0];}
   else if(extra&&extra.isMirNav){bg='#BFDBFE';fg='#1E40AF';}
   else if(extra&&extra.clKey){
@@ -2574,8 +2578,8 @@ function numSpan(n, extra, cid){
   const ulCss=ul!=='none'?`border-bottom:${ul};padding-bottom:1px;`:'';
   const sharedCss=state.rowMultiNums.has(n)?'outline:2px dashed #000;outline-offset:1px;':'';
   const padCss=rad==='50%'?'display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;':'';
-  // Numéro repéré (prédéfini) : ajoute son élément de classification en petit, à côté, si activé
-  const isRepere=state.repereShowClass!==false&&state.repereDefined&&state.repereDefined[n];
+  // Numéro repéré (prédéfini, actif) : ajoute son élément de classification en petit, à côté, si activé
+  const isRepere=!!repereMark&&state.repereShowClass!==false;
   const clLbl=isRepere?repereClassLabel(n):'';
   const clSuffix=clLbl?`<sub style="font-size:7px;font-weight:600;opacity:.85;margin-left:1px">${clLbl}</sub>`:'';
   const titleTxt=state.rowMultiNums.has(n)?'Ce numéro appartient à plusieurs lignes coloriées':(isRepere?'🎯 Numéro repéré'+(clLbl?' — '+clLbl:''):'');
@@ -6904,33 +6908,51 @@ const REPERE_ORIGIN_DEFAULT={
   71:{bg:'#8B5CF6',fg:'#fff'},
   78:{bg:'#EF4444',fg:'#fff'},
 };
-function saveRepereDefinedState(){lsSet('loto_repere_defined',JSON.stringify(state.repereDefined));}
+function saveRepereDefinedState(){lsSet('loto_repere_defined',JSON.stringify({defined:state.repereDefined,active:state.repereActive}));}
 function loadRepereDefinedState(){
   try{
     const raw=lsGetOr('loto_repere_defined','');
-    state.repereDefined=raw?(JSON.parse(raw)||{}):{...REPERE_ORIGIN_DEFAULT};
-  }catch(_){state.repereDefined={...REPERE_ORIGIN_DEFAULT};}
+    if(raw){
+      const d=JSON.parse(raw)||{};
+      // Compatible avec l'ancien format (juste {numéro:couleur} sans enveloppe {defined,active})
+      state.repereDefined=(d&&d.defined)?d.defined:(d||{});
+      state.repereActive=(d&&d.active)?d.active:{};
+    }else{
+      state.repereDefined={...REPERE_ORIGIN_DEFAULT};
+      state.repereActive={};
+    }
+  }catch(_){state.repereDefined={...REPERE_ORIGIN_DEFAULT};state.repereActive={};}
 }
 function restoreRepereOrigin(){
   if(!confirm('Remettre le repère d\'origine (23 numéros identifiés sur BENZ) ? Ça remplace ta liste actuelle.'))return;
   state.repereDefined={...REPERE_ORIGIN_DEFAULT};
+  state.repereActive={};
   saveRepereDefinedState();
   render();
 }
-// Applique directement les numéros repérés (prédéfinis + coloriage éventuel du jeu courant)
+function toggleRepereActive(n){
+  state.repereActive[n]=(state.repereActive[n]===false)?true:false;
+  saveRepereDefinedState();
+  render();
+}
+// Applique directement les numéros repérés ACTIFS (prédéfinis + coloriage éventuel du jeu courant)
 // dans l'affichage normal du jeu OUVERT ACTUELLEMENT — colorie chaque numéro sans avoir à
 // cliquer un par un. Fonctionne sur n'importe quel loto, à la demande.
 function applyRepereToCurrentGame(){
   pushColorUndo();
-  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{state.colored[n]={bg:c.bg,fg:c.fg};});
+  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{
+    if(state.repereActive[n]===false)return;
+    state.colored[n]={bg:c.bg,fg:c.fg};
+  });
   saveColorState();
   closeRepereGlobal();
   render();
 }
 // Applique automatiquement (sans écraser un coloriage déjà choisi pour ce numéro dans ce jeu)
-// les numéros repérés dès l'ouverture d'un loto — pour ne plus jamais avoir à cliquer "Activer".
+// les numéros repérés ACTIFS dès l'ouverture d'un loto — pour ne plus jamais avoir à cliquer "Activer".
 function applyRepereAutoDefault(){
   Object.entries(state.repereDefined||{}).forEach(([n,c])=>{
+    if(state.repereActive[n]===false)return;
     if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
   });
 }
@@ -6950,20 +6972,23 @@ function addRepereDefined(){
 }
 function removeRepereDefined(n){
   delete state.repereDefined[n];
+  delete state.repereActive[n];
   saveRepereDefinedState();
   render();
 }
 function clearRepereDefined(){
   if(!confirm('Effacer tous les numéros prédéfinis ?'))return;
   state.repereDefined={};
+  state.repereActive={};
   saveRepereDefinedState();
   render();
 }
 function crossGameRepereScan(limit){
-  // Fusionne les numéros coloriés du jeu courant (state.colored) et les numéros prédéfinis
-  // manuellement dans le panneau (state.repereDefined, indépendants de tout jeu) ; ces derniers
+  // Fusionne les numéros coloriés du jeu courant (state.colored) et les numéros prédéfinis ACTIFS
+  // (décochés exclus) dans le panneau (state.repereDefined, indépendants de tout jeu) ; ces derniers
   // sont prioritaires en cas de doublon (couleur choisie explicitement dans le panneau).
-  const marks={...(state.colored||{}),...(state.repereDefined||{})};
+  const marks={...(state.colored||{})};
+  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{if(state.repereActive[n]!==false)marks[n]=c;});
   const markKeys=Object.keys(marks).map(Number);
   const results=[];
   if(!markKeys.length)return{marks,markKeys,results};
@@ -7195,7 +7220,6 @@ function runBacktestUI(){
 }
 
 const AN_DEF=[
-  {key:'repere',label:'🎯 Mes repérés',bg:'#0E7490',fg:'#fff',desc:"Colorie tes numéros repérés (prédéfinis dans le panneau 🎯), chacun avec sa propre couleur — actif partout, sur n'importe quel loto"},
   {key:'premiers',label:'🟣 Premiers',bg:'#7B1FA2',fg:'#fff',desc:'Nombres premiers : 2,3,5,7,11,13...83,89'},
   {key:'carres',label:'⬛ Carrés parfaits',bg:'#00838F',fg:'#fff',desc:'1, 4, 9, 16, 25, 36, 49, 64, 81'},
   {key:'pairs',label:'🔵 Pairs',bg:'#1565C0',fg:'#fff',desc:'Numéros pairs'},
@@ -7305,8 +7329,11 @@ function anCalc(){
     });
     res.lastSet=lastSet;res.lastT=T[0];res.recent=recent;res.numColor=numColor;res.suiviCol=SUIVI_COL;
   }
-  if(m==='repere'){
-    res.repereMarks={...(state.colored||{}),...(state.repereDefined||{})};
+  // Toujours calculé (pas seulement si m==='repere') : sert à la couche "toujours active" 🎯 Mes repérés
+  if(state.repereAlways!==false){
+    const rm={};
+    Object.entries(state.repereDefined||{}).forEach(([n,c])=>{if(state.repereActive[n]!==false)rm[n]=c;});
+    res.repereMarks=rm;
   }
   return res;
 }
@@ -7657,7 +7684,6 @@ function anMark(row,ctx){
     else if(m==='mirL'&&MIR[n]&&row.n.includes(MIR[n]))S(i,D.bg);
     else if(m==='consec'&&(row.n.includes(n+1)||row.n.includes(n-1)))S(i,D.bg);
     else if(m==='suivi'&&ctx.lastSet.has(n))S(i,ctx.numColor[n]||D.bg);
-    else if(m==='repere'&&ctx.repereMarks&&ctx.repereMarks[n])S(i,ctx.repereMarks[n].bg,ctx.repereMarks[n].fg);
     else if(m==='chauds'||m==='freq'){if(ctx.hot.has(n))S(i,'#C62828');else if(ctx.cold.has(n))S(i,'#1565C0');}
     else if(m==='retard'&&ctx.lateSet.has(n))S(i,D.bg);
   });
@@ -7710,8 +7736,9 @@ function anMark(row,ctx){
 
   // Couches "toujours actives" (décochables) : elles se cumulent à l'analyse choisie
   // ci-dessus sans l'écraser — ex: Chauds & Froids + Miroir même ligne + Superposition.
-  // Ordre de priorité si plusieurs couches touchent la même case : mirL, puis mirP, puis superpos.
+  // Ordre de priorité si plusieurs couches touchent la même case : repere, puis mirL, puis mirP, puis superpos.
   const _always=[];
+  if(state.repereAlways!==false&&ctx.repereMarks&&Object.keys(ctx.repereMarks).length)_always.push('repere');
   if(state.mirLAlways&&m!=='mirL')_always.push('mirL');
   if(state.mirPAlways&&m!=='mirP')_always.push('mirP');
   if(state.superposAlways&&m!=='superpos')_always.push('superpos');
@@ -7723,6 +7750,14 @@ function anMark(row,ctx){
     const olderR=(gi!=null&&gi+gap<T.length)?T[gi+gap]:null;
     const newerR=(gi!=null&&gi-gap>=0)?T[gi-gap]:null;
     _always.forEach(k=>{
+      if(k==='repere'){
+        row.n.forEach((n,i)=>{
+          if(out[i])return;
+          const rc=ctx.repereMarks&&ctx.repereMarks[n];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+        });
+        return;
+      }
       const LD=AN_DEF.find(d=>d.key===k); if(!LD)return;
       row.n.forEach((n,i)=>{
         if(out[i])return;
@@ -7855,7 +7890,15 @@ function anRender(){
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés <span style="font-size:9px;font-weight:400;color:#888">(écart ${Math.max(1,state.supGap||1)})</span>
       </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
+        <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
+        🎯 Mes repérés
+      </label>
     </div>
+    ${state.repereAlways!==false&&Object.keys(state.repereDefined).length?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;background:#FFF7ED;border-radius:6px;padding:4px 7px">
+      <span style="font-size:8.5px;color:#9A3412;font-weight:500">🎯 Repérés — décoche pour retirer un numéro sans l'effacer :</span>
+      ${Object.entries(state.repereDefined).map(([n,c])=>{const on=state.repereActive[n]!==false;return`<label style="display:inline-flex;align-items:center;gap:2px;cursor:pointer;padding:1px 5px 1px 3px;border-radius:10px;background:${on?c.bg:'#eee'};color:${on?c.fg:'#999'};font-size:10px;font-weight:700;opacity:${on?1:.6}"><input type="checkbox" ${on?'checked':''} onchange="toggleRepereActive(${n})" style="width:10px;height:10px;margin:0">${n}</label>`;}).join('')}
+    </div>`:''}
     ${elmHLBarHTML()}
     ${aiAnalysisHTML()}
     <div style="margin-top:6px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;background:#FEF9C3;border-radius:6px;padding:4px 7px">

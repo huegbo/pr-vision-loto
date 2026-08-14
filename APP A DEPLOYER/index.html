@@ -8508,7 +8508,7 @@ function __renderBody(){
               <select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===y?'selected':''}>${o}</option>`).join(''):`<option>${y}</option>`}
               </select>
-              <span onclick="addMgSlot('${k}')" title="Ajouter une autre année de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#2E7D32;padding:0 2px">➕</span>
+              <button type="button" onclick="event.stopPropagation();addMgSlot('${k}')" title="Ajouter une autre année de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#fff;background:#2E7D32;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">➕</button>
             </span>`;}).join('')}
           ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));const c=YC[s.year]||'1F2D3D';
             return `<span style="display:inline-flex;align-items:center;gap:3px;border:2px solid #${c};border-radius:11px;padding:1px 4px 1px 7px;background:#FFF7ED">
@@ -8516,7 +8516,7 @@ function __renderBody(){
               <select onchange="setMgSlotYear('${s.id}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===s.year?'selected':''}>${o}</option>`).join(''):`<option>${s.year}</option>`}
               </select>
-              <span onclick="removeMgSlot('${s.id}')" title="Retirer cette colonne supplémentaire" style="cursor:pointer;font-weight:700;color:#C62828;padding:0 2px">✕</span>
+              <button type="button" onclick="event.stopPropagation();removeMgSlot('${s.id}')" title="Retirer cette colonne supplémentaire" style="cursor:pointer;font-weight:700;color:#fff;background:#C62828;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">✕</button>
             </span>`;}).join('')}
         </div></div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}`}
     </div>`;

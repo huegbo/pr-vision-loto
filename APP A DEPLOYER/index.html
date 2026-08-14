@@ -5675,6 +5675,7 @@ function fabGo(action){
       pushColorUndo();
       state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();
       state.markRows={};state.blockRows={};
+      state.repereAlways=false; // désactive l'affichage des repérés (leurs définitions/instantanés restent sauvegardés, réactivables via "✅ Avec repérés")
       saveColorState();
     }
     render();return;

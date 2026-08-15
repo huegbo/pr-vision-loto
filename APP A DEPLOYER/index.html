@@ -1853,6 +1853,7 @@ let state={
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
+  repere2GlobalOpen:false, repere2Defined:{}, rep2DefColor:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -2088,6 +2089,7 @@ function showMenu(n,cid,x,y){
     <div class="nmenu-item" onclick="event.stopPropagation();colorAll(${n})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes numéros'}</div>
     ${cid?`<div class="nmenu-item" onclick="event.stopPropagation();colorCell(${n},'${cid}')">${hasCell?'❌ Enlever ce numéro':'🔹 Ce numéro seulement'}</div>`:''}
     <div class="nmenu-item" onclick="event.stopPropagation();toggleRepereFromMenu(${n})" style="color:#C2410C;font-weight:600">${state.repereDefined[n]?'❌ Retirer des repérés':'🎯 Ajouter aux repérés (visible partout)'}</div>
+    <div class="nmenu-item" onclick="event.stopPropagation();toggleRepere2FromMenu(${n})" style="color:#B45309;font-weight:600">${state.repere2Defined[n]?'❌ Retirer de la liste 2':'🎯 Ajouter à la liste 2 (visible partout)'}</div>
     <div class="nmenu-item" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
     ${elmMenuHTML(n)}
     <div style="display:flex;gap:4px;padding:5px 10px 8px;border-top:1px solid #f0f0f0;margin-top:2px">
@@ -2595,10 +2597,12 @@ function numSpan(n, extra, cid){
   // Numéro repéré (prédéfini, actif) : couleur pleine par défaut (comme un coloriage manuel),
   // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
   const repereMark=(state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
+  const repere2Mark=(state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
   if(extra&&extra.isSrc){bg='#059669';fg='#fff';}
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
   else if(repereMark)applyHl(repereMark);
+  else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.an){bg='#fff';fg=extra.an[0];fs='13px';sh='0 1px 3px rgba(0,0,0,.15)';rad='50%';bd='2px solid '+extra.an[0];}
   else if(extra&&extra.isMirNav){bg='#BFDBFE';fg='#1E40AF';}
   else if(extra&&extra.clKey){
@@ -2615,9 +2619,10 @@ function numSpan(n, extra, cid){
   const padCss=rad==='50%'?'display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;':'';
   // Numéro repéré (prédéfini, actif) : ajoute son élément de classification en petit, à côté, si activé
   const isRepere=!!repereMark&&state.repereShowClass!==false;
-  const clLbl=isRepere?repereClassLabel(n):'';
+  const isRepere2=!!repere2Mark&&state.repere2ShowClass!==false;
+  const clLbl=isRepere?repereClassLabel(n):(isRepere2?repereClassLabel(n):'');
   const clSuffix=clLbl?`<sub style="font-size:7px;font-weight:600;opacity:.85;margin-left:1px">${clLbl}</sub>`:'';
-  const titleTxt=state.rowMultiNums.has(n)?'Ce numéro appartient à plusieurs lignes coloriées':(isRepere?'🎯 Numéro repéré'+(clLbl?' — '+clLbl:''):'');
+  const titleTxt=state.rowMultiNums.has(n)?'Ce numéro appartient à plusieurs lignes coloriées':(isRepere?'🎯 Numéro repéré'+(clLbl?' — '+clLbl:''):(isRepere2?'🎯 Numéro liste 2'+(clLbl?' — '+clLbl:''):''));
   return `<span class="num" onclick="onNum(${n},event,'${cid||''}')" onmouseenter="numOver(${n},event)" onmouseleave="numOut()" ontouchstart="numTouchStart(${n},event)" ontouchend="numTouchEnd(event)" ontouchmove="numTouchCancel()" style="color:${fg};background:${bg};font-size:${fs};box-shadow:${sh};border:${bd};border-radius:${rad};${padCss}${ulCss}${sharedCss}" title="${titleTxt}">${n}${clSuffix}</span>`;
 }
 
@@ -5669,6 +5674,7 @@ function fabGo(action){
   else if(action==='batch_color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='undo_color'){undoColorAction();return;}
   else if(action==='repere_global'){openRepereGlobal();return;}
+  else if(action==='repere2_global'){openRepere2Global();return;}
   else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
     if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour ce jeu ?\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
@@ -5676,6 +5682,7 @@ function fabGo(action){
       state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();
       state.markRows={};state.blockRows={};
       state.repereAlways=false; // désactive l'affichage des repérés (leurs définitions/instantanés restent sauvegardés, réactivables via "✅ Avec repérés")
+      state.repere2Always=false; // idem pour la liste 2
       saveColorState();
     }
     render();return;
@@ -5738,6 +5745,7 @@ function fabHTML(){
     ['batch_color','🎨🔢','Coloriage par lot (nombre, tirage n°, intervalle, position...)','#6D28D9','#fff'],
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
+    ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
     ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
@@ -7043,6 +7051,168 @@ loadRepereDefinedState();
 loadRepereSnapshots();
 applyRepereAutoDefault();
 saveColorState();
+// ══════ LISTE 2 — deuxième liste de numéros repérés, totalement indépendante de la première.
+// Même principe (prédéfinis, couleur libre, visible partout), mais définie via une grille 1-90
+// cliquable (plus rapide que numéro par numéro) et affichée EN PLUS de la liste 1, pas à sa place.
+function saveRepere2DefinedState(){lsSet('loto_repere2_defined',JSON.stringify({defined:state.repere2Defined,active:state.repere2Active}));}
+function loadRepere2DefinedState(){
+  try{
+    const raw=lsGetOr('loto_repere2_defined','');
+    if(raw){
+      const d=JSON.parse(raw)||{};
+      state.repere2Defined=(d&&d.defined)?d.defined:(d||{});
+      state.repere2Active=(d&&d.active)?d.active:{};
+    }else{
+      state.repere2Defined={};
+      state.repere2Active={};
+    }
+  }catch(_){state.repere2Defined={};state.repere2Active={};}
+}
+function setRep2DefColor(c){state.rep2DefColor=c||'';render();}
+// Clic direct sur un numéro de la grille 1-90 : ajoute/retire ce numéro de la liste 2 avec la
+// couleur actuellement sélectionnée (re-clique avec une autre couleur pour le recolorer).
+function toggleRepere2Grid(n){
+  const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor)}:pickHl();
+  const cur=state.repere2Defined[n];
+  if(cur&&cur.bg===c.bg){
+    delete state.repere2Defined[n];
+    delete state.repere2Active[n];
+  }else{
+    state.repere2Defined[n]=c;
+    state.repere2Active[n]=true;
+  }
+  saveRepere2DefinedState();
+  render();
+}
+function toggleRepere2Active(n){
+  state.repere2Active[n]=(state.repere2Active[n]===false)?true:false;
+  saveRepere2DefinedState();
+  render();
+}
+function toggleRepere2FromMenu(n){
+  pushColorUndo();
+  if(state.repere2Defined[n]){
+    delete state.repere2Defined[n];
+    delete state.repere2Active[n];
+  }else{
+    const c=state.colored[n]||pickHl();
+    state.repere2Defined[n]={bg:c.bg,fg:c.fg};
+    state.repere2Active[n]=true;
+  }
+  saveRepere2DefinedState();
+  closePopup();render();
+}
+function removeRepere2Defined(n){
+  delete state.repere2Defined[n];
+  delete state.repere2Active[n];
+  saveRepere2DefinedState();
+  render();
+}
+function clearRepere2Defined(){
+  if(!confirm('Effacer tous les numéros de la liste 2 ?'))return;
+  state.repere2Defined={};
+  state.repere2Active={};
+  saveRepere2DefinedState();
+  render();
+}
+function applyRepere2ToCurrentGame(){
+  pushColorUndo();
+  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{
+    if(state.repere2Active[n]===false)return;
+    state.colored[n]={bg:c.bg,fg:c.fg};
+  });
+  saveColorState();
+  closeRepere2Global();
+  render();
+}
+function applyRepere2AutoDefault(){
+  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{
+    if(state.repere2Active[n]===false)return;
+    if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
+  });
+}
+function crossGameRepere2Scan(limit){
+  const marks={...(state.colored||{})};
+  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{if(state.repere2Active[n]!==false)marks[n]=c;});
+  const markKeys=Object.keys(marks).map(Number);
+  const results=[];
+  if(!markKeys.length)return{marks,markKeys,results};
+  const lim=limit&&limit<999999?limit:Infinity;
+  Object.keys(GAMES).forEach(key=>{
+    const gd=gameData(key);
+    const hits=[];
+    for(const r of gd.T){
+      const nums=[...r.n,...(r.m||[])];
+      if(nums.some(n=>marks[n])){
+        hits.push(r);
+        if(hits.length>=lim)break;
+      }
+    }
+    if(hits.length)results.push({key,name:GAMES[key].name,icon:GAMES[key].icon,hits});
+  });
+  return{marks,markKeys,results};
+}
+function openRepere2Global(){
+  state.showFab=false;
+  state.repere2GlobalOpen=true;
+  state.repereGlobalLimit=state.repereGlobalLimit||20;
+  render();
+}
+function closeRepere2Global(){state.repere2GlobalOpen=false;render();}
+function repere2GlobalHTML(){
+  const{marks,markKeys,results}=crossGameRepere2Scan(state.repereGlobalLimit||20);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepere2Global()">
+    <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700;color:#B45309">🎯 Liste 2 — dans tous les lotos</span>
+        <span onclick="closeRepere2Global()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+        <button onclick="applyRepere2ToCurrentGame()" style="padding:5px 12px;background:#B45309;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px" title="Colorie immédiatement ces numéros dans le jeu ouvert actuellement">✨ Activer ici, sur ${GAME.name}</button>
+      </div>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repere2ShowClass!==false?'checked':''} onchange="state.repere2ShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro de la liste 2 (partout dans l'app)</label>
+      <div style="background:#FFFBEB;border:1.5px solid #B45309;border-radius:8px;padding:8px 10px;margin-bottom:10px">
+        <div style="font-size:10.5px;font-weight:700;color:#B45309;margin-bottom:5px">✏️ Choisis une couleur puis clique les numéros dans la grille (reclique un numéro pour le retirer)</div>
+        <div style="display:flex;gap:3px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+          ${PAL.map(c=>`<span onclick="setRep2DefColor('${c}')" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:${c};border:${state.rep2DefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
+          <label title="Choisir une couleur libre" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
+            <span style="font-size:10px">🎨</span>
+            <input type="color" value="${state.rep2DefColor||'#B45309'}" oninput="setRep2DefColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
+          </label>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:420px">
+          ${Array.from({length:90},(_,i)=>i+1).map(n=>{const c=state.repere2Defined[n];
+            return `<span onclick="toggleRepere2Grid(${n})" style="text-align:center;padding:3px 0;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'}">${n}</span>`;}).join('')}
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px">
+          ${Object.keys(state.repere2Defined).length?`<span style="font-size:9px;color:#888">${Object.keys(state.repere2Defined).length} numéro(s) dans la liste 2</span><button onclick="clearRepere2Defined()" style="padding:2px 8px;background:#fff;border:1px solid #C62828;color:#C62828;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">Tout effacer</button>`:`<span style="font-size:9.5px;color:#888">Aucun numéro dans la liste 2 pour l'instant.</span>`}
+        </div>
+      </div>
+      ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun numéro dans la liste 2 pour l'instant.</div>`:`
+      <div style="font-size:10.5px;color:#555;margin-bottom:8px">Numéros de la liste 2, recherchés dans tous les lotos — ${results.length} jeu(x) avec au moins une correspondance.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
+        ${markKeys.map(n=>numBadge(n)).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto">
+        ${results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:8px;padding:6px 9px">
+          <div style="font-size:11px;font-weight:700;color:#B45309;margin-bottom:4px">${res.icon} ${res.name} — ${res.hits.length} tirage(s)</div>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            ${res.hits.map(r=>`<div style="font-size:10px;color:#333;display:flex;flex-wrap:wrap;gap:3px;align-items:center">
+              <span style="color:#888">${r.d}</span>
+              ${r.n.map(n=>numBadge(n)).join('')}
+              ${r.m&&r.m.length?`<span style="color:#ccc">|</span>${r.m.map(n=>numBadge(n,true)).join('')}`:''}
+            </div>`).join('')}
+          </div>
+        </div>`).join('')}
+        ${!results.length?`<div style="font-size:11px;color:#888;text-align:center;padding:16px 0">Aucune correspondance trouvée dans les autres lotos.</div>`:''}
+      </div>`}
+    </div>
+  </div>`;
+}
+loadRepere2DefinedState();
+applyRepere2AutoDefault();
+saveColorState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
 function addRepereDefined(){
   const el=document.getElementById('repdef-num');
@@ -7432,6 +7602,12 @@ function anCalc(){
     const rm={};
     Object.entries(state.repereDefined||{}).forEach(([n,c])=>{if(state.repereActive[n]!==false)rm[n]=c;});
     res.repereMarks=rm;
+  }
+  // Idem pour la Liste 2 — indépendante, s'affiche EN PLUS de la couche repérés ci-dessus.
+  if(state.repere2Always!==false){
+    const rm2={};
+    Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{if(state.repere2Active[n]!==false)rm2[n]=c;});
+    res.repere2Marks=rm2;
   }
   return res;
 }
@@ -7867,6 +8043,7 @@ function anMark(row,ctx){
   // Ordre de priorité si plusieurs couches touchent la même case : repere, puis mirL, puis mirP, puis superpos.
   const _always=[];
   if(state.repereAlways!==false&&ctx.repereMarks&&Object.keys(ctx.repereMarks).length)_always.push('repere');
+  if(state.repere2Always!==false&&ctx.repere2Marks&&Object.keys(ctx.repere2Marks).length)_always.push('repere2');
   if(state.mirLAlways&&m!=='mirL')_always.push('mirL');
   if(state.mirPAlways&&m!=='mirP')_always.push('mirP');
   if(state.superposAlways&&m!=='superpos')_always.push('superpos');
@@ -7883,6 +8060,14 @@ function anMark(row,ctx){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           const rc=ctx.repereMarks&&ctx.repereMarks[n];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+        });
+        return;
+      }
+      if(k==='repere2'){
+        row.n.forEach((n,i)=>{
+          if(out[i])return;
+          const rc=ctx.repere2Marks&&ctx.repere2Marks[n];
           if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
         });
         return;
@@ -8003,6 +8188,9 @@ function anRender(){
       <button onclick="state.repereAlways=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repereAlways===false?'#6B7280':'#F3F4F6'};color:${state.repereAlways===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique des repérés (ta liste n'est pas effacée)">🚫 Sans repérés</button>
       <button onclick="state.repereShowClass=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass!==false?'#fff':'#7E22CE'}" title="Affiche l'élément de classification (ex: C:14) à côté de chaque numéro repéré">🧩 Mes repérés avec élément</button>
       <button onclick="state.repereShowClass=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass===false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass===false?'#fff':'#7E22CE'}" title="N'affiche que le numéro repéré, sans élément de classification">🎯 Mes repérés sans élément</button>
+      <button onclick="openRepere2Global()" style="padding:3px 10px;background:#FFFBEB;color:#B45309;border:1.5px solid #B45309;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Nouvelle liste indépendante, définie via une grille 1-90, visible partout EN PLUS de tes repérés">🎯 Liste 2 (grille 1-90)</button>
+      <button onclick="state.repere2Always=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #B45309;background:${state.repere2Always!==false?'#B45309':'#FFFBEB'};color:${state.repere2Always!==false?'#fff':'#B45309'}" title="Active l'affichage automatique de la liste 2 sur tous les lotos">✅ Avec liste 2</button>
+      <button onclick="state.repere2Always=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repere2Always===false?'#6B7280':'#F3F4F6'};color:${state.repere2Always===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique de la liste 2 (elle n'est pas effacée)">🚫 Sans liste 2</button>
       <button onclick="goCompareGames()" style="padding:3px 10px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #2E7D32;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Afficher plusieurs lotos côte à côte (onglet Navigation)">🎮 Comparer plusieurs lotos</button>
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:3px 10px;background:#7C3AED;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">🎨 Exporter</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:3px 10px;background:#EDE9FE;color:#5B21B6;border:1.5px solid #7C3AED;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">⚡ Rapide</button>
@@ -8819,6 +9007,7 @@ function __renderBody(){
   html+=downloadAppButtonHTML();
   html+=fabHTML();
   if(state.repereGlobalOpen)html+=repereGlobalHTML();
+  if(state.repere2GlobalOpen)html+=repere2GlobalHTML();
   if(state.coloringExportOpen)html+=coloringExportHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>

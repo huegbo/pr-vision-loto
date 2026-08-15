@@ -1853,7 +1853,7 @@ let state={
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
-  repere2GlobalOpen:false, repere2Defined:{}, rep2DefColor:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
+  repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -5683,6 +5683,9 @@ function fabGo(action){
       state.markRows={};state.blockRows={};
       state.repereAlways=false; // désactive l'affichage des repérés (leurs définitions/instantanés restent sauvegardés, réactivables via "✅ Avec repérés")
       state.repere2Always=false; // idem pour la liste 2
+      state.mirLAlways=true;  // rétablit le mode par défaut : Miroir même ligne actif
+      state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
+      state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
       saveColorState();
     }
     render();return;

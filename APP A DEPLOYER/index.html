@@ -4434,6 +4434,96 @@ function exportPanelHTML(){
     <button onclick="exportColoredExcel()" style="margin-top:9px;width:100%;padding:7px;background:#7C3AED;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📤 Générer le fichier Excel</button>
   </div>`;
 }
+// Exporte TOUTES les colonnes du mode "Comparer plusieurs lotos" (mgColumns) dans un seul
+// fichier Excel — utile car certains tirages ne sont pas tous visibles en même temps à l'écran
+// (ex: BENZ, NATIONAL, etc. hors champ selon le défilement). Reprend le mode par défaut
+// (miroir même ligne, miroir superposé, mêmes numéros superposés, repérés) tel qu'affiché à l'écran.
+async function exportMgColumnsExcel(){
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,rows:(gd.BY_YEAR[y]||[]).slice()};});
+  if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
+  const btns=document.querySelectorAll('.export-mg-btn');
+  btns.forEach(b=>b.textContent='⏳ Génération...');
+  try{
+    const ctx=anCalc();
+    const D=state.anMode!=='none'?AN_DEF.find(d=>d.key===state.anMode):null;
+    let exportLabel=D?D.label.replace(/^\S+\s+/,''):'Coloriage manuel';
+    if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
+    if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';
+    if(state.superposAlways&&(!D||D.key!=='superpos'))exportLabel+=' + Mêmes numéros superposés';
+    const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Comparaison lotos');
+    const gap=1;
+    const blockColsOf=c=>2+5+1+(c.g.hasM?6:0); // N°,Date,N1..N5,TOT/X1,(M1..M5,TOT.M/X2)
+    const colOffsets=[];let acc=1;
+    cols.forEach(c=>{colOffsets.push(acc);acc+=blockColsOf(c)+gap;});
+
+    const captionRow=ws.addRow([`Comparaison de lotos — Export : ${exportLabel}`]);
+    captionRow.getCell(1).font={bold:true,italic:true,color:{argb:'FF6D28D9'}};
+    const titleRow=ws.addRow([]);
+    const headerRow=ws.addRow([]);
+    cols.forEach((c,ci)=>{
+      const startCol=colOffsets[ci],blockCols=blockColsOf(c);
+      const tCell=titleRow.getCell(startCol);
+      tCell.value=c.g.icon+' '+c.g.name+' '+c.year;
+      tCell.font={bold:true};
+      ws.mergeCells(titleRow.number,startCol,titleRow.number,startCol+blockCols-1);
+      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?['M1','M2','M3','M4','M5',(c.g.xtra?'X2':'TOT.M')]:[])];
+      heads.forEach((h,hi)=>{const hc=headerRow.getCell(startCol+hi);hc.value=h;hc.font={bold:true};});
+    });
+
+    const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
+    for(let ri=0;ri<maxRows;ri++){
+      const row=ws.addRow([]);
+      cols.forEach((c,ci)=>{
+        const startCol=colOffsets[ci],r=c.rows[ri];
+        if(!r)return;
+        const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // mode par défaut calculé sur les données DE CE jeu
+        const mk=anMark(r,ctx);
+        T=_T0;IDX=_IDX0;
+        row.getCell(startCol).value=r.t;
+        row.getCell(startCol+1).value=r.d;
+        r.n.forEach((v,ni)=>{
+          const cell=row.getCell(startCol+2+ni);
+          cell.value=v;
+          const cid=c.key+'_'+r.t+'_'+ni;
+          const manual=state.coloredCells[cid]||state.colored[v];
+          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
+          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
+          if(bg){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};cell.font={color:{argb:hexToARGB(fg)},bold:true};}
+        });
+        const totCell=row.getCell(startCol+7);
+        if(c.g.xtra){totCell.value=r.x?r.x[0]:null;}
+        else{totCell.value=r.s;const tc=tC(r.s);totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};totCell.font={color:{argb:hexToARGB(tc[1])},bold:true};}
+        if(c.g.hasM&&r.m){
+          r.m.forEach((v,mi)=>{
+            if(isNaN(v))return;
+            const cell=row.getCell(startCol+8+mi);cell.value=v;
+          });
+          const lastCell=row.getCell(startCol+13);
+          if(c.g.xtra){lastCell.value=r.x?r.x[1]:null;}
+          else{const validM=r.m.filter(v=>!isNaN(v));if(validM.length){const ms=validM.reduce((a,b)=>a+b,0);lastCell.value=ms;const mc=tC(ms);lastCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(mc[0])}};lastCell.font={color:{argb:hexToARGB(mc[1])},bold:true};}}
+        }
+      });
+    }
+    ws.columns.forEach(c=>{c.width=8;});
+    cols.forEach((c,ci)=>{ws.getColumn(colOffsets[ci]+1).width=10;});
+
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=sanitizeFile('Comparaison_lotos_'+cols.map(c=>c.key).join('-').slice(0,60))+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    btns.forEach(b=>b.textContent='📤 Exporter tout le tableau (toutes les colonnes)');
+  }
+}
 // Exporte les années choisies dans le panneau de paramétrage (state.exportYears),
 // juxtaposées côte à côte dans une seule feuille (comme la vue "Par années"),
 // avec ou sans couleurs / numéros machine / limite de lignes selon les réglages choisis.
@@ -7354,7 +7444,8 @@ function gameData(key){
     const TT=Object.values(byT).sort((a,b)=>b.t-a.t);
     const BY={};TT.forEach(r=>{if(!BY[r.y])BY[r.y]=[];BY[r.y].push(r);});
     Object.keys(BY).forEach(y=>{BY[y].reverse();});
-    g._d={T:TT,BY_YEAR:BY,YEARS:[...new Set(TT.map(r=>r.y))].sort((a,b)=>parseInt(b)-parseInt(a))};
+    const IDXX={};TT.forEach((r,i)=>{IDXX[r.t]=i;});
+    g._d={T:TT,IDX:IDXX,BY_YEAR:BY,YEARS:[...new Set(TT.map(r=>r.y))].sort((a,b)=>parseInt(b)-parseInt(a))};
   }
   return g._d;
 }
@@ -8687,6 +8778,7 @@ function __renderBody(){
         <input id="cmp-search" type="text" oninput="filterCompareGames(this.value)" placeholder="🔎 Filtrer les jeux (ex: ng, ghana, matinal, diamant…)" style="flex:1;min-width:150px;padding:4px 8px;border:1.5px solid #1F2D3D;border-radius:6px;font-size:11px">
         <span id="cmp-count" style="font-size:9px;color:#888;font-weight:500">${Object.keys(GAMES).length} jeux</span>
         <button onclick="state.selGames=[];render()" style="padding:2px 7px;font-size:9px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider la sélection</button>
+        <button class="export-mg-btn" onclick="exportMgColumnsExcel()" title="Génère un fichier Excel avec TOUS les tirages de chaque colonne comparée (miroir + superposition + repérés inclus), même ceux qui ne sont pas visibles à l'écran" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#7C3AED;color:#fff;cursor:pointer;font-weight:600">📤 Exporter tout le tableau (toutes les colonnes)</button>
       </div>
       <div id="cmp-list" style="display:flex;flex-wrap:wrap;gap:3px;max-height:150px;overflow-y:auto">
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
@@ -8718,8 +8810,9 @@ function __renderBody(){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else if(state.excelMode){
         // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
-        const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
+        const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
+        const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
@@ -8740,7 +8833,10 @@ function __renderBody(){
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;':''}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:34px;':''}">${row.d}</td>`;
-            const _e=elmHLMark(row);row.n.forEach((n,ni)=>{html+=`<td class="excel-td" style="background:${bg}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // le temps d'un colonne : bascule T/IDX sur les données du bon jeu pour que miroir/superposition portent sur SES tirages
+            const _mk=anMark(row,_mgCtx);
+            T=_T0;IDX=_IDX0;
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td" style="background:${bg}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
             html+=g.xtra?`<td class="excel-td" style="font-weight:700;color:#B71C1C;background:#FFEBEE">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td" style="font-weight:500;color:${tc[1]};background:${tc[0]}">${row.s}</td>`;
             if(g.hasM){
               [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td" style="background:${bg}">${row.m?numSpan(row.m[mi],{isM:true},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
@@ -8757,11 +8853,13 @@ function __renderBody(){
         html+=`</tbody></table></div>`;
       }else{
         const _gOff=anchorOffsetsG();
+        const _mgCtx2=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
         mgColumns().forEach(({colId,key,year:gy})=>{
           const g=GAMES[key], gd=gameData(key);
           const color=YC[gy]||'1F2D3D';const light=parseInt(color,16)>0x888888;
           const rows=gd.BY_YEAR[gy]||[];
+          const _T0g=T,_IDX0g=IDX;T=gd.T;IDX=gd.IDX; // bascule T/IDX sur les données de CE jeu pour toute la colonne
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
             <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${gy} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
             <div class="${g.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(g.xtra?'X1':'TOT'),...(g.hasM?(g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(g.hasM?[g.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
@@ -8773,7 +8871,7 @@ function __renderBody(){
                 return`<div ${_isA?`id="anch-${colId}"`:''} class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:${bg};${_isA?'border-top:2.5px solid #EA580C;border-bottom:2.5px solid #EA580C;':'border-bottom:1px solid #eee;'}">
                   <div style="font-weight:500;color:#${color};font-size:8px">${_lkA?'🔒':''}${row.t}</div>
                   <div style="font-size:8px;color:#555">${row.d}</div>
-                  ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
+                  ${(()=>{const _mk=anMark(row,_mgCtx2);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
                   ${g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>`}
                   ${g.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
                   ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
@@ -8781,6 +8879,7 @@ function __renderBody(){
               }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${gy} pour ce jeu</div>`}
             </div>
           </div>`;
+          T=_T0g;IDX=_IDX0g; // restaure T/IDX globaux pour ne pas perturber le reste du rendu
         });
         html+=`</div>`;
       }

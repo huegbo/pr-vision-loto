@@ -2742,6 +2742,8 @@ function numSpan(n, extra, cid){
   else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.an){bg='#fff';fg=extra.an[0];fs='13px';sh='0 1px 3px rgba(0,0,0,.15)';rad='50%';bd='2px solid '+extra.an[0];}
   else if(extra&&extra.isMirNav){bg='#BFDBFE';fg='#1E40AF';}
+  else if(extra&&extra.mirP){bg='#6A1B9A';fg='#fff';fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
+  else if(extra&&extra.superpos){bg='#0891B2';fg='#fff';fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
   else if(extra&&extra.clKey){
     // numéro dérivé — couleur de sa classification
     const clDef=CL_DEF.find(c=>c.key===extra.clKey);
@@ -8303,7 +8305,21 @@ function vRowHTML(it,ri,C){
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
             <div style="font-size:${fS}px;color:#555">${row.d}</div>
-            ${(()=>{const _e=elmHLMark(row);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),fs:fN},row.t+'_'+ni)).join('');})()}
+            ${(()=>{const _e=elmHLMark(row);
+              // Miroir superposé + Mêmes numéros superposés : toujours visibles dans
+              // la grille Navigation, sans case à décocher (fixe, en dur).
+              const _gi=IDX[row.t];
+              const _mgap=Math.max(1,state.mirPGap||1);
+              const _prevR=(_gi!=null&&_gi+_mgap<T.length)?T[_gi+_mgap]:null;
+              const _nextR=(_gi!=null&&_gi-_mgap>=0)?T[_gi-_mgap]:null;
+              const _sgap=Math.max(1,state.supGap||1);
+              const _olderR=(_gi!=null&&_gi+_sgap<T.length)?T[_gi+_sgap]:null;
+              const _newerR=(_gi!=null&&_gi-_sgap>=0)?T[_gi-_sgap]:null;
+              return row.n.map((n,ni)=>{
+                const _mirP=!!(MIR[n]&&((_prevR&&_prevR.n[ni]===MIR[n])||(_nextR&&_nextR.n[ni]===MIR[n])));
+                const _superpos=!!((_olderR&&_olderR.n[ni]===n)||(_newerR&&_newerR.n[ni]===n));
+                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN},row.t+'_'+ni);
+              }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}

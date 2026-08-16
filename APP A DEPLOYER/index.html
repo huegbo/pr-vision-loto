@@ -2524,6 +2524,9 @@ function rowActionsBarHTML(){
     <button onclick="raInsertShift()" style="padding:4px 9px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:11px" title="Insère un tirage juste après ce N° et renumérote automatiquement tous les suivants">➕ Insérer (renumérote)</button>
     <span style="width:1px;height:18px;background:#BBD3F5"></span>
     <button onclick="raColorRow()" style="padding:4px 9px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:500;font-size:11px" title="Colorer la ligne, numéro par numéro">🖌️ Colorer</button>
+    <span style="display:inline-flex;gap:0;border-radius:6px;overflow:hidden;border:1px solid #999" title="Style utilisé par le bouton 🖌️ Colorer (et partout où aucun style n'est choisi explicitement)">
+      ${[['','🎨'],['box','⬜'],['underline','➖'],['text','🔤'],['croix','✕'],['etoile','★'],['coeur','♥'],['coche','✓']].map(([s,l])=>`<button onclick="state.hlStyle='${s}';render()" title="${s||'Fond'}" style="padding:4px 6px;font-size:11px;font-weight:600;cursor:pointer;border:none;background:${state.hlStyle===s?'#6D28D9':'#f3f3f3'};color:${state.hlStyle===s?'#fff':'#555'}">${l}</button>`).join('')}
+    </span>
     <span style="display:inline-flex;align-items:center;border:1px solid #0E7490;border-radius:6px;overflow:hidden">
       <button onclick="raBlockColor()" style="padding:4px 7px;background:#0E7490;color:#fff;border:none;cursor:pointer;font-weight:500;font-size:11px" title="Colorer toute la ligne d'un bloc de couleur">🪣<span style="display:inline-block;height:3px;width:12px;background:${state.lastBlockColor};border-radius:1px;margin-left:3px;vertical-align:middle"></span></button>
       <button onclick="raBlockColorMenu(this)" style="padding:4px 5px;background:#0E7490;color:#fff;border:none;border-left:1px solid rgba(255,255,255,.35);cursor:pointer;font-size:9px" title="Choisir la couleur">▾</button>

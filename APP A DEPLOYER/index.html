@@ -7235,7 +7235,7 @@ function toggleRepereFromMenu(n){
     delete state.repereActive[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repereDefined[n]={bg:c.bg,fg:c.fg};
+    state.repereDefined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
     state.repereActive[n]=true;
   }
   saveRepereDefinedState();
@@ -7343,7 +7343,7 @@ function toggleRepere2FromMenu(n){
     delete state.repere2Active[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repere2Defined[n]={bg:c.bg,fg:c.fg};
+    state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
     state.repere2Active[n]=true;
   }
   saveRepere2DefinedState();

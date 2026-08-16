@@ -4487,12 +4487,20 @@ async function exportMgColumnsExcel(){
         row.getCell(startCol+1).value=r.d;
         r.n.forEach((v,ni)=>{
           const cell=row.getCell(startCol+2+ni);
-          cell.value=v;
           const cid=c.key+'_'+r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
           let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
           if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
-          if(bg){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};cell.font={color:{argb:hexToARGB(fg)},bold:true};}
+          // Étiquette de classification (comme la petite "C:14" en indice à l'écran, à côté des numéros repérés)
+          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&ctx.repereMarks&&ctx.repereMarks[v];
+          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&ctx.repere2Marks&&ctx.repere2Marks[v];
+          const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
+          if(clLbl){
+            cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(fg)}}},{text:' '+clLbl,font:{size:7,color:{argb:hexToARGB(fg)},vertAlign:'subscript'}}]};
+          }else{
+            cell.value=v;
+          }
+          if(bg){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};if(!clLbl)cell.font={color:{argb:hexToARGB(fg)},bold:true};}
         });
         const totCell=row.getCell(startCol+7);
         if(c.g.xtra){totCell.value=r.x?r.x[0]:null;}

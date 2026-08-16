@@ -4434,6 +4434,82 @@ function exportPanelHTML(){
     <button onclick="exportColoredExcel()" style="margin-top:9px;width:100%;padding:7px;background:#7C3AED;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer">📤 Générer le fichier Excel</button>
   </div>`;
 }
+// Exporte TOUTES les colonnes du mode "Comparer plusieurs lotos" en PDF (via l'aperçu avant
+// impression du navigateur — "Enregistrer au format PDF" comme destination). Pas de librairie
+// externe : le HTML généré est un rendu fidèle (mêmes couleurs, mêmes badges de classification)
+// de ce qui est affiché à l'écran, comme une vraie capture d'écran imprimable.
+function exportMgColumnsPDF(){
+  const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,rows:(gd.BY_YEAR[y]||[]).slice()};});
+  if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
+  const btns=document.querySelectorAll('.export-mg-pdf-btn');
+  btns.forEach(b=>b.textContent='⏳ Génération...');
+  try{
+    const ctx=anCalc();
+    let blocks='';
+    cols.forEach(c=>{
+      const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
+      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?['M1','M2','M3','M4','M5',(c.g.xtra?'X2':'TOT.M')]:[])];
+      let rowsHtml='';
+      c.rows.forEach(r=>{
+        const mk=anMark(r,ctx);
+        rowsHtml+=`<tr><td class="idc">${r.t}</td><td class="idc">${r.d}</td>`;
+        r.n.forEach((v,ni)=>{
+          const cid=c.key+'_'+r.t+'_'+ni;
+          const manual=state.coloredCells[cid]||state.colored[v];
+          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#fff';
+          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#fff';}
+          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&ctx.repereMarks&&ctx.repereMarks[v];
+          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&ctx.repere2Marks&&ctx.repere2Marks[v];
+          const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
+          rowsHtml+=`<td><span class="num" style="${bg?`background:${bg};color:${fg}`:''}">${v}${clLbl?`<sub>${clLbl}</sub>`:''}</span></td>`;
+        });
+        if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[0]:'·'}</td>`;}
+        else{const tc=tC(r.s);rowsHtml+=`<td class="tot" style="background:${tc[0]};color:${tc[1]}">${r.s}</td>`;}
+        if(c.g.hasM){
+          (r.m||[]).forEach(v=>{rowsHtml+=`<td>${isNaN(v)?'·':v}</td>`;});
+          if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[1]:'·'}</td>`;}
+          else{const validM=(r.m||[]).filter(v=>!isNaN(v));const ms=validM.length?validM.reduce((a,b)=>a+b,0):null;const mc=ms!=null?tC(ms):null;rowsHtml+=`<td class="tot" style="${mc?`background:${mc[0]};color:${mc[1]}`:''}">${ms!=null?ms:'·'}</td>`;}
+        }
+      });
+      blocks+=`<div class="block"><div class="blk-hdr">${c.g.icon} ${c.g.name} ${c.year} <span class="cnt">(${c.rows.length} tirages)</span></div>
+        <table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+      T=_T0;IDX=_IDX0;
+    });
+    const D=state.anMode!=='none'?AN_DEF.find(d=>d.key===state.anMode):null;
+    let label=D?D.label.replace(/^\S+\s+/,''):'Coloriage manuel';
+    if(state.mirLAlways&&(!D||D.key!=='mirL'))label+=' + Miroir même ligne';
+    if(state.mirPAlways&&(!D||D.key!=='mirP'))label+=' + Miroir superposé';
+    if(state.superposAlways&&(!D||D.key!=='superpos'))label+=' + Mêmes numéros superposés';
+    const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comparaison lotos</title><style>
+      @page{size:landscape;margin:10mm}
+      body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px}
+      h1{font-size:14px;margin:0 0 10px}
+      .wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start}
+      .block{border:1px solid #ccc;border-radius:6px;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+      .blk-hdr{background:#1F2D3D;color:#fff;padding:5px 8px;font-weight:700;font-size:11px}
+      .cnt{font-weight:400;opacity:.8;font-size:9px}
+      table{border-collapse:collapse;font-size:9px}
+      th,td{border-bottom:1px solid #eee;padding:2px 4px;text-align:center;white-space:nowrap}
+      th{background:#f3f3f3;font-weight:700}
+      .idc{color:#888}
+      .tot{font-weight:700}
+      .num{display:inline-block;min-width:14px;padding:1px 3px;border-radius:3px;font-weight:600}
+      .num sub{font-size:6px;font-weight:600;opacity:.85;margin-left:1px}
+    </style></head><body>
+      <h1>Comparaison de lotos — Export : ${label}</h1>
+      <div class="wrap">${blocks}</div>
+    </body></html>`;
+    const w=window.open('','_blank');
+    if(!w){alert("Le navigateur a bloqué l'ouverture de la fenêtre d'impression. Autorise les pop-ups pour ce site puis réessaie.");return;}
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>{w.focus();w.print();},450);
+  }catch(err){
+    alert("Erreur pendant la génération du PDF : "+(err&&err.message?err.message:err));
+  }finally{
+    btns.forEach(b=>b.textContent='📄 Exporter en PDF');
+  }
+}
 // Exporte TOUTES les colonnes du mode "Comparer plusieurs lotos" (mgColumns) dans un seul
 // fichier Excel — utile car certains tirages ne sont pas tous visibles en même temps à l'écran
 // (ex: BENZ, NATIONAL, etc. hors champ selon le défilement). Reprend le mode par défaut
@@ -8787,6 +8863,7 @@ function __renderBody(){
         <span id="cmp-count" style="font-size:9px;color:#888;font-weight:500">${Object.keys(GAMES).length} jeux</span>
         <button onclick="state.selGames=[];render()" style="padding:2px 7px;font-size:9px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider la sélection</button>
         <button class="export-mg-btn" onclick="exportMgColumnsExcel()" title="Génère un fichier Excel avec TOUS les tirages de chaque colonne comparée (miroir + superposition + repérés inclus), même ceux qui ne sont pas visibles à l'écran" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#7C3AED;color:#fff;cursor:pointer;font-weight:600">📤 Exporter tout le tableau (toutes les colonnes)</button>
+        <button class="export-mg-pdf-btn" onclick="exportMgColumnsPDF()" title="Ouvre l'aperçu d'impression avec TOUTES les colonnes comparées, mêmes couleurs qu'à l'écran — choisis « Enregistrer en PDF » comme imprimante" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#B91C1C;color:#fff;cursor:pointer;font-weight:600">📄 Exporter en PDF</button>
       </div>
       <div id="cmp-list" style="display:flex;flex-wrap:wrap;gap:3px;max-height:150px;overflow-y:auto">
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}

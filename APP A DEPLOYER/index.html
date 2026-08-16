@@ -4532,11 +4532,25 @@ function exportMgColumnsPDF(){
       <h1>Comparaison de lotos — Export : ${label}</h1>
       <div class="wrap">${blocks}</div>
     </body></html>`;
-    const w=window.open('','_blank');
-    if(!w){alert("Le navigateur a bloqué l'ouverture de la fenêtre d'impression. Autorise les pop-ups pour ce site puis réessaie.");return;}
-    w.document.write(html);
-    w.document.close();
-    setTimeout(()=>{w.focus();w.print();},450);
+    // Iframe cachée plutôt que window.open() : évite le blocage pop-up des navigateurs
+    // (mobile en particulier), qui empêchait l'export de fonctionner pour certains utilisateurs.
+    const old=document.getElementById('mg-pdf-frame');
+    if(old)old.remove();
+    const iframe=document.createElement('iframe');
+    iframe.id='mg-pdf-frame';
+    iframe.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(iframe);
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    setTimeout(()=>{
+      try{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }catch(e){
+        alert("Erreur au moment d'imprimer : "+(e&&e.message?e.message:e));
+      }
+    },450);
   }catch(err){
     alert("Erreur pendant la génération du PDF : "+(err&&err.message?err.message:err));
   }finally{
@@ -4695,7 +4709,7 @@ async function exportColoredExcel(){
     // ex: "Miroir même ligne") est active, ses couleurs sont incluses en plus du coloriage manuel,
     // et le nom de la feuille / du fichier / une ligne de titre indiquent quel export c'est.
     const D=state.anMode!=='none'?AN_DEF.find(d=>d.key===state.anMode):null;
-    const ctx=D?anCalc():null;
+    const ctx=anCalc(); // toujours calculé : anMark() lit ctx.repereMarks/repere2Marks même quand aucune analyse (D) n'est choisie
     let exportLabel=D?D.label.replace(/^\S+\s+/,''):'Coloriage manuel';
     if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';

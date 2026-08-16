@@ -2085,6 +2085,31 @@ function undoColorAction(){
   saveColorState();
   render();
 }
+// Vide le coloriage manuel (colored/coloredCells/markRows/blockRows/anchors) de TOUS les
+// lotos d'un coup — pas seulement celui affiché à l'écran — et rétablit le mode par défaut
+// (Miroir même ligne + Miroir superposé + Superposition actifs, repérés désactivés, aucune
+// analyse explicitement choisie). Utilisé par "🧹 Tout annuler" et "Tout effacer".
+function clearAllColorsEverywhere(){
+  pushColorUndo(); // permet d'annuler le nettoyage du jeu affiché avec ↩️ Annuler
+  // 1) Jeu actuellement affiché
+  state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();
+  state.markRows={};state.blockRows={};
+  saveColorState();
+  // 2) Tous les autres lotos qui ont un coloriage enregistré (local + cloud via lsSet)
+  try{
+    Object.keys(localStorage).filter(k=>k.startsWith('loto_colors_')).forEach(k=>{
+      if(k==='loto_colors_'+GAME.key)return; // déjà fait ci-dessus
+      lsSet(k,JSON.stringify({colored:{},coloredCells:{},markRows:{},blockRows:{},anchors:{},anchorLocks:{}}));
+    });
+  }catch(_){}
+  // 3) Réglages globaux : mode par défaut
+  state.repereAlways=false; // désactive l'affichage des repérés (leurs définitions/instantanés restent sauvegardés, réactivables via "✅ Avec repérés")
+  state.repere2Always=false; // idem pour la liste 2
+  state.anMode='none'; // désélectionne toute analyse explicitement choisie (ex: Repérés) pour revenir au vrai mode par défaut
+  state.mirLAlways=true;  // rétablit le mode par défaut : Miroir même ligne actif
+  state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
+  state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
+}
 // ── Persistance des plans notés (carnet de notes par jeu, survit au refresh) ──
 function savePlansState(){
   lsSet('loto_plans_'+GAME.key,JSON.stringify(state.savedPlans));
@@ -6023,17 +6048,8 @@ function fabGo(action){
   else if(action==='repere2_global'){openRepere2Global();return;}
   else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
-    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour ce jeu ?\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
-      pushColorUndo();
-      state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();
-      state.markRows={};state.blockRows={};
-      state.repereAlways=false; // désactive l'affichage des repérés (leurs définitions/instantanés restent sauvegardés, réactivables via "✅ Avec repérés")
-      state.repere2Always=false; // idem pour la liste 2
-      state.anMode='none'; // désélectionne toute analyse explicitement choisie (ex: Repérés) pour revenir au vrai mode par défaut
-      state.mirLAlways=true;  // rétablit le mode par défaut : Miroir même ligne actif
-      state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
-      state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
-      saveColorState();
+    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition restent actifs (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
+      clearAllColorsEverywhere();
     }
     render();return;
   }
@@ -8935,7 +8951,7 @@ function __renderBody(){
     if(coloredList.length){
       html+=`<div class="card" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
         ${coloredList.map(([n,c])=>`<button onclick="colorAll(${n})" style="padding:1px 8px;background:${c.bg};color:${c.fg};border:none;border-radius:20px;font-weight:500;font-size:11px;cursor:pointer">${n}✕</button>`).join('')}
-        <button onclick="pushColorUndo();state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();state.repereAlways=false;state.repere2Always=false;state.anMode='none';state.mirLAlways=true;state.mirPAlways=true;state.superposAlways=true;saveColorState();render()" style="padding:1px 7px;background:#EF5350;color:#fff;border:none;border-radius:5px;font-size:9px;cursor:pointer;font-weight:500">Tout effacer</button>
+        <button onclick="clearAllColorsEverywhere();render()" style="padding:1px 7px;background:#EF5350;color:#fff;border:none;border-radius:5px;font-size:9px;cursor:pointer;font-weight:500">Tout effacer</button>
         <button onclick="undoColorAction()" ${state.colorUndoStack.length?'':'disabled'} style="padding:1px 7px;background:${state.colorUndoStack.length?'#455A64':'#ccc'};color:#fff;border:none;border-radius:5px;font-size:9px;cursor:${state.colorUndoStack.length?'pointer':'default'};font-weight:500">↩️ Annuler${state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':''}</button>
       </div>`;
     }

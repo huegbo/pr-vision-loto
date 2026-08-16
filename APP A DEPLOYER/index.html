@@ -1852,8 +1852,8 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
-  repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
+  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
+  repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -7301,10 +7301,11 @@ function loadRepere2DefinedState(){
   }catch(_){state.repere2Defined={};state.repere2Active={};}
 }
 function setRep2DefColor(c){state.rep2DefColor=c||'';render();}
+function setRep2DefStyle(s){state.rep2DefStyle=s;render();}
 // Clic direct sur un numéro de la grille 1-90 : ajoute/retire ce numéro de la liste 2 avec la
 // couleur actuellement sélectionnée (re-clique avec une autre couleur pour le recolorer).
 function toggleRepere2Grid(n){
-  const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor)}:pickHl();
+  const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor),style:state.rep2DefStyle||undefined}:pickHl();
   const cur=state.repere2Defined[n];
   if(cur&&cur.bg===c.bg){
     delete state.repere2Defined[n];
@@ -7413,6 +7414,9 @@ function repere2GlobalHTML(){
             <input type="color" value="${state.rep2DefColor||'#B45309'}" oninput="setRep2DefColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
           </label>
         </div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px">
+          ${[['','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligner'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']].map(([s,l])=>`<button onclick="setRep2DefStyle('${s}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:7px;cursor:pointer;border:1.5px solid ${state.rep2DefStyle===s?'#B45309':'#ddd'};background:${state.rep2DefStyle===s?'#FFFBEB':'#fff'};color:#333">${l}</button>`).join('')}
+        </div>
         <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:420px">
           ${Array.from({length:90},(_,i)=>i+1).map(n=>{const c=state.repere2Defined[n];
             return `<span onclick="toggleRepere2Grid(${n})" style="text-align:center;padding:3px 0;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'}">${n}</span>`;}).join('')}
@@ -7446,11 +7450,12 @@ loadRepere2DefinedState();
 applyRepere2AutoDefault();
 saveColorState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
+function setRepDefStyle(s){state.repDefStyle=s;render();}
 function addRepereDefined(){
   const el=document.getElementById('repdef-num');
   const n=el?parseInt(el.value,10):NaN;
   if(isNaN(n)||n<0||n>99)return;
-  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
+  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:state.repDefStyle||undefined}:pickHl();
   state.repereDefined[n]=c;
   saveRepereDefinedState();
   if(el)el.value='';
@@ -7526,6 +7531,9 @@ function repereGlobalHTML(){
             </label>
           </div>
           <button onclick="addRepereDefined()" style="padding:4px 10px;background:#0E7490;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:10px">+ Ajouter</button>
+        </div>
+        <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px">
+          ${[['','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligner'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']].map(([s,l])=>`<button onclick="setRepDefStyle('${s}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:7px;cursor:pointer;border:1.5px solid ${state.repDefStyle===s?'#0E7490':'#ddd'};background:${state.repDefStyle===s?'#E0F2FE':'#fff'};color:#333">${l}</button>`).join('')}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
           ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}

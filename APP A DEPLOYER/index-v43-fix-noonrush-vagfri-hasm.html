@@ -2739,15 +2739,19 @@ function numSpan(n, extra, cid){
   // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
   const repereMark=(!_DV_SUPPRESS&&state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
   const repere2Mark=(!_DV_SUPPRESS&&state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
+  // Priorité à la vue par défaut : les 3 couches toujours actives (miroir même
+  // ligne, miroir superposé, mêmes numéros superposés) passent maintenant devant
+  // le coloriage manuel/repérés, pour que les deux numéros d'une même paire
+  // miroir soient TOUJOURS mis en évidence ensemble (ex: 67 et 76).
   if(extra&&extra.isSrc){bg='#059669';fg='#fff';}
-  else if(colC)applyHl(colC);
-  else if(col)applyHl(col);
-  else if(repereMark)applyHl(repereMark);
-  else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.an){bg='#fff';fg=extra.an[0];fs='13px';sh='0 1px 3px rgba(0,0,0,.15)';rad='50%';bd='2px solid '+extra.an[0];}
   else if(extra&&extra.isMirNav){bg=state.mirLColor||'#1565C0';fg='#fff';fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
   else if(extra&&extra.mirP){bg=state.mirPColor||'#6A1B9A';fg='#fff';fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
   else if(extra&&extra.superpos){bg=state.superposColor||'#0891B2';fg='#fff';fs='13px';sh='0 1px 2px rgba(0,0,0,.2)';}
+  else if(colC)applyHl(colC);
+  else if(col)applyHl(col);
+  else if(repereMark)applyHl(repereMark);
+  else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.clKey){
     // numéro dérivé — couleur de sa classification
     const clDef=CL_DEF.find(c=>c.key===extra.clKey);
@@ -8322,7 +8326,7 @@ function vRowHTML(it,ri,C){
               return row.n.map((n,ni)=>{
                 const _mirP=!!(MIR[n]&&((_prevR&&_prevR.n[ni]===MIR[n])||(_nextR&&_nextR.n[ni]===MIR[n])));
                 const _superpos=!!((_olderR&&_olderR.n[ni]===n)||(_newerR&&_newerR.n[ni]===n));
-                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&!state.colored[n]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN},row.t+'_'+ni);
+                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN},row.t+'_'+ni);
               }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}

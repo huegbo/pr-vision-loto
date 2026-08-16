@@ -1570,59 +1570,148 @@ function sbSetStatus(txt,color){
     el.style.color=color||'#999';
   }catch(_){}
 }
-function sbPush(key,rawVal){
+// ── Synchro robuste : horodatage PAR CLÉ + garde anti-onglet-périmé ─────────
+// Chaque clé a un horodatage local (__sbts_<clé>) qui reflète la dernière version connue
+// par CET onglet. On ne remplace jamais une version plus récente : ni en écrivant (push,
+// qui revérifie le distant avant d'écraser), ni en lisant (pull, qui ignore les lignes
+// pas plus fraîches que ce qu'on connaît déjà). Corrige le bug "onglet resté ouvert avec
+// un ancien coloriage qui repousse par-dessus un nettoyage fait sur un autre appareil".
+const SB_TS_PREFIX='__sbts_';
+function sbT(x){ const t=Date.parse(x||''); return isNaN(t)?0:t; }
+function sbGetTs(key){ try{ return sbT(localStorage.getItem(SB_TS_PREFIX+key)); }catch(_){ return 0; } }
+function sbSetTs(key,iso){ try{ localStorage.setItem(SB_TS_PREFIX+key,iso); }catch(_){} }
+// Applique une ligne reçue du serveur au localStorage (et gère la suppression si value est vide).
+function sbApplyRemote(row){
+  try{
+    if(row.value===null||row.value===undefined){ localStorage.removeItem(row.key); }
+    else{
+      const str=(typeof row.value==='string')?row.value:JSON.stringify(row.value);
+      localStorage.setItem(row.key,str);
+    }
+    sbSetTs(row.key,row.updated_at||new Date().toISOString());
+  }catch(_){}
+}
+// Réapplique l'état affiché après qu'une valeur ait été adoptée silencieusement depuis le
+// serveur (évite qu'un onglet continue d'afficher un coloriage qu'il vient de remplacer).
+function sbRefreshUI(){
+  try{
+    if(typeof GAMES!=='undefined'&&typeof GAME!=='undefined'&&GAME&&GAME.key){
+      delete GAMES[GAME.key]._d;
+      loadGame(GAME.key);
+      loadColorState(GAME.key);
+      loadPlansState(GAME.key);
+    }
+    render();
+  }catch(_){}
+}
+// PUSH : avant d'écraser le distant, on relit son updated_at. baseTs = horodatage connu par
+// cet onglet AVANT l'écriture locale (capturé dans lsSet, pas relu après coup) : si le
+// serveur a bougé depuis, on adopte sa version au lieu d'écraser avec notre valeur périmée.
+function sbPush(key,rawVal,ts,baseTs){
   if(!SB)return;
   let value;
   try{ value=JSON.parse(rawVal); }catch(_){ value=rawVal; }
+  const stamp=ts||new Date().toISOString();
   sbSyncPending++;
   sbSetStatus('☁️ Synchro…','#F59E0B');
-  SB.from('app_kv').upsert({key:key,value:value,updated_at:new Date().toISOString()}).then(({error})=>{
+  const done=(msg,color)=>{
     sbSyncPending=Math.max(0,sbSyncPending-1);
-    if(sbSyncPending===0)sbSetStatus(error?'⚠️ Synchro échouée':'☁️ Synchro OK',error?'#DC2626':'#16A34A');
-  }).catch(()=>{
-    sbSyncPending=Math.max(0,sbSyncPending-1);
-    if(sbSyncPending===0)sbSetStatus('⚠️ Synchro échouée','#DC2626');
-  });
+    if(sbSyncPending===0)sbSetStatus(msg,color);
+  };
+  SB.from('app_kv').select('key,value,updated_at').eq('key',key).limit(1)
+    .then(({data,error})=>{
+      const remote=(!error&&data&&data.length)?data[0]:null;
+      // Conflit : le distant est plus récent que la version connue localement par cet onglet.
+      if(remote&&sbT(remote.updated_at)>(baseTs||0)){
+        sbApplyRemote(remote);
+        done('☁️ Version plus récente reçue','#F59E0B');
+        sbRefreshUI();
+        return null;
+      }
+      return SB.from('app_kv').upsert({key:key,value:value,updated_at:stamp})
+        .then(({error:upErr})=>{
+          if(!upErr)sbSetTs(key,stamp);
+          done(upErr?'⚠️ Synchro échouée':'☁️ Synchro OK',upErr?'#DC2626':'#16A34A');
+        });
+    })
+    .catch(()=>{ done('⚠️ Synchro échouée','#DC2626'); });
 }
 function sbDelete(key){
   if(!SB)return;
   SB.from('app_kv').delete().eq('key',key).then(()=>{}).catch(()=>{});
 }
-async function sbPullAll(){
+// PULL : n'écrase le local que si updated_at distant > local
+// Déduplication : si plusieurs déclencheurs (démarrage + focus + bouton Sync) appellent
+// sbPullAll en même temps, ils partagent la même requête au lieu d'en lancer plusieurs.
+let sbPullInFlight=null;
+async function sbPullAll(quiet){
   if(!SB)return false;
+  if(sbPullInFlight)return sbPullInFlight;
+  sbPullInFlight=sbPullAllInner(quiet).finally(()=>{ sbPullInFlight=null; });
+  return sbPullInFlight;
+}
+async function sbPullAllInner(quiet){
   try{
-    sbSetStatus('☁️ Récupération…','#F59E0B');
-    const {data,error}=await SB.from('app_kv').select('key,value');
-    if(error||!data){sbSetStatus('⚠️ Synchro indisponible','#DC2626');return false;}
+    if(!quiet)sbSetStatus('☁️ Récupération…','#F59E0B');
+    const {data,error}=await SB.from('app_kv').select('key,value,updated_at');
+    if(error||!data){if(!quiet)sbSetStatus('⚠️ Synchro indisponible','#DC2626');return false;}
+    let changed=0;
     data.forEach(row=>{
       try{
-        const str=(typeof row.value==='string')?row.value:JSON.stringify(row.value);
-        localStorage.setItem(row.key,str);
+        const remoteTs=sbT(row.updated_at);
+        const localTs=sbGetTs(row.key);
+        const hasLocal=localStorage.getItem(row.key)!==null;
+        if(!hasLocal||!localTs||remoteTs>localTs){
+          sbApplyRemote(row);
+          changed++;
+        }
       }catch(_){}
     });
-    sbSetStatus(data.length?'☁️ Synchronisé':'☁️ Prêt (rien à synchro)','#16A34A');
-    return true;
+    if(!quiet)sbSetStatus(data.length?'☁️ Synchronisé':'☁️ Prêt (rien à synchro)','#16A34A');
+    else if(changed)sbSetStatus('🔄 '+changed+' mise(s) à jour reçue(s)','#16A34A');
+    return changed;
   }catch(_){
-    sbSetStatus('⚠️ Synchro indisponible','#DC2626');
+    if(!quiet)sbSetStatus('⚠️ Synchro indisponible','#DC2626');
     return false;
   }
 }
-function lsSet(key,val){try{localStorage.setItem(key,val);sbPush(key,val);return true;}catch(_){return false;}}
-function lsRemove(key){try{localStorage.removeItem(key);sbDelete(key);return true;}catch(_){return false;}}
+// Wrappers localStorage qui poussent vers Supabase
+function lsSet(key,val){
+  try{
+    const baseTs=sbGetTs(key);
+    const stamp=new Date().toISOString();
+    localStorage.setItem(key,val);
+    sbSetTs(key,stamp);
+    sbPush(key,val,stamp,baseTs);
+    return true;
+  }catch(_){ return false; }
+}
+function lsRemove(key){
+  try{
+    localStorage.removeItem(key);
+    sbSetTs(key,new Date().toISOString());
+    sbDelete(key);
+    return true;
+  }catch(_){ return false; }
+}
 // Synchro manuelle : bouton "🔄 Sync" (récupère les dernières données Supabase sans recharger la page)
 async function sbManualSync(){
   if(!SB){sbSetStatus('⚠️ Hors-ligne (pas de connexion Supabase)','#DC2626');return;}
-  const ok=await sbPullAll();
-  if(ok){
-    try{
-      delete GAMES[GAME.key]._d; // force la relecture des extras fusionnés
-      loadGame(GAME.key);
-      loadColorState(GAME.key);
-      loadPlansState(GAME.key);
-      render();
-    }catch(_){}
-  }
+  const n=await sbPullAll();
+  if(n!==false)sbRefreshUI();
 }
+// Revalidation automatique : re-pull silencieux au retour de focus/visibilité et toutes les
+// 30s, pour qu'un onglet resté ouvert longtemps ne travaille jamais sur un état périmé
+// (et donc ne le repousse jamais par-dessus une version plus récente faite ailleurs).
+function sbRevalidate(){
+  if(!SB||document.hidden)return;
+  sbPullAll(true).then(n=>{ if(n)sbRefreshUI(); }).catch(()=>{});
+}
+try{
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden)sbRevalidate(); });
+  window.addEventListener('focus',sbRevalidate);
+  setInterval(sbRevalidate,30000);
+}catch(_){}
 function getExtras(key){
   return lsGetOr('loto_extra_'+key,'').split('\n').filter(l=>l.trim());
 }

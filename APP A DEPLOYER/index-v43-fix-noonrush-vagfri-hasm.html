@@ -7380,12 +7380,10 @@ function deleteRepereSnapshot(id){
 // dans l'affichage normal du jeu OUVERT ACTUELLEMENT — colorie chaque numéro sans avoir à
 // cliquer un par un. Fonctionne sur n'importe quel loto, à la demande.
 function applyRepereToCurrentGame(){
-  pushColorUndo();
-  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{
-    if(state.repereActive[n]===false)return;
-    state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-  saveColorState();
+  // Active juste l'affichage automatique (comme "✅ Avec repérés") au lieu de figer les
+  // numéros dans le coloriage manuel : ainsi, décocher "Avec repérés" suffit à tout
+  // masquer d'un coup, sans devoir aussi aller les effacer un par un dans le panneau.
+  state.repereAlways=true;
   closeRepereGlobal();
   render();
 }
@@ -7467,12 +7465,9 @@ function clearRepere2Defined(){
   render();
 }
 function applyRepere2ToCurrentGame(){
-  pushColorUndo();
-  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{
-    if(state.repere2Active[n]===false)return;
-    state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-  saveColorState();
+  // Idem liste 1 : active juste l'affichage automatique plutôt que de figer les numéros
+  // en coloriage manuel, pour que décocher "Avec liste 2" suffise à tout masquer.
+  state.repere2Always=true;
   closeRepere2Global();
   render();
 }

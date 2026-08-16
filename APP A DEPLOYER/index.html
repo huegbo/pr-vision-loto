@@ -1854,6 +1854,7 @@ let state={
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', coloringExportOpen:false, repereShowClass:true, repereAlways:true, repereActive:{}, repereSnapshots:[],
   repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', repere2ShowClass:true, repere2Always:true, repere2Active:{},
+  mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
@@ -4375,6 +4376,19 @@ function colorBg(c){
   if(typeof c==='string')return c;
   return c.bg||null;
 }
+// Traduit un objet couleur {bg,fg,style} (ou une simple couleur hex) en instructions de rendu
+// génériques — même logique que applyHl() dans numSpan() à l'écran — pour que les exports
+// (Excel, PDF) reproduisent fidèlement : plein (par défaut), contour, souligné, ou texte seul.
+function hlStyle(c){
+  if(!c)return null;
+  const bg=typeof c==='string'?c:c.bg;
+  const fg=typeof c==='string'?'#ffffff':(c.fg||'#ffffff');
+  const style=typeof c==='string'?null:c.style;
+  if(style==='box')return{mode:'box',color:bg,text:'#1a1a1a'};
+  if(style==='underline')return{mode:'underline',color:bg,text:bg};
+  if(style==='text')return{mode:'text',color:bg,text:bg};
+  return{mode:'fill',color:bg,text:fg};
+}
 // ══════ Panneau de paramétrage de l'export Excel coloré ══════
 function openExportPanel(){
   state.exportYears=(state.selYears&&state.selYears.length)?state.selYears.slice():YEARS.slice(0,4);
@@ -4445,6 +4459,7 @@ function exportMgColumnsPDF(){
   btns.forEach(b=>b.textContent='⏳ Génération...');
   try{
     const ctx=anCalc();
+    const _pdfBw={thin:1,medium:2,thick:3}[state.mgBorderStyle]||2;
     let blocks='';
     cols.forEach(c=>{
       const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
@@ -4456,12 +4471,24 @@ function exportMgColumnsPDF(){
         r.n.forEach((v,ni)=>{
           const cid=c.key+'_'+r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#fff';
-          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#fff';}
-          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&ctx.repereMarks&&ctx.repereMarks[v];
-          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&ctx.repere2Marks&&ctx.repere2Marks[v];
+          const repC=ctx.repereMarks&&ctx.repereMarks[v]?ctx.repereMarks[v]:null;
+          const rep2C=!repC&&ctx.repere2Marks&&ctx.repere2Marks[v]?ctx.repere2Marks[v]:null;
+          let hs=null;
+          if(manual)hs=hlStyle(manual);
+          else if(repC)hs=hlStyle(repC);
+          else if(rep2C)hs=hlStyle(rep2C);
+          else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
+          let sty='';
+          if(hs){
+            if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
+            else if(hs.mode==='box')sty=`border:${_pdfBw}px solid ${hs.color};color:${hs.text};background:#fff`;
+            else if(hs.mode==='underline')sty=`border-bottom:${_pdfBw}px solid ${hs.color};color:${hs.color};background:transparent`;
+            else if(hs.mode==='text')sty=`color:${hs.color};background:transparent`;
+          }
+          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
+          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
-          rowsHtml+=`<td><span class="num" style="${bg?`background:${bg};color:${fg}`:''}">${v}${clLbl?`<sub>${clLbl}</sub>`:''}</span></td>`;
+          rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub>${clLbl}</sub>`:''}</span></td>`;
         });
         if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[0]:'·'}</td>`;}
         else{const tc=tC(r.s);rowsHtml+=`<td class="tot" style="background:${tc[0]};color:${tc[1]}">${r.s}</td>`;}
@@ -4565,18 +4592,41 @@ async function exportMgColumnsExcel(){
           const cell=row.getCell(startCol+2+ni);
           const cid=c.key+'_'+r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
-          // Étiquette de classification (comme la petite "C:14" en indice à l'écran, à côté des numéros repérés)
-          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&ctx.repereMarks&&ctx.repereMarks[v];
-          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&ctx.repere2Marks&&ctx.repere2Marks[v];
+          // Reproduit la priorité ET le style choisi à l'écran (numSpan/applyHl) : coloriage
+          // manuel ou repéré en premier (plein / contour / souligné / texte seul selon le style
+          // choisi), sinon miroir/superposition/analyse en contour coloré.
+          const repC=ctx.repereMarks&&ctx.repereMarks[v]?ctx.repereMarks[v]:null;
+          const rep2C=!repC&&ctx.repere2Marks&&ctx.repere2Marks[v]?ctx.repere2Marks[v]:null;
+          let hs=null;
+          if(manual)hs=hlStyle(manual);
+          else if(repC)hs=hlStyle(repC);
+          else if(rep2C)hs=hlStyle(rep2C);
+          else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
+          const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
+          const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
+          const txtColor=hs?hs.text:'#1a1a1a';
           if(clLbl){
-            cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(fg)}}},{text:' '+clLbl,font:{size:7,color:{argb:hexToARGB(fg)},vertAlign:'subscript'}}]};
+            cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(txtColor)}}},{text:' '+clLbl,font:{size:7,color:{argb:hexToARGB(txtColor)},vertAlign:'subscript'}}]};
           }else{
             cell.value=v;
           }
-          if(bg){cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};if(!clLbl)cell.font={color:{argb:hexToARGB(fg)},bold:true};}
+          if(hs){
+            const bStyle={style:state.mgBorderStyle||'medium',color:{argb:hexToARGB(hs.color)}};
+            if(hs.mode==='fill'){
+              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};
+              if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+            }else if(hs.mode==='box'){
+              if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+              cell.border={top:bStyle,bottom:bStyle,left:bStyle,right:bStyle};
+            }else if(hs.mode==='underline'){
+              if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};
+              else cell.font={underline:true};
+              cell.border={bottom:bStyle};
+            }else if(hs.mode==='text'){
+              if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+            }
+          }
         });
         const totCell=row.getCell(startCol+7);
         if(c.g.xtra){totCell.value=r.x?r.x[0]:null;}
@@ -8864,6 +8914,9 @@ function __renderBody(){
         <button onclick="state.selGames=[];render()" style="padding:2px 7px;font-size:9px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider la sélection</button>
         <button class="export-mg-btn" onclick="exportMgColumnsExcel()" title="Génère un fichier Excel avec TOUS les tirages de chaque colonne comparée (miroir + superposition + repérés inclus), même ceux qui ne sont pas visibles à l'écran" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#7C3AED;color:#fff;cursor:pointer;font-weight:600">📤 Exporter tout le tableau (toutes les colonnes)</button>
         <button class="export-mg-pdf-btn" onclick="exportMgColumnsPDF()" title="Ouvre l'aperçu d'impression avec TOUTES les colonnes comparées, mêmes couleurs qu'à l'écran — choisis « Enregistrer en PDF » comme imprimante" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#B91C1C;color:#fff;cursor:pointer;font-weight:600">📄 Exporter en PDF</button>
+        <span style="display:inline-flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid #999" title="Épaisseur du contour (numéros en miroir/superposition, sans repéré) dans les exports Excel et PDF">
+          ${[['thin','Fin'],['medium','Moyen'],['thick','Épais']].map(([k,l])=>`<button onclick="state.mgBorderStyle='${k}';localStorage.setItem('mgBorderStyle','${k}');render()" style="padding:2px 6px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.mgBorderStyle===k?'#374151':'#f3f3f3'};color:${state.mgBorderStyle===k?'#fff':'#555'}">${l}</button>`).join('')}
+        </span>
       </div>
       <div id="cmp-list" style="display:flex;flex-wrap:wrap;gap:3px;max-height:150px;overflow-y:auto">
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}

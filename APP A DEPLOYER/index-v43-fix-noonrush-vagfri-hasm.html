@@ -2717,8 +2717,11 @@ function addFormHTML(){
 // Rendu d'un numéro avec sa couleur
 function numSpan(n, extra, cid){
   if(n==null||isNaN(n))return `<span class="num" style="color:#ccc;font-size:${extra&&extra.isM?'11px':'12px'}">–</span>`;
-  const colC=cid?state.coloredCells[cid]:null;
-  const col=state.colored[n];
+  // Double vue, volet "sans" : masque tout coloriage (manuel ET repérés) pour ce
+  // numéro, quel que soit ce qui est enregistré, afin que les deux volets soient
+  // visuellement différents même quand un jeu a des couleurs manuelles figées.
+  const colC=(!_DV_SUPPRESS&&cid)?state.coloredCells[cid]:null;
+  const col=_DV_SUPPRESS?null:state.colored[n];
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{
@@ -2730,8 +2733,8 @@ function numSpan(n, extra, cid){
   };
   // Numéro repéré (prédéfini, actif) : couleur pleine par défaut (comme un coloriage manuel),
   // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
-  const repereMark=(state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
-  const repere2Mark=(state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
+  const repereMark=(!_DV_SUPPRESS&&state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
+  const repere2Mark=(!_DV_SUPPRESS&&state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
   if(extra&&extra.isSrc){bg='#059669';fg='#fff';}
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
@@ -8275,21 +8278,27 @@ function anchorBarHTML(){
 const VCOL={};        // par colonne : items à afficher + contexte de rendu
 const VH={};          // hauteur mesurée d'une ligne, par colonne
 const VMARGE=12;      // lignes rendues au-delà de l'écran, en haut et en bas
+// Double vue : quand on génère les lignes du volet "sans", ce drapeau masque tout
+// coloriage (repérés ET coloriage manuel) dans numSpan, le temps de la génération.
+let _DV_SUPPRESS=false;
 function vRowHTML(it,ri,C){
   if(it.t==='ph')return it.h;
   if(it.t==='gap')return gapRowHTML(it.n,C.fS);
   const row=it.r, yr=C.yr, color=C.color, fS=C.fS, fN=C.fN, rP=C.rP;
   const _aT=C._aT, _aLk=C._aLk, pinIdx=C.pinIdx;
-  // Double vue : ce volet force l'affichage des repérés (true) ou le masque (false),
-  // le temps de générer cette ligne, sans toucher au réglage global de l'utilisateur.
-  const _hasOverride=C.repereOverride!==undefined;
-  const _savedRA=state.repereAlways, _savedRA2=state.repere2Always;
-  if(_hasOverride){state.repereAlways=C.repereOverride;state.repere2Always=C.repereOverride;}
+  // Double vue : le volet "rep" force l'affichage des repérés (même si le réglage
+  // global est désactivé) ; le volet "norep" masque TOUT coloriage (repérés +
+  // coloriage manuel), pour que les deux volets soient visuellement distincts
+  // même quand ce jeu a déjà des couleurs manuelles enregistrées.
+  const _dvMode=C.dvMode;
+  const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS;
+  if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
+  else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
   try{
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=_dvMode==='norep'?false:row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
@@ -8302,7 +8311,7 @@ function vRowHTML(it,ri,C){
 
   return out;
   }finally{
-    if(_hasOverride){state.repereAlways=_savedRA;state.repere2Always=_savedRA2;}
+    if(_dvMode){state.repereAlways=_savedRA;state.repere2Always=_savedRA2;_DV_SUPPRESS=_savedSup;}
   }
 }
 function vItems(yr,rows,gaps){
@@ -9298,8 +9307,8 @@ function __renderBody(){
         // Construit le HTML d'UNE colonne (un volet). vkey = clé unique utilisée pour
         // la virtualisation (VCOL/VH) et les id du DOM — distincte par volet en double
         // vue pour éviter toute collision entre les deux tableaux affichés.
-        const buildCol=(vkey,repereOverride,paneBadge,showPreds)=>{
-          VCOL[vkey]={items:_items,start:-1,end:-1,ctx:{yr:vkey,color,fS,fN,rP,_aT,_aLk,pinIdx,repereOverride}};
+        const buildCol=(vkey,dvMode,paneBadge,showPreds)=>{
+          VCOL[vkey]={items:_items,start:-1,end:-1,ctx:{yr:vkey,color,fS,fN,rP,_aT,_aLk,pinIdx,dvMode}};
           delete VH[vkey];
           return `<div class="col ${GAME.hasM?'has-m':''}" style="border-color:#${color};${GAME.hasM?'min-width:301px;max-width:316px;':''}">
           <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr}${paneBadge||''} ${GAME.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}${_aT?`<span onclick="setAnchor('${yr}')" style="background:#EA580C;color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Ancre sur le tirage ${_aT}">⚓ ${_aT}</span>`:`<span onclick="setAnchor('${yr}')" style="background:rgba(255,255,255,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Poser une ancre d'alignement">⚓</span>`}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages${(()=>{const g=gapCountFor(yr);return g?` • <span style="background:#C62828;color:#fff;padding:0 4px;border-radius:6px">${g} trou${g>1?'s':''}</span>`:'';})()}</div></div>
@@ -9310,8 +9319,8 @@ function __renderBody(){
         if(dualOn){
           const badgeOn=`<span onclick="event.stopPropagation();state.dualViewLeftOn=false;render()" style="cursor:pointer;background:rgba(0,0,0,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px" title="Masquer ce volet (avec repérés)">🎯 avec ✕</span>`;
           const badgeOff=`<span onclick="event.stopPropagation();state.dualViewRightOn=false;render()" style="cursor:pointer;background:rgba(0,0,0,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px" title="Masquer ce volet (sans repérés)">🚫 sans ✕</span>`;
-          if(state.dualViewLeftOn)html+=buildCol(yr+'__REP',true,badgeOn,true);
-          if(state.dualViewRightOn)html+=buildCol(yr+'__NOREP',false,badgeOff,!state.dualViewLeftOn);
+          if(state.dualViewLeftOn)html+=buildCol(yr+'__REP','rep',badgeOn,true);
+          if(state.dualViewRightOn)html+=buildCol(yr+'__NOREP','norep',badgeOff,!state.dualViewLeftOn);
           if(!state.dualViewLeftOn&&!state.dualViewRightOn){
             html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue (${yr}) sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:10px">Réafficher</button></div>`;
           }

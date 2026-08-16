@@ -1953,6 +1953,8 @@ let state={
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:false, repereActive:{}, repereSnapshots:[],
+  // Double vue : deux colonnes par année (une AVEC repérés forcés, une SANS), chacune masquable séparément
+  dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true,
   repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -7328,10 +7330,13 @@ function loadRepereDefinedState(){
       state.repereDefined=(d&&d.defined)?d.defined:(d||{});
       state.repereActive=(d&&d.active)?d.active:{};
     }else{
-      state.repereDefined={...REPERE_ORIGIN_DEFAULT};
+      // Rien d'enregistré : liste vide par défaut (le repère d'origine à
+      // 23 numéros n'est chargé que si l'utilisateur clique explicitement
+      // sur "↺ Repère d'origine" — jamais automatiquement).
+      state.repereDefined={};
       state.repereActive={};
     }
-  }catch(_){state.repereDefined={...REPERE_ORIGIN_DEFAULT};state.repereActive={};}
+  }catch(_){state.repereDefined={};state.repereActive={};}
 }
 function restoreRepereOrigin(){
   if(!confirm('Remettre le repère d\'origine (23 numéros identifiés sur BENZ) ? Ça remplace ta liste actuelle.'))return;
@@ -8275,6 +8280,12 @@ function vRowHTML(it,ri,C){
   if(it.t==='gap')return gapRowHTML(it.n,C.fS);
   const row=it.r, yr=C.yr, color=C.color, fS=C.fS, fN=C.fN, rP=C.rP;
   const _aT=C._aT, _aLk=C._aLk, pinIdx=C.pinIdx;
+  // Double vue : ce volet force l'affichage des repérés (true) ou le masque (false),
+  // le temps de générer cette ligne, sans toucher au réglage global de l'utilisateur.
+  const _hasOverride=C.repereOverride!==undefined;
+  const _savedRA=state.repereAlways, _savedRA2=state.repere2Always;
+  if(_hasOverride){state.repereAlways=C.repereOverride;state.repere2Always=C.repereOverride;}
+  try{
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
@@ -8288,8 +8299,11 @@ function vRowHTML(it,ri,C){
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}
           </div>`;
-        
+
   return out;
+  }finally{
+    if(_hasOverride){state.repereAlways=_savedRA;state.repere2Always=_savedRA2;}
+  }
 }
 function vItems(yr,rows,gaps){
   const items=[];
@@ -8556,6 +8570,7 @@ function anRender(){
       <button onclick="openRepereGlobal()" style="padding:3px 10px;background:#E0F2FE;color:#0E7490;border:1.5px solid #0E7490;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Voir tes numéros coloriés (repérés) recherchés dans tous les autres lotos, avec les mêmes couleurs">🎯 Mes repérés (tous lotos)</button>
       <button onclick="state.repereAlways=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #C2410C;background:${state.repereAlways!==false?'#C2410C':'#FFF7ED'};color:${state.repereAlways!==false?'#fff':'#C2410C'}" title="Active l'affichage automatique de tes repérés sur tous les lotos">✅ Avec repérés</button>
       <button onclick="state.repereAlways=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repereAlways===false?'#6B7280':'#F3F4F6'};color:${state.repereAlways===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique des repérés (ta liste n'est pas effacée)">🚫 Sans repérés</button>
+      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte : une AVEC tes repérés, une SANS. Chacune a son bouton pour la masquer.">🪟 Double vue repères</button>
       <button onclick="state.repereShowClass=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass!==false?'#fff':'#7E22CE'}" title="Affiche l'élément de classification (ex: C:14) à côté de chaque numéro repéré">🧩 Mes repérés avec élément</button>
       <button onclick="state.repereShowClass=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass===false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass===false?'#fff':'#7E22CE'}" title="N'affiche que le numéro repéré, sans élément de classification">🎯 Mes repérés sans élément</button>
       <button onclick="openRepere2Global()" style="padding:3px 10px;background:#FFFBEB;color:#B45309;border:1.5px solid #B45309;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Nouvelle liste indépendante, définie via une grille 1-90, visible partout EN PLUS de tes repérés">🎯 Liste 2 (grille 1-90)</button>
@@ -9237,7 +9252,8 @@ function __renderBody(){
     }else{
       const fS=state.excelFontSize,fN=state.excelFontSize+1,rP=state.excelRowPad;
       html+=settingsPanelHTML();
-      html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}${state.sideBySide&&state.selYears.length===2 && !GAME.hasM?" fit2":""}" id="cols-container" style="font-family:'${state.excelFont}',sans-serif">`;
+      const dualOn=!!state.dualViewOn;
+      html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}${state.sideBySide&&state.selYears.length===2 && !GAME.hasM && !dualOn?" fit2":""}" id="cols-container" style="font-family:'${state.excelFont}',sans-serif">`;
       const _aOff=anchorOffsets();
       state.selYears.forEach(yr=>{
         const color=YC[yr]||'1F2D3D';const rows=rowsForYear(yr);
@@ -9245,37 +9261,31 @@ function __renderBody(){
         const light=parseInt(color,16)>0x888888;
         let pinIdx=-1;
         if(state.pin){const[pd,pm]=state.pin.split('/');pinIdx=rows.findIndex(r=>{const[rd,rm]=r.d.split('/');return Math.abs(parseInt(rm)-parseInt(pm))*31+Math.abs(parseInt(rd)-parseInt(pd))<20;});}
-        html+=`<div class="col ${GAME.hasM?'has-m':''}" style="border-color:#${color};${GAME.hasM?'min-width:301px;max-width:316px;':''}">
-          <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr} ${GAME.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}${_aT?`<span onclick="setAnchor('${yr}')" style="background:#EA580C;color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Ancre sur le tirage ${_aT}">⚓ ${_aT}</span>`:`<span onclick="setAnchor('${yr}')" style="background:rgba(255,255,255,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Poser une ancre d'alignement">⚓</span>`}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages${(()=>{const g=gapCountFor(yr);return g?` • <span style="background:#C62828;color:#fff;padding:0 4px;border-radius:6px">${g} trou${g>1?'s':''}</span>`:'';})()}</div></div>
-          <div class="${GAME.n6?'grid-hdr-n6':GAME.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE',...(GAME.n6?['N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TOT.M']:[])])].map(h=>`<div>${h}</div>`).join('')}</div>
-          <div class="col-body" id="col-${yr}" onscroll="vScroll('${yr}')" onwheel="stepWheel(event,'${yr}')" ontouchstart="touchStepStart(event,'${yr}')" ontouchmove="touchStepMove(event,'${yr}')" ontouchend="touchStepEnd('${yr}')" ontouchcancel="touchStepEnd('${yr}')">`;
-        {
-          let ph0='';
-          precedingWeeklyPlaceholders(yr).forEach(ph=>{
-            ph0+=`<div class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Avant le début de l'historique">
-              <div style="font-weight:500;color:#ccc;font-size:8px">—</div>
-              <div style="font-size:8px;color:#bbb">${ph.d}</div>
-              ${(GAME.n6?[0,1,2,3,4,5]:[0,1,2,3,4]).map(()=>'<div style="color:#ddd;font-size:9px;text-align:center">·</div>').join('')}
-              <div style="font-size:8px;color:#ccc">·</div>
-              ${GAME.n6?'<div style="color:#ccc;font-size:8px">·</div><div style="color:#ccc;font-size:8px">·</div>':''}
-              ${GAME.hasM?[0,1,2,3,4].map(()=>'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
-              ${GAME.hasM?'<div style="color:#ccc;font-size:8px">·</div>':''}
-            </div>`;
-          });
-          const _items=[];
-          if(ph0)_items.push({t:'ph',h:ph0});
-          vItems(yr,rows,gapNumbersFor(yr)).forEach(x=>_items.push(x));
-          VCOL[yr]={items:_items,start:-1,end:-1,ctx:{yr,color,fS,fN,rP,_aT,_aLk,pinIdx}};
-          delete VH[yr];
-          html+=`<div id="vtop-${yr}"></div><div id="vrows-${yr}"></div><div id="vbot-${yr}"></div>`;
-        }
+        // Contenu partagé entre les deux volets en double vue (mêmes lignes, même
+        // liste virtualisée) : on ne le construit qu'une fois par année.
+        let ph0='';
+        precedingWeeklyPlaceholders(yr).forEach(ph=>{
+          ph0+=`<div class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Avant le début de l'historique">
+            <div style="font-weight:500;color:#ccc;font-size:8px">—</div>
+            <div style="font-size:8px;color:#bbb">${ph.d}</div>
+            ${(GAME.n6?[0,1,2,3,4,5]:[0,1,2,3,4]).map(()=>'<div style="color:#ddd;font-size:9px;text-align:center">·</div>').join('')}
+            <div style="font-size:8px;color:#ccc">·</div>
+            ${GAME.n6?'<div style="color:#ccc;font-size:8px">·</div><div style="color:#ccc;font-size:8px">·</div>':''}
+            ${GAME.hasM?[0,1,2,3,4].map(()=>'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
+            ${GAME.hasM?'<div style="color:#ccc;font-size:8px">·</div>':''}
+          </div>`;
+        });
+        const _items=[];
+        if(ph0)_items.push({t:'ph',h:ph0});
+        vItems(yr,rows,gapNumbersFor(yr)).forEach(x=>_items.push(x));
+        let predsHTML='';
         remainingWeeklyDraws(yr).forEach(ph=>{
           const preds=loadPredictions(GAME.key);
           const pv=preds[ph.t]||{};
           const vals=[0,1,2,3,4].map(ni=>pv[ni]!=null?pv[ni]:'');
           const allFilled=vals.every(v=>v!=='');
           const predTot=allFilled?vals.reduce((a,b)=>a+parseInt(b),0):null;
-          html+=`<div class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Numéros prédits — n'affecte pas les statistiques">
+          predsHTML+=`<div class="${GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Numéros prédits — n'affecte pas les statistiques">
             <div style="font-weight:500;color:#bbb;font-size:8px">${ph.t}</div>
             <div style="font-size:8px;color:#bbb">${ph.d}</div>
             ${[0,1,2,3,4].map(ni=>`<input type="number" min="1" max="90" value="${vals[ni]}" onchange="savePredictionCell('${GAME.key}',${ph.t},${ni},this.value);render()" style="width:100%;min-width:0;max-width:32px;padding:2px 1px;border:1px dashed #B39DDB;border-radius:3px;font-size:9px;text-align:center;background:#fff;color:#6D28D9">`).join('')}
@@ -9284,7 +9294,29 @@ function __renderBody(){
             ${GAME.hasM?'<div style="color:#ccc;font-size:8px">·</div>':''}
           </div>`;
         });
-        html+=`</div></div>`;
+        // Construit le HTML d'UNE colonne (un volet). vkey = clé unique utilisée pour
+        // la virtualisation (VCOL/VH) et les id du DOM — distincte par volet en double
+        // vue pour éviter toute collision entre les deux tableaux affichés.
+        const buildCol=(vkey,repereOverride,paneBadge,showPreds)=>{
+          VCOL[vkey]={items:_items,start:-1,end:-1,ctx:{yr:vkey,color,fS,fN,rP,_aT,_aLk,pinIdx,repereOverride}};
+          delete VH[vkey];
+          return `<div class="col ${GAME.hasM?'has-m':''}" style="border-color:#${color};${GAME.hasM?'min-width:301px;max-width:316px;':''}">
+          <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr}${paneBadge||''} ${GAME.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}${_aT?`<span onclick="setAnchor('${yr}')" style="background:#EA580C;color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Ancre sur le tirage ${_aT}">⚓ ${_aT}</span>`:`<span onclick="setAnchor('${yr}')" style="background:rgba(255,255,255,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="Poser une ancre d'alignement">⚓</span>`}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages${(()=>{const g=gapCountFor(yr);return g?` • <span style="background:#C62828;color:#fff;padding:0 4px;border-radius:6px">${g} trou${g>1?'s':''}</span>`:'';})()}</div></div>
+          <div class="${GAME.n6?'grid-hdr-n6':GAME.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE',...(GAME.n6?['N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TOT.M']:[])])].map(h=>`<div>${h}</div>`).join('')}</div>
+          <div class="col-body" id="col-${vkey}" onscroll="vScroll('${vkey}')" onwheel="stepWheel(event,'${vkey}')" ontouchstart="touchStepStart(event,'${vkey}')" ontouchmove="touchStepMove(event,'${vkey}')" ontouchend="touchStepEnd('${vkey}')" ontouchcancel="touchStepEnd('${vkey}')"><div id="vtop-${vkey}"></div><div id="vrows-${vkey}"></div><div id="vbot-${vkey}"></div>${showPreds?predsHTML:''}</div>
+        </div>`;
+        };
+        if(dualOn){
+          const badgeOn=`<span onclick="event.stopPropagation();state.dualViewLeftOn=false;render()" style="cursor:pointer;background:rgba(0,0,0,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px" title="Masquer ce volet (avec repérés)">🎯 avec ✕</span>`;
+          const badgeOff=`<span onclick="event.stopPropagation();state.dualViewRightOn=false;render()" style="cursor:pointer;background:rgba(0,0,0,.25);font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px" title="Masquer ce volet (sans repérés)">🚫 sans ✕</span>`;
+          if(state.dualViewLeftOn)html+=buildCol(yr+'__REP',true,badgeOn,true);
+          if(state.dualViewRightOn)html+=buildCol(yr+'__NOREP',false,badgeOff,!state.dualViewLeftOn);
+          if(!state.dualViewLeftOn&&!state.dualViewRightOn){
+            html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue (${yr}) sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:10px">Réafficher</button></div>`;
+          }
+        }else{
+          html+=buildCol(yr,undefined,'',true);
+        }
       });
       html+=`</div>`;
     }

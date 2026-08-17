@@ -2727,10 +2727,12 @@ function addFormHTML(){
 function numSpan(n, extra, cid){
   if(n==null||isNaN(n))return `<span class="num" style="color:#ccc;font-size:${extra&&extra.isM?'11px':'12px'}">–</span>`;
   // Le coloriage MANUEL n'est JAMAIS masqué, dans aucune vue — toujours visible,
-  // toujours modifiable. Seuls les repérés (repereMark/repere2Mark plus bas)
-  // restent liés au volet avec/sans en double vue.
-  const colC=cid?state.coloredCells[cid]:null;
-  const col=state.colored[n];
+  // toujours modifiable (clic jamais bloqué). SEULE EXCEPTION : le volet "sans"
+  // de la double vue masque aussi le coloriage manuel (_DV_SUPPRESS), pour que
+  // les deux volets restent VISUELLEMENT différents — c'est tout l'intérêt de
+  // la double vue (comparaison avec/sans repérés ET coloriage).
+  const colC=(!_DV_SUPPRESS&&cid)?state.coloredCells[cid]:null;
+  const col=_DV_SUPPRESS?null:state.colored[n];
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{
@@ -8325,7 +8327,7 @@ function vRowHTML(it,ri,C){
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=_DV_SUPPRESS?false:row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>

@@ -7265,7 +7265,14 @@ function touchStepEnd(id){
   delete _touchStep[id];
 }
 function syncScroll(id){
-  if(typeof VCOL!=='undefined'&&VCOL[id])setTimeout(()=>{Object.keys(VCOL).forEach(k=>{if(k!==id)vFill(k);});},0);
+  // Ne resynchronise que le volet jumeau de la double vue (même année, suffixe
+  // __REP/__NOREP), PAS toutes les autres colonnes/années affichées : rafraîchir
+  // des colonnes sans rapport à chaque cran de molette surchargeait le navigateur
+  // en vue "côte à côte" avec plusieurs années (flash de colonne vide constaté).
+  if(typeof VCOL!=='undefined'&&VCOL[id]){
+    const _base=String(id).split('__')[0];
+    setTimeout(()=>{Object.keys(VCOL).forEach(k=>{if(k!==id&&k.split('__')[0]===_base)vFill(k);});},0);
+  }
   // Mode figé : on reporte le DÉPLACEMENT de la colonne bougée sur toutes les
   // autres, en conservant les positions mémorisées au moment du figeage.
   if(state.freezeOn&&state.freezeOffsets&&state.freezeOffsets[id]!=null){

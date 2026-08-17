@@ -5217,6 +5217,9 @@ const ELM_DEF=[
   {key:'equiv',   label:'Equiv',    bg:'#558B2F', fg:'#fff'},
   {key:'miroir',  label:'Miroir',   bg:'#AB47BC', fg:'#fff'},
 ];
+// Éléments de la classification en exergue : tous actifs par défaut au démarrage
+// (cercles colorés visibles partout dès l'ouverture, sans avoir à les cocher un par un).
+if(!state.elmHL||!state.elmHL.length)state.elmHL=ELM_DEF.map(e=>e.key);
 function elmDerivs(n){ // tous les éléments de la classification pour un numéro
   // CODE[] contient des chaînes ("77") : on force le type, sinon la comparaison
   // avec les numéros du tirage (des nombres) échoue silencieusement.

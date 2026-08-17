@@ -1956,6 +1956,8 @@ let state={
   // Double vue : deux colonnes par année (une AVEC repérés forcés, une SANS), chacune masquable séparément.
   // dvColorRep/dvColorNorep : afficher ou non le coloriage MANUEL dans chaque volet (indépendant des repérés).
   dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true, dvColorRep:true, dvColorNorep:false,
+  // Vue simple épurée à la demande (masque visuellement coloriage manuel + repérés, clic toujours actif)
+  pureFactorsView:false,
   repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -8326,10 +8328,13 @@ function vRowHTML(it,ri,C){
   const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS, _savedSupM=_DV_SUPPRESS_MANUAL;
   if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;_DV_SUPPRESS_MANUAL=!state.dvColorRep;}
   else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;_DV_SUPPRESS_MANUAL=!state.dvColorNorep;}
+  // "🧼 vue 3 facteurs" (vue simple uniquement) : masque VISUELLEMENT coloriage
+  // manuel + repérés pour lire les 3 facteurs auto sans distraction. Ça ne
+  // bloque JAMAIS le clic : colorer/repérer marche toujours et c'est enregistré,
+  // ça ne s'affiche juste pas tant que la case reste cochée (conforme à "toutes
+  // les vues doivent être éditables" — éditable ≠ obligatoirement affiché ici).
+  else if(state.pureFactorsView){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS_MANUAL=true;}
   else{_DV_SUPPRESS_MANUAL=false;}
-  // Hors double vue, aucune case (vue par défaut / vue repérés) ne masque quoi
-  // que ce soit — l'appli reste pilotable partout, les 3 facteurs auto gardent
-  // simplement la priorité visuelle sur un numéro donné le cas échéant.
   try{
   let out='';
 
@@ -9080,6 +9085,7 @@ function __renderBody(){
       ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dvColorRep?'#0F766E':'#aaa'}" title="Afficher le coloriage manuel dans le volet AVEC repérés."><input type="checkbox" ${state.dvColorRep?'checked':''} onchange="state.dvColorRep=this.checked;render()">🎨 coloriage volet avec</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dvColorNorep?'#0F766E':'#aaa'}" title="Afficher le coloriage manuel dans le volet SANS repérés."><input type="checkbox" ${state.dvColorNorep?'checked':''} onchange="state.dvColorNorep=this.checked;render()">🎨 coloriage volet sans</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Active les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés). Coloriage manuel et repérés restent visibles."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.pureFactorsView?'#0369A1':'#aaa'}" title="Vue épurée : masque VISUELLEMENT coloriage manuel + repérés pour lire les 3 facteurs sans distraction. Tu peux toujours cliquer/colorer/repérer — c'est enregistré, juste pas affiché tant que c'est coché."><input type="checkbox" ${state.pureFactorsView?'checked':''} onchange="state.pureFactorsView=this.checked;render()">🧼 vue 3 facteurs seule</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>`:''}

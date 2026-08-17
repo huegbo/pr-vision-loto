@@ -1954,10 +1954,7 @@ let state={
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:false, repereActive:{}, repereSnapshots:[],
   // Double vue : deux colonnes par année (une AVEC repérés forcés, une SANS), chacune masquable séparément.
-  // dvColorRep/dvColorNorep : afficher ou non le coloriage MANUEL dans chaque volet (indépendant des repérés).
-  dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true, dvColorRep:true, dvColorNorep:false,
-  // Vue simple épurée à la demande (masque visuellement coloriage manuel + repérés, clic toujours actif)
-  pureFactorsView:false,
+  dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true,
   repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -2729,11 +2726,11 @@ function addFormHTML(){
 // Rendu d'un numéro avec sa couleur
 function numSpan(n, extra, cid){
   if(n==null||isNaN(n))return `<span class="num" style="color:#ccc;font-size:${extra&&extra.isM?'11px':'12px'}">–</span>`;
-  // Double vue : chaque volet peut masquer indépendamment le coloriage MANUEL
-  // (case dédiée par volet) et/ou les REPÉRÉS (_DV_SUPPRESS, lié au volet
-  // avec/sans). Hors double vue, rien n'est jamais masqué.
-  const colC=(!_DV_SUPPRESS_MANUAL&&cid)?state.coloredCells[cid]:null;
-  const col=_DV_SUPPRESS_MANUAL?null:state.colored[n];
+  // Le coloriage MANUEL n'est JAMAIS masqué, dans aucune vue — toujours visible,
+  // toujours modifiable. Seuls les repérés (repereMark/repere2Mark plus bas)
+  // restent liés au volet avec/sans en double vue.
+  const colC=cid?state.coloredCells[cid]:null;
+  const col=state.colored[n];
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{
@@ -8311,35 +8308,24 @@ const VMARGE=12;      // lignes rendues au-delà de l'écran, en haut et en bas
 // Double vue : quand on génère les lignes du volet "sans", ce drapeau masque tout
 // coloriage (repérés ET coloriage manuel) dans numSpan, le temps de la génération.
 let _DV_SUPPRESS=false;
-// Suppression du coloriage MANUEL uniquement (indépendante des repérés) — pilotée
-// par volet en double vue via les cases "afficher coloriage" avec/sans.
-let _DV_SUPPRESS_MANUAL=false;
 function vRowHTML(it,ri,C){
   if(it.t==='ph')return it.h;
   if(it.t==='gap')return gapRowHTML(it.n,C.fS);
   const row=it.r, yr=C.yr, color=C.color, fS=C.fS, fN=C.fN, rP=C.rP;
   const _aT=C._aT, _aLk=C._aLk, pinIdx=C.pinIdx;
   // Double vue : le volet "rep" force l'affichage des repérés (même si le réglage
-  // global est désactivé) ; le volet "norep" masque les repérés. Le coloriage
-  // MANUEL, lui, est indépendant : chaque volet a SA PROPRE case "afficher
-  // coloriage" (state.dvColorRep / state.dvColorNorep), pour choisir de l'avoir
-  // sur un seul volet ou les deux.
+  // global est désactivé) ; le volet "norep" les masque. C'est la SEULE différence
+  // entre les deux volets désormais — le coloriage manuel, lui, s'affiche toujours
+  // pareil dans les deux (jamais masqué, cf. numSpan).
   const _dvMode=C.dvMode;
-  const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS, _savedSupM=_DV_SUPPRESS_MANUAL;
-  if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;_DV_SUPPRESS_MANUAL=!state.dvColorRep;}
-  else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;_DV_SUPPRESS_MANUAL=!state.dvColorNorep;}
-  // "🧼 vue 3 facteurs" (vue simple uniquement) : masque VISUELLEMENT coloriage
-  // manuel + repérés pour lire les 3 facteurs auto sans distraction. Ça ne
-  // bloque JAMAIS le clic : colorer/repérer marche toujours et c'est enregistré,
-  // ça ne s'affiche juste pas tant que la case reste cochée (conforme à "toutes
-  // les vues doivent être éditables" — éditable ≠ obligatoirement affiché ici).
-  else if(state.pureFactorsView){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS_MANUAL=true;}
-  else{_DV_SUPPRESS_MANUAL=false;}
+  const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS;
+  if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
+  else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
   try{
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=_DV_SUPPRESS_MANUAL?false:row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
@@ -8366,7 +8352,7 @@ function vRowHTML(it,ri,C){
 
   return out;
   }finally{
-    state.repereAlways=_savedRA;state.repere2Always=_savedRA2;_DV_SUPPRESS=_savedSup;_DV_SUPPRESS_MANUAL=_savedSupM;
+    state.repereAlways=_savedRA;state.repere2Always=_savedRA2;_DV_SUPPRESS=_savedSup;
   }
 }
 function vItems(yr,rows,gaps){
@@ -9081,11 +9067,8 @@ function __renderBody(){
       </div>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année : une AVEC tes repérés, une SANS. Chacune a un bouton pour la masquer."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue repérés</label>
-      ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dvColorRep?'#0F766E':'#aaa'}" title="Afficher le coloriage manuel dans le volet AVEC repérés."><input type="checkbox" ${state.dvColorRep?'checked':''} onchange="state.dvColorRep=this.checked;render()">🎨 coloriage volet avec</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dvColorNorep?'#0F766E':'#aaa'}" title="Afficher le coloriage manuel dans le volet SANS repérés."><input type="checkbox" ${state.dvColorNorep?'checked':''} onchange="state.dvColorNorep=this.checked;render()">🎨 coloriage volet sans</label>`:''}
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année : une AVEC tes repérés, une SANS. Chacune a un bouton pour la masquer. Le coloriage manuel, lui, s'affiche pareil dans les deux volets."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue repérés</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Active les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés). Coloriage manuel et repérés restent visibles."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.pureFactorsView?'#0369A1':'#aaa'}" title="Vue épurée : masque VISUELLEMENT coloriage manuel + repérés pour lire les 3 facteurs sans distraction. Tu peux toujours cliquer/colorer/repérer — c'est enregistré, juste pas affiché tant que c'est coché."><input type="checkbox" ${state.pureFactorsView?'checked':''} onchange="state.pureFactorsView=this.checked;render()">🧼 vue 3 facteurs seule</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>`:''}

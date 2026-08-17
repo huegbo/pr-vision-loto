@@ -322,13 +322,6 @@ const GAMES={
   bj_h11:{name:'TOUT 11H',icon:'🕚',raw:RAW_BJ_H11,hasM:false,sum10:true},
   bj_h14:{name:'TOUT 14H',icon:'🕑',raw:RAW_BJ_H14,hasM:true,sum10:true},
   bj_h18:{name:'TOUT 18H',icon:'🕕',raw:RAW_BJ_H18,hasM:false,sum10:true},
-  toutbenin_lundi:{name:'BENIN LUNDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_LUNDI,hasM:true,sum10:true},
-  toutbenin_mardi:{name:'BENIN MARDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_MARDI,hasM:true,sum10:true},
-  toutbenin_mercredi:{name:'BENIN MERCREDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_MERCREDI,hasM:true,sum10:true},
-  toutbenin_jeudi:{name:'BENIN JEUDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_JEUDI,hasM:true,sum10:true},
-  toutbenin_vendredi:{name:'BENIN VENDREDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_VENDREDI,hasM:true,sum10:true},
-  toutbenin_samedi:{name:'BENIN SAMEDI',icon:'🇧🇯',raw:RAW_TOUTBENIN_SAMEDI,hasM:true,sum10:true},
-  toutbenin_dimanche:{name:'BENIN DIMANCHE',icon:'🇧🇯',raw:RAW_TOUTBENIN_DIMANCHE,hasM:true,sum10:true},
   cagliari:{name:'CAGLIARI',icon:'🇮🇹',raw:RAW_CAGLIARI},
   malta:{name:'MALTA',icon:'🇲🇹',raw:RAW_MALTA},
   national:{name:'NATIONAL',icon:'🇬🇭',raw:RAW_NATIONAL,hasM:true,sum10:true},
@@ -3699,9 +3692,7 @@ function rangeBounds(){
 // Les jeux Bénin « multi-tirages » mélangent plusieurs tirages par jour. Ce filtre
 // permet de n'en garder qu'une partie — ex. « que Star », « que Fortune du jeudi » —
 // tout en gardant le NOM D'ORIGINE de chaque tirage affiché sur sa ligne.
-const BJ_MULTI=['benin_all_jeu','toutbenin','digital_tout','bj_h11','bj_h14','bj_h18',
-                'toutbenin_lundi','toutbenin_mardi','toutbenin_mercredi','toutbenin_jeudi',
-                'toutbenin_vendredi','toutbenin_samedi','toutbenin_dimanche'];
+const BJ_MULTI=['benin_all_jeu','toutbenin','digital_tout','bj_h11','bj_h14','bj_h18'];
 let BJ_CODE=null;
 function bjCodeMap(){
   if(BJ_CODE)return BJ_CODE;

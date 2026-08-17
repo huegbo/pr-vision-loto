@@ -2224,18 +2224,23 @@ function showMenu(n,cid,x,y){
         <input type="color" value="${state.hlColor||'#E53935'}" oninput="setHlColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%">
       </label>
     </div>
-    <div class="nmenu-item" onclick="event.stopPropagation();colorAll(${n})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes numéros'}</div>
-    ${cid?`<div class="nmenu-item" onclick="event.stopPropagation();colorCell(${n},'${cid}')">${hasCell?'❌ Enlever ce numéro':'🔹 Ce numéro seulement'}</div>`:''}
-    <div class="nmenu-item" onclick="event.stopPropagation();toggleRepereFromMenu(${n})" style="color:#C2410C;font-weight:600">${state.repereDefined[n]?'❌ Retirer des repérés':'🎯 Ajouter aux repérés (visible partout)'}</div>
-    <div class="nmenu-item" onclick="event.stopPropagation();toggleRepere2FromMenu(${n})" style="color:#B45309;font-weight:600">${state.repere2Defined[n]?'❌ Retirer de la liste 2':'🎯 Ajouter à la liste 2 (visible partout)'}</div>
-    <div class="nmenu-item" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
+    <div style="display:flex">
+      <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();colorAll(${n})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes'}</div>
+      ${cid?`<div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8" onclick="event.stopPropagation();colorCell(${n},'${cid}')">${hasCell?'❌ Enlever ce N°':'🔹 Ce N° seulement'}</div>`:''}
+    </div>
+    <div style="display:flex">
+      <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;color:#C2410C;font-weight:600" onclick="event.stopPropagation();toggleRepereFromMenu(${n})">${state.repereDefined[n]?'❌ Retirer repérés':'🎯 + Repérés'}</div>
+      <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8;color:#B45309;font-weight:600" onclick="event.stopPropagation();toggleRepere2FromMenu(${n})">${state.repere2Defined[n]?'❌ Retirer liste 2':'🎯 + Liste 2'}</div>
+    </div>
+    <div class="nmenu-item" style="font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
     ${elmMenuHTML(n)}
     <div style="display:flex;gap:4px;padding:5px 10px 8px;border-top:1px solid #f0f0f0;margin-top:2px">
       <button onclick="event.stopPropagation();searchNumFromMenu(${n},'${cid||''}','any')" style="flex:1;padding:4px 2px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;border:1.5px solid #1F2D3D;background:#fff;color:#1F2D3D">🔍 Chercher (toutes positions)</button>
       ${cid?`<button onclick="event.stopPropagation();searchNumFromMenu(${n},'${cid}','same')" style="flex:1;padding:4px 2px;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;border:1.5px solid #F59E0B;background:#fff;color:#F59E0B">📍 ${state.searchPosMode==='same'&&state.search.length?'Ajouter (même position)':'Chercher (même position)'}</button>`:''}
     </div>
   `;
-  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(70px + env(safe-area-inset-top));visibility:visible;`;
+  const _mh=Math.min(window.innerHeight-90,520);
+  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(50px + env(safe-area-inset-top));max-height:${_mh}px;visibility:visible;`;
   document.getElementById('popup-overlay').style.display='block';
 }
 // Résout la valeur affichée à une case donnée (cid = "tirage_position", ex "1850_0" ou "1850_m2")
@@ -2358,7 +2363,7 @@ function showBlockColorMenu(t,x,y){
     </div>
     ${state.blockRows[t]?`<div class="nmenu-item" onclick="event.stopPropagation();removeBlockColor(${t})">❌ Enlever la couleur de cette ligne</div>`:''}
   `;
-  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(70px + env(safe-area-inset-top));visibility:visible;`;
+  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(50px + env(safe-area-inset-top));visibility:visible;`;
   document.getElementById('popup-overlay').style.display='block';
 }
 // Comme colorRow, mais pour un tirage d'un jeu précis (mode Comparer jeux)

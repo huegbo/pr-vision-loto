@@ -98,7 +98,7 @@ th.excel-frozen{z-index:9;}
 .popup-body{display:flex;flex-wrap:wrap;gap:1px 6px;}
 .popup-row{display:flex;align-items:center;gap:2px;line-height:1.2;font-size:9px;white-space:nowrap;}
 .popup-label{color:#9AA6B5;font-weight:normal;}
-.nmenu{position:fixed;z-index:1000;background:#fff;border-radius:13px;box-shadow:0 10px 36px rgba(31,45,61,.35);overflow-y:auto;max-height:58vh;min-width:200px;border:1px solid var(--line);}
+.nmenu{position:fixed;z-index:1000;background:#fff;border-radius:13px;box-shadow:0 10px 36px rgba(31,45,61,.35);overflow-y:auto;overflow-x:hidden;max-height:58vh;width:250px;max-width:calc(100vw - 20px);box-sizing:border-box;border:1px solid var(--line);}
 .nmenu-hdr{background:linear-gradient(135deg,#1E3A8A,#1F2D3D);color:var(--accent);font-weight:700;text-align:center;padding:5px;font-size:15px;}
 .nmenu-item{padding:7px 13px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:1px solid #F2F4F8;color:#2C3E50;user-select:none;}
 .nmenu-item:hover{background:#F5F7FA;}
@@ -2240,7 +2240,8 @@ function showMenu(n,cid,x,y){
     </div>
   `;
   const _mh=Math.min(window.innerHeight-90,520);
-  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(50px + env(safe-area-inset-top));max-height:${_mh}px;visibility:visible;`;
+  const _mw=Math.min(250,window.innerWidth-20);
+  m.style.cssText=`display:block;left:${Math.max(10,Math.min(x,window.innerWidth-_mw-10))}px;top:calc(50px + env(safe-area-inset-top));width:${_mw}px;max-height:${_mh}px;visibility:visible;`;
   document.getElementById('popup-overlay').style.display='block';
 }
 // Résout la valeur affichée à une case donnée (cid = "tirage_position", ex "1850_0" ou "1850_m2")
@@ -2363,7 +2364,7 @@ function showBlockColorMenu(t,x,y){
     </div>
     ${state.blockRows[t]?`<div class="nmenu-item" onclick="event.stopPropagation();removeBlockColor(${t})">❌ Enlever la couleur de cette ligne</div>`:''}
   `;
-  m.style.cssText=`display:block;left:${Math.min(x,window.innerWidth-230)}px;top:calc(50px + env(safe-area-inset-top));visibility:visible;`;
+  m.style.cssText=`display:block;left:${Math.max(10,Math.min(x,window.innerWidth-260))}px;top:calc(50px + env(safe-area-inset-top));visibility:visible;`;
   document.getElementById('popup-overlay').style.display='block';
 }
 // Comme colorRow, mais pour un tirage d'un jeu précis (mode Comparer jeux)

@@ -8321,12 +8321,12 @@ function vRowHTML(it,ri,C){
   const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS;
   if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
   else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
-  else if(!_dvMode&&state.mirLAlways&&state.mirPAlways&&state.superposAlways){
-    // "🎯 vue par défaut" cochée, en vue simple (pas de double vue) : affichage
-    // propre, uniquement les 3 facteurs — le coloriage manuel/repérés ne
-    // parasite plus la lecture, comme dans le volet "sans" de la double vue.
-    state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;
-  }
+  // En vue simple (pas de double vue), même avec "🎯 vue par défaut" cochée : on
+  // n'écrase plus le coloriage manuel ni les repérés. L'appli doit rester
+  // pilotable partout — les 3 facteurs auto (miroir même ligne, miroir
+  // superposé, même numéro superposé) gardent simplement la priorité visuelle
+  // sur un numéro donné (déjà géré par l'ordre des priorités dans numSpan),
+  // sans avoir besoin de masquer tout le reste.
   try{
   let out='';
 

@@ -7213,7 +7213,7 @@ function alignAnchorRows(){
     const t=anchorTopIn(id), b=document.getElementById('col-'+id);
     if(t==null||!b)return;
     const want=Math.max(0,t-yRef);
-    if(Math.abs(b.scrollTop-want)>0.5)b.scrollTop=want;
+    if(Math.abs(b.scrollTop-want)>0.5){_progScroll[id]=true;b.scrollTop=want;}
   });
 }
 // Défilement "pas à pas" à la molette/trackpad : chaque cran de molette avance
@@ -7264,7 +7264,12 @@ function touchStepMove(e,id){
 function touchStepEnd(id){
   delete _touchStep[id];
 }
+const _progScroll={}; // colonnes dont le scrollTop vient d'être poussé PAR le code
+                       // (pas par l'utilisateur) — évite les allers-retours infinis
+                       // entre colonnes synchronisées (ancre/figé), source du
+                       // "ça vibre en permanence" tant que rien n'est figé.
 function syncScroll(id){
+  if(_progScroll[id]){delete _progScroll[id];return;}
   // Ne resynchronise que le volet jumeau de la double vue (même année, suffixe
   // __REP/__NOREP), PAS toutes les autres colonnes/années affichées : rafraîchir
   // des colonnes sans rapport à chaque cran de molette surchargeait le navigateur
@@ -7284,7 +7289,7 @@ function syncScroll(id){
         const el=document.getElementById('col-'+o);
         if(!el)return;
         const want=Math.max(0,Math.min(base+delta,el.scrollHeight-el.clientHeight));
-        if(Math.abs(el.scrollTop-want)>0.5)el.scrollTop=want;
+        if(Math.abs(el.scrollTop-want)>0.5){_progScroll[o]=true;el.scrollTop=want;}
       });
       return;
     }
@@ -7301,7 +7306,7 @@ function syncScroll(id){
         const b=document.getElementById('col-'+o), t=anchorTopIn(o);
         if(!b||t==null)return;
         const want=Math.max(0,src.scrollTop+(t-tSrc));
-        if(Math.abs(b.scrollTop-want)>0.5)b.scrollTop=want;
+        if(Math.abs(b.scrollTop-want)>0.5){_progScroll[o]=true;b.scrollTop=want;}
       });
       return;
     }
@@ -7311,7 +7316,7 @@ function syncScroll(id){
   let all;
   if(state.tab===1)all=Array.from({length:state.np},(_,i)=>'p'+i);
   else all=(state.tab===0&&state.navMode==='games')?state.selGames:state.selYears;
-  all.forEach(y=>{if(String(y)!==String(id)){const el=document.getElementById('col-'+y);if(el&&el.scrollTop!==top)el.scrollTop=top;}  });
+  all.forEach(y=>{if(String(y)!==String(id)){const el=document.getElementById('col-'+y);if(el&&el.scrollTop!==top){_progScroll[y]=true;el.scrollTop=top;}}  });
 }
 
 // Données d'un jeu sans changer le jeu actif (avec cache)

@@ -1955,6 +1955,10 @@ let state={
   repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:false, repereActive:{}, repereSnapshots:[],
   // Double vue : deux colonnes par année (une AVEC repérés forcés, une SANS), chacune masquable séparément
   dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true,
+  // Vue épurée : n'affiche QUE les 3 facteurs auto (miroir même ligne, miroir superposé,
+  // même numéro superposé) — masque coloriage manuel + repérés, distincte de "vue par défaut"
+  // qui elle affiche tout ensemble.
+  pureFactorsView:false,
   repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -8321,12 +8325,15 @@ function vRowHTML(it,ri,C){
   const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS;
   if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
   else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
-  // En vue simple (pas de double vue), même avec "🎯 vue par défaut" cochée : on
-  // n'écrase plus le coloriage manuel ni les repérés. L'appli doit rester
-  // pilotable partout — les 3 facteurs auto (miroir même ligne, miroir
-  // superposé, même numéro superposé) gardent simplement la priorité visuelle
-  // sur un numéro donné (déjà géré par l'ordre des priorités dans numSpan),
-  // sans avoir besoin de masquer tout le reste.
+  // En vue simple (pas de double vue), "🎯 vue par défaut" n'écrase plus le
+  // coloriage manuel ni les repérés — l'appli doit rester pilotable partout.
+  // Les 3 facteurs auto (miroir même ligne, miroir superposé, même numéro
+  // superposé) gardent simplement la priorité visuelle sur un numéro donné
+  // (déjà géré par l'ordre des priorités dans numSpan).
+  // "🧼 vue 3 facteurs" (distincte) : affichage épuré à la demande, uniquement
+  // les 3 facteurs auto, coloriage manuel + repérés masqués — comme l'ancien
+  // comportement de "vue par défaut" avant qu'elle ne devienne cumulative.
+  else if(!_dvMode&&state.pureFactorsView){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
   try{
   let out='';
 
@@ -9074,7 +9081,8 @@ function __renderBody(){
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année : une AVEC tes repérés, une SANS. Chacune a un bouton pour la masquer."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue repérés</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Vue propre : seuls les 3 facteurs (miroir même ligne, miroir superposé, mêmes numéros superposés) sont visibles — le coloriage manuel et les repérés sont masqués tant que c'est coché. Actif par défaut."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Active les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés) EN PLUS de ton coloriage manuel et de tes repérés — rien n'est masqué."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.pureFactorsView?'#0369A1':'#aaa'}" title="Vue épurée : affiche UNIQUEMENT les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés) — coloriage manuel et repérés masqués tant que c'est coché."><input type="checkbox" ${state.pureFactorsView?'checked':''} onchange="state.pureFactorsView=this.checked;render()">🧼 vue 3 facteurs</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>`:''}

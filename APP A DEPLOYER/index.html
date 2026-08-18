@@ -1983,6 +1983,14 @@ let state={
   // coloredCells2 pour "sans"). Ancien nom dualViewOn/dualViewLeftOn/dualViewRightOn conservé
   // en accesseurs (voir plus bas) pour compatibilité avec le reste du code.
   dualView:{on:false, showWith:true, showWithout:true},
+  // Bandeau de statut des listes (Navigation) : repliable/fermable, préférence retenue.
+  listsBarOn:(()=>{
+    try{
+      const v=localStorage.getItem('loto_lists_bar');
+      if(v===null)return true;
+      return v!=='0';
+    }catch(_){return true;}
+  })(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -7539,6 +7547,37 @@ function resetDisplayPrefs(){
   saveDualViewPref();
   setRepereDisplayStyle('fill'); // sauvegarde le style + render()
 }
+// Replie/déplie le bandeau de statut des listes (Navigation) — préférence retenue.
+function setListsBarOn(on){
+  state.listsBarOn=!!on;
+  try{lsSet('loto_lists_bar',state.listsBarOn?'1':'0');}catch(_){}
+  render();
+}
+function listsStatusBarHTML(){
+  if(state.listsBarOn===false){
+    return `<div style="display:flex;justify-content:flex-end;margin:2px 0 4px">
+      <button onclick="setListsBarOn(true)" title="Réafficher le bandeau listes"
+        style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:600;font-size:9px;border:1px solid #D1D5DB;background:#F9FAFB;color:#6B7280">
+        🎯 Bandeau listes
+      </button>
+    </div>`;
+  }
+  return `<div class="card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;font-size:10px;background:${listsVisible()?'#FFF7ED':'#F3F4F6'};border:1.5px solid ${listsVisible()?'#C2410C':'#ccc'}">
+    <span style="font-weight:700;color:${listsVisible()?'#C2410C':'#6B7280'}">📋 Listes ${listsVisible()?'ON':'OFF'}</span>
+    <span onclick="openRepereGlobal()" style="color:#0E7490;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste A">L1: ${Object.keys(state.lists.A.nums).length}</span>
+    <span onclick="openRepere2Global()" style="color:#B45309;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste B">L2: ${Object.keys(state.lists.B.nums).length}</span>
+    <span style="color:#555">🎨 ${({fill:'Plein',box:'Encadré',underline:'Souligné',text:'Texte'})[state.listStyle]||'Plein'}</span>
+    ${listDoublons().length?`<span onclick="openDoublonsPanel()" style="cursor:pointer;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</span>`:''}
+    <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}saveDualViewPref();render()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#fff'};color:${state.dualViewOn?'#fff':'#0F766E'}">🪟 Double vue ${state.dualViewOn?'ON':'OFF'}</button>
+    <button onclick="setListsVisible(!listsVisible())" style="margin-left:auto;padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}">${listsVisible()?'🚫 Masquer':'✅ Afficher'}</button>
+    <button onclick="resetDisplayPrefs()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Masque les listes, désactive la double vue, remet le style Plein — sans effacer tes numéros">↺ Réinitialiser l'affichage</button>
+    <button onclick="setListsBarOn(false)" title="Fermer le bandeau" aria-label="Fermer le bandeau"
+      style="margin-left:2px;width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;
+             font-weight:700;font-size:14px;line-height:1;border:1.5px solid #D1D5DB;
+             background:#fff;color:#6B7280;display:inline-flex;align-items:center;
+             justify-content:center;flex-shrink:0">×</button>
+  </div>`;
+}
 // ── Doublons Liste A ↔ Liste B : un même numéro dans les deux listes n'est pas une erreur en
 // soi (Liste A gagne à l'écran, cf. priorité repereMark > repere2Mark dans numSpan), mais c'est
 // une source de confusion fréquente ("pourquoi ce numéro garde la couleur de L1 ?"). Détection
@@ -9283,16 +9322,7 @@ function __renderBody(){
 
   // ── ONGLET NAVIGATION ─────────────────────────────────────
   if(state.tab===0){
-    html+=`<div class="card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;font-size:10px;background:${listsVisible()?'#FFF7ED':'#F3F4F6'};border:1.5px solid ${listsVisible()?'#C2410C':'#ccc'}">
-      <span style="font-weight:700;color:${listsVisible()?'#C2410C':'#6B7280'}">📋 Listes ${listsVisible()?'ON':'OFF'}</span>
-      <span onclick="openRepereGlobal()" style="color:#0E7490;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste A">L1: ${Object.keys(state.lists.A.nums).length}</span>
-      <span onclick="openRepere2Global()" style="color:#B45309;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste B">L2: ${Object.keys(state.lists.B.nums).length}</span>
-      <span style="color:#555">🎨 ${({fill:'Plein',box:'Encadré',underline:'Souligné',text:'Texte'})[state.listStyle]||'Plein'}</span>
-      ${listDoublons().length?`<span onclick="openDoublonsPanel()" style="cursor:pointer;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</span>`:''}
-      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}saveDualViewPref();render()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#fff'};color:${state.dualViewOn?'#fff':'#0F766E'}">🪟 Double vue ${state.dualViewOn?'ON':'OFF'}</button>
-      <button onclick="setListsVisible(!listsVisible())" style="margin-left:auto;padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}">${listsVisible()?'🚫 Masquer':'✅ Afficher'}</button>
-      <button onclick="resetDisplayPrefs()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Masque les listes, désactive la double vue, remet le style Plein — sans effacer tes numéros">↺ Réinitialiser l'affichage</button>
-    </div>`;
+    html+=listsStatusBarHTML();
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){
       html+=`<div class="card" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">

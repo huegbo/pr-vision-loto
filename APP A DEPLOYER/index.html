@@ -2290,6 +2290,7 @@ function showMenu(n,cid,x,y,pane2){
       <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;color:#C2410C;font-weight:600" onclick="event.stopPropagation();toggleRepereFromMenu(${n})">${state.repereDefined[n]?'❌ Retirer repérés':'🎯 + Repérés'}</div>
       <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8;color:#B45309;font-weight:600" onclick="event.stopPropagation();toggleRepere2FromMenu(${n})">${state.repere2Defined[n]?'❌ Retirer liste 2':'🎯 + Liste 2'}</div>
     </div>
+    ${(state.repereDefined[n]||state.repere2Defined[n])&&(hasAll||hasCell)?`<div class="nmenu-item" style="font-size:10px;padding:6px 8px;background:#FEF3C7;color:#92400E;font-weight:600" onclick="event.stopPropagation();${hasCell?`colorCell(${n},'${cid}',${pane2?'true':'false'})`:`colorAll(${n},${pane2?'true':'false'})`}">⚠️ Repéré masqué par coloriage manuel — cliquer pour l'enlever</div>`:''}
     <div class="nmenu-item" style="font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
     ${elmMenuHTML(n)}
     <div style="display:flex;gap:4px;padding:5px 10px 8px;border-top:1px solid #f0f0f0;margin-top:2px">
@@ -7528,6 +7529,16 @@ function autoShowList(key){
   const l=state.lists[key];
   if(l&&!l.on){l.on=true;saveListsVisiblePref();}
 }
+// Coupe les états d'affichage confus en un clic : masque les listes, désactive la double
+// vue, remet le style Plein — SANS effacer aucun numéro (contenu des listes intact).
+function resetDisplayPrefs(){
+  state.lists.A.on=false;
+  state.lists.B.on=false;
+  saveListsVisiblePref();
+  state.dualViewOn=false;
+  saveDualViewPref();
+  setRepereDisplayStyle('fill'); // sauvegarde le style + render()
+}
 // Style à donner à un NOUVEAU repéré (n'importe quelle méthode de création) : toujours
 // dérivé du réglage global state.repereDisplayStyle, jamais de state.hlStyle (bouton du
 // menu de coloriage manuel, sans rapport). undefined = "plein" (branche par défaut de applyHl).
@@ -9219,6 +9230,15 @@ function __renderBody(){
 
   // ── ONGLET NAVIGATION ─────────────────────────────────────
   if(state.tab===0){
+    html+=`<div class="card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;font-size:10px;background:${listsVisible()?'#FFF7ED':'#F3F4F6'};border:1.5px solid ${listsVisible()?'#C2410C':'#ccc'}">
+      <span style="font-weight:700;color:${listsVisible()?'#C2410C':'#6B7280'}">📋 Listes ${listsVisible()?'ON':'OFF'}</span>
+      <span style="color:#555">L1: ${Object.keys(state.lists.A.nums).length}</span>
+      <span style="color:#555">L2: ${Object.keys(state.lists.B.nums).length}</span>
+      <span style="color:#555">Style: ${({fill:'Plein',box:'Encadré',underline:'Souligné',text:'Texte'})[state.listStyle]||'Plein'}</span>
+      <span style="color:${state.dualViewOn?'#0F766E':'#999'};font-weight:${state.dualViewOn?'700':'400'}">🪟 Double vue ${state.dualViewOn?'ON':'OFF'}</span>
+      <button onclick="setListsVisible(!listsVisible())" style="margin-left:auto;padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}">${listsVisible()?'🚫 Masquer':'✅ Afficher'}</button>
+      <button onclick="resetDisplayPrefs()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Masque les listes, désactive la double vue, remet le style Plein — sans effacer tes numéros">↺ Réinitialiser l'affichage</button>
+    </div>`;
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){
       html+=`<div class="card" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">

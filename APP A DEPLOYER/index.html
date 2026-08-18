@@ -7503,7 +7503,31 @@ function toggleRepereActive(n){
 // individuels (state.lists.A.on / state.lists.B.on, alias repereAlways/repere2Always) restent
 // utilisables indépendamment si besoin (ex: n'afficher que la liste B).
 function listsVisible(){return state.lists.A.on||state.lists.B.on;}
-function setListsVisible(on){state.lists.A.on=on;state.lists.B.on=on;render();}
+function setListsVisible(on){state.lists.A.on=on;state.lists.B.on=on;saveListsVisiblePref();render();}
+// ── Persistance des préférences d'affichage (indépendantes du contenu des listes) :
+// visibilité (listes A/B), style global, et double vue — retrouvées telles quelles
+// au rechargement de la page.
+function saveListsVisiblePref(){lsSet('loto_lists_on',JSON.stringify({A:!!state.lists.A.on,B:!!state.lists.B.on}));}
+function loadListsVisiblePref(){
+  try{
+    const raw=lsGetOr('loto_lists_on','');
+    if(raw){const d=JSON.parse(raw)||{};state.lists.A.on=!!d.A;state.lists.B.on=!!d.B;}
+  }catch(_){}
+}
+function saveListStylePref(){lsSet('loto_repere_style',state.listStyle||'fill');}
+function loadListStylePref(){
+  try{const s=lsGetOr('loto_repere_style','');if(s)state.listStyle=s;}catch(_){}
+}
+function saveDualViewPref(){lsSet('loto_dual_view',state.dualView.on?'1':'0');}
+function loadDualViewPref(){
+  try{const v=lsGetOr('loto_dual_view','');if(v)state.dualView.on=(v==='1');}catch(_){}
+}
+// Active automatiquement l'affichage d'une liste (A ou B) dès qu'on lui ajoute un numéro,
+// pour éviter le cas « j'ai défini un numéro mais je ne vois rien » si la liste était masquée.
+function autoShowList(key){
+  const l=state.lists[key];
+  if(l&&!l.on){l.on=true;saveListsVisiblePref();}
+}
 // Style à donner à un NOUVEAU repéré (n'importe quelle méthode de création) : toujours
 // dérivé du réglage global state.repereDisplayStyle, jamais de state.hlStyle (bouton du
 // menu de coloriage manuel, sans rapport). undefined = "plein" (branche par défaut de applyHl).
@@ -7520,6 +7544,7 @@ function setRepereDisplayStyle(s){
   Object.values(state.repere2Defined||{}).forEach(c=>{c.style=st;});
   saveRepereDefinedState();
   if(typeof saveRepere2DefinedState==='function')saveRepere2DefinedState();
+  saveListStylePref();
   render();
 }
 // Ajoute/retire un numéro aux repérés directement depuis le menu couleur (clic sur un numéro) —
@@ -7537,6 +7562,7 @@ function toggleRepereFromMenu(n){
     // resté sur 'box' d'une session à l'autre — c'était la cause du bug).
     state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repereActive[n]=true;
+    autoShowList('A');
   }
   saveRepereDefinedState();
   closePopup();render();
@@ -7630,8 +7656,23 @@ function toggleRepere2Grid(n){
   }else{
     state.repere2Defined[n]=c;
     state.repere2Active[n]=true;
+    autoShowList('B');
   }
   saveRepere2DefinedState();
+  render();
+}
+// Collage en masse pour la Liste B (équivalent du "+ Ajouter" texte de la Liste A, en plus
+// de la grille cliquable) : accepte virgules, espaces, points-virgules, ignore les doublons.
+function addRepere2Defined(){
+  const el=document.getElementById('rep2def-num');
+  if(!el)return;
+  const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=1&&n<=90);
+  if(!nums.length)return;
+  const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor),style:state.rep2DefStyle||undefined}:pickHl();
+  nums.forEach(n=>{state.repere2Defined[n]=c;state.repere2Active[n]=true;});
+  autoShowList('B');
+  saveRepere2DefinedState();
+  el.value='';
   render();
 }
 function toggleRepere2Active(n){
@@ -7648,6 +7689,7 @@ function toggleRepere2FromMenu(n){
     const c=state.colored[n]||pickHl();
     state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repere2Active[n]=true;
+    autoShowList('B');
   }
   saveRepere2DefinedState();
   closePopup();render();
@@ -7718,6 +7760,11 @@ function repere2GlobalHTML(){
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repere2ShowClass!==false?'checked':''} onchange="state.repere2ShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro de la liste 2 (partout dans l'app)</label>
       <div style="background:#FFFBEB;border:1.5px solid #B45309;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#B45309;margin-bottom:5px">✏️ Choisis une couleur puis clique les numéros dans la grille (reclique un numéro pour le retirer)</div>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-size:9.5px;color:#92400E">📋 Coller une série :</span>
+          <input id="rep2def-num" type="text" inputmode="numeric" placeholder="ex: 6, 14, 23, 35, 42" onkeydown="if(event.key==='Enter')addRepere2Defined()" style="width:150px;padding:4px 6px;border:1.5px solid #B45309;border-radius:5px;font-size:12px;text-align:center;outline:none">
+          <button onclick="addRepere2Defined()" style="padding:4px 10px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:10px">+ Ajouter le bloc</button>
+        </div>
         <div style="display:flex;gap:3px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
           ${PAL.map(c=>`<span onclick="setRep2DefColor('${c}')" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:${c};border:${state.rep2DefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
           <label title="Choisir une couleur libre" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
@@ -7771,6 +7818,7 @@ function addRepereDefined(){
   if(!nums.length)return;
   const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
   nums.forEach(n=>{state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};});
+  autoShowList('A');
   saveRepereDefinedState();
   el.value='';
   render();
@@ -8781,7 +8829,7 @@ function anRender(){
         <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
         <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>
       </span>
-      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une AVEC les listes de repères, une SANS (coloriage manuel indépendant dans chaque volet). Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
+      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}saveDualViewPref();render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une AVEC les listes de repères, une SANS (coloriage manuel indépendant dans chaque volet). Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
       <button onclick="goCompareGames()" style="padding:3px 10px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #2E7D32;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Afficher plusieurs lotos côte à côte (onglet Navigation)">🎮 Comparer plusieurs lotos</button>
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:3px 10px;background:#7C3AED;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">🎨 Exporter</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:3px 10px;background:#EDE9FE;color:#5B21B6;border:1.5px solid #7C3AED;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">⚡ Rapide</button>
@@ -9740,6 +9788,11 @@ const Comp = {
   calcComp, passData, passRender
 };
 
+// ── Préférences d'affichage des listes (visibilité, style, double vue) : restaurées
+// juste avant le premier rendu pour retrouver le même setup après fermeture du navigateur.
+loadListsVisiblePref();
+loadListStylePref();
+loadDualViewPref();
 // ── Démarrage sécurisé + splash (logo ~1,6s) ──
 (function(){
   var sp=null;

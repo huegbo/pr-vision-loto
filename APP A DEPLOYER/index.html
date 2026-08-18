@@ -7713,14 +7713,17 @@ applyRepere2AutoDefault();
 saveColorState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
 function setRepDefStyle(s){state.repDefStyle=s;render();}
+// Accepte un seul numéro (ex: "6") ou une liste collée d'un coup (ex: "6,14,23 35 42")
+// — tout ce qui n'est pas un chiffre sert de séparateur, pour coller depuis n'importe où.
 function addRepereDefined(){
   const el=document.getElementById('repdef-num');
-  const n=el?parseInt(el.value,10):NaN;
-  if(isNaN(n)||n<0||n>99)return;
-  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:repereStyleForNew()}:{...pickHl(),style:repereStyleForNew()};
-  state.repereDefined[n]=c;
+  if(!el)return;
+  const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=0&&n<=99);
+  if(!nums.length)return;
+  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
+  nums.forEach(n=>{state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};});
   saveRepereDefinedState();
-  if(el)el.value='';
+  el.value='';
   render();
 }
 function removeRepereDefined(n){
@@ -7784,7 +7787,7 @@ function repereGlobalHTML(){
       <div style="background:#F0F9FF;border:1.5px solid #0E7490;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#0E7490;margin-bottom:5px">✏️ Prédéfinir des numéros à repérer (indépendant du coloriage d'un jeu — reste fixe partout, tant que tu ne les effaces pas)</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-          <input id="repdef-num" type="number" min="0" max="99" placeholder="N°" onkeydown="if(event.key==='Enter')addRepereDefined()" style="width:55px;padding:4px 6px;border:1.5px solid #0E7490;border-radius:5px;font-size:12px;text-align:center;outline:none">
+          <input id="repdef-num" type="text" inputmode="numeric" placeholder="N° ou liste: 6,14,23" onkeydown="if(event.key==='Enter')addRepereDefined()" style="width:130px;padding:4px 6px;border:1.5px solid #0E7490;border-radius:5px;font-size:12px;text-align:center;outline:none">
           <div style="display:flex;gap:3px;align-items:center">
             ${PAL.map(c=>`<span onclick="setRepDefColor('${c}')" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.repDefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
             <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">

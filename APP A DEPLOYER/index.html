@@ -1905,6 +1905,13 @@ function repereClassLabel(n){
   const hit=rows.find(([l,v])=>v!=null&&v!==''&&v!==0);
   return hit?hit[0]+':'+hit[1]:'';
 }
+// Même badge de classification que dans la grille (numSpan), réutilisable partout où un
+// numéro repéré est affiché ailleurs que dans la grille principale (panneaux Liste A/B,
+// scan multi-jeux) — pour que "partout dans l'app" (promesse du toggle 🧩) soit tenue.
+function classifSuffixHTML(n){
+  const lbl=repereClassLabel(n);
+  return lbl?`<sub style="font-size:6px;font-weight:700;opacity:.9;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${lbl}</sub>`:'';
+}
 
 // Retourne les dérivés d'un numéro par type de classification
 function getDerivsByType(n){
@@ -2858,8 +2865,7 @@ function numSpan(n, extra, cid){
   // Numéro repéré (prédéfini, actif) : ajoute son élément de classification en petit, à côté, si activé
   const isRepere=!!repereMark&&state.repereShowClass!==false;
   const isRepere2=!!repere2Mark&&state.repere2ShowClass!==false;
-  const clLbl=isRepere?repereClassLabel(n):(isRepere2?repereClassLabel(n):'');
-  const clSuffix=clLbl?`<sub style="font-size:6px;font-weight:700;opacity:.9;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${clLbl}</sub>`:'';
+  const clSuffix=(isRepere||isRepere2)?classifSuffixHTML(n):'';
   // Le badge chiffre a une largeur fixe pour l'alignement (voir .num) : trop étroit
   // pour loger le label de classification à côté sans le faire chevaucher le chiffre.
   // On élargit la boîte uniquement pour les numéros qui portent ce label.
@@ -7848,7 +7854,7 @@ function openRepere2Global(){
 function closeRepere2Global(){state.repere2GlobalOpen=false;render();}
 function repere2GlobalHTML(){
   const{marks,markKeys,results}=crossGameRepere2Scan(state.repere2GlobalLimit||10);
-  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}${state.repere2ShowClass!==false?classifSuffixHTML(n):''}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
   return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepere2Global()">
     <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -7970,7 +7976,7 @@ function openRepereGlobal(){
 function closeRepereGlobal(){state.repereGlobalOpen=false;render();}
 function repereGlobalHTML(){
   const{marks,markKeys,results}=crossGameRepereScan(state.repereGlobalLimit||20);
-  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}${state.repereShowClass!==false?classifSuffixHTML(n):''}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
   return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepereGlobal()">
     <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -7999,7 +8005,7 @@ function repereGlobalHTML(){
           ${[['','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligner'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']].map(([s,l])=>`<button onclick="setRepDefStyle('${s}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:7px;cursor:pointer;border:1.5px solid ${state.repDefStyle===s?'#0E7490':'#ddd'};background:${state.repDefStyle===s?'#E0F2FE':'#fff'};color:#333">${l}</button>`).join('')}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-          ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
+          ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}${state.repereShowClass!==false?classifSuffixHTML(n):''}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
           ${Object.keys(state.repereDefined).length?`<button onclick="clearRepereDefined()" style="padding:2px 8px;background:#fff;border:1px solid #C62828;color:#C62828;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px;margin-left:4px">Tout effacer</button>`:''}
         </div>
       </div>

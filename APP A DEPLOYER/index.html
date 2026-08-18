@@ -90,7 +90,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);}
 th.excel-frozen{z-index:9;}
 .excel-td.excel-frozen{background:#fff;}
-.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;touch-action:none;}
 .col-hdr{text-align:center;padding:6px 3px;font-weight:600;font-size:12px;position:sticky;top:0;z-index:2;letter-spacing:.3px;}
 .popup{position:fixed;z-index:999;background:rgba(24,30,38,.72);color:#fff;border-radius:8px;padding:4px 7px;min-width:80px;max-width:190px;box-shadow:0 6px 22px rgba(0,0,0,.35);pointer-events:none;backdrop-filter:blur(4px);}
 .popup-overlay{position:fixed;inset:0;z-index:998;}
@@ -307,6 +307,9 @@ const RAW_CI_MONNI=window.LOTO_DATA.RAW_CI_MONNI;
 const RAW_CI_CASH=window.LOTO_DATA.RAW_CI_CASH;
 const RAW_CI_SOLUTION=window.LOTO_DATA.RAW_CI_SOLUTION;
 const RAW_CI_WARI=window.LOTO_DATA.RAW_CI_WARI;
+const RAW_BF_NEKRE=window.LOTO_DATA.RAW_BF_NEKRE;
+const RAW_BF_KOUNANDIA=window.LOTO_DATA.RAW_BF_KOUNANDIA;
+const RAW_BF_WELHY=window.LOTO_DATA.RAW_BF_WELHY;
 const RAW_IT_PALERMO=window.LOTO_DATA.RAW_IT_PALERMO;
 const RAW_IT_ROMA=window.LOTO_DATA.RAW_IT_ROMA;
 const RAW_IT_TORINO=window.LOTO_DATA.RAW_IT_TORINO;
@@ -479,6 +482,9 @@ const GAMES={
   ci_cash:{name:'CASH (CI)',icon:'🇨🇮',raw:RAW_CI_CASH,hasM:true},
   ci_solution:{name:'SOLUTION',icon:'🇨🇮',raw:RAW_CI_SOLUTION,hasM:true},
   ci_wari:{name:'WARI',icon:'🇨🇮',raw:RAW_CI_WARI,hasM:true},
+  bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE},
+  bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA},
+  bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY},
   it_palermo:{name:'IT PALERMO',icon:'🇮🇹',raw:RAW_IT_PALERMO},
   it_roma:{name:'IT ROMA',icon:'🇮🇹',raw:RAW_IT_ROMA},
   it_torino:{name:'IT TORINO',icon:'🇮🇹',raw:RAW_IT_TORINO},
@@ -2798,9 +2804,16 @@ function numSpan(n, extra, cid){
   const isRepere=!!repereMark&&state.repereShowClass!==false;
   const isRepere2=!!repere2Mark&&state.repere2ShowClass!==false;
   const clLbl=isRepere?repereClassLabel(n):(isRepere2?repereClassLabel(n):'');
-  const clSuffix=clLbl?`<sub style="font-size:7px;font-weight:600;opacity:.85;margin-left:1px">${clLbl}</sub>`:'';
+  const clSuffix=clLbl?`<sub style="font-size:6px;font-weight:700;opacity:.9;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${clLbl}</sub>`:'';
+  // Le badge chiffre a une largeur fixe pour l'alignement (voir .num) : trop étroit
+  // pour loger le label de classification à côté sans le faire chevaucher le chiffre.
+  // On élargit la boîte uniquement pour les numéros qui portent ce label.
+  // Les badges ronds (rad:50%) ont une hauteur fixe de 19px : trop bas pour la
+  // même étiquette empilée verticalement (ex: "C:47" = 4 caractères de haut),
+  // donc on relâche aussi la hauteur pour ces badges quand l'étiquette est présente.
+  const clWidthCss=clLbl?`width:auto;min-width:2.3em;padding:2px;${rad==='50%'?'height:auto;min-height:19px;border-radius:10px;':''}`:'';
   const titleTxt=state.rowMultiNums.has(n)?'Ce numéro appartient à plusieurs lignes coloriées':(isRepere?'🎯 Numéro repéré'+(clLbl?' — '+clLbl:''):(isRepere2?'🎯 Numéro liste 2'+(clLbl?' — '+clLbl:''):''));
-  return `<span class="num" onclick="onNum(${n},event,'${cid||''}',${pane2?'true':'false'})" onmouseenter="numOver(${n},event)" onmouseleave="numOut()" ontouchstart="numTouchStart(${n},event)" ontouchend="numTouchEnd(event)" ontouchmove="numTouchCancel()" style="color:${fg};background:${bg};font-size:${fs};box-shadow:${sh};border:${bd};border-radius:${rad};${padCss}${ulCss}${sharedCss}" title="${titleTxt}">${n}${clSuffix}${sym}</span>`;
+  return `<span class="num" onclick="onNum(${n},event,'${cid||''}',${pane2?'true':'false'})" onmouseenter="numOver(${n},event)" onmouseleave="numOut()" ontouchstart="numTouchStart(${n},event)" ontouchend="numTouchEnd(event)" ontouchmove="numTouchCancel()" style="color:${fg};background:${bg};font-size:${fs};box-shadow:${sh};border:${bd};border-radius:${rad};${padCss}${ulCss}${sharedCss}${clWidthCss}" title="${titleTxt}">${n}${clSuffix}${sym}</span>`;
 }
 
 // Calcul comparaison
@@ -4667,7 +4680,7 @@ function exportMgColumnsPDF(){
           const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
           const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
-          rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub>${clLbl}</sub>`:''}${symHtml}</span></td>`;
+          rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub style="font-size:6px;font-weight:700;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${clLbl}</sub>`:''}${symHtml}</span></td>`;
         });
         if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[0]:'·'}</td>`;}
         else{const tc=tC(r.s);rowsHtml+=`<td class="tot" style="background:${tc[0]};color:${tc[1]}">${r.s}</td>`;}

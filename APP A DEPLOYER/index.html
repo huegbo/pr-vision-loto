@@ -1961,14 +1961,28 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:false, repereActive:{}, repereSnapshots:[],
-  // Style d'affichage GLOBAL des repérés (listes 1 et 2), appliqué à tous les numéros
-  // repérés d'un coup — remplace le style enregistré individuellement sur chaque numéro
-  // au moment où il a été coloré (qui dépendait du bouton actif dans le menu à ce moment-là).
-  repereDisplayStyle:'fill',
-  // Double vue : deux colonnes par année (une avec coloriage manuel, une sans), chacune masquable séparément.
-  dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true,
-  repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
+  // ══════ ARCHITECTURE UNIFIÉE DES LISTES DE REPÈRES (refonte) ══════
+  // Une seule mécanique pour toutes les listes de repères permanents/multi-jeux, au lieu de
+  // deux systèmes parallèles (repereDefined/repere2Defined) qui dupliquaient tout sans être
+  // symétriques. state.lists est désormais LA source de vérité ; les anciens noms
+  // (repereDefined, repereAlways, repere2Defined, repere2Always, repereDisplayStyle...) restent
+  // lisibles/écrivables partout ailleurs dans le code via des accesseurs (voir plus bas,
+  // juste après la déclaration de `state`), pour ne pas devoir réécrire chaque fonction qui
+  // les utilise déjà — mais il n'y a plus qu'UN SEUL espace de stockage réel.
+  lists:{
+    A:{name:'Liste A', nums:{}, on:false},
+    B:{name:'Liste B', nums:{}, on:false},
+  },
+  listStyle:'fill', // 'fill'|'box'|'underline'|'text' — style unique pour TOUTES les listes, écran + export
+  listShowClass:true, // afficher l'élément de classification (ex: C:14) à côté des numéros des listes
+  listsGlobalOpen:false, listsGlobalActive:'A', listsGlobalLimit:20,
+  listSnapshots:[], // instantanés unifiés : {id,name,listKey,nums,createdAt} — utilisables pour A ou B
+  repDefColor:'', coloringExportOpen:false,
+  // Double vue : deux colonnes par année — AVEC les listes de repères / SANS —, avec un
+  // coloriage manuel indépendant par volet (colored/coloredCells pour "avec", colored2/
+  // coloredCells2 pour "sans"). Ancien nom dualViewOn/dualViewLeftOn/dualViewRightOn conservé
+  // en accesseurs (voir plus bas) pour compatibilité avec le reste du code.
+  dualView:{on:false, showWith:true, showWithout:true},
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -2038,6 +2052,31 @@ let state={
   genTotalOn:false, genTotal:222, genTotalTol:5,
 };
 state.mgYear=YEARS[0];
+// Reliquat (jamais réellement activé nulle part) — objets vides pour compat, voir plus haut.
+state.repereActive={};
+state.repere2Active={};
+// ── Accesseurs de compatibilité : les anciens noms (repereDefined, repereAlways, repere2Defined,
+// repere2Always, repereDisplayStyle, repereShowClass, repere2ShowClass, repereGlobalOpen/Limit,
+// repere2GlobalOpen/Limit, dualViewOn/Left/Right) restent utilisables tels quels dans tout le
+// reste du code déjà écrit avec ces noms, mais lisent/écrivent désormais dans state.lists /
+// state.listStyle / state.listShowClass / state.dualView — une seule source de vérité réelle,
+// au lieu des deux systèmes parallèles (repereDefined/repere2Defined) d'avant la refonte.
+Object.defineProperties(state,{
+  repereDefined:{get(){return state.lists.A.nums;},set(v){state.lists.A.nums=v||{};}},
+  repere2Defined:{get(){return state.lists.B.nums;},set(v){state.lists.B.nums=v||{};}},
+  repereAlways:{get(){return state.lists.A.on;},set(v){state.lists.A.on=v;}},
+  repere2Always:{get(){return state.lists.B.on;},set(v){state.lists.B.on=v;}},
+  repereDisplayStyle:{get(){return state.listStyle;},set(v){state.listStyle=v;}},
+  repereShowClass:{get(){return state.listShowClass;},set(v){state.listShowClass=v;}},
+  repere2ShowClass:{get(){return state.listShowClass;},set(v){state.listShowClass=v;}},
+  repereGlobalOpen:{get(){return state.listsGlobalOpen&&state.listsGlobalActive==='A';},set(v){state.listsGlobalOpen=!!v;if(v)state.listsGlobalActive='A';}},
+  repere2GlobalOpen:{get(){return state.listsGlobalOpen&&state.listsGlobalActive==='B';},set(v){state.listsGlobalOpen=!!v;if(v)state.listsGlobalActive='B';}},
+  repereGlobalLimit:{get(){return state.listsGlobalLimit;},set(v){state.listsGlobalLimit=v;}},
+  repere2GlobalLimit:{get(){return state.listsGlobalLimit;},set(v){state.listsGlobalLimit=v;}},
+  dualViewOn:{get(){return state.dualView.on;},set(v){state.dualView.on=v;}},
+  dualViewLeftOn:{get(){return state.dualView.showWith;},set(v){state.dualView.showWith=v;}},
+  dualViewRightOn:{get(){return state.dualView.showWithout;},set(v){state.dualView.showWithout=v;}},
+});
 
 // ── Persistance des couleurs/repères par jeu (survit au refresh) ──
 function saveColorState(){
@@ -7417,14 +7456,14 @@ const REPERE_PRESET_2={ // Liste 2 : 35, 42, 14
   35:{bg:'#3B82F6',fg:'#fff'}, 42:{bg:'#3B82F6',fg:'#fff'}, 14:{bg:'#3B82F6',fg:'#fff'},
 };
 function seedDefaultRepereSnapshots(){
-  const has=nm=>state.repereSnapshots.some(s=>s.name===nm);
+  const has=nm=>state.listSnapshots.some(s=>s.name===nm);
   let changed=false;
   if(!has('Liste 57-59-24-78-40-06')){
-    state.repereSnapshots.push({id:Date.now()+1,name:'Liste 57-59-24-78-40-06',defined:{...REPERE_PRESET_1},active:{},createdAt:new Date().toISOString()});
+    state.listSnapshots.push({id:Date.now()+1,name:'Liste 57-59-24-78-40-06',listKey:'A',nums:{...REPERE_PRESET_1},createdAt:new Date().toISOString()});
     changed=true;
   }
   if(!has('Liste 35-42-14')){
-    state.repereSnapshots.push({id:Date.now()+2,name:'Liste 35-42-14',defined:{...REPERE_PRESET_2},active:{},createdAt:new Date().toISOString()});
+    state.listSnapshots.push({id:Date.now()+2,name:'Liste 35-42-14',listKey:'A',nums:{...REPERE_PRESET_2},createdAt:new Date().toISOString()});
     changed=true;
   }
   if(changed)saveRepereSnapshots();
@@ -7459,6 +7498,12 @@ function toggleRepereActive(n){
   saveRepereDefinedState();
   render();
 }
+// Interrupteur UNIQUE pour l'affichage des listes de repères (A et B ensemble) — évite d'avoir
+// à activer "Avec repérés" ET "Avec liste 2" séparément à chaque fois. Les interrupteurs
+// individuels (state.lists.A.on / state.lists.B.on, alias repereAlways/repere2Always) restent
+// utilisables indépendamment si besoin (ex: n'afficher que la liste B).
+function listsVisible(){return state.lists.A.on||state.lists.B.on;}
+function setListsVisible(on){state.lists.A.on=on;state.lists.B.on=on;render();}
 // Style à donner à un NOUVEAU repéré (n'importe quelle méthode de création) : toujours
 // dérivé du réglage global state.repereDisplayStyle, jamais de state.hlStyle (bouton du
 // menu de coloriage manuel, sans rapport). undefined = "plein" (branche par défaut de applyHl).
@@ -7496,34 +7541,38 @@ function toggleRepereFromMenu(n){
   saveRepereDefinedState();
   closePopup();render();
 }
-// ── Instantanés : plusieurs "plans" de repères sauvegardés, à recharger à tout moment ──
+// ── Instantanés : plusieurs "plans" sauvegardés, à recharger à tout moment — unifiés pour
+// Liste A et Liste B (avant la refonte, seule la Liste 1/A avait des instantanés). Chaque
+// instantané mémorise à quelle liste il appartient (listKey), pour charger au bon endroit.
 function loadRepereSnapshots(){
-  try{state.repereSnapshots=JSON.parse(lsGetOr('loto_repere_snapshots','[]'))||[];}catch(_){state.repereSnapshots=[];}
+  try{state.listSnapshots=JSON.parse(lsGetOr('loto_list_snapshots','[]'))||[];}catch(_){state.listSnapshots=[];}
 }
-function saveRepereSnapshots(){lsSet('loto_repere_snapshots',JSON.stringify(state.repereSnapshots));}
-function saveRepereSnapshot(){
-  if(!Object.keys(state.repereDefined).length){alert('Aucun numéro repéré à enregistrer pour le moment.');return;}
+function saveRepereSnapshots(){lsSet('loto_list_snapshots',JSON.stringify(state.listSnapshots));}
+function saveRepereSnapshot(listKey){
+  listKey=(listKey==='B')?'B':'A';
+  const nums=state.lists[listKey].nums;
+  if(!Object.keys(nums).length){alert('Aucun numéro dans '+state.lists[listKey].name+' à enregistrer pour le moment.');return;}
   const name=prompt('Nom de cet instantané (ex: "Plan BENZ Août 2026") :','');
   if(name==null)return;
   const nm=name.trim()||('Instantané '+new Date().toLocaleString('fr-FR'));
-  state.repereSnapshots.unshift({id:Date.now(),name:nm,defined:{...state.repereDefined},active:{...state.repereActive},createdAt:new Date().toISOString()});
+  state.listSnapshots.unshift({id:Date.now(),name:nm,listKey,nums:{...nums},createdAt:new Date().toISOString()});
   saveRepereSnapshots();
   render();
 }
 function loadRepereSnapshot(id){
-  const s=state.repereSnapshots.find(x=>x.id===id);
+  const s=state.listSnapshots.find(x=>x.id===id);
   if(!s)return;
-  if(!confirm('Charger l\'instantané "'+s.name+'" ? Ça remplace ta liste actuelle de repères (ton instantané actuel n\'est pas perdu, enregistre-le d\'abord si besoin).'))return;
-  state.repereDefined={...s.defined};
-  state.repereActive={...(s.active||{})};
-  saveRepereDefinedState();
+  const key=(s.listKey==='B')?'B':'A';
+  if(!confirm('Charger l\'instantané "'+s.name+'" dans '+state.lists[key].name+' ? Ça remplace sa liste actuelle (l\'actuelle n\'est pas perdue, enregistre-la d\'abord si besoin).'))return;
+  state.lists[key].nums={...s.nums};
+  (key==='A'?saveRepereDefinedState:saveRepere2DefinedState)();
   render();
 }
 function deleteRepereSnapshot(id){
-  const s=state.repereSnapshots.find(x=>x.id===id);
+  const s=state.listSnapshots.find(x=>x.id===id);
   if(!s)return;
   if(!confirm('Supprimer l\'instantané "'+s.name+'" ?'))return;
-  state.repereSnapshots=state.repereSnapshots.filter(x=>x.id!==id);
+  state.listSnapshots=state.listSnapshots.filter(x=>x.id!==id);
   saveRepereSnapshots();
   render();
 }
@@ -7810,13 +7859,13 @@ function repereGlobalHTML(){
         <div style="font-size:9px;color:#666;margin-bottom:6px">Enregistre ta liste actuelle sous un nom, pour créer d'autres repères à l'avenir sans perdre celui-ci : change les numéros ci-dessus, enregistre un nouvel instantané, puis recharge celui que tu veux à tout moment.</div>
         <button onclick="saveRepereSnapshot()" style="padding:4px 10px;background:#A21CAF;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-bottom:6px">💾 Enregistrer l'instant actuel</button>
         <div style="display:flex;flex-direction:column;gap:4px">
-          ${state.repereSnapshots.length?state.repereSnapshots.map(s=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid #E9D5FF;border-radius:6px;padding:4px 7px">
+          ${(()=>{const snaps=state.listSnapshots.filter(s=>(s.listKey||'A')==='A');return snaps.length?snaps.map(s=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid #E9D5FF;border-radius:6px;padding:4px 7px">
             <span style="font-size:10px;font-weight:700;color:#333">${s.name}</span>
-            <span style="font-size:8px;color:#999">${Object.keys(s.defined||{}).length} n°</span>
-            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:160px">${Object.entries(s.defined||{}).slice(0,8).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:3px;padding:0 3px;font-size:9px;font-weight:700">${n}</span>`).join('')}${Object.keys(s.defined||{}).length>8?`<span style="font-size:8px;color:#999">…</span>`:''}</div>
+            <span style="font-size:8px;color:#999">${Object.keys(s.nums||{}).length} n°</span>
+            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:160px">${Object.entries(s.nums||{}).slice(0,8).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:3px;padding:0 3px;font-size:9px;font-weight:700">${n}</span>`).join('')}${Object.keys(s.nums||{}).length>8?`<span style="font-size:8px;color:#999">…</span>`:''}</div>
             <button onclick="loadRepereSnapshot(${s.id})" style="margin-left:auto;padding:2px 8px;background:#A21CAF;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">Charger</button>
             <span onclick="deleteRepereSnapshot(${s.id})" style="cursor:pointer;color:#C62828;font-size:12px" title="Supprimer">🗑️</span>
-          </div>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun instantané enregistré pour l'instant.</span>`}
+          </div>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun instantané enregistré pour l'instant.</span>`;})()}
         </div>
       </div>
       ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun numéro repéré pour l'instant (ni colorié sur <b>${GAME.name}</b>, ni prédéfini ci-dessus).</div>`:`
@@ -8722,17 +8771,17 @@ function anRender(){
   let html=`<div class="card">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
       <span style="font-size:9px;color:#777">Choisis une analyse — les numéros concernés sont colorés dans les colonnes</span>
-      <button onclick="applyRepereToCurrentGame()" style="margin-left:auto;padding:3px 10px;background:#FFF7ED;color:#C2410C;border:1.5px solid #C2410C;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Colorie immédiatement tous tes numéros repérés dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer mes repérés ici</button>
-      <button onclick="openRepereGlobal()" style="padding:3px 10px;background:#E0F2FE;color:#0E7490;border:1.5px solid #0E7490;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Voir tes numéros coloriés (repérés) recherchés dans tous les autres lotos, avec les mêmes couleurs">🎯 Mes repérés (tous lotos)</button>
-      <button onclick="state.repereAlways=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #C2410C;background:${state.repereAlways!==false?'#C2410C':'#FFF7ED'};color:${state.repereAlways!==false?'#fff':'#C2410C'}" title="Active l'affichage automatique de tes repérés sur tous les lotos">✅ Avec repérés</button>
-      <button onclick="state.repereAlways=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repereAlways===false?'#6B7280':'#F3F4F6'};color:${state.repereAlways===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique des repérés (ta liste n'est pas effacée)">🚫 Sans repérés</button>
-      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une avec le coloriage manuel, une sans. Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
-      <button onclick="state.repereShowClass=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass!==false?'#fff':'#7E22CE'}" title="Affiche l'élément de classification (ex: C:14) à côté de chaque numéro repéré">🧩 Mes repérés avec élément</button>
-      <button onclick="state.repereShowClass=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass===false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass===false?'#fff':'#7E22CE'}" title="N'affiche que le numéro repéré, sans élément de classification">🎯 Mes repérés sans élément</button>
-      <span style="display:inline-flex;gap:2px;padding:2px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED" title="Style d'affichage de TOUS tes repérés (listes 1 et 2), quel que soit le style choisi au moment où chaque numéro a été colorié">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:3px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:none;background:${state.repereDisplayStyle===s?'#C2410C':'transparent'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
-      <button onclick="openRepere2Global()" style="padding:3px 10px;background:#FFFBEB;color:#B45309;border:1.5px solid #B45309;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Nouvelle liste indépendante, définie via une grille 1-90, visible partout EN PLUS de tes repérés">🎯 Liste 2 (grille 1-90)</button>
-      <button onclick="state.repere2Always=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #B45309;background:${state.repere2Always!==false?'#B45309':'#FFFBEB'};color:${state.repere2Always!==false?'#fff':'#B45309'}" title="Active l'affichage automatique de la liste 2 sur tous les lotos">✅ Avec liste 2</button>
-      <button onclick="state.repere2Always=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repere2Always===false?'#6B7280':'#F3F4F6'};color:${state.repere2Always===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique de la liste 2 (elle n'est pas effacée)">🚫 Sans liste 2</button>
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED;flex-wrap:wrap">
+        <span style="font-size:9px;font-weight:700;color:#C2410C">📋 Listes de repères</span>
+        <button onclick="setListsVisible(true)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}" title="Affiche les listes A et B partout, sur tous les lotos">✅ Afficher</button>
+        <button onclick="setListsVisible(false)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:${!listsVisible()?'#6B7280':'#fff'};color:${!listsVisible()?'#fff':'#6B7280'}" title="Masque les listes A et B (leur contenu n'est pas effacé)">🚫 Masquer</button>
+        <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 Liste A${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
+        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 Liste B${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
+        <button onclick="applyRepereToCurrentGame()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:#fff;color:#C2410C" title="Colorie immédiatement tous les numéros de tes listes dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer ici</button>
+        <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
+        <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>
+      </span>
+      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une AVEC les listes de repères, une SANS (coloriage manuel indépendant dans chaque volet). Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
       <button onclick="goCompareGames()" style="padding:3px 10px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #2E7D32;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Afficher plusieurs lotos côte à côte (onglet Navigation)">🎮 Comparer plusieurs lotos</button>
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:3px 10px;background:#7C3AED;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">🎨 Exporter</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:3px 10px;background:#EDE9FE;color:#5B21B6;border:1.5px solid #7C3AED;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">⚡ Rapide</button>
@@ -9174,9 +9223,9 @@ function __renderBody(){
       </div>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année : une avec le coloriage manuel, une sans (propre)."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue</label>
-      ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewLeftOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet AVEC coloriage manuel, sur toutes les années."><input type="checkbox" ${state.dualViewLeftOn?'checked':''} onchange="state.dualViewLeftOn=this.checked;render()">👁 volet avec</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewRightOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet SANS (propre, 3 facteurs seuls), sur toutes les années."><input type="checkbox" ${state.dualViewRightOn?'checked':''} onchange="state.dualViewRightOn=this.checked;render()">👁 volet sans</label>`:''}
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année, côte à côte : une AVEC les listes de repères, une SANS. Le coloriage manuel reste indépendant dans chaque volet."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue</label>
+      ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewLeftOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet AVEC repères, sur toutes les années."><input type="checkbox" ${state.dualViewLeftOn?'checked':''} onchange="state.dualViewLeftOn=this.checked;render()">👁 avec repères</label>
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewRightOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet SANS repères, sur toutes les années."><input type="checkbox" ${state.dualViewRightOn?'checked':''} onchange="state.dualViewRightOn=this.checked;render()">👁 sans repères</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Active les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés). Coloriage manuel et repérés restent visibles."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>

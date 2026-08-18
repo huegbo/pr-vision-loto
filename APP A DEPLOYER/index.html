@@ -2790,10 +2790,11 @@ function numSpan(n, extra, cid){
   else if(extra&&extra.superpos)applyHl({bg:state.superposColor||'#0891B2',fg:'#fff',style:state.superposStyle});
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
-  // state.repereDisplayStyle (réglage global) prime sur le style individuellement
-  // enregistré sur chaque numéro repéré au moment où il a été colorié.
-  else if(repereMark)applyHl(state.repereDisplayStyle?{...repereMark,style:state.repereDisplayStyle==='fill'?null:state.repereDisplayStyle}:repereMark);
-  else if(repere2Mark)applyHl(state.repereDisplayStyle?{...repere2Mark,style:state.repereDisplayStyle==='fill'?null:state.repereDisplayStyle}:repere2Mark);
+  // Le style de repereMark/repere2Mark est maintenant tenu à jour par setRepereDisplayStyle()
+  // (réécrit sur toutes les entrées stockées dès qu'on change le réglage global), donc plus
+  // besoin de l'écraser ici au rendu — applyHl lit directement le style correct.
+  else if(repereMark)applyHl(repereMark);
+  else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.clKey){
     // numéro dérivé — couleur de sa classification
     const clDef=CL_DEF.find(c=>c.key===extra.clKey);
@@ -7458,6 +7459,24 @@ function toggleRepereActive(n){
   saveRepereDefinedState();
   render();
 }
+// Style à donner à un NOUVEAU repéré (n'importe quelle méthode de création) : toujours
+// dérivé du réglage global state.repereDisplayStyle, jamais de state.hlStyle (bouton du
+// menu de coloriage manuel, sans rapport). undefined = "plein" (branche par défaut de applyHl).
+function repereStyleForNew(){
+  return(state.repereDisplayStyle&&state.repereDisplayStyle!=='fill')?state.repereDisplayStyle:undefined;
+}
+// Change le style d'affichage de TOUS les repérés (listes 1 et 2) d'un coup : met à jour le
+// réglage global ET réécrit .style sur chaque entrée déjà stockée, pour que l'écran ET les
+// exports (Excel/PDF, qui relisent directement ce champ) restent synchronisés.
+function setRepereDisplayStyle(s){
+  state.repereDisplayStyle=s;
+  const st=(s&&s!=='fill')?s:undefined;
+  Object.values(state.repereDefined||{}).forEach(c=>{c.style=st;});
+  Object.values(state.repere2Defined||{}).forEach(c=>{c.style=st;});
+  saveRepereDefinedState();
+  if(typeof saveRepere2DefinedState==='function')saveRepere2DefinedState();
+  render();
+}
 // Ajoute/retire un numéro aux repérés directement depuis le menu couleur (clic sur un numéro) —
 // façon la plus rapide de définir de nouveaux repères à l'avenir : colorie comme d'habitude,
 // puis "🎯 Ajouter aux repérés" pour le rendre permanent et visible partout.
@@ -7468,7 +7487,10 @@ function toggleRepereFromMenu(n){
     delete state.repereActive[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repereDefined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
+    // Style toujours issu du réglage global repereDisplayStyle (repereStyleForNew()),
+    // jamais de state.hlStyle (bouton du menu de coloriage, sans rapport, souvent
+    // resté sur 'box' d'une session à l'autre — c'était la cause du bug).
+    state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repereActive[n]=true;
   }
   saveRepereDefinedState();
@@ -7516,14 +7538,14 @@ function applyRepereToCurrentGame(){
   closeRepereGlobal();
   render();
 }
-// Applique automatiquement (sans écraser un coloriage déjà choisi pour ce numéro dans ce jeu)
-// les numéros repérés ACTIFS dès l'ouverture d'un loto — pour ne plus jamais avoir à cliquer "Activer".
-function applyRepereAutoDefault(){
-  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{
-    if(state.repereActive[n]===false)return;
-    if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-}
+// Ancien comportement : copiait les repérés dans state.colored (coloriage manuel) pour les
+// afficher sans avoir à cliquer "Activer" — mais state.colored est PRIORITAIRE sur repereMark
+// au rendu (numSpan), donc ça court-circuitait silencieusement le réglage repereDisplayStyle
+// (et gardait les repérés visibles même avec "🚫 Sans repérés", puisque state.colored ne
+// dépend pas de repereAlways). L'affichage auto des repérés passe désormais entièrement par
+// repereMark dans numSpan (piloté par repereAlways/repereActive), donc plus besoin de cette
+// copie — no-op conservé pour compatibilité des appels existants.
+function applyRepereAutoDefault(){}
 loadRepereDefinedState();
 loadRepereSnapshots();
 seedDefaultRepereSnapshots();
@@ -7575,7 +7597,7 @@ function toggleRepere2FromMenu(n){
     delete state.repere2Active[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
+    state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repere2Active[n]=true;
   }
   saveRepere2DefinedState();
@@ -7601,12 +7623,9 @@ function applyRepere2ToCurrentGame(){
   closeRepere2Global();
   render();
 }
-function applyRepere2AutoDefault(){
-  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{
-    if(state.repere2Active[n]===false)return;
-    if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-}
+// Idem applyRepereAutoDefault() ci-dessus : no-op désormais, l'affichage auto passe
+// entièrement par repere2Mark dans numSpan.
+function applyRepere2AutoDefault(){}
 function crossGameRepere2Scan(limit){
   const marks={...(state.colored||{})};
   Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{if(state.repere2Active[n]!==false)marks[n]=c;});
@@ -7698,7 +7717,7 @@ function addRepereDefined(){
   const el=document.getElementById('repdef-num');
   const n=el?parseInt(el.value,10):NaN;
   if(isNaN(n)||n<0||n>99)return;
-  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:state.repDefStyle||undefined}:pickHl();
+  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:repereStyleForNew()}:{...pickHl(),style:repereStyleForNew()};
   state.repereDefined[n]=c;
   saveRepereDefinedState();
   if(el)el.value='';
@@ -8707,7 +8726,7 @@ function anRender(){
       <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une avec le coloriage manuel, une sans. Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
       <button onclick="state.repereShowClass=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass!==false?'#fff':'#7E22CE'}" title="Affiche l'élément de classification (ex: C:14) à côté de chaque numéro repéré">🧩 Mes repérés avec élément</button>
       <button onclick="state.repereShowClass=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass===false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass===false?'#fff':'#7E22CE'}" title="N'affiche que le numéro repéré, sans élément de classification">🎯 Mes repérés sans élément</button>
-      <span style="display:inline-flex;gap:2px;padding:2px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED" title="Style d'affichage de TOUS tes repérés (listes 1 et 2), quel que soit le style choisi au moment où chaque numéro a été colorié">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="state.repereDisplayStyle='${s}';render()" style="padding:3px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:none;background:${state.repereDisplayStyle===s?'#C2410C':'transparent'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
+      <span style="display:inline-flex;gap:2px;padding:2px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED" title="Style d'affichage de TOUS tes repérés (listes 1 et 2), quel que soit le style choisi au moment où chaque numéro a été colorié">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:3px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:none;background:${state.repereDisplayStyle===s?'#C2410C':'transparent'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
       <button onclick="openRepere2Global()" style="padding:3px 10px;background:#FFFBEB;color:#B45309;border:1.5px solid #B45309;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Nouvelle liste indépendante, définie via une grille 1-90, visible partout EN PLUS de tes repérés">🎯 Liste 2 (grille 1-90)</button>
       <button onclick="state.repere2Always=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #B45309;background:${state.repere2Always!==false?'#B45309':'#FFFBEB'};color:${state.repere2Always!==false?'#fff':'#B45309'}" title="Active l'affichage automatique de la liste 2 sur tous les lotos">✅ Avec liste 2</button>
       <button onclick="state.repere2Always=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repere2Always===false?'#6B7280':'#F3F4F6'};color:${state.repere2Always===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique de la liste 2 (elle n'est pas effacée)">🚫 Sans liste 2</button>

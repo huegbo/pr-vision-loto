@@ -2865,7 +2865,8 @@ function numSpan(n, extra, cid){
   // Numéro repéré (prédéfini, actif) : ajoute son élément de classification en petit, à côté, si activé
   const isRepere=!!repereMark&&state.repereShowClass!==false;
   const isRepere2=!!repere2Mark&&state.repere2ShowClass!==false;
-  const clSuffix=(isRepere||isRepere2)?classifSuffixHTML(n):'';
+  const clLbl=(isRepere||isRepere2)?repereClassLabel(n):'';
+  const clSuffix=clLbl?classifSuffixHTML(n):'';
   // Le badge chiffre a une largeur fixe pour l'alignement (voir .num) : trop étroit
   // pour loger le label de classification à côté sans le faire chevaucher le chiffre.
   // On élargit la boîte uniquement pour les numéros qui portent ce label.

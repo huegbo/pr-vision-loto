@@ -7263,36 +7263,46 @@ function stepWheel(e,id){
   if(_wheelBusy[id])return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
-  const rowsEl=el.querySelector('[id^="vrows-"]');
-  const firstRow=(rowsEl&&rowsEl.firstElementChild)||el.firstElementChild;
-  const rowH=(firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:34;
+  const rowH=_rowHOf(el,id);
   el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
   _wheelBusy[id]=true;
   setTimeout(()=>{_wheelBusy[id]=false;},110);
 }
-function _rowHOf(el){
+function _rowHOf(el,id){
+  // Priorité à la hauteur mesurée/stabilisée par la virtualisation (VH[id]) —
+  // plus fiable que de re-mesurer la 1ère ligne rendue (peut varier pendant
+  // le chargement virtualisé). Fallback 28px (plus réaliste que 34).
+  if(id&&typeof VH!=='undefined'&&VH[id])return VH[id];
   const rowsEl=el.querySelector('[id^="vrows-"]');
   const firstRow=(rowsEl&&rowsEl.firstElementChild)||el.firstElementChild;
-  return (firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:34;
+  return (firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:28;
 }
 // Glissement tactile vertical "pas à pas" : on ignore le scroll natif (momentum
 // libre) et on avance d'une ligne exactement à chaque fois que le doigt a
-// parcouru une hauteur de ligne, comme la molette.
+// parcouru une hauteur de ligne, comme la molette. Un seuil de 6px est
+// nécessaire avant de "prendre" le geste : sans lui, un simple tap sur un
+// numéro (avec 1-2px de tremblement du doigt) annulait le click natif via
+// preventDefault dès le 1er pixel, empêchant le menu de coloriage de s'ouvrir.
 const _touchStep={};
 function touchStepStart(e,id){
   if(!e.touches||!e.touches.length)return;
-  _touchStep[id]={y:e.touches[0].clientY,moved:0};
+  _touchStep[id]={y:e.touches[0].clientY,moved:0,captured:false};
 }
 function touchStepMove(e,id){
   const st=_touchStep[id];
   if(!st||!e.touches||!e.touches.length)return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
-  e.preventDefault();
   const y=e.touches[0].clientY;
-  st.moved+=(st.y-y);
+  const dy=st.y-y;
+  if(!st.captured){
+    if(Math.abs(dy)<6)return; // sous le seuil : on laisse passer le tap/clic natif
+    st.captured=true;
+  }
+  e.preventDefault();
+  st.moved+=dy;
   st.y=y;
-  const rowH=_rowHOf(el);
+  const rowH=_rowHOf(el,id);
   if(Math.abs(st.moved)>=rowH){
     const steps=Math.trunc(st.moved/rowH);
     el.scrollTop+=steps*rowH;

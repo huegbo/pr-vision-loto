@@ -210,6 +210,7 @@ const RAW_NATIONAL=window.LOTO_DATA.RAW_NATIONAL;
 
 const RAW_BENIN_ALL=window.LOTO_DATA.RAW_BENIN_ALL;
 const RAW_BENIN_ALL_JEU=window.LOTO_DATA.RAW_BENIN_ALL_JEU;
+const RAW_DIGITAL_BENIN=window.LOTO_DATA.RAW_DIGITAL_BENIN;
 const RAW_DIGITAL_TOUT=window.LOTO_DATA.RAW_DIGITAL_TOUT;
 const RAW_DIGITAL_08H=window.LOTO_DATA.RAW_DIGITAL_08H;
 const RAW_DIGITAL_00H=window.LOTO_DATA.RAW_DIGITAL_00H;
@@ -384,6 +385,7 @@ const GAMES={
   alpha:{name:'ALPHA LOTTO',icon:'🅰️',raw:RAW_ALPHA,hasM:true,sum10:true},
   toutbenin:{name:'TOUT BENIN PLUS DIGITAL',icon:'🇧🇯',raw:RAW_TOUTBENIN,hasM:true,sum10:true},
   benin_all_jeu:{name:'ALL BENIN (officiel)',icon:'🇧🇯',raw:RAW_BENIN_ALL_JEU,hasM:true,sum10:true},
+  digital_benin:{name:'DIGITAL BENIN',icon:'🇧🇯',raw:RAW_DIGITAL_BENIN,hasM:true,sum10:true},
   digital_tout:{name:'TOUT DIGITAL',icon:'🇧🇯',raw:RAW_DIGITAL_TOUT,hasM:false,sum10:true},
   digital_08h:{name:'DIGITAL 08H',icon:'🇧🇯',raw:RAW_DIGITAL_08H,hasM:false,sum10:true},
   digital_00h:{name:'DIGITAL 00H',icon:'🇧🇯',raw:RAW_DIGITAL_00H,hasM:false,sum10:true},
@@ -7592,11 +7594,26 @@ function listsStatusBarHTML(){
 function listDoublons(){
   return Object.keys(state.lists.A.nums).map(Number).filter(n=>state.lists.B.nums[n]!==undefined).sort((a,b)=>a-b);
 }
+// Rapport affiché après un collage en masse (Liste A ou B) : numéros déjà présents dans
+// CETTE liste (ignorés, pas écrasés) et numéros qui créent un nouveau doublon avec l'AUTRE
+// liste (ajoutés quand même, juste signalés). Se referme tout seul au prochain rendu utile.
+function pasteReportHTML(listKey){
+  const r=state.pasteReport;
+  if(!r||r.listKey!==listKey)return'';
+  const parts=[`${r.added} ajouté${r.added>1?'s':''}`];
+  if(r.alreadyHere.length)parts.push(`${r.alreadyHere.length} déjà dans cette liste (ignoré: ${r.alreadyHere.join(',')})`);
+  if(r.crossDup.length)parts.push(`⚠️ ${r.crossDup.length} aussi dans l'autre liste (doublon: ${r.crossDup.join(',')})`);
+  return`<div style="background:#FEF9C3;border:1px solid #CA8A04;border-radius:7px;padding:6px 9px;margin-bottom:8px;font-size:9.5px;color:#713F12;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <span>${parts.join(' • ')}.</span>
+    <span onclick="state.pasteReport=null;render()" style="margin-left:auto;cursor:pointer;opacity:.7">✕</span>
+  </div>`;
+}
 function openDoublonsPanel(){state.doublonsPanelOpen=true;render();}
 function closeDoublonsPanel(){state.doublonsPanelOpen=false;render();}
+// keep: 'A' (garde en Liste A, retire de B) | 'B' (garde en Liste B, retire de A) |
+// 'remove' (retire le numéro des DEUX listes — ne le garde nulle part).
 function resolveDoublon(n,keep){
-  if(keep==='A')delete state.repere2Defined[n];
-  else delete state.repereDefined[n];
+  resolveDoublonSilent(n,keep);
   saveRepereDefinedState();
   saveRepere2DefinedState();
   render();
@@ -7608,7 +7625,8 @@ function resolveAllDoublons(keep){
   render();
 }
 function resolveDoublonSilent(n,keep){
-  if(keep==='A')delete state.repere2Defined[n];
+  if(keep==='remove'){delete state.repereDefined[n];delete state.repere2Defined[n];}
+  else if(keep==='A')delete state.repere2Defined[n];
   else delete state.repereDefined[n];
 }
 function doublonsPanelHTML(){
@@ -7624,13 +7642,15 @@ function doublonsPanelHTML(){
       <div style="display:flex;gap:6px;margin-bottom:10px">
         <button onclick="resolveAllDoublons('A')" style="flex:1;padding:5px;background:#0E7490;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Tout garder en L1</button>
         <button onclick="resolveAllDoublons('B')" style="flex:1;padding:5px;background:#B45309;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Tout garder en L2</button>
+        <button onclick="if(confirm('Retirer les '+${ds.length}+' doublon(s) des DEUX listes ?'))resolveAllDoublons('remove')" style="flex:1;padding:5px;background:#C62828;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Retirer des 2</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:5px">
         ${ds.map(n=>{const cA=state.lists.A.nums[n],cB=state.lists.B.nums[n];
-          return`<div style="display:flex;align-items:center;gap:6px;border:1px solid #eee;border-radius:7px;padding:5px 8px">
+          return`<div style="display:flex;align-items:center;gap:6px;border:1px solid #eee;border-radius:7px;padding:5px 8px;flex-wrap:wrap">
             <span style="background:${cA.bg};color:${cA.fg};border-radius:5px;padding:2px 7px;font-weight:700;font-size:12px">${n}</span>
             <button onclick="resolveDoublon(${n},'A')" style="padding:2px 8px;border-radius:6px;border:1px solid #0E7490;background:#fff;color:#0E7490;font-size:9.5px;font-weight:600;cursor:pointer">Garder L1</button>
             <button onclick="resolveDoublon(${n},'B')" style="padding:2px 8px;border-radius:6px;border:1px solid #B45309;background:#fff;color:#B45309;font-size:9.5px;font-weight:600;cursor:pointer">Garder L2</button>
+            <button onclick="resolveDoublon(${n},'remove')" style="padding:2px 8px;border-radius:6px;border:1px solid #C62828;background:#fff;color:#C62828;font-size:9.5px;font-weight:600;cursor:pointer" title="Retirer ce numéro des deux listes">Retirer des 2</button>
           </div>`;}).join('')}
       </div>`}
     </div>
@@ -7776,11 +7796,14 @@ function addRepere2Defined(){
   if(!el)return;
   const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=1&&n<=90);
   if(!nums.length)return;
+  const alreadyHere=nums.filter(n=>state.repere2Defined[n]!==undefined);
+  const crossDup=nums.filter(n=>state.repere2Defined[n]===undefined&&state.repereDefined[n]!==undefined);
+  const toAdd=nums.filter(n=>state.repere2Defined[n]===undefined);
   const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor),style:state.rep2DefStyle||undefined}:pickHl();
-  nums.forEach(n=>{state.repere2Defined[n]=c;state.repere2Active[n]=true;});
-  autoShowList('B');
-  saveRepere2DefinedState();
+  toAdd.forEach(n=>{state.repere2Defined[n]=c;state.repere2Active[n]=true;});
+  if(toAdd.length){autoShowList('B');saveRepere2DefinedState();}
   el.value='';
+  state.pasteReport=(alreadyHere.length||crossDup.length)?{listKey:'B',added:toAdd.length,alreadyHere,crossDup}:null;
   render();
 }
 function toggleRepere2Active(n){
@@ -7866,6 +7889,7 @@ function repere2GlobalHTML(){
         <button onclick="applyRepere2ToCurrentGame()" style="padding:5px 12px;background:#B45309;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px" title="Colorie immédiatement ces numéros dans le jeu ouvert actuellement">✨ Activer ici, sur ${GAME.name}</button>
       </div>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repere2ShowClass!==false?'checked':''} onchange="state.repere2ShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro de la liste 2 (partout dans l'app)</label>
+      ${pasteReportHTML('B')}
       <div style="background:#FFFBEB;border:1.5px solid #B45309;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#B45309;margin-bottom:5px">✏️ Choisis une couleur puis clique les numéros dans la grille (reclique un numéro pour le retirer)</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
@@ -7924,11 +7948,17 @@ function addRepereDefined(){
   if(!el)return;
   const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=0&&n<=99);
   if(!nums.length)return;
+  // Rapport de collage : les numéros déjà présents DANS CETTE liste sont ignorés (pas
+  // écrasés, pour ne pas perdre une couleur/style choisis à la main) ; ceux présents dans
+  // l'AUTRE liste sont ajoutés quand même mais signalés (nouveau doublon A↔B).
+  const alreadyHere=nums.filter(n=>state.repereDefined[n]!==undefined);
+  const crossDup=nums.filter(n=>state.repereDefined[n]===undefined&&state.repere2Defined[n]!==undefined);
+  const toAdd=nums.filter(n=>state.repereDefined[n]===undefined);
   const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
-  nums.forEach(n=>{state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};});
-  autoShowList('A');
-  saveRepereDefinedState();
+  toAdd.forEach(n=>{state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};});
+  if(toAdd.length){autoShowList('A');saveRepereDefinedState();}
   el.value='';
+  state.pasteReport=(alreadyHere.length||crossDup.length)?{listKey:'A',added:toAdd.length,alreadyHere,crossDup}:null;
   render();
 }
 function removeRepereDefined(n){
@@ -7989,6 +8019,7 @@ function repereGlobalHTML(){
         <button onclick="restoreRepereOrigin()" style="padding:5px 12px;background:#fff;color:#0E7490;border:1.5px solid #0E7490;border-radius:8px;cursor:pointer;font-weight:600;font-size:11px" title="Remettre les 23 numéros du repère d'origine identifié sur BENZ">↺ Repère d'origine</button>
       </div>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repereShowClass!==false?'checked':''} onchange="state.repereShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro repéré (partout dans l'app)</label>
+      ${pasteReportHTML('A')}
       <div style="background:#F0F9FF;border:1.5px solid #0E7490;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#0E7490;margin-bottom:5px">✏️ Prédéfinir des numéros à repérer (indépendant du coloriage d'un jeu — reste fixe partout, tant que tu ne les effaces pas)</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">

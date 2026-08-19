@@ -82,7 +82,7 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.frozen{position:relative;}
 .cols.frozen .col:first-child{position:sticky;left:0;z-index:5;background:#fff;box-shadow:4px 0 10px rgba(31,45,61,.22);isolation:isolate;}
 .cols.frozen .col:first-child .col-hdr{position:sticky;top:0;}
-.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;max-width:100%;}
+.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;max-width:100%;scroll-behavior:smooth;}
 .excel-tbl{border-collapse:separate;border-spacing:0;font-size:11.5px;width:max-content;table-layout:auto;}
 .excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
 .excel-blk{position:sticky;top:0;z-index:6;font-weight:600;font-size:11px;padding:4px;border-right:2px solid rgba(255,255,255,.3);}
@@ -9741,7 +9741,22 @@ function __renderBody(){
           const tc=tC(row.s);
           html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${multiBadgeHTML(row,fCell)}${row.t}</td>`;
           html+=`<td style="${fz(ci,1)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;color:#666;font-weight:400;font-size:${fCell}px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
-          const _e=elmHLMark(row);row.n.forEach((n,ni)=>{html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],fs:fNum},row.t+'_'+ni)}</td>`;});
+          const _e=elmHLMark(row);
+          // Couches "toujours actives" (Miroir même ligne / Miroir superposé / Mêmes numéros superposés) —
+          // manquaient en mode Excel car jamais calculées ici (contrairement à la grille Navigation).
+          const _gi2=IDX[row.t];
+          const _mgap2=Math.max(1,state.mirPGap||1);
+          const _prevR2=(_gi2!=null&&_gi2+_mgap2<T.length)?T[_gi2+_mgap2]:null;
+          const _nextR2=(_gi2!=null&&_gi2-_mgap2>=0)?T[_gi2-_mgap2]:null;
+          const _sgap2=Math.max(1,state.supGap||1);
+          const _olderR2=(_gi2!=null&&_gi2+_sgap2<T.length)?T[_gi2+_sgap2]:null;
+          const _newerR2=(_gi2!=null&&_gi2-_sgap2>=0)?T[_gi2-_sgap2]:null;
+          const _ns2=new Set(row.n);
+          row.n.forEach((n,ni)=>{
+            const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
+            const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,fs:fNum},row.t+'_'+ni)}</td>`;
+          });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
             html+=`<td style="${fz(ci,totIdx2+1)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`;

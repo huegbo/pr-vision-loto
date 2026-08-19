@@ -2249,6 +2249,22 @@ function clearAllColorsEverywhere(){
   state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
 }
+// ══════ Réinitialiser à l'état par défaut — remise à zéro complète, différent de "Tout annuler" ══════
+// "Tout annuler" (clearAllColorsEverywhere) n'efface que couleurs/repères/blocs + remet Miroir/Superposition par défaut.
+// "Réinitialiser" va plus loin : Liste A/B, double vue, filtres Bénin/Togo/Cameroun/Ghana, thème, réglages écarts/couleurs,
+// historique de recherche, pronostics, etc. Le carnet de suivi (journal) et les plans notés sont volontairement conservés.
+function resetAppDefault(){
+  if(!confirm("Réinitialiser l'application à l'état par défaut ?\n\nEfface : couleurs, repères, Liste A/B, double vue, filtres (Bénin/Togo/Cameroun/Ghana), thème, réglages écarts/couleurs, historique de recherche, pronostics...\n\nLe carnet de suivi et les plans notés sont conservés.\n\nCette action est irréversible et va recharger l'application."))return;
+  try{
+    Object.keys(localStorage).forEach(k=>{
+      if(!(k.startsWith('lmj_')||k.startsWith('loto_')))return;
+      if(k==='loto_journal')return; // conservé
+      if(k.startsWith('loto_plans_'))return; // conservé
+      lsRemove(k);
+    });
+  }catch(_){}
+  location.reload();
+}
 // ── Persistance des plans notés (carnet de notes par jeu, survit au refresh) ──
 function savePlansState(){
   lsSet('loto_plans_'+GAME.key,JSON.stringify(state.savedPlans));
@@ -6228,6 +6244,10 @@ function fabGo(action){
     }
     render();return;
   }
+  else if(action==='reset_app'){
+    resetAppDefault();
+    return;
+  }
   else if(action==='search'){state.tab=0;state.showSearchHub=true;loadHist();}
   else if(action==='analyse'){state.tab=2;state.showSearchHub=false;}
   else if(action==='past'){state.tab=0;state.showSearchHub=false;state.showPass=true;}
@@ -6289,6 +6309,7 @@ function fabHTML(){
     ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
     ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
+    ['reset_app','🔄','Réinitialiser à l’état par défaut (couleurs, listes, filtres, réglages)','#7C2D12','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
     ['past','📕','Consulter journaux (Pass)','#2563EB','#fff'],

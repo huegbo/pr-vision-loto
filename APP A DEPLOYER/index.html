@@ -889,15 +889,68 @@ function tgCodeOf(row){
   const d=String(row.d).split('/'),dd=d[0].padStart(2,'0')+'/'+(d[1]||'').padStart(2,'0');
   return tgCodeMap()[row.y+'|'+dd+'|'+row.n.join('-')]||null;
 }
+// ══════ TOUT CAMEROUN — jeu combiné dynamique (11 jeux fusionnés chronologiquement) ══════
+const CAMEROUN_TOUT_SOURCES=[
+  {key:'MOUNGO',raw:RAW_CM_MOUNGO},
+  {key:'WOURI',raw:RAW_CM_WOURI},
+  {key:'MFOUNDI',raw:RAW_CM_MFOUNDI},
+  {key:'LOGONE',raw:RAW_CM_LOGONE},
+  {key:'MONT_CAMEROUN',raw:RAW_CM_MONT_CAMEROUN},
+  {key:'NOUN',raw:RAW_CM_NOUN},
+  {key:'SANAGA',raw:RAW_CM_SANAGA},
+  {key:'LIONS',raw:RAW_CM_LIONS},
+  {key:'MBOA',raw:RAW_CM_MBOA},
+  {key:'CONTINENT',raw:RAW_CM_CONTINENT},
+  {key:'SUPER4',raw:RAW_CM_SUPER4,n4:true}, // 4 numéros seulement, pas de machine/xtra
+];
+let CM_TOUT_ROWS=null;
+function parseCmToutAll(){
+  if(CM_TOUT_ROWS)return CM_TOUT_ROWS;
+  CM_TOUT_ROWS=[];
+  CAMEROUN_TOUT_SOURCES.forEach(src=>{
+    src.raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
+      const p=line.split('|');
+      const t=+p[0],d=p[1],y=p[2];
+      let n,s,bonus;
+      if(src.n4){
+        n=[+p[3],+p[4],+p[5],+p[6],0]; // pad à 5 numéros (5e = 0, cf. convention RAW_CAMEROUN_ALL)
+        s=p[7]!==undefined&&p[7]!==''?+p[7]:(n[0]+n[1]+n[2]+n[3]);
+        bonus=null;
+      }else{
+        n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+        s=p[8]!==undefined&&p[8]!==''?+p[8]:n.reduce((a,b)=>a+b,0);
+        const bonusRaw=p.slice(9).filter(v=>v!==undefined&&v!=='');
+        bonus=bonusRaw.length?bonusRaw.map(v=>+v):null;
+      }
+      CM_TOUT_ROWS.push({jeu:src.key,t,d,y,n,s,bonus});
+    });
+  });
+  CM_TOUT_ROWS.sort((a,b)=>(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''))||b.t-a.t);
+  return CM_TOUT_ROWS;
+}
+let CM_TOUT_RAW=null;
+function buildCmTout(){
+  if(CM_TOUT_RAW)return CM_TOUT_RAW;
+  const rows=parseCmToutAll(); // déjà trié du plus récent au plus ancien
+  let id=rows.length;
+  const lines=rows.map(r=>{
+    const line=`${id}|${r.d}|${r.y}|${r.n.join('|')}|${r.s}${r.bonus?('|'+r.bonus.join('|')):''}`;
+    id--;
+    return line;
+  });
+  CM_TOUT_RAW=lines.join('\n');
+  return CM_TOUT_RAW;
+}
+GAMES.cm_tout.raw=buildCmTout();
 // Recherche du jeu d'origine pour une ligne de TOUT CAMEROUN, par date+numéros
 let CM_CODE=null;
 function cmCodeMap(){
   if(CM_CODE)return CM_CODE;
   CM_CODE={};
-  RAW_CAMEROUN_ALL.trim().split('\n').forEach(l=>{
-    const p=l.split('|');
-    const dd=p[2].split('/').map(x=>x.padStart(2,'0')).join('/');
-    CM_CODE[p[3]+'|'+dd+'|'+p.slice(4,9).join('-')]=p[1];
+  parseCmToutAll().forEach(r=>{
+    const dd=r.d.split('/').map(x=>x.padStart(2,'0')).join('/');
+    CM_CODE[r.y+'|'+dd+'|'+r.n.join('-')]=r.jeu;
   });
   return CM_CODE;
 }

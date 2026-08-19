@@ -5019,6 +5019,9 @@ async function exportColoredExcel(){
   }
   cols=cols.filter(c=>c.rows.length);
   if(!cols.length){alert("Aucune donnée pour les années/plage choisies. Ajuste la sélection dans le panneau d'export, puis relance.");return;}
+  // L'année la plus récente en premier (à gauche) — c'est ce bloc qui sera figé (volets) plus bas,
+  // pour qu'il reste visible pendant qu'on fait défiler vers les années plus anciennes.
+  cols.sort((a,b)=>parseInt(b.y,10)-parseInt(a.y,10));
   const includeColors=state.exportColors!==false;
   const includeM=!!(GAME&&GAME.hasM)&&state.exportM!==false;
   const btns=document.querySelectorAll('.export-colored-btn');
@@ -5127,6 +5130,9 @@ async function exportColoredExcel(){
     }
     ws.columns.forEach(c=>{c.width=8;});
     cols.forEach((c,ci)=>{ws.getColumn(1+ci*colsPerYear+1).width=10;});
+    // Fige le bloc de l'année la plus récente (colonnes) + les 3 lignes d'en-tête (titre/année/N°-Date-N1..)
+    // pour qu'ils restent visibles en faisant défiler vers les années plus anciennes ou les lignes suivantes.
+    ws.views=[{state:'frozen',xSplit:blockCols,ySplit:3}];
 
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
@@ -8338,7 +8344,19 @@ const AN_DEF=[
   {key:'intervalles',label:'🔁 Motifs à intervalle fixe',bg:'#DB2777',fg:'#fff',desc:'Paires ou triplets qui reviennent ensemble avec un écart régulier de tirages'},
   {key:'graph',label:'📊 Graphiques',bg:'#1D4ED8',fg:'#fff',desc:'Histogramme des fréquences et courbe des totaux'},
   {key:'backtest',label:'🧪 Backtest stratégies',bg:'#B91C1C',fg:'#fff',desc:"Teste 8 stratégies de pronostic sur tout l'historique et mesure leur taux de réussite réel (porté depuis Oracle du Loto)"},
+  {key:'semaine',label:'📅 Répétés cette semaine',bg:'#DC2626',fg:'#fff',desc:"Numéros qui reviennent dans au moins 2 tirages de la semaine calendaire en cours (lundi à dimanche)"},
 ];
+// Numéro de semaine ISO 8601 (lundi=début) + année ISO correspondante, pour une date au format 'dd/mm' + année 'yyyy'
+function isoWeekOf(dm,y){
+  const [dd,mm]=String(dm).split('/').map(Number);
+  const d=new Date(Date.UTC(parseInt(y,10),(mm||1)-1,dd||1));
+  const dayNum=(d.getUTCDay()+6)%7; // lundi=0 ... dimanche=6
+  d.setUTCDate(d.getUTCDate()-dayNum+3); // jeudi de cette semaine-là
+  const firstThursday=new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const fdn=(firstThursday.getUTCDay()+6)%7;
+  const week=1+Math.round(((d-firstThursday)/86400000-3+fdn)/7);
+  return {week,year:d.getUTCFullYear()};
+}
 function anCalc(){
   const m=state.anMode,res={};
   // Rappel: T[0] = tirage le plus récent, T[fin] = le plus ancien
@@ -8395,6 +8413,15 @@ function anCalc(){
     const f=Array(91).fill(0);win.forEach(r=>r.n.forEach(n=>f[n]++));
     const order=Array.from({length:90},(_,i)=>i+1).sort((a,b)=>f[b]-f[a]||a-b);
     res.hot=new Set(order.slice(0,10));res.cold=new Set(order.slice(-10));res.f=f;res.order=order;
+  }
+  if(m==='semaine'){
+    const now=new Date();
+    const curW=isoWeekOf(String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0'),now.getFullYear());
+    const rowsThisWeek=T.filter(r=>{const w=isoWeekOf(r.d,r.y);return w.week===curW.week&&w.year===curW.year;});
+    const cnt={};
+    rowsThisWeek.forEach(r=>r.n.forEach(n=>{cnt[n]=(cnt[n]||0)+1;}));
+    res.semaineRepSet=new Set(Object.keys(cnt).filter(k=>cnt[k]>=2).map(Number));
+    res.semaineRows=rowsThisWeek;res.semaineNum=curW.week;
   }
   if(m==='retard'){
     const first={};T.forEach((r,i)=>r.n.forEach(n=>{if(first[n]===undefined)first[n]=i;}));
@@ -8831,11 +8858,12 @@ function anMark(row,ctx){
     else if(m==='tri'&&TRIA.has(n))S(i,D.bg);
     else if(m.startsWith('mult')&&n%parseInt(m.slice(4))===0)S(i,D.bg,D.fg);
     else if(m==='m1331'){if(n===13)S(i,'#C62828');if(n===31)S(i,'#1565C0');}
-    else if(m==='mirL'&&MIR[n]&&row.n.includes(MIR[n]))S(i,D.bg);
+    else if(m==='mirL'&&MIR[n]&&row.n.includes(MIR[n]))S(i,state.mirLColor||D.bg);
     else if(m==='consec'&&(row.n.includes(n+1)||row.n.includes(n-1)))S(i,D.bg);
     else if(m==='suivi'&&ctx.lastSet.has(n))S(i,ctx.numColor[n]||D.bg);
     else if(m==='chauds'||m==='freq'){if(ctx.hot.has(n))S(i,'#C62828');else if(ctx.cold.has(n))S(i,'#1565C0');}
     else if(m==='retard'&&ctx.lateSet.has(n))S(i,D.bg);
+    else if(m==='semaine'&&ctx.semaineRepSet&&ctx.semaineRepSet.has(n))S(i,D.bg);
   });
   if(D&&(m==='mirP'||m==='rep')){
     const gi=IDX[row.t];
@@ -8847,18 +8875,18 @@ function anMark(row,ctx){
       if(m==='rep'&&prev.n.includes(n))S(i,D.bg);
     });
     if(mirPrev)row.n.forEach((n,i)=>{
-      if(m==='mirP'&&MIR[n]&&mirPrev.n[i]===MIR[n])S(i,D.bg);
+      if(m==='mirP'&&MIR[n]&&mirPrev.n[i]===MIR[n])S(i,state.mirPColor||D.bg);
     });
     if(mirNext)row.n.forEach((n,i)=>{
-      if(m==='mirP'&&MIR[n]&&mirNext.n[i]===MIR[n])S(i,D.bg);
+      if(m==='mirP'&&MIR[n]&&mirNext.n[i]===MIR[n])S(i,state.mirPColor||D.bg);
     });
   }
   if(m==='superpos'){
     const gi=IDX[row.t], gap=Math.max(1,state.supGap||1);
     const older=gi+gap<T.length?T[gi+gap]:null; // N tirages plus tôt
     const newer=gi-gap>=0?T[gi-gap]:null; // N tirages plus tard
-    if(older)row.n.forEach((n,i)=>{if(older.n[i]===n)S(i,D.bg);});
-    if(newer)row.n.forEach((n,i)=>{if(newer.n[i]===n)S(i,D.bg);});
+    if(older)row.n.forEach((n,i)=>{if(older.n[i]===n)S(i,state.superposColor||D.bg);});
+    if(newer)row.n.forEach((n,i)=>{if(newer.n[i]===n)S(i,state.superposColor||D.bg);});
   }
   if(m==='arith'||m==='geo'){
     // cherche la plus longue suite (arith ou géo) parmi les 5 numéros
@@ -8923,13 +8951,16 @@ function anMark(row,ctx){
         return;
       }
       const LD=AN_DEF.find(d=>d.key===k); if(!LD)return;
+      // Utilise la couleur personnalisée (réglable dans "Toujours actif") plutôt que la couleur par
+      // défaut de AN_DEF, pour que l'export reproduise fidèlement ce qui est réellement affiché.
+      const _col=k==='mirL'?(state.mirLColor||LD.bg):k==='mirP'?(state.mirPColor||LD.bg):k==='superpos'?(state.superposColor||LD.bg):LD.bg;
       row.n.forEach((n,i)=>{
         if(out[i])return;
         let hit=false;
         if(k==='mirL')hit=!!(MIR[n]&&row.n.includes(MIR[n]));
         else if(k==='mirP')hit=!!(MIR[n]&&((prevR&&prevR.n[i]===MIR[n])||(nextR&&nextR.n[i]===MIR[n])));
         else if(k==='superpos')hit=!!((olderR&&olderR.n[i]===n)||(newerR&&newerR.n[i]===n));
-        if(hit)out[i]=[LD.bg,LD.fg||'#fff'];
+        if(hit)out[i]=[_col,'#fff'];
       });
     });
   }

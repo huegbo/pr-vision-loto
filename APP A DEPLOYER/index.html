@@ -2101,7 +2101,7 @@ let state={
   // classifications cochées (toutes activées par défaut)
   clActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true,miroir:true},
   // analyses
-  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
+  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9, semaineN:null, // semaineN=null → semaine calendaire en cours ; sinon N° de semaine choisi (1-53)
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
   // Couleurs personnalisables des 3 couches toujours actives (persistées)
@@ -8344,7 +8344,7 @@ const AN_DEF=[
   {key:'intervalles',label:'🔁 Motifs à intervalle fixe',bg:'#DB2777',fg:'#fff',desc:'Paires ou triplets qui reviennent ensemble avec un écart régulier de tirages'},
   {key:'graph',label:'📊 Graphiques',bg:'#1D4ED8',fg:'#fff',desc:'Histogramme des fréquences et courbe des totaux'},
   {key:'backtest',label:'🧪 Backtest stratégies',bg:'#B91C1C',fg:'#fff',desc:"Teste 8 stratégies de pronostic sur tout l'historique et mesure leur taux de réussite réel (porté depuis Oracle du Loto)"},
-  {key:'semaine',label:'📅 Répétés cette semaine',bg:'#DC2626',fg:'#fff',desc:"Numéros qui reviennent dans au moins 2 tirages de la semaine calendaire en cours (lundi à dimanche)"},
+  {key:'semaine',label:'📅 Répétés semaine',bg:'#DC2626',fg:'#fff',desc:"Numéros qui reviennent dans au moins 2 tirages d'une semaine calendaire (lundi à dimanche) — semaine en cours par défaut, ou n'importe quel N° de semaine (réglable)"},
 ];
 // Numéro de semaine ISO 8601 (lundi=début) + année ISO correspondante, pour une date au format 'dd/mm' + année 'yyyy'
 function isoWeekOf(dm,y){
@@ -8417,11 +8417,14 @@ function anCalc(){
   if(m==='semaine'){
     const now=new Date();
     const curW=isoWeekOf(String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0'),now.getFullYear());
-    const rowsThisWeek=T.filter(r=>{const w=isoWeekOf(r.d,r.y);return w.week===curW.week&&w.year===curW.year;});
+    // Semaine en cours par défaut (state.semaineN=null), sinon le N° de semaine choisi, sur l'année en cours.
+    const targetWeek=state.semaineN?Math.max(1,Math.min(53,parseInt(state.semaineN,10)||curW.week)):curW.week;
+    const targetYear=curW.year;
+    const rowsThisWeek=T.filter(r=>{const w=isoWeekOf(r.d,r.y);return w.week===targetWeek&&w.year===targetYear;});
     const cnt={};
     rowsThisWeek.forEach(r=>r.n.forEach(n=>{cnt[n]=(cnt[n]||0)+1;}));
     res.semaineRepSet=new Set(Object.keys(cnt).filter(k=>cnt[k]>=2).map(Number));
-    res.semaineRows=rowsThisWeek;res.semaineNum=curW.week;
+    res.semaineRows=rowsThisWeek;res.semaineNum=targetWeek;res.semaineCurNum=curW.week;
   }
   if(m==='retard'){
     const first={};T.forEach((r,i)=>r.n.forEach(n=>{if(first[n]===undefined)first[n]=i;}));
@@ -9130,6 +9133,7 @@ function anRender(){
     ${(state.anMode==='contient'||state.anMode==='finit')?` • Chiffre: ${[0,1,2,3,4,5,6,7,8,9].map(dg=>`<button onclick="state.digitFilter=${dg};render()" style="padding:1px 7px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.digitFilter===dg?D.bg:'#ddd'};background:${state.digitFilter===dg?D.bg:'#fff'};color:${state.digitFilter===dg?'#fff':'#888'};cursor:pointer;font-weight:500">${dg}</button>`).join('')}`:''}
     ${state.anMode==='dizaine'?` • Dizaine: ${[0,1,2,3,4,5,6,7,8].map(dz=>`<button onclick="state.dizaineFilter=${dz};render()" style="padding:1px 6px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.dizaineFilter===dz?D.bg:'#ddd'};background:${state.dizaineFilter===dz?D.bg:'#fff'};color:${state.dizaineFilter===dz?'#fff':'#888'};cursor:pointer;font-weight:500">${dz}0-${dz}9</button>`).join('')}`:''}
     ${state.anMode==='groupe'?` • Groupe: ${[1,2,3,4,5,6,7,8,9].map(gr=>`<button onclick="state.groupeFilter=${gr};render()" style="padding:1px 8px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.groupeFilter===gr?D.bg:'#ddd'};background:${state.groupeFilter===gr?D.bg:'#fff'};color:${state.groupeFilter===gr?'#fff':'#888'};cursor:pointer;font-weight:500">${gr}</button>`).join('')}`:''}
+    ${state.anMode==='semaine'?` • N° de semaine: <input type="number" value="${state.semaineN||''}" min="1" max="53" placeholder="en cours" onchange="state.semaineN=this.value?parseInt(this.value):null;render()" style="width:60px;padding:1px 4px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px"> ${state.semaineN?`<button onclick="state.semaineN=null;render()" style="padding:1px 8px;margin-left:3px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">↺ semaine en cours</button>`:`<span style="font-size:9px;color:#888">(semaine en cours = ${ctx.semaineNum||''})</span>`}`:''}
     ${state.anMode==='suivi'?` • Nombre de tirages: ${[1,3,5].map(g=>`<button onclick="state.suiviN=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.suiviN===g?D.bg:'#ddd'};background:${state.suiviN===g?D.bg:'#fff'};color:${state.suiviN===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')}
     <div style="margin-top:3px">${ctx.recent.map((r,ri)=>`<span style="color:${ctx.suiviCol[ri%ctx.suiviCol.length]};font-weight:500">■</span> <b>${GAME.name} ${r.t}</b> (${r.d}): ${r.n.join(', ')}${r.m?' | M: '+r.m.join(', '):''}`).join(' &nbsp;•&nbsp; ')}</div>`:''}
     </div>

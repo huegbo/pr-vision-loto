@@ -38,9 +38,9 @@ button{touch-action:manipulation;font-family:inherit;}
 .grid-hdr-m>div:not(:last-child),.grid-hdr>div:not(:last-child){border-right:1px solid rgba(255,255,255,.12);}
 .grid-comp{display:grid;grid-template-columns:34px 46px repeat(5,1fr) 36px;font-size:11.5px;text-align:center;padding:4px 1px;align-items:center;border-bottom:1px solid #eee;}
 .grid-hdr-comp{display:grid;grid-template-columns:34px 46px repeat(5,1fr) 36px;background:var(--ink);color:#fff;font-size:9px;font-weight:600;text-align:center;padding:4px 1px;letter-spacing:.3px;}
-.num{font-weight:600;cursor:pointer;border-radius:4px;user-select:none;padding:1px 1px;transition:transform .08s;font-variant-numeric:tabular-nums;line-height:1.1;display:inline-block;min-width:1.65em;text-align:center;box-sizing:content-box;}
+.num{font-weight:600;cursor:pointer;border-radius:4px;user-select:none;padding:1px 1px;transition:transform .08s;font-variant-numeric:tabular-nums;line-height:1.1;display:inline-flex;align-items:center;justify-content:center;width:1.65em;min-width:1.65em;text-align:center;box-sizing:content-box;}
 .num:active{transform:scale(1.25);}
-.cols{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:12px;scroll-snap-type:x proximity;}
+.cols{display:flex;gap:10px;overflow-x:auto;align-items:flex-start;padding-bottom:12px;scroll-snap-type:x proximity;overscroll-behavior-x:contain;touch-action:pan-x pan-y;}
 .col{min-width:224px;max-width:236px;flex-shrink:0;border-radius:11px;overflow:hidden;border:2px solid #ccc;background:#fff;box-shadow:var(--shadow);scroll-snap-align:start;}
 .col.has-m{min-width:365px;max-width:380px;border-width:2.5px;box-shadow:0 2px 10px rgba(0,0,0,.12);}
 .col.has-m .col-hdr{font-size:12.5px;padding:7px 3px;}
@@ -82,15 +82,21 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.frozen{position:relative;}
 .cols.frozen .col:first-child{position:sticky;left:0;z-index:5;background:#fff;box-shadow:4px 0 10px rgba(31,45,61,.22);isolation:isolate;}
 .cols.frozen .col:first-child .col-hdr{position:sticky;top:0;}
-.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;max-width:100%;}
+.excel-wrap{position:relative;overflow:auto;max-width:100%;}
 .excel-tbl{border-collapse:separate;border-spacing:0;font-size:11.5px;width:max-content;table-layout:auto;}
-.excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
-.excel-blk{position:sticky;top:0;z-index:6;font-weight:600;font-size:11px;padding:4px;border-right:2px solid rgba(255,255,255,.3);}
-.excel-hd{position:sticky;top:22px;z-index:5;background:var(--ink);color:#fff;font-size:8px;font-weight:700;}
-.excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);}
+.excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;overflow:hidden;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
+/* iOS Safari a un bug connu : les cellules "position:sticky" à l'intérieur d'un conteneur
+   overflow:auto (comme .excel-wrap) restent visuellement "collées" en retard ou pas du tout
+   pendant le défilement tant qu'on ne force pas leur propre calque GPU. -webkit-overflow-scrolling:touch
+   aggrave ce bug (scroller "à l'ancienne" qui ne repeint pas les sticky pendant l'inertie) — retiré ci-dessus.
+   translateZ(0) force le calque GPU par cellule pour que le collage suive le doigt en temps réel. */
+.excel-tbl [style*="sticky"]{transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-blk{position:sticky;top:0;z-index:6;font-weight:600;font-size:11px;padding:4px;border-right:2px solid rgba(255,255,255,.3);transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-hd{position:sticky;top:22px;z-index:5;background:var(--ink);color:#fff;font-size:8px;font-weight:700;transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);transform:translateZ(0);-webkit-transform:translateZ(0);}
 th.excel-frozen{z-index:9;}
 .excel-td.excel-frozen{background:#fff;}
-.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
+.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;touch-action:none;}
 .col-hdr{text-align:center;padding:6px 3px;font-weight:600;font-size:12px;position:sticky;top:0;z-index:2;letter-spacing:.3px;}
 .popup{position:fixed;z-index:999;background:rgba(24,30,38,.72);color:#fff;border-radius:8px;padding:4px 7px;min-width:80px;max-width:190px;box-shadow:0 6px 22px rgba(0,0,0,.35);pointer-events:none;backdrop-filter:blur(4px);}
 .popup-overlay{position:fixed;inset:0;z-index:998;}
@@ -210,6 +216,7 @@ const RAW_NATIONAL=window.LOTO_DATA.RAW_NATIONAL;
 
 const RAW_BENIN_ALL=window.LOTO_DATA.RAW_BENIN_ALL;
 const RAW_BENIN_ALL_JEU=window.LOTO_DATA.RAW_BENIN_ALL_JEU;
+const RAW_DIGITAL_BENIN=window.LOTO_DATA.RAW_DIGITAL_BENIN;
 const RAW_DIGITAL_TOUT=window.LOTO_DATA.RAW_DIGITAL_TOUT;
 const RAW_DIGITAL_08H=window.LOTO_DATA.RAW_DIGITAL_08H;
 const RAW_DIGITAL_00H=window.LOTO_DATA.RAW_DIGITAL_00H;
@@ -307,12 +314,16 @@ const RAW_CI_MONNI=window.LOTO_DATA.RAW_CI_MONNI;
 const RAW_CI_CASH=window.LOTO_DATA.RAW_CI_CASH;
 const RAW_CI_SOLUTION=window.LOTO_DATA.RAW_CI_SOLUTION;
 const RAW_CI_WARI=window.LOTO_DATA.RAW_CI_WARI;
+const RAW_BF_NEKRE=window.LOTO_DATA.RAW_BF_NEKRE;
+const RAW_BF_KOUNANDIA=window.LOTO_DATA.RAW_BF_KOUNANDIA;
+const RAW_BF_WELHY=window.LOTO_DATA.RAW_BF_WELHY;
 const RAW_IT_PALERMO=window.LOTO_DATA.RAW_IT_PALERMO;
 const RAW_IT_ROMA=window.LOTO_DATA.RAW_IT_ROMA;
 const RAW_IT_TORINO=window.LOTO_DATA.RAW_IT_TORINO;
 const RAW_IT_VENEZIA=window.LOTO_DATA.RAW_IT_VENEZIA;
 const RAW_IT_NAZIONALE=window.LOTO_DATA.RAW_IT_NAZIONALE;
 const RAW_CM_CONTINENT=window.LOTO_DATA.RAW_CM_CONTINENT;
+const RAW_CM_DIGITAL=window.LOTO_DATA.RAW_CM_DIGITAL;
 const RAW_CM_SUPER4=window.LOTO_DATA.RAW_CM_SUPER4;
 const RAW_CM_PREMIERBET4=window.LOTO_DATA.RAW_CM_PREMIERBET4;
 const RAW_CM_LIONS=window.LOTO_DATA.RAW_CM_LIONS;
@@ -381,6 +392,7 @@ const GAMES={
   alpha:{name:'ALPHA LOTTO',icon:'🅰️',raw:RAW_ALPHA,hasM:true,sum10:true},
   toutbenin:{name:'TOUT BENIN PLUS DIGITAL',icon:'🇧🇯',raw:RAW_TOUTBENIN,hasM:true,sum10:true},
   benin_all_jeu:{name:'ALL BENIN (officiel)',icon:'🇧🇯',raw:RAW_BENIN_ALL_JEU,hasM:true,sum10:true},
+  digital_benin:{name:'DIGITAL BENIN',icon:'🇧🇯',raw:RAW_DIGITAL_BENIN,hasM:true,sum10:true},
   digital_tout:{name:'TOUT DIGITAL',icon:'🇧🇯',raw:RAW_DIGITAL_TOUT,hasM:false,sum10:true},
   digital_08h:{name:'DIGITAL 08H',icon:'🇧🇯',raw:RAW_DIGITAL_08H,hasM:false,sum10:true},
   digital_00h:{name:'DIGITAL 00H',icon:'🇧🇯',raw:RAW_DIGITAL_00H,hasM:false,sum10:true},
@@ -479,6 +491,9 @@ const GAMES={
   ci_cash:{name:'CASH (CI)',icon:'🇨🇮',raw:RAW_CI_CASH,hasM:true},
   ci_solution:{name:'SOLUTION',icon:'🇨🇮',raw:RAW_CI_SOLUTION,hasM:true},
   ci_wari:{name:'WARI',icon:'🇨🇮',raw:RAW_CI_WARI,hasM:true},
+  bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE},
+  bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA},
+  bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY},
   it_palermo:{name:'IT PALERMO',icon:'🇮🇹',raw:RAW_IT_PALERMO},
   it_roma:{name:'IT ROMA',icon:'🇮🇹',raw:RAW_IT_ROMA},
   it_torino:{name:'IT TORINO',icon:'🇮🇹',raw:RAW_IT_TORINO},
@@ -516,6 +531,7 @@ const GAMES={
   cm_noun:{name:'CM NOUN',icon:'🇨🇲',raw:RAW_CM_NOUN,hasM:true,bonusN:5,xtra:true},
   cm_sanaga:{name:'CM SANAGA',icon:'🇨🇲',raw:RAW_CM_SANAGA,hasM:true,bonusN:5,xtra:true},
   cm_wouri:{name:'CM WOURI',icon:'🇨🇲',raw:RAW_CM_WOURI,hasM:true,bonusN:5,xtra:true},
+  cm_digital:{name:'CM DIGITAL',icon:'🇨🇲',raw:RAW_CM_DIGITAL,hasM:true,bonusN:5,xtra:true},
 };
 let T,IDX,MAX_T,MIN_T,YEARS,BY_YEAR,GAME;
 
@@ -881,15 +897,68 @@ function tgCodeOf(row){
   const d=String(row.d).split('/'),dd=d[0].padStart(2,'0')+'/'+(d[1]||'').padStart(2,'0');
   return tgCodeMap()[row.y+'|'+dd+'|'+row.n.join('-')]||null;
 }
+// ══════ TOUT CAMEROUN — jeu combiné dynamique (11 jeux fusionnés chronologiquement) ══════
+const CAMEROUN_TOUT_SOURCES=[
+  {key:'MOUNGO',raw:RAW_CM_MOUNGO},
+  {key:'WOURI',raw:RAW_CM_WOURI},
+  {key:'MFOUNDI',raw:RAW_CM_MFOUNDI},
+  {key:'LOGONE',raw:RAW_CM_LOGONE},
+  {key:'MONT_CAMEROUN',raw:RAW_CM_MONT_CAMEROUN},
+  {key:'NOUN',raw:RAW_CM_NOUN},
+  {key:'SANAGA',raw:RAW_CM_SANAGA},
+  {key:'LIONS',raw:RAW_CM_LIONS},
+  {key:'MBOA',raw:RAW_CM_MBOA},
+  {key:'CONTINENT',raw:RAW_CM_CONTINENT},
+  {key:'SUPER4',raw:RAW_CM_SUPER4,n4:true}, // 4 numéros seulement, pas de machine/xtra
+];
+let CM_TOUT_ROWS=null;
+function parseCmToutAll(){
+  if(CM_TOUT_ROWS)return CM_TOUT_ROWS;
+  CM_TOUT_ROWS=[];
+  CAMEROUN_TOUT_SOURCES.forEach(src=>{
+    src.raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
+      const p=line.split('|');
+      const t=+p[0],d=p[1],y=p[2];
+      let n,s,bonus;
+      if(src.n4){
+        n=[+p[3],+p[4],+p[5],+p[6],0]; // pad à 5 numéros (5e = 0, cf. convention RAW_CAMEROUN_ALL)
+        s=p[7]!==undefined&&p[7]!==''?+p[7]:(n[0]+n[1]+n[2]+n[3]);
+        bonus=null;
+      }else{
+        n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+        s=p[8]!==undefined&&p[8]!==''?+p[8]:n.reduce((a,b)=>a+b,0);
+        const bonusRaw=p.slice(9).filter(v=>v!==undefined&&v!=='');
+        bonus=bonusRaw.length?bonusRaw.map(v=>+v):null;
+      }
+      CM_TOUT_ROWS.push({jeu:src.key,t,d,y,n,s,bonus});
+    });
+  });
+  CM_TOUT_ROWS.sort((a,b)=>(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''))||b.t-a.t);
+  return CM_TOUT_ROWS;
+}
+let CM_TOUT_RAW=null;
+function buildCmTout(){
+  if(CM_TOUT_RAW)return CM_TOUT_RAW;
+  const rows=parseCmToutAll(); // déjà trié du plus récent au plus ancien
+  let id=rows.length;
+  const lines=rows.map(r=>{
+    const line=`${id}|${r.d}|${r.y}|${r.n.join('|')}|${r.s}${r.bonus?('|'+r.bonus.join('|')):''}`;
+    id--;
+    return line;
+  });
+  CM_TOUT_RAW=lines.join('\n');
+  return CM_TOUT_RAW;
+}
+GAMES.cm_tout.raw=buildCmTout();
 // Recherche du jeu d'origine pour une ligne de TOUT CAMEROUN, par date+numéros
 let CM_CODE=null;
 function cmCodeMap(){
   if(CM_CODE)return CM_CODE;
   CM_CODE={};
-  RAW_CAMEROUN_ALL.trim().split('\n').forEach(l=>{
-    const p=l.split('|');
-    const dd=p[2].split('/').map(x=>x.padStart(2,'0')).join('/');
-    CM_CODE[p[3]+'|'+dd+'|'+p.slice(4,9).join('-')]=p[1];
+  parseCmToutAll().forEach(r=>{
+    const dd=r.d.split('/').map(x=>x.padStart(2,'0')).join('/');
+    CM_CODE[r.y+'|'+dd+'|'+r.n.join('-')]=r.jeu;
   });
   return CM_CODE;
 }
@@ -1899,6 +1968,13 @@ function repereClassLabel(n){
   const hit=rows.find(([l,v])=>v!=null&&v!==''&&v!==0);
   return hit?hit[0]+':'+hit[1]:'';
 }
+// Même badge de classification que dans la grille (numSpan), réutilisable partout où un
+// numéro repéré est affiché ailleurs que dans la grille principale (panneaux Liste A/B,
+// scan multi-jeux) — pour que "partout dans l'app" (promesse du toggle 🧩) soit tenue.
+function classifSuffixHTML(n){
+  const lbl=repereClassLabel(n);
+  return lbl?`<sub style="font-size:6px;font-weight:700;opacity:.9;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${lbl}</sub>`:'';
+}
 
 // Retourne les dérivés d'un numéro par type de classification
 function getDerivsByType(n){
@@ -1928,6 +2004,9 @@ let state={
   sugN:6, sugMode:'equilibre', sugResult:null, sugWin:100, sugMulti:false, sugGames:[], sugMultiRes:null,
   popup:null,
   colored:{}, coloredCells:{}, colorIdx:0, lastTap:{}, hoverTimer:null, rowMultiNums:new Set(), markRows:{}, markInput:'',
+  // Coloriage manuel INDÉPENDANT du volet "sans repérés" en double vue : stores séparés,
+  // pour que colorier un numéro dans un volet n'affecte jamais l'autre volet.
+  colored2:{}, coloredCells2:{},
   colorUndoStack:[],
   // Coloriage par lot (dernier(s) tirage(s) / tirage précis / intervalle) + choix de la position (tous / N1..N5 / M1..M5)
   batchColorMode:'last', batchColorN:3, batchColorTirage:'', batchColorStep:2, batchColorRange:20, batchColorPos:'all',
@@ -1952,10 +2031,36 @@ let state={
   rangeOn:false, rangeMode:'year', rangeFrom:'', rangeTo:'', rangePanel:false, gamePicker:false,
   ytdOn:false, ytdN:0,
   exportPanel:false, exportYears:[], exportColors:true, exportM:true, exportRowMode:'all', exportRowN:100, exportRowFrom:'', exportRowTo:'',
-  repereGlobalOpen:false, repereGlobalLimit:20, repereDefined:{}, repDefColor:'', repDefStyle:'', coloringExportOpen:false, repereShowClass:true, repereAlways:false, repereActive:{}, repereSnapshots:[],
-  // Double vue : deux colonnes par année (une avec coloriage manuel, une sans), chacune masquable séparément.
-  dualViewOn:false, dualViewLeftOn:true, dualViewRightOn:true,
-  repere2GlobalOpen:false, repere2GlobalLimit:10, repere2Defined:{}, rep2DefColor:'', rep2DefStyle:'', repere2ShowClass:true, repere2Always:false, repere2Active:{},
+  // ══════ ARCHITECTURE UNIFIÉE DES LISTES DE REPÈRES (refonte) ══════
+  // Une seule mécanique pour toutes les listes de repères permanents/multi-jeux, au lieu de
+  // deux systèmes parallèles (repereDefined/repere2Defined) qui dupliquaient tout sans être
+  // symétriques. state.lists est désormais LA source de vérité ; les anciens noms
+  // (repereDefined, repereAlways, repere2Defined, repere2Always, repereDisplayStyle...) restent
+  // lisibles/écrivables partout ailleurs dans le code via des accesseurs (voir plus bas,
+  // juste après la déclaration de `state`), pour ne pas devoir réécrire chaque fonction qui
+  // les utilise déjà — mais il n'y a plus qu'UN SEUL espace de stockage réel.
+  lists:{
+    A:{name:'Liste A', nums:{}, on:false},
+    B:{name:'Liste B', nums:{}, on:false},
+  },
+  listStyle:'fill', // 'fill'|'box'|'underline'|'text' — style unique pour TOUTES les listes, écran + export
+  listShowClass:true, // afficher l'élément de classification (ex: C:14) à côté des numéros des listes
+  listsGlobalOpen:false, listsGlobalActive:'A', listsGlobalLimit:20,
+  listSnapshots:[], // instantanés unifiés : {id,name,listKey,nums,createdAt} — utilisables pour A ou B
+  repDefColor:'', coloringExportOpen:false,
+  // Double vue : deux colonnes par année — AVEC les listes de repères / SANS —, avec un
+  // coloriage manuel indépendant par volet (colored/coloredCells pour "avec", colored2/
+  // coloredCells2 pour "sans"). Ancien nom dualViewOn/dualViewLeftOn/dualViewRightOn conservé
+  // en accesseurs (voir plus bas) pour compatibilité avec le reste du code.
+  dualView:{on:false, showWith:true, showWithout:true},
+  // Bandeau de statut des listes (Navigation) : repliable/fermable, préférence retenue.
+  listsBarOn:(()=>{
+    try{
+      const v=localStorage.getItem('loto_lists_bar');
+      if(v===null)return true;
+      return v!=='0';
+    }catch(_){return true;}
+  })(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -2004,7 +2109,7 @@ let state={
   // classifications cochées (toutes activées par défaut)
   clActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true,miroir:true},
   // analyses
-  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9,
+  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9, semaineN:null, // semaineN=null → semaine calendaire en cours ; sinon N° de semaine choisi (1-53)
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
   // Couleurs personnalisables des 3 couches toujours actives (persistées)
@@ -2025,10 +2130,35 @@ let state={
   genTotalOn:false, genTotal:222, genTotalTol:5,
 };
 state.mgYear=YEARS[0];
+// Reliquat (jamais réellement activé nulle part) — objets vides pour compat, voir plus haut.
+state.repereActive={};
+state.repere2Active={};
+// ── Accesseurs de compatibilité : les anciens noms (repereDefined, repereAlways, repere2Defined,
+// repere2Always, repereDisplayStyle, repereShowClass, repere2ShowClass, repereGlobalOpen/Limit,
+// repere2GlobalOpen/Limit, dualViewOn/Left/Right) restent utilisables tels quels dans tout le
+// reste du code déjà écrit avec ces noms, mais lisent/écrivent désormais dans state.lists /
+// state.listStyle / state.listShowClass / state.dualView — une seule source de vérité réelle,
+// au lieu des deux systèmes parallèles (repereDefined/repere2Defined) d'avant la refonte.
+Object.defineProperties(state,{
+  repereDefined:{get(){return state.lists.A.nums;},set(v){state.lists.A.nums=v||{};}},
+  repere2Defined:{get(){return state.lists.B.nums;},set(v){state.lists.B.nums=v||{};}},
+  repereAlways:{get(){return state.lists.A.on;},set(v){state.lists.A.on=v;}},
+  repere2Always:{get(){return state.lists.B.on;},set(v){state.lists.B.on=v;}},
+  repereDisplayStyle:{get(){return state.listStyle;},set(v){state.listStyle=v;}},
+  repereShowClass:{get(){return state.listShowClass;},set(v){state.listShowClass=v;}},
+  repere2ShowClass:{get(){return state.listShowClass;},set(v){state.listShowClass=v;}},
+  repereGlobalOpen:{get(){return state.listsGlobalOpen&&state.listsGlobalActive==='A';},set(v){state.listsGlobalOpen=!!v;if(v)state.listsGlobalActive='A';}},
+  repere2GlobalOpen:{get(){return state.listsGlobalOpen&&state.listsGlobalActive==='B';},set(v){state.listsGlobalOpen=!!v;if(v)state.listsGlobalActive='B';}},
+  repereGlobalLimit:{get(){return state.listsGlobalLimit;},set(v){state.listsGlobalLimit=v;}},
+  repere2GlobalLimit:{get(){return state.listsGlobalLimit;},set(v){state.listsGlobalLimit=v;}},
+  dualViewOn:{get(){return state.dualView.on;},set(v){state.dualView.on=v;}},
+  dualViewLeftOn:{get(){return state.dualView.showWith;},set(v){state.dualView.showWith=v;}},
+  dualViewRightOn:{get(){return state.dualView.showWithout;},set(v){state.dualView.showWithout=v;}},
+});
 
 // ── Persistance des couleurs/repères par jeu (survit au refresh) ──
 function saveColorState(){
-  lsSet('loto_colors_'+GAME.key,JSON.stringify({colored:state.colored,coloredCells:state.coloredCells,markRows:state.markRows,blockRows:state.blockRows,anchors:state.anchors,anchorLocks:state.anchorLocks}));
+  lsSet('loto_colors_'+GAME.key,JSON.stringify({colored:state.colored,coloredCells:state.coloredCells,colored2:state.colored2,coloredCells2:state.coloredCells2,markRows:state.markRows,blockRows:state.blockRows,anchors:state.anchors,anchorLocks:state.anchorLocks}));
 }
 function loadColorState(key){
   try{
@@ -2036,10 +2166,12 @@ function loadColorState(key){
     const d=raw?JSON.parse(raw):null;
     state.colored=(d&&d.colored)||{};
     state.coloredCells=(d&&d.coloredCells)||{};
+    state.colored2=(d&&d.colored2)||{};
+    state.coloredCells2=(d&&d.coloredCells2)||{};
     state.markRows=(d&&d.markRows)||{};
     state.blockRows=(d&&d.blockRows)||{};
     state.anchors=(d&&d.anchors)||{}; state.anchorLocks=(d&&d.anchorLocks)||{};
-  }catch(_){state.colored={};state.coloredCells={};state.markRows={};state.blockRows={};state.anchors={};state.anchorLocks={};}
+  }catch(_){state.colored={};state.coloredCells={};state.colored2={};state.coloredCells2={};state.markRows={};state.blockRows={};state.anchors={};state.anchorLocks={};}
 }
 loadColorState(GAME.key);
 // ── Export du coloriage actuel (texte à copier/coller) : sert à figer un coloriage précis
@@ -2074,6 +2206,7 @@ function pushColorUndo(){
   try{
     state.colorUndoStack.push(JSON.stringify({
       colored:state.colored, coloredCells:state.coloredCells,
+      colored2:state.colored2, coloredCells2:state.coloredCells2,
       markRows:state.markRows, blockRows:state.blockRows, anchors:state.anchors, anchorLocks:state.anchorLocks,
       colorIdx:state.colorIdx, rowMultiNums:[...state.rowMultiNums]
     }));
@@ -2087,6 +2220,8 @@ function undoColorAction(){
     const d=JSON.parse(snap);
     state.colored=d.colored||{};
     state.coloredCells=d.coloredCells||{};
+    state.colored2=d.colored2||{};
+    state.coloredCells2=d.coloredCells2||{};
     state.markRows=d.markRows||{};
     state.blockRows=d.blockRows||{};
     state.anchors=d.anchors||{}; state.anchorLocks=d.anchorLocks||{};
@@ -2103,14 +2238,14 @@ function undoColorAction(){
 function clearAllColorsEverywhere(){
   pushColorUndo(); // permet d'annuler le nettoyage du jeu affiché avec ↩️ Annuler
   // 1) Jeu actuellement affiché
-  state.colored={};state.coloredCells={};state.colorIdx=0;state.rowMultiNums=new Set();
+  state.colored={};state.coloredCells={};state.colored2={};state.coloredCells2={};state.colorIdx=0;state.rowMultiNums=new Set();
   state.markRows={};state.blockRows={};
   saveColorState();
   // 2) Tous les autres lotos qui ont un coloriage enregistré (local + cloud via lsSet)
   try{
     Object.keys(localStorage).filter(k=>k.startsWith('loto_colors_')).forEach(k=>{
       if(k==='loto_colors_'+GAME.key)return; // déjà fait ci-dessus
-      lsSet(k,JSON.stringify({colored:{},coloredCells:{},markRows:{},blockRows:{},anchors:{},anchorLocks:{}}));
+      lsSet(k,JSON.stringify({colored:{},coloredCells:{},colored2:{},coloredCells2:{},markRows:{},blockRows:{},anchors:{},anchorLocks:{}}));
     });
   }catch(_){}
   // 3) Réglages globaux : mode par défaut
@@ -2121,6 +2256,22 @@ function clearAllColorsEverywhere(){
   state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
   state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
+}
+// ══════ Réinitialiser à l'état par défaut — remise à zéro complète, différent de "Tout annuler" ══════
+// "Tout annuler" (clearAllColorsEverywhere) n'efface que couleurs/repères/blocs + remet Miroir/Superposition par défaut.
+// "Réinitialiser" va plus loin : Liste A/B, double vue, filtres Bénin/Togo/Cameroun/Ghana, thème, réglages écarts/couleurs,
+// historique de recherche, pronostics, etc. Le carnet de suivi (journal) et les plans notés sont volontairement conservés.
+function resetAppDefault(){
+  if(!confirm("Réinitialiser l'application à l'état par défaut ?\n\nEfface : couleurs, repères, Liste A/B, double vue, filtres (Bénin/Togo/Cameroun/Ghana), thème, réglages écarts/couleurs, historique de recherche, pronostics...\n\nLe carnet de suivi et les plans notés sont conservés.\n\nCette action est irréversible et va recharger l'application."))return;
+  try{
+    Object.keys(localStorage).forEach(k=>{
+      if(!(k.startsWith('lmj_')||k.startsWith('loto_')))return;
+      if(k==='loto_journal')return; // conservé
+      if(k.startsWith('loto_plans_'))return; // conservé
+      lsRemove(k);
+    });
+  }catch(_){}
+  location.reload();
 }
 // ── Persistance des plans notés (carnet de notes par jeu, survit au refresh) ──
 function savePlansState(){
@@ -2203,13 +2354,13 @@ function pickHl(){
 }
 function setHlColor(c){state.hlColor=c||null;reopenMenu();}
 function setHlStyle(s){state.hlStyle=s;reopenMenu();}
-function reopenMenu(){const c=state.menuCtx;if(c)showMenu(c.n,c.cid,c.x,c.y);}
-function showMenu(n,cid,x,y){
+function reopenMenu(){const c=state.menuCtx;if(c)showMenu(c.n,c.cid,c.x,c.y,c.pane2);}
+function showMenu(n,cid,x,y,pane2){
   clearTimeout(state.hoverTimer);
   document.getElementById('popup').style.display='none';
-  state.menuCtx={n,cid,x,y};
-  const hasAll=!!state.colored[n];
-  const hasCell=cid&&!!state.coloredCells[cid];
+  state.menuCtx={n,cid,x,y,pane2:!!pane2};
+  const hasAll=!!(pane2?state.colored2[n]:state.colored[n]);
+  const hasCell=cid&&!!(pane2?state.coloredCells2[cid]:state.coloredCells[cid]);
   const m=document.getElementById('nmenu');
   const stBtn=(s,lbl)=>`<button onclick="event.stopPropagation();setHlStyle('${s}')" style="flex:1;padding:4px;border-radius:6px;font-size:10px;font-weight:500;cursor:pointer;border:2px solid ${state.hlStyle===s?'#1F2D3D':'#ddd'};background:${state.hlStyle===s?'#E8EAF6':'#fff'};color:#333">${lbl}</button>`;
   m.innerHTML=`
@@ -2226,13 +2377,14 @@ function showMenu(n,cid,x,y){
       </label>
     </div>
     <div style="display:flex">
-      <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();colorAll(${n})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes'}</div>
-      ${cid?`<div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8" onclick="event.stopPropagation();colorCell(${n},'${cid}')">${hasCell?'❌ Enlever ce N°':'🔹 Ce N° seulement'}</div>`:''}
+      <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();colorAll(${n},${pane2?'true':'false'})">${hasAll?'❌ Enlever tous les '+n:'🎨 Tous les mêmes'}${pane2?' <span style="opacity:.6;font-size:8px">(ce volet)</span>':''}</div>
+      ${cid?`<div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8" onclick="event.stopPropagation();colorCell(${n},'${cid}',${pane2?'true':'false'})">${hasCell?'❌ Enlever ce N°':'🔹 Ce N° seulement'}</div>`:''}
     </div>
     <div style="display:flex">
       <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;color:#C2410C;font-weight:600" onclick="event.stopPropagation();toggleRepereFromMenu(${n})">${state.repereDefined[n]?'❌ Retirer repérés':'🎯 + Repérés'}</div>
       <div class="nmenu-item" style="flex:1;font-size:10.5px;padding:6px 8px;border-left:1px solid #F2F4F8;color:#B45309;font-weight:600" onclick="event.stopPropagation();toggleRepere2FromMenu(${n})">${state.repere2Defined[n]?'❌ Retirer liste 2':'🎯 + Liste 2'}</div>
     </div>
+    ${(state.repereDefined[n]||state.repere2Defined[n])&&(hasAll||hasCell)?`<div class="nmenu-item" style="font-size:10px;padding:6px 8px;background:#FEF3C7;color:#92400E;font-weight:600" onclick="event.stopPropagation();${hasCell?`colorCell(${n},'${cid}',${pane2?'true':'false'})`:`colorAll(${n},${pane2?'true':'false'})`}">⚠️ Repéré masqué par coloriage manuel — cliquer pour l'enlever</div>`:''}
     <div class="nmenu-item" style="font-size:10.5px;padding:6px 8px" onclick="event.stopPropagation();menuInfo(${n})">ℹ️ Classifications</div>
     ${elmMenuHTML(n)}
     <div style="display:flex;gap:4px;padding:5px 10px 8px;border-top:1px solid #f0f0f0;margin-top:2px">
@@ -2257,25 +2409,28 @@ function valueAtCid(cid){
   const ni=parseInt(posStr);
   return row.n?row.n[ni]:null;
 }
-function colorAll(n){
+function colorAll(n,pane2){
   pushColorUndo();
-  if(state.colored[n]){
-    delete state.colored[n];
+  const coloredStore=pane2?state.colored2:state.colored;
+  const cellsStore=pane2?state.coloredCells2:state.coloredCells;
+  if(coloredStore[n]){
+    delete coloredStore[n];
     // Enlève aussi les cases coloriées individuellement ("ce numéro seulement") qui correspondent à ce même numéro,
     // sinon elles restaient allumées et donnaient l'impression que le retrait "refusait" de fonctionner.
-    Object.keys(state.coloredCells).forEach(cid=>{
-      if(valueAtCid(cid)===n)delete state.coloredCells[cid];
+    Object.keys(cellsStore).forEach(cid=>{
+      if(valueAtCid(cid)===n)delete cellsStore[cid];
     });
   }else{
-    state.colored[n]=pickHl();
+    coloredStore[n]=pickHl();
   }
   saveColorState();
   closePopup();render();
 }
-function colorCell(n,cid){
+function colorCell(n,cid,pane2){
   pushColorUndo();
-  if(state.coloredCells[cid])delete state.coloredCells[cid];
-  else state.coloredCells[cid]=pickHl();
+  const cellsStore=pane2?state.coloredCells2:state.coloredCells;
+  if(cellsStore[cid])delete cellsStore[cid];
+  else cellsStore[cid]=pickHl();
   saveColorState();
   closePopup();render();
 }
@@ -2388,14 +2543,14 @@ function menuInfo(n){
   // Le menu est déjà visible et bien positionné, pas besoin d'y retoucher.
 }
 
-function onNum(n,e,cid){
+function onNum(n,e,cid,pane2){
   if(e&&e.stopPropagation)e.stopPropagation();
   if(e&&e.preventDefault)e.preventDefault();
   clearTimeout(state.hoverTimer);
   try{document.getElementById('popup').style.display='none';}catch(_){}
   const t=(e&&e.currentTarget)||(e&&e.target);
   const rect=t&&t.getBoundingClientRect?t.getBoundingClientRect():{left:window.innerWidth/2,top:window.innerHeight/2};
-  showMenu(n,cid||null,rect.left,rect.top);
+  showMenu(n,cid||null,rect.left,rect.top,!!pane2);
 }
 // Appui long tactile → popup classifications (si activé dans Réglages)
 let _lpTimer=null,_lpFired=false;
@@ -2738,8 +2893,13 @@ function numSpan(n, extra, cid){
   // de la double vue masque aussi le coloriage manuel (_DV_SUPPRESS), pour que
   // les deux volets restent VISUELLEMENT différents — c'est tout l'intérêt de
   // la double vue (comparaison avec/sans repérés ET coloriage).
-  const colC=(!_DV_SUPPRESS&&cid)?state.coloredCells[cid]:null;
-  const col=_DV_SUPPRESS?null:state.colored[n];
+  // Double vue : chaque volet a désormais SON PROPRE coloriage manuel, totalement
+  // indépendant de l'autre (extra.pane2 = volet "sans repérés") — stores séparés
+  // colored2/coloredCells2, jamais masqués (contrairement à avant où _DV_SUPPRESS
+  // cachait tout le coloriage manuel dans le volet "sans").
+  const pane2=!!(extra&&extra.pane2);
+  const colC=cid?(pane2?state.coloredCells2[cid]:state.coloredCells[cid]):null;
+  const col=pane2?state.colored2[n]:state.colored[n];
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{
@@ -2764,6 +2924,9 @@ function numSpan(n, extra, cid){
   else if(extra&&extra.superpos)applyHl({bg:state.superposColor||'#0891B2',fg:'#fff',style:state.superposStyle});
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
+  // Le style de repereMark/repere2Mark est maintenant tenu à jour par setRepereDisplayStyle()
+  // (réécrit sur toutes les entrées stockées dès qu'on change le réglage global), donc plus
+  // besoin de l'écraser ici au rendu — applyHl lit directement le style correct.
   else if(repereMark)applyHl(repereMark);
   else if(repere2Mark)applyHl(repere2Mark);
   else if(extra&&extra.clKey){
@@ -2781,10 +2944,17 @@ function numSpan(n, extra, cid){
   // Numéro repéré (prédéfini, actif) : ajoute son élément de classification en petit, à côté, si activé
   const isRepere=!!repereMark&&state.repereShowClass!==false;
   const isRepere2=!!repere2Mark&&state.repere2ShowClass!==false;
-  const clLbl=isRepere?repereClassLabel(n):(isRepere2?repereClassLabel(n):'');
-  const clSuffix=clLbl?`<sub style="font-size:7px;font-weight:600;opacity:.85;margin-left:1px">${clLbl}</sub>`:'';
+  const clLbl=(isRepere||isRepere2)?repereClassLabel(n):'';
+  const clSuffix=clLbl?classifSuffixHTML(n):'';
+  // Le badge chiffre a une largeur fixe pour l'alignement (voir .num) : trop étroit
+  // pour loger le label de classification à côté sans le faire chevaucher le chiffre.
+  // On élargit la boîte uniquement pour les numéros qui portent ce label.
+  // Les badges ronds (rad:50%) ont une hauteur fixe de 19px : trop bas pour la
+  // même étiquette empilée verticalement (ex: "C:47" = 4 caractères de haut),
+  // donc on relâche aussi la hauteur pour ces badges quand l'étiquette est présente.
+  const clWidthCss=clLbl?`width:auto;min-width:2.3em;padding:2px;${rad==='50%'?'height:auto;min-height:19px;border-radius:10px;':''}`:'';
   const titleTxt=state.rowMultiNums.has(n)?'Ce numéro appartient à plusieurs lignes coloriées':(isRepere?'🎯 Numéro repéré'+(clLbl?' — '+clLbl:''):(isRepere2?'🎯 Numéro liste 2'+(clLbl?' — '+clLbl:''):''));
-  return `<span class="num" onclick="onNum(${n},event,'${cid||''}')" onmouseenter="numOver(${n},event)" onmouseleave="numOut()" ontouchstart="numTouchStart(${n},event)" ontouchend="numTouchEnd(event)" ontouchmove="numTouchCancel()" style="color:${fg};background:${bg};font-size:${fs};box-shadow:${sh};border:${bd};border-radius:${rad};${padCss}${ulCss}${sharedCss}" title="${titleTxt}">${n}${clSuffix}${sym}</span>`;
+  return `<span class="num" onclick="onNum(${n},event,'${cid||''}',${pane2?'true':'false'})" onmouseenter="numOver(${n},event)" onmouseleave="numOut()" ontouchstart="numTouchStart(${n},event)" ontouchend="numTouchEnd(event)" ontouchmove="numTouchCancel()" style="color:${fg};background:${bg};font-size:${fs};box-shadow:${sh};border:${bd};border-radius:${rad};${padCss}${ulCss}${sharedCss}${clWidthCss}" title="${titleTxt}">${n}${clSuffix}${sym}</span>`;
 }
 
 // Calcul comparaison
@@ -4651,7 +4821,7 @@ function exportMgColumnsPDF(){
           const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
           const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
-          rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub>${clLbl}</sub>`:''}${symHtml}</span></td>`;
+          rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub style="font-size:6px;font-weight:700;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${clLbl}</sub>`:''}${symHtml}</span></td>`;
         });
         if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[0]:'·'}</td>`;}
         else{const tc=tC(r.s);rowsHtml+=`<td class="tot" style="background:${tc[0]};color:${tc[1]}">${r.s}</td>`;}
@@ -4857,6 +5027,9 @@ async function exportColoredExcel(){
   }
   cols=cols.filter(c=>c.rows.length);
   if(!cols.length){alert("Aucune donnée pour les années/plage choisies. Ajuste la sélection dans le panneau d'export, puis relance.");return;}
+  // L'année la plus récente en premier (à gauche) — c'est ce bloc qui sera figé (volets) plus bas,
+  // pour qu'il reste visible pendant qu'on fait défiler vers les années plus anciennes.
+  cols.sort((a,b)=>parseInt(b.y,10)-parseInt(a.y,10));
   const includeColors=state.exportColors!==false;
   const includeM=!!(GAME&&GAME.hasM)&&state.exportM!==false;
   const btns=document.querySelectorAll('.export-colored-btn');
@@ -4918,11 +5091,29 @@ async function exportColoredExcel(){
           if(!includeColors)return;
           const cid=r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
-          if(bg){
-            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-            cell.font={color:{argb:hexToARGB(fg)},bold:true};
+          // hlStyle() traduit {bg,fg,style} en instructions génériques (plein/encadré/souligné/texte/
+          // symbole) — même logique que applyHl() à l'écran (numSpan). mk[ni] porte maintenant, en 3e
+          // position, le style choisi pour Miroir même ligne / Miroir superposé / Superposition (voir
+          // anMark()), donc l'export reproduit fidèlement la forme choisie, pas seulement la couleur.
+          let hs=null;
+          if(manual)hs=hlStyle(manual);
+          else if(mk&&mk[ni])hs=hlStyle({bg:mk[ni][0],fg:mk[ni][1],style:mk[ni][2]});
+          if(hs){
+            const bStyle={style:'medium',color:{argb:hexToARGB(hs.color)}};
+            if(hs.mode==='box'){
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+              cell.border={top:bStyle,bottom:bStyle,left:bStyle,right:bStyle};
+            }else if(hs.mode==='underline'){
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};
+              cell.border={bottom:bStyle};
+            }else if(hs.mode==='text'){
+              cell.font={color:{argb:hexToARGB(hs.color)},bold:true};
+            }else if(hs.mode==='sym'){
+              cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(hs.text)}}},{text:' '+hs.sym,font:{bold:true,color:{argb:hexToARGB(hs.color)}}}]};
+            }else{
+              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+            }
           }
         });
         // TOT juste après N5 (même ordre qu'à l'écran)
@@ -4941,11 +5132,15 @@ async function exportColoredExcel(){
             if(!includeColors)return;
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
-            let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-            if(!bg&&D){const am=anValMark(v,ctx);if(am){bg=am[0];fg=am[1]||'#ffffff';}}
-            if(bg){
-              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-              cell.font={color:{argb:hexToARGB(fg)},bold:true};
+            let hs=manual?hlStyle(manual):null;
+            if(!hs&&D){const am=anValMark(v,ctx);if(am)hs=hlStyle({bg:am[0],fg:am[1]});}
+            if(hs){
+              const bStyleM={style:'medium',color:{argb:hexToARGB(hs.color)}};
+              if(hs.mode==='box'){cell.font={color:{argb:hexToARGB(hs.text)},bold:true};cell.border={top:bStyleM,bottom:bStyleM,left:bStyleM,right:bStyleM};}
+              else if(hs.mode==='underline'){cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};cell.border={bottom:bStyleM};}
+              else if(hs.mode==='text'){cell.font={color:{argb:hexToARGB(hs.color)},bold:true};}
+              else if(hs.mode==='sym'){cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(hs.text)}}},{text:' '+hs.sym,font:{bold:true,color:{argb:hexToARGB(hs.color)}}}]};}
+              else{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};cell.font={color:{argb:hexToARGB(hs.text)},bold:true};}
             }
           });
           // TOT.M : somme des numéros machine réellement présents, comme à l'écran
@@ -4965,6 +5160,9 @@ async function exportColoredExcel(){
     }
     ws.columns.forEach(c=>{c.width=8;});
     cols.forEach((c,ci)=>{ws.getColumn(1+ci*colsPerYear+1).width=10;});
+    // Fige le bloc de l'année la plus récente (colonnes) + les 3 lignes d'en-tête (titre/année/N°-Date-N1..)
+    // pour qu'ils restent visibles en faisant défiler vers les années plus anciennes ou les lignes suivantes.
+    ws.views=[{state:'frozen',xSplit:blockCols,ySplit:3}];
 
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
@@ -6082,6 +6280,10 @@ function fabGo(action){
     }
     render();return;
   }
+  else if(action==='reset_app'){
+    resetAppDefault();
+    return;
+  }
   else if(action==='search'){state.tab=0;state.showSearchHub=true;loadHist();}
   else if(action==='analyse'){state.tab=2;state.showSearchHub=false;}
   else if(action==='past'){state.tab=0;state.showSearchHub=false;state.showPass=true;}
@@ -6142,7 +6344,8 @@ function fabHTML(){
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
     ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
-    ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
+    ['clear_all_colors','🧹','Tout effacer (efface toutes les couleurs)','#B71C1C','#fff'],
+    ['reset_app','🔄','Réinitialiser à l’état par défaut (couleurs, listes, filtres, réglages)','#7C2D12','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
     ['past','📕','Consulter journaux (Pass)','#2563EB','#fff'],
@@ -7234,36 +7437,46 @@ function stepWheel(e,id){
   if(_wheelBusy[id])return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
-  const rowsEl=el.querySelector('[id^="vrows-"]');
-  const firstRow=(rowsEl&&rowsEl.firstElementChild)||el.firstElementChild;
-  const rowH=(firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:34;
+  const rowH=_rowHOf(el,id);
   el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
   _wheelBusy[id]=true;
   setTimeout(()=>{_wheelBusy[id]=false;},110);
 }
-function _rowHOf(el){
+function _rowHOf(el,id){
+  // Priorité à la hauteur mesurée/stabilisée par la virtualisation (VH[id]) —
+  // plus fiable que de re-mesurer la 1ère ligne rendue (peut varier pendant
+  // le chargement virtualisé). Fallback 28px (plus réaliste que 34).
+  if(id&&typeof VH!=='undefined'&&VH[id])return VH[id];
   const rowsEl=el.querySelector('[id^="vrows-"]');
   const firstRow=(rowsEl&&rowsEl.firstElementChild)||el.firstElementChild;
-  return (firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:34;
+  return (firstRow&&firstRow.offsetHeight)?firstRow.offsetHeight:28;
 }
 // Glissement tactile vertical "pas à pas" : on ignore le scroll natif (momentum
 // libre) et on avance d'une ligne exactement à chaque fois que le doigt a
-// parcouru une hauteur de ligne, comme la molette.
+// parcouru une hauteur de ligne, comme la molette. Un seuil de 6px est
+// nécessaire avant de "prendre" le geste : sans lui, un simple tap sur un
+// numéro (avec 1-2px de tremblement du doigt) annulait le click natif via
+// preventDefault dès le 1er pixel, empêchant le menu de coloriage de s'ouvrir.
 const _touchStep={};
 function touchStepStart(e,id){
   if(!e.touches||!e.touches.length)return;
-  _touchStep[id]={y:e.touches[0].clientY,moved:0};
+  _touchStep[id]={y:e.touches[0].clientY,moved:0,captured:false};
 }
 function touchStepMove(e,id){
   const st=_touchStep[id];
   if(!st||!e.touches||!e.touches.length)return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
-  e.preventDefault();
   const y=e.touches[0].clientY;
-  st.moved+=(st.y-y);
+  const dy=st.y-y;
+  if(!st.captured){
+    if(Math.abs(dy)<6)return; // sous le seuil : on laisse passer le tap/clic natif
+    st.captured=true;
+  }
+  e.preventDefault();
+  st.moved+=dy;
   st.y=y;
-  const rowH=_rowHOf(el);
+  const rowH=_rowHOf(el,id);
   if(Math.abs(st.moved)>=rowH){
     const steps=Math.trunc(st.moved/rowH);
     el.scrollTop+=steps*rowH;
@@ -7272,6 +7485,46 @@ function touchStepMove(e,id){
 }
 function touchStepEnd(id){
   delete _touchStep[id];
+}
+// Variantes "cran par cran" pour le mode Excel (table partagée entre toutes les années/jeux,
+// pas de virtualisation par ligne comme les cartes .col-body) : la hauteur de pas est mesurée
+// sur une <tr> du <tbody> plutôt que via VH[id]/_rowHOf (qui mesurerait la largeur de tout le
+// tableau, pas d'une ligne, et casserait le défilement). touchStepStart/touchStepEnd sont
+// réutilisées telles quelles (elles ne dépendent pas de la structure DOM).
+function _rowHOfExcel(el){
+  const tr=el&&el.querySelector('tbody tr');
+  return (tr&&tr.offsetHeight)?tr.offsetHeight:28;
+}
+function stepWheelExcel(e,id){
+  e.preventDefault();
+  if(_wheelBusy[id])return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const rowH=_rowHOfExcel(el);
+  el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
+  _wheelBusy[id]=true;
+  setTimeout(()=>{_wheelBusy[id]=false;},110);
+}
+function touchStepMoveExcel(e,id){
+  const st=_touchStep[id];
+  if(!st||!e.touches||!e.touches.length)return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const y=e.touches[0].clientY;
+  const dy=st.y-y;
+  if(!st.captured){
+    if(Math.abs(dy)<6)return;
+    st.captured=true;
+  }
+  e.preventDefault();
+  st.moved+=dy;
+  st.y=y;
+  const rowH=_rowHOfExcel(el);
+  if(Math.abs(st.moved)>=rowH){
+    const steps=Math.trunc(st.moved/rowH);
+    el.scrollTop+=steps*rowH;
+    st.moved-=steps*rowH;
+  }
 }
 const _progScroll={}; // colonnes dont le scrollTop vient d'être poussé PAR le code
                        // (pas par l'utilisateur) — évite les allers-retours infinis
@@ -7359,6 +7612,30 @@ const REPERE_ORIGIN_DEFAULT={
   71:{bg:'#8B5CF6',fg:'#fff'},
   78:{bg:'#EF4444',fg:'#fff'},
 };
+// Deux listes prédéfinies supplémentaires (demandées par l'utilisateur), sur le même
+// principe que REPERE_ORIGIN_DEFAULT — chargées automatiquement comme "instantanés"
+// (plans) réutilisables dans le panneau "🎯 Mes repérés (tous lotos)", sans écraser
+// les repérés actifs actuels tant qu'on ne clique pas dessus pour les charger.
+const REPERE_PRESET_1={ // Liste 1 : 57, 59, 24, 78, 40, 06
+  57:{bg:'#EF4444',fg:'#fff'}, 59:{bg:'#EF4444',fg:'#fff'}, 24:{bg:'#EF4444',fg:'#fff'},
+  78:{bg:'#EF4444',fg:'#fff'}, 40:{bg:'#EF4444',fg:'#fff'}, 6:{bg:'#EF4444',fg:'#fff'},
+};
+const REPERE_PRESET_2={ // Liste 2 : 35, 42, 14
+  35:{bg:'#3B82F6',fg:'#fff'}, 42:{bg:'#3B82F6',fg:'#fff'}, 14:{bg:'#3B82F6',fg:'#fff'},
+};
+function seedDefaultRepereSnapshots(){
+  const has=nm=>state.listSnapshots.some(s=>s.name===nm);
+  let changed=false;
+  if(!has('Liste 57-59-24-78-40-06')){
+    state.listSnapshots.push({id:Date.now()+1,name:'Liste 57-59-24-78-40-06',listKey:'A',nums:{...REPERE_PRESET_1},createdAt:new Date().toISOString()});
+    changed=true;
+  }
+  if(!has('Liste 35-42-14')){
+    state.listSnapshots.push({id:Date.now()+2,name:'Liste 35-42-14',listKey:'A',nums:{...REPERE_PRESET_2},createdAt:new Date().toISOString()});
+    changed=true;
+  }
+  if(changed)saveRepereSnapshots();
+}
 function saveRepereDefinedState(){lsSet('loto_repere_defined',JSON.stringify({defined:state.repereDefined,active:state.repereActive}));}
 function loadRepereDefinedState(){
   try{
@@ -7389,6 +7666,179 @@ function toggleRepereActive(n){
   saveRepereDefinedState();
   render();
 }
+// Interrupteur UNIQUE pour l'affichage des listes de repères (A et B ensemble) — évite d'avoir
+// à activer "Avec repérés" ET "Avec liste 2" séparément à chaque fois. Les interrupteurs
+// individuels (state.lists.A.on / state.lists.B.on, alias repereAlways/repere2Always) restent
+// utilisables indépendamment si besoin (ex: n'afficher que la liste B).
+function listsVisible(){return state.lists.A.on||state.lists.B.on;}
+function setListsVisible(on){state.lists.A.on=on;state.lists.B.on=on;saveListsVisiblePref();render();}
+// ── Persistance des préférences d'affichage (indépendantes du contenu des listes) :
+// visibilité (listes A/B), style global, et double vue — retrouvées telles quelles
+// au rechargement de la page.
+function saveListsVisiblePref(){lsSet('loto_lists_on',JSON.stringify({A:!!state.lists.A.on,B:!!state.lists.B.on}));}
+function loadListsVisiblePref(){
+  try{
+    const raw=lsGetOr('loto_lists_on','');
+    if(raw){const d=JSON.parse(raw)||{};state.lists.A.on=!!d.A;state.lists.B.on=!!d.B;}
+  }catch(_){}
+}
+function saveListStylePref(){lsSet('loto_repere_style',state.listStyle||'fill');}
+function loadListStylePref(){
+  try{const s=lsGetOr('loto_repere_style','');if(s)state.listStyle=s;}catch(_){}
+}
+function saveDualViewPref(){lsSet('loto_dual_view',state.dualView.on?'1':'0');}
+function loadDualViewPref(){
+  try{const v=lsGetOr('loto_dual_view','');if(v)state.dualView.on=(v==='1');}catch(_){}
+}
+// Active automatiquement l'affichage d'une liste (A ou B) dès qu'on lui ajoute un numéro,
+// pour éviter le cas « j'ai défini un numéro mais je ne vois rien » si la liste était masquée.
+function autoShowList(key){
+  const l=state.lists[key];
+  if(l&&!l.on){l.on=true;saveListsVisiblePref();}
+}
+// Coupe les états d'affichage confus en un clic : masque les listes, désactive la double
+// vue, remet le style Plein — SANS effacer aucun numéro (contenu des listes intact).
+function resetDisplayPrefs(){
+  state.lists.A.on=false;
+  state.lists.B.on=false;
+  saveListsVisiblePref();
+  state.dualViewOn=false;
+  saveDualViewPref();
+  setRepereDisplayStyle('fill'); // sauvegarde le style + render()
+}
+// Replie/déplie le bandeau de statut des listes (Navigation) — préférence retenue.
+function setListsBarOn(on){
+  state.listsBarOn=!!on;
+  try{lsSet('loto_lists_bar',state.listsBarOn?'1':'0');}catch(_){}
+  render();
+}
+function listsStatusBarHTML(){
+  if(state.listsBarOn===false){
+    return `<div style="display:flex;justify-content:flex-end;margin:2px 0 4px">
+      <button onclick="setListsBarOn(true)" title="Réafficher le bandeau listes"
+        style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:600;font-size:9px;border:1px solid #D1D5DB;background:#F9FAFB;color:#6B7280">
+        🎯 Bandeau listes
+      </button>
+    </div>`;
+  }
+  return `<div class="card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;font-size:10px;background:${listsVisible()?'#FFF7ED':'#F3F4F6'};border:1.5px solid ${listsVisible()?'#C2410C':'#ccc'}">
+    <span style="font-weight:700;color:${listsVisible()?'#C2410C':'#6B7280'}">📋 Listes ${listsVisible()?'ON':'OFF'}</span>
+    <span onclick="openRepereGlobal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRepereGlobal();}" tabindex="0" role="button" style="color:#0E7490;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste A">L1: ${Object.keys(state.lists.A.nums).length}</span>
+    <span onclick="openRepere2Global()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRepere2Global();}" tabindex="0" role="button" style="color:#B45309;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste B">L2: ${Object.keys(state.lists.B.nums).length}</span>
+    <span style="color:#555">🎨 ${({fill:'Plein',box:'Encadré',underline:'Souligné',text:'Texte'})[state.listStyle]||'Plein'}</span>
+    ${listDoublons().length?`<span onclick="openDoublonsPanel()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDoublonsPanel();}" tabindex="0" role="button" style="cursor:pointer;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</span>`:''}
+    <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}saveDualViewPref();render()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#fff'};color:${state.dualViewOn?'#fff':'#0F766E'}">🪟 Double vue ${state.dualViewOn?'ON':'OFF'}</button>
+    <button onclick="setListsVisible(!listsVisible())" style="margin-left:auto;padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}">${listsVisible()?'🚫 Masquer':'✅ Afficher'}</button>
+    <button onclick="resetDisplayPrefs()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Masque les listes, désactive la double vue, remet le style Plein — sans effacer tes numéros">↺ Réinitialiser l'affichage</button>
+    <button onclick="setListsBarOn(false)" title="Fermer le bandeau" aria-label="Fermer le bandeau"
+      style="margin-left:2px;width:22px;height:22px;padding:0;border-radius:50%;cursor:pointer;
+             font-weight:700;font-size:14px;line-height:1;border:1.5px solid #D1D5DB;
+             background:#fff;color:#6B7280;display:inline-flex;align-items:center;
+             justify-content:center;flex-shrink:0">×</button>
+  </div>`;
+}
+// ── Doublons Liste A ↔ Liste B : un même numéro dans les deux listes n'est pas une erreur en
+// soi (Liste A gagne à l'écran, cf. priorité repereMark > repere2Mark dans numSpan), mais c'est
+// une source de confusion fréquente ("pourquoi ce numéro garde la couleur de L1 ?"). Détection
+// + petit panneau de résolution, pour trancher liste par liste sans devoir chercher soi-même.
+function listDoublons(){
+  return Object.keys(state.lists.A.nums).map(Number).filter(n=>state.lists.B.nums[n]!==undefined).sort((a,b)=>a-b);
+}
+// Rapport affiché après un collage en masse (Liste A ou B) : numéros déjà présents dans
+// CETTE liste (ignorés, pas écrasés) et numéros qui créent un nouveau doublon avec l'AUTRE
+// liste (ajoutés quand même, juste signalés). Se referme tout seul au prochain rendu utile.
+function pasteReportHTML(listKey){
+  const r=state.pasteReport;
+  if(!r||r.listKey!==listKey)return'';
+  const parts=[`${r.added} ajouté${r.added>1?'s':''}`];
+  if(r.alreadyHere.length)parts.push(`${r.alreadyHere.length} déjà dans cette liste (ignoré: ${r.alreadyHere.join(',')})`);
+  if(r.crossDup.length)parts.push(`⚠️ ${r.crossDup.length} aussi dans l'autre liste (doublon: ${r.crossDup.join(',')})`);
+  return`<div style="background:#FEF9C3;border:1px solid #CA8A04;border-radius:7px;padding:6px 9px;margin-bottom:8px;font-size:9.5px;color:#713F12;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <span>${parts.join(' • ')}.</span>
+    <span onclick="state.pasteReport=null;render()" style="margin-left:auto;cursor:pointer;opacity:.7">✕</span>
+  </div>`;
+}
+function openDoublonsPanel(){state.doublonsPanelOpen=true;render();}
+function closeDoublonsPanel(){state.doublonsPanelOpen=false;render();}
+// keep: 'A' (garde en Liste A, retire de B) | 'B' (garde en Liste B, retire de A) |
+// 'remove' (retire le numéro des DEUX listes — ne le garde nulle part).
+function resolveDoublon(n,keep){
+  resolveDoublonSilent(n,keep);
+  saveRepereDefinedState();
+  saveRepere2DefinedState();
+  render();
+}
+function resolveAllDoublons(keep){
+  listDoublons().forEach(n=>resolveDoublonSilent(n,keep));
+  saveRepereDefinedState();
+  saveRepere2DefinedState();
+  render();
+}
+function resolveDoublonSilent(n,keep){
+  if(keep==='remove'){delete state.repereDefined[n];delete state.repere2Defined[n];}
+  else if(keep==='A')delete state.repere2Defined[n];
+  else delete state.repereDefined[n];
+}
+function doublonsPanelHTML(){
+  const ds=listDoublons();
+  return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeDoublonsPanel()">
+    <div style="background:#fff;border-radius:14px;padding:16px;max-width:420px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:15px;font-weight:700;color:#B45309">⚠️ Doublons Liste A ↔ Liste B</span>
+        <span onclick="closeDoublonsPanel()" style="margin-left:auto;cursor:pointer;font-size:18px;color:#666">✕</span>
+      </div>
+      ${!ds.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun doublon pour le moment.</div>`:`
+      <div style="font-size:10.5px;color:#555;margin-bottom:10px">Ces numéros sont dans les deux listes. À l'écran, la Liste A l'emporte toujours. Choisis laquelle garder pour chacun (ou en bloc).</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button onclick="resolveAllDoublons('A')" style="flex:1;padding:5px;background:#0E7490;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Tout garder en L1</button>
+        <button onclick="resolveAllDoublons('B')" style="flex:1;padding:5px;background:#B45309;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Tout garder en L2</button>
+        <button onclick="if(confirm('Retirer les '+${ds.length}+' doublon(s) des DEUX listes ?'))resolveAllDoublons('remove')" style="flex:1;padding:5px;background:#C62828;color:#fff;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:10px">Retirer des 2</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        ${ds.map(n=>{const cA=state.lists.A.nums[n],cB=state.lists.B.nums[n];
+          return`<div style="display:flex;align-items:center;gap:6px;border:1px solid #eee;border-radius:7px;padding:5px 8px;flex-wrap:wrap">
+            <span style="background:${cA.bg};color:${cA.fg};border-radius:5px;padding:2px 7px;font-weight:700;font-size:12px">${n}</span>
+            <button onclick="resolveDoublon(${n},'A')" style="padding:2px 8px;border-radius:6px;border:1px solid #0E7490;background:#fff;color:#0E7490;font-size:9.5px;font-weight:600;cursor:pointer">Garder L1</button>
+            <button onclick="resolveDoublon(${n},'B')" style="padding:2px 8px;border-radius:6px;border:1px solid #B45309;background:#fff;color:#B45309;font-size:9.5px;font-weight:600;cursor:pointer">Garder L2</button>
+            <button onclick="resolveDoublon(${n},'remove')" style="padding:2px 8px;border-radius:6px;border:1px solid #C62828;background:#fff;color:#C62828;font-size:9.5px;font-weight:600;cursor:pointer" title="Retirer ce numéro des deux listes">Retirer des 2</button>
+          </div>`;}).join('')}
+      </div>`}
+    </div>
+  </div>`;
+}
+// Style à donner à un NOUVEAU repéré (n'importe quelle méthode de création) : toujours
+// dérivé du réglage global state.repereDisplayStyle, jamais de state.hlStyle (bouton du
+// menu de coloriage manuel, sans rapport). undefined = "plein" (branche par défaut de applyHl).
+function repereStyleForNew(){
+  return(state.repereDisplayStyle&&state.repereDisplayStyle!=='fill')?state.repereDisplayStyle:undefined;
+}
+// Change le style d'affichage de TOUS les repérés (listes 1 et 2) d'un coup : met à jour le
+// réglage global ET réécrit .style sur chaque entrée déjà stockée, pour que l'écran ET les
+// exports (Excel/PDF, qui relisent directement ce champ) restent synchronisés.
+// Boutons de style (Plein/Encadré/Souligné/Texte) pour les 3 couches "toujours actives"
+// (Miroir même ligne, Miroir superposé, Mêmes numéros superposés). Contrairement aux
+// repérés (state.repereDefined), ces couches n'ont pas de couleur stockée par numéro —
+// le style est un simple réglage global (state.mirLStyle etc.), relu en direct par
+// applyHl() dans numSpan() ET par anMark()/exportColoredExcel() pour l'export Excel.
+function setAlwaysStyle(key,s){
+  state[key]=s==='fill'?'':s;
+  lsSet(key,state[key]);
+  render();
+}
+function alwaysStyleBtns(key,color){
+  const cur=state[key]||'fill';
+  return `<span style="display:inline-flex;gap:2px" title="Forme d'affichage de cette couche, écran + export Excel">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setAlwaysStyle('${key}','${s}')" style="padding:1px 5px;border-radius:8px;cursor:pointer;font-weight:700;font-size:8px;border:1px solid ${color};background:${cur===s?color:'#fff'};color:${cur===s?'#fff':color}">${lbl}</button>`).join('')}</span>`;
+}
+function setRepereDisplayStyle(s){
+  state.repereDisplayStyle=s;
+  const st=(s&&s!=='fill')?s:undefined;
+  Object.values(state.repereDefined||{}).forEach(c=>{c.style=st;});
+  Object.values(state.repere2Defined||{}).forEach(c=>{c.style=st;});
+  saveRepereDefinedState();
+  if(typeof saveRepere2DefinedState==='function')saveRepere2DefinedState();
+  saveListStylePref();
+  render();
+}
 // Ajoute/retire un numéro aux repérés directement depuis le menu couleur (clic sur un numéro) —
 // façon la plus rapide de définir de nouveaux repères à l'avenir : colorie comme d'habitude,
 // puis "🎯 Ajouter aux repérés" pour le rendre permanent et visible partout.
@@ -7399,40 +7849,48 @@ function toggleRepereFromMenu(n){
     delete state.repereActive[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repereDefined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
+    // Style toujours issu du réglage global repereDisplayStyle (repereStyleForNew()),
+    // jamais de state.hlStyle (bouton du menu de coloriage, sans rapport, souvent
+    // resté sur 'box' d'une session à l'autre — c'était la cause du bug).
+    state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repereActive[n]=true;
+    autoShowList('A');
   }
   saveRepereDefinedState();
   closePopup();render();
 }
-// ── Instantanés : plusieurs "plans" de repères sauvegardés, à recharger à tout moment ──
+// ── Instantanés : plusieurs "plans" sauvegardés, à recharger à tout moment — unifiés pour
+// Liste A et Liste B (avant la refonte, seule la Liste 1/A avait des instantanés). Chaque
+// instantané mémorise à quelle liste il appartient (listKey), pour charger au bon endroit.
 function loadRepereSnapshots(){
-  try{state.repereSnapshots=JSON.parse(lsGetOr('loto_repere_snapshots','[]'))||[];}catch(_){state.repereSnapshots=[];}
+  try{state.listSnapshots=JSON.parse(lsGetOr('loto_list_snapshots','[]'))||[];}catch(_){state.listSnapshots=[];}
 }
-function saveRepereSnapshots(){lsSet('loto_repere_snapshots',JSON.stringify(state.repereSnapshots));}
-function saveRepereSnapshot(){
-  if(!Object.keys(state.repereDefined).length){alert('Aucun numéro repéré à enregistrer pour le moment.');return;}
+function saveRepereSnapshots(){lsSet('loto_list_snapshots',JSON.stringify(state.listSnapshots));}
+function saveRepereSnapshot(listKey){
+  listKey=(listKey==='B')?'B':'A';
+  const nums=state.lists[listKey].nums;
+  if(!Object.keys(nums).length){alert('Aucun numéro dans '+state.lists[listKey].name+' à enregistrer pour le moment.');return;}
   const name=prompt('Nom de cet instantané (ex: "Plan BENZ Août 2026") :','');
   if(name==null)return;
   const nm=name.trim()||('Instantané '+new Date().toLocaleString('fr-FR'));
-  state.repereSnapshots.unshift({id:Date.now(),name:nm,defined:{...state.repereDefined},active:{...state.repereActive},createdAt:new Date().toISOString()});
+  state.listSnapshots.unshift({id:Date.now(),name:nm,listKey,nums:{...nums},createdAt:new Date().toISOString()});
   saveRepereSnapshots();
   render();
 }
 function loadRepereSnapshot(id){
-  const s=state.repereSnapshots.find(x=>x.id===id);
+  const s=state.listSnapshots.find(x=>x.id===id);
   if(!s)return;
-  if(!confirm('Charger l\'instantané "'+s.name+'" ? Ça remplace ta liste actuelle de repères (ton instantané actuel n\'est pas perdu, enregistre-le d\'abord si besoin).'))return;
-  state.repereDefined={...s.defined};
-  state.repereActive={...(s.active||{})};
-  saveRepereDefinedState();
+  const key=(s.listKey==='B')?'B':'A';
+  if(!confirm('Charger l\'instantané "'+s.name+'" dans '+state.lists[key].name+' ? Ça remplace sa liste actuelle (l\'actuelle n\'est pas perdue, enregistre-la d\'abord si besoin).'))return;
+  state.lists[key].nums={...s.nums};
+  (key==='A'?saveRepereDefinedState:saveRepere2DefinedState)();
   render();
 }
 function deleteRepereSnapshot(id){
-  const s=state.repereSnapshots.find(x=>x.id===id);
+  const s=state.listSnapshots.find(x=>x.id===id);
   if(!s)return;
   if(!confirm('Supprimer l\'instantané "'+s.name+'" ?'))return;
-  state.repereSnapshots=state.repereSnapshots.filter(x=>x.id!==id);
+  state.listSnapshots=state.listSnapshots.filter(x=>x.id!==id);
   saveRepereSnapshots();
   render();
 }
@@ -7447,16 +7905,17 @@ function applyRepereToCurrentGame(){
   closeRepereGlobal();
   render();
 }
-// Applique automatiquement (sans écraser un coloriage déjà choisi pour ce numéro dans ce jeu)
-// les numéros repérés ACTIFS dès l'ouverture d'un loto — pour ne plus jamais avoir à cliquer "Activer".
-function applyRepereAutoDefault(){
-  Object.entries(state.repereDefined||{}).forEach(([n,c])=>{
-    if(state.repereActive[n]===false)return;
-    if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-}
+// Ancien comportement : copiait les repérés dans state.colored (coloriage manuel) pour les
+// afficher sans avoir à cliquer "Activer" — mais state.colored est PRIORITAIRE sur repereMark
+// au rendu (numSpan), donc ça court-circuitait silencieusement le réglage repereDisplayStyle
+// (et gardait les repérés visibles même avec "🚫 Sans repérés", puisque state.colored ne
+// dépend pas de repereAlways). L'affichage auto des repérés passe désormais entièrement par
+// repereMark dans numSpan (piloté par repereAlways/repereActive), donc plus besoin de cette
+// copie — no-op conservé pour compatibilité des appels existants.
+function applyRepereAutoDefault(){}
 loadRepereDefinedState();
 loadRepereSnapshots();
+seedDefaultRepereSnapshots();
 applyRepereAutoDefault();
 saveColorState();
 // ══════ LISTE 2 — deuxième liste de numéros repérés, totalement indépendante de la première.
@@ -7489,8 +7948,26 @@ function toggleRepere2Grid(n){
   }else{
     state.repere2Defined[n]=c;
     state.repere2Active[n]=true;
+    autoShowList('B');
   }
   saveRepere2DefinedState();
+  render();
+}
+// Collage en masse pour la Liste B (équivalent du "+ Ajouter" texte de la Liste A, en plus
+// de la grille cliquable) : accepte virgules, espaces, points-virgules, ignore les doublons.
+function addRepere2Defined(){
+  const el=document.getElementById('rep2def-num');
+  if(!el)return;
+  const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=1&&n<=90);
+  if(!nums.length)return;
+  const alreadyHere=nums.filter(n=>state.repere2Defined[n]!==undefined);
+  const crossDup=nums.filter(n=>state.repere2Defined[n]===undefined&&state.repereDefined[n]!==undefined);
+  const toAdd=nums.filter(n=>state.repere2Defined[n]===undefined);
+  const c=state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor),style:state.rep2DefStyle||undefined}:pickHl();
+  toAdd.forEach(n=>{state.repere2Defined[n]=c;state.repere2Active[n]=true;});
+  if(toAdd.length){autoShowList('B');saveRepere2DefinedState();}
+  el.value='';
+  state.pasteReport=(alreadyHere.length||crossDup.length)?{listKey:'B',added:toAdd.length,alreadyHere,crossDup}:null;
   render();
 }
 function toggleRepere2Active(n){
@@ -7505,8 +7982,9 @@ function toggleRepere2FromMenu(n){
     delete state.repere2Active[n];
   }else{
     const c=state.colored[n]||pickHl();
-    state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:c.style||undefined};
+    state.repere2Defined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};
     state.repere2Active[n]=true;
+    autoShowList('B');
   }
   saveRepere2DefinedState();
   closePopup();render();
@@ -7531,12 +8009,9 @@ function applyRepere2ToCurrentGame(){
   closeRepere2Global();
   render();
 }
-function applyRepere2AutoDefault(){
-  Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{
-    if(state.repere2Active[n]===false)return;
-    if(!state.colored[n])state.colored[n]={bg:c.bg,fg:c.fg};
-  });
-}
+// Idem applyRepereAutoDefault() ci-dessus : no-op désormais, l'affichage auto passe
+// entièrement par repere2Mark dans numSpan.
+function applyRepere2AutoDefault(){}
 function crossGameRepere2Scan(limit){
   const marks={...(state.colored||{})};
   Object.entries(state.repere2Defined||{}).forEach(([n,c])=>{if(state.repere2Active[n]!==false)marks[n]=c;});
@@ -7567,7 +8042,7 @@ function openRepere2Global(){
 function closeRepere2Global(){state.repere2GlobalOpen=false;render();}
 function repere2GlobalHTML(){
   const{marks,markKeys,results}=crossGameRepere2Scan(state.repere2GlobalLimit||10);
-  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}${state.repere2ShowClass!==false?classifSuffixHTML(n):''}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
   return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepere2Global()">
     <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -7578,8 +8053,14 @@ function repere2GlobalHTML(){
         <button onclick="applyRepere2ToCurrentGame()" style="padding:5px 12px;background:#B45309;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px" title="Colorie immédiatement ces numéros dans le jeu ouvert actuellement">✨ Activer ici, sur ${GAME.name}</button>
       </div>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repere2ShowClass!==false?'checked':''} onchange="state.repere2ShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro de la liste 2 (partout dans l'app)</label>
+      ${pasteReportHTML('B')}
       <div style="background:#FFFBEB;border:1.5px solid #B45309;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#B45309;margin-bottom:5px">✏️ Choisis une couleur puis clique les numéros dans la grille (reclique un numéro pour le retirer)</div>
+        <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+          <span style="font-size:9.5px;color:#92400E">📋 Coller une série :</span>
+          <input id="rep2def-num" type="text" inputmode="numeric" placeholder="ex: 6, 14, 23, 35, 42" onkeydown="if(event.key==='Enter')addRepere2Defined()" style="width:150px;padding:4px 6px;border:1.5px solid #B45309;border-radius:5px;font-size:12px;text-align:center;outline:none">
+          <button onclick="addRepere2Defined()" style="padding:4px 10px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:10px">+ Ajouter le bloc</button>
+        </div>
         <div style="display:flex;gap:3px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
           ${PAL.map(c=>`<span onclick="setRep2DefColor('${c}')" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:${c};border:${state.rep2DefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
           <label title="Choisir une couleur libre" style="width:20px;height:20px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
@@ -7624,14 +8105,24 @@ applyRepere2AutoDefault();
 saveColorState();
 function setRepDefColor(c){state.repDefColor=c||'';render();}
 function setRepDefStyle(s){state.repDefStyle=s;render();}
+// Accepte un seul numéro (ex: "6") ou une liste collée d'un coup (ex: "6,14,23 35 42")
+// — tout ce qui n'est pas un chiffre sert de séparateur, pour coller depuis n'importe où.
 function addRepereDefined(){
   const el=document.getElementById('repdef-num');
-  const n=el?parseInt(el.value,10):NaN;
-  if(isNaN(n)||n<0||n>99)return;
-  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:state.repDefStyle||undefined}:pickHl();
-  state.repereDefined[n]=c;
-  saveRepereDefinedState();
-  if(el)el.value='';
+  if(!el)return;
+  const nums=(el.value.match(/\d+/g)||[]).map(s=>parseInt(s,10)).filter(n=>n>=0&&n<=99);
+  if(!nums.length)return;
+  // Rapport de collage : les numéros déjà présents DANS CETTE liste sont ignorés (pas
+  // écrasés, pour ne pas perdre une couleur/style choisis à la main) ; ceux présents dans
+  // l'AUTRE liste sont ajoutés quand même mais signalés (nouveau doublon A↔B).
+  const alreadyHere=nums.filter(n=>state.repereDefined[n]!==undefined);
+  const crossDup=nums.filter(n=>state.repereDefined[n]===undefined&&state.repere2Defined[n]!==undefined);
+  const toAdd=nums.filter(n=>state.repereDefined[n]===undefined);
+  const c=state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor)}:pickHl();
+  toAdd.forEach(n=>{state.repereDefined[n]={bg:c.bg,fg:c.fg,style:repereStyleForNew()};});
+  if(toAdd.length){autoShowList('A');saveRepereDefinedState();}
+  el.value='';
+  state.pasteReport=(alreadyHere.length||crossDup.length)?{listKey:'A',added:toAdd.length,alreadyHere,crossDup}:null;
   render();
 }
 function removeRepereDefined(n){
@@ -7680,7 +8171,7 @@ function openRepereGlobal(){
 function closeRepereGlobal(){state.repereGlobalOpen=false;render();}
 function repereGlobalHTML(){
   const{marks,markKeys,results}=crossGameRepereScan(state.repereGlobalLimit||20);
-  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
+  const numBadge=(n,fallback)=>marks[n]?`<span style="background:${marks[n].bg};color:${marks[n].fg};border-radius:3px;padding:0 4px;font-weight:700">${n}${state.repereShowClass!==false?classifSuffixHTML(n):''}</span>`:(fallback?`<span style="color:#999">${n}</span>`:`<span>${n}</span>`);
   return`<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto" onclick="if(event.target===this)closeRepereGlobal()">
     <div style="background:#fff;border-radius:14px;padding:16px;max-width:640px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.4)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -7692,10 +8183,11 @@ function repereGlobalHTML(){
         <button onclick="restoreRepereOrigin()" style="padding:5px 12px;background:#fff;color:#0E7490;border:1.5px solid #0E7490;border-radius:8px;cursor:pointer;font-weight:600;font-size:11px" title="Remettre les 23 numéros du repère d'origine identifié sur BENZ">↺ Repère d'origine</button>
       </div>
       <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:500;color:#555;margin-bottom:10px"><input type="checkbox" ${state.repereShowClass!==false?'checked':''} onchange="state.repereShowClass=this.checked;render()">🧩 Afficher l'élément de classification à côté de chaque numéro repéré (partout dans l'app)</label>
+      ${pasteReportHTML('A')}
       <div style="background:#F0F9FF;border:1.5px solid #0E7490;border-radius:8px;padding:8px 10px;margin-bottom:10px">
         <div style="font-size:10.5px;font-weight:700;color:#0E7490;margin-bottom:5px">✏️ Prédéfinir des numéros à repérer (indépendant du coloriage d'un jeu — reste fixe partout, tant que tu ne les effaces pas)</div>
         <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-          <input id="repdef-num" type="number" min="0" max="99" placeholder="N°" onkeydown="if(event.key==='Enter')addRepereDefined()" style="width:55px;padding:4px 6px;border:1.5px solid #0E7490;border-radius:5px;font-size:12px;text-align:center;outline:none">
+          <input id="repdef-num" type="text" inputmode="numeric" placeholder="N° ou liste: 6,14,23" onkeydown="if(event.key==='Enter')addRepereDefined()" style="width:130px;padding:4px 6px;border:1.5px solid #0E7490;border-radius:5px;font-size:12px;text-align:center;outline:none">
           <div style="display:flex;gap:3px;align-items:center">
             ${PAL.map(c=>`<span onclick="setRepDefColor('${c}')" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:${c};border:${state.repDefColor===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
             <label title="Choisir une couleur libre" style="width:18px;height:18px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden">
@@ -7709,7 +8201,7 @@ function repereGlobalHTML(){
           ${[['','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligner'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']].map(([s,l])=>`<button onclick="setRepDefStyle('${s}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:7px;cursor:pointer;border:1.5px solid ${state.repDefStyle===s?'#0E7490':'#ddd'};background:${state.repDefStyle===s?'#E0F2FE':'#fff'};color:#333">${l}</button>`).join('')}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
-          ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
+          ${Object.keys(state.repereDefined).length?Object.entries(state.repereDefined).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:5px;padding:2px 4px 2px 7px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">${n}${state.repereShowClass!==false?classifSuffixHTML(n):''}<span onclick="removeRepereDefined(${n})" style="cursor:pointer;opacity:.75;font-weight:400" title="Retirer">✕</span></span>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun numéro prédéfini pour l'instant.</span>`}
           ${Object.keys(state.repereDefined).length?`<button onclick="clearRepereDefined()" style="padding:2px 8px;background:#fff;border:1px solid #C62828;color:#C62828;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px;margin-left:4px">Tout effacer</button>`:''}
         </div>
       </div>
@@ -7718,13 +8210,13 @@ function repereGlobalHTML(){
         <div style="font-size:9px;color:#666;margin-bottom:6px">Enregistre ta liste actuelle sous un nom, pour créer d'autres repères à l'avenir sans perdre celui-ci : change les numéros ci-dessus, enregistre un nouvel instantané, puis recharge celui que tu veux à tout moment.</div>
         <button onclick="saveRepereSnapshot()" style="padding:4px 10px;background:#A21CAF;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-bottom:6px">💾 Enregistrer l'instant actuel</button>
         <div style="display:flex;flex-direction:column;gap:4px">
-          ${state.repereSnapshots.length?state.repereSnapshots.map(s=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid #E9D5FF;border-radius:6px;padding:4px 7px">
+          ${(()=>{const snaps=state.listSnapshots.filter(s=>(s.listKey||'A')==='A');return snaps.length?snaps.map(s=>`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#fff;border:1px solid #E9D5FF;border-radius:6px;padding:4px 7px">
             <span style="font-size:10px;font-weight:700;color:#333">${s.name}</span>
-            <span style="font-size:8px;color:#999">${Object.keys(s.defined||{}).length} n°</span>
-            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:160px">${Object.entries(s.defined||{}).slice(0,8).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:3px;padding:0 3px;font-size:9px;font-weight:700">${n}</span>`).join('')}${Object.keys(s.defined||{}).length>8?`<span style="font-size:8px;color:#999">…</span>`:''}</div>
+            <span style="font-size:8px;color:#999">${Object.keys(s.nums||{}).length} n°</span>
+            <div style="display:flex;gap:2px;flex-wrap:wrap;max-width:160px">${Object.entries(s.nums||{}).slice(0,8).map(([n,c])=>`<span style="background:${c.bg};color:${c.fg};border-radius:3px;padding:0 3px;font-size:9px;font-weight:700">${n}</span>`).join('')}${Object.keys(s.nums||{}).length>8?`<span style="font-size:8px;color:#999">…</span>`:''}</div>
             <button onclick="loadRepereSnapshot(${s.id})" style="margin-left:auto;padding:2px 8px;background:#A21CAF;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">Charger</button>
             <span onclick="deleteRepereSnapshot(${s.id})" style="cursor:pointer;color:#C62828;font-size:12px" title="Supprimer">🗑️</span>
-          </div>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun instantané enregistré pour l'instant.</span>`}
+          </div>`).join(''):`<span style="font-size:9.5px;color:#888">Aucun instantané enregistré pour l'instant.</span>`;})()}
         </div>
       </div>
       ${!markKeys.length?`<div style="font-size:12px;color:#888;padding:16px 0;text-align:center">Aucun numéro repéré pour l'instant (ni colorié sur <b>${GAME.name}</b>, ni prédéfini ci-dessus).</div>`:`
@@ -7936,7 +8428,19 @@ const AN_DEF=[
   {key:'intervalles',label:'🔁 Motifs à intervalle fixe',bg:'#DB2777',fg:'#fff',desc:'Paires ou triplets qui reviennent ensemble avec un écart régulier de tirages'},
   {key:'graph',label:'📊 Graphiques',bg:'#1D4ED8',fg:'#fff',desc:'Histogramme des fréquences et courbe des totaux'},
   {key:'backtest',label:'🧪 Backtest stratégies',bg:'#B91C1C',fg:'#fff',desc:"Teste 8 stratégies de pronostic sur tout l'historique et mesure leur taux de réussite réel (porté depuis Oracle du Loto)"},
+  {key:'semaine',label:'📅 Répétés semaine',bg:'#DC2626',fg:'#fff',desc:"Numéros qui reviennent dans au moins 2 tirages d'une semaine calendaire (lundi à dimanche) — semaine en cours par défaut, ou n'importe quel N° de semaine (réglable)"},
 ];
+// Numéro de semaine ISO 8601 (lundi=début) + année ISO correspondante, pour une date au format 'dd/mm' + année 'yyyy'
+function isoWeekOf(dm,y){
+  const [dd,mm]=String(dm).split('/').map(Number);
+  const d=new Date(Date.UTC(parseInt(y,10),(mm||1)-1,dd||1));
+  const dayNum=(d.getUTCDay()+6)%7; // lundi=0 ... dimanche=6
+  d.setUTCDate(d.getUTCDate()-dayNum+3); // jeudi de cette semaine-là
+  const firstThursday=new Date(Date.UTC(d.getUTCFullYear(),0,4));
+  const fdn=(firstThursday.getUTCDay()+6)%7;
+  const week=1+Math.round(((d-firstThursday)/86400000-3+fdn)/7);
+  return {week,year:d.getUTCFullYear()};
+}
 function anCalc(){
   const m=state.anMode,res={};
   // Rappel: T[0] = tirage le plus récent, T[fin] = le plus ancien
@@ -7993,6 +8497,18 @@ function anCalc(){
     const f=Array(91).fill(0);win.forEach(r=>r.n.forEach(n=>f[n]++));
     const order=Array.from({length:90},(_,i)=>i+1).sort((a,b)=>f[b]-f[a]||a-b);
     res.hot=new Set(order.slice(0,10));res.cold=new Set(order.slice(-10));res.f=f;res.order=order;
+  }
+  if(m==='semaine'){
+    const now=new Date();
+    const curW=isoWeekOf(String(now.getDate()).padStart(2,'0')+'/'+String(now.getMonth()+1).padStart(2,'0'),now.getFullYear());
+    // Semaine en cours par défaut (state.semaineN=null), sinon le N° de semaine choisi, sur l'année en cours.
+    const targetWeek=state.semaineN?Math.max(1,Math.min(53,parseInt(state.semaineN,10)||curW.week)):curW.week;
+    const targetYear=curW.year;
+    const rowsThisWeek=T.filter(r=>{const w=isoWeekOf(r.d,r.y);return w.week===targetWeek&&w.year===targetYear;});
+    const cnt={};
+    rowsThisWeek.forEach(r=>r.n.forEach(n=>{cnt[n]=(cnt[n]||0)+1;}));
+    res.semaineRepSet=new Set(Object.keys(cnt).filter(k=>cnt[k]>=2).map(Number));
+    res.semaineRows=rowsThisWeek;res.semaineNum=targetWeek;res.semaineCurNum=curW.week;
   }
   if(m==='retard'){
     const first={};T.forEach((r,i)=>r.n.forEach(n=>{if(first[n]===undefined)first[n]=i;}));
@@ -8314,8 +8830,11 @@ function anchorBarHTML(){
 const VCOL={};        // par colonne : items à afficher + contexte de rendu
 const VH={};          // hauteur mesurée d'une ligne, par colonne
 const VMARGE=12;      // lignes rendues au-delà de l'écran, en haut et en bas
-// Double vue : quand on génère les lignes du volet "sans", ce drapeau masque tout
-// coloriage (repérés ET coloriage manuel) dans numSpan, le temps de la génération.
+// Double vue : quand on génère les lignes du volet "sans", ce drapeau masque les
+// repérés (liste 1 + liste 2) dans numSpan, le temps de la génération. Le coloriage
+// manuel N'EST PLUS masqué par ce drapeau : chaque volet a son propre coloriage
+// indépendant (colored/coloredCells pour "avec", colored2/coloredCells2 pour "sans"),
+// distingué via extra.pane2 dans numSpan — cf. plus bas.
 let _DV_SUPPRESS=false;
 function vRowHTML(it,ri,C){
   if(it.t==='ph')return it.h;
@@ -8334,7 +8853,9 @@ function vRowHTML(it,ri,C){
   let out='';
 
           const isM=state.search.length>0&&searchMatch(row,state.search,state.searchPosMode,state.searchPosIdx);
-          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);const hC=_DV_SUPPRESS?false:row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
+          const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);
+          const _pane2=_dvMode==='norep';
+          const hC=_pane2?row.n.some((n,ni)=>state.colored2[n]||state.coloredCells2[row.t+'_'+ni]):row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
@@ -8352,10 +8873,10 @@ function vRowHTML(it,ri,C){
               return row.n.map((n,ni)=>{
                 const _mirP=!!(MIR[n]&&((_prevR&&_prevR.n[ni]===MIR[n])||(_nextR&&_nextR.n[ni]===MIR[n])));
                 const _superpos=!!((_olderR&&_olderR.n[ni]===n)||(_newerR&&_newerR.n[ni]===n));
-                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN},row.t+'_'+ni);
+                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN,pane2:_pane2},row.t+'_'+ni);
               }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
-            ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
+            ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),pane2:_pane2},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}
           </div>`;
 
@@ -8424,11 +8945,12 @@ function anMark(row,ctx){
     else if(m==='tri'&&TRIA.has(n))S(i,D.bg);
     else if(m.startsWith('mult')&&n%parseInt(m.slice(4))===0)S(i,D.bg,D.fg);
     else if(m==='m1331'){if(n===13)S(i,'#C62828');if(n===31)S(i,'#1565C0');}
-    else if(m==='mirL'&&MIR[n]&&row.n.includes(MIR[n]))S(i,D.bg);
+    else if(m==='mirL'&&MIR[n]&&row.n.includes(MIR[n]))S(i,state.mirLColor||D.bg);
     else if(m==='consec'&&(row.n.includes(n+1)||row.n.includes(n-1)))S(i,D.bg);
     else if(m==='suivi'&&ctx.lastSet.has(n))S(i,ctx.numColor[n]||D.bg);
     else if(m==='chauds'||m==='freq'){if(ctx.hot.has(n))S(i,'#C62828');else if(ctx.cold.has(n))S(i,'#1565C0');}
     else if(m==='retard'&&ctx.lateSet.has(n))S(i,D.bg);
+    else if(m==='semaine'&&ctx.semaineRepSet&&ctx.semaineRepSet.has(n))S(i,D.bg);
   });
   if(D&&(m==='mirP'||m==='rep')){
     const gi=IDX[row.t];
@@ -8440,18 +8962,18 @@ function anMark(row,ctx){
       if(m==='rep'&&prev.n.includes(n))S(i,D.bg);
     });
     if(mirPrev)row.n.forEach((n,i)=>{
-      if(m==='mirP'&&MIR[n]&&mirPrev.n[i]===MIR[n])S(i,D.bg);
+      if(m==='mirP'&&MIR[n]&&mirPrev.n[i]===MIR[n])S(i,state.mirPColor||D.bg);
     });
     if(mirNext)row.n.forEach((n,i)=>{
-      if(m==='mirP'&&MIR[n]&&mirNext.n[i]===MIR[n])S(i,D.bg);
+      if(m==='mirP'&&MIR[n]&&mirNext.n[i]===MIR[n])S(i,state.mirPColor||D.bg);
     });
   }
   if(m==='superpos'){
     const gi=IDX[row.t], gap=Math.max(1,state.supGap||1);
     const older=gi+gap<T.length?T[gi+gap]:null; // N tirages plus tôt
     const newer=gi-gap>=0?T[gi-gap]:null; // N tirages plus tard
-    if(older)row.n.forEach((n,i)=>{if(older.n[i]===n)S(i,D.bg);});
-    if(newer)row.n.forEach((n,i)=>{if(newer.n[i]===n)S(i,D.bg);});
+    if(older)row.n.forEach((n,i)=>{if(older.n[i]===n)S(i,state.superposColor||D.bg);});
+    if(newer)row.n.forEach((n,i)=>{if(newer.n[i]===n)S(i,state.superposColor||D.bg);});
   }
   if(m==='arith'||m==='geo'){
     // cherche la plus longue suite (arith ou géo) parmi les 5 numéros
@@ -8503,7 +9025,7 @@ function anMark(row,ctx){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           const rc=ctx.repereMarks&&ctx.repereMarks[n];
-          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff',rc.style];
         });
         return;
       }
@@ -8511,18 +9033,24 @@ function anMark(row,ctx){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           const rc=ctx.repere2Marks&&ctx.repere2Marks[n];
-          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff',rc.style];
         });
         return;
       }
       const LD=AN_DEF.find(d=>d.key===k); if(!LD)return;
+      // Utilise la couleur personnalisée (réglable dans "Toujours actif") plutôt que la couleur par
+      // défaut de AN_DEF, pour que l'export reproduise fidèlement ce qui est réellement affiché.
+      const _col=k==='mirL'?(state.mirLColor||LD.bg):k==='mirP'?(state.mirPColor||LD.bg):k==='superpos'?(state.superposColor||LD.bg):LD.bg;
+      // Style choisi (Plein/Encadré/Souligné/Texte) pour cette couche — lu par exportColoredExcel()
+      // (via hlStyle()) pour reproduire le même rendu que l'écran dans le fichier Excel exporté.
+      const _sty=k==='mirL'?state.mirLStyle:k==='mirP'?state.mirPStyle:k==='superpos'?state.superposStyle:undefined;
       row.n.forEach((n,i)=>{
         if(out[i])return;
         let hit=false;
         if(k==='mirL')hit=!!(MIR[n]&&row.n.includes(MIR[n]));
         else if(k==='mirP')hit=!!(MIR[n]&&((prevR&&prevR.n[i]===MIR[n])||(nextR&&nextR.n[i]===MIR[n])));
         else if(k==='superpos')hit=!!((olderR&&olderR.n[i]===n)||(newerR&&newerR.n[i]===n));
-        if(hit)out[i]=[LD.bg,LD.fg||'#fff'];
+        if(hit)out[i]=[_col,'#fff',_sty];
       });
     });
   }
@@ -8625,16 +9153,19 @@ function anRender(){
   let html=`<div class="card">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
       <span style="font-size:9px;color:#777">Choisis une analyse — les numéros concernés sont colorés dans les colonnes</span>
-      <button onclick="applyRepereToCurrentGame()" style="margin-left:auto;padding:3px 10px;background:#FFF7ED;color:#C2410C;border:1.5px solid #C2410C;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Colorie immédiatement tous tes numéros repérés dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer mes repérés ici</button>
-      <button onclick="openRepereGlobal()" style="padding:3px 10px;background:#E0F2FE;color:#0E7490;border:1.5px solid #0E7490;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Voir tes numéros coloriés (repérés) recherchés dans tous les autres lotos, avec les mêmes couleurs">🎯 Mes repérés (tous lotos)</button>
-      <button onclick="state.repereAlways=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #C2410C;background:${state.repereAlways!==false?'#C2410C':'#FFF7ED'};color:${state.repereAlways!==false?'#fff':'#C2410C'}" title="Active l'affichage automatique de tes repérés sur tous les lotos">✅ Avec repérés</button>
-      <button onclick="state.repereAlways=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repereAlways===false?'#6B7280':'#F3F4F6'};color:${state.repereAlways===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique des repérés (ta liste n'est pas effacée)">🚫 Sans repérés</button>
-      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte : une avec le coloriage manuel, une sans. Chacune a son bouton pour la masquer.">🪟 Double vue</button>
-      <button onclick="state.repereShowClass=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass!==false?'#fff':'#7E22CE'}" title="Affiche l'élément de classification (ex: C:14) à côté de chaque numéro repéré">🧩 Mes repérés avec élément</button>
-      <button onclick="state.repereShowClass=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #9333EA;background:${state.repereShowClass===false?'#9333EA':'#F3E8FF'};color:${state.repereShowClass===false?'#fff':'#7E22CE'}" title="N'affiche que le numéro repéré, sans élément de classification">🎯 Mes repérés sans élément</button>
-      <button onclick="openRepere2Global()" style="padding:3px 10px;background:#FFFBEB;color:#B45309;border:1.5px solid #B45309;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Nouvelle liste indépendante, définie via une grille 1-90, visible partout EN PLUS de tes repérés">🎯 Liste 2 (grille 1-90)</button>
-      <button onclick="state.repere2Always=true;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #B45309;background:${state.repere2Always!==false?'#B45309':'#FFFBEB'};color:${state.repere2Always!==false?'#fff':'#B45309'}" title="Active l'affichage automatique de la liste 2 sur tous les lotos">✅ Avec liste 2</button>
-      <button onclick="state.repere2Always=false;render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #6B7280;background:${state.repere2Always===false?'#6B7280':'#F3F4F6'};color:${state.repere2Always===false?'#fff':'#4B5563'}" title="Désactive complètement l'affichage automatique de la liste 2 (elle n'est pas effacée)">🚫 Sans liste 2</button>
+      <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED;flex-wrap:wrap">
+        <span style="font-size:9px;font-weight:700;color:#C2410C">📋 Listes de repères</span>
+        <button onclick="setListsVisible(true)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}" title="Affiche les listes A et B partout, sur tous les lotos">✅ Afficher</button>
+        <button onclick="setListsVisible(false)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:${!listsVisible()?'#6B7280':'#fff'};color:${!listsVisible()?'#fff':'#6B7280'}" title="Masque les listes A et B (leur contenu n'est pas effacé)">🚫 Masquer</button>
+        <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 Liste A${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
+        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 Liste B${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
+        <button onclick="applyRepereToCurrentGame()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:#fff;color:#C2410C" title="Colorie immédiatement tous les numéros de tes listes dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer ici</button>
+        <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
+        <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>
+        ${listDoublons().length?`<button onclick="openDoublonsPanel()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#FEF3C7;color:#92400E" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</button>`:''}
+        <button onclick="resetDisplayPrefs()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Masque les listes, désactive la double vue, remet le style Plein — sans effacer tes numéros">↺ Reset affichage</button>
+      </span>
+      <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;state.tab=0;state.navMode='years';state.excelMode=false;state.showSearchHub=false;}saveDualViewPref();render()" style="padding:3px 10px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#F0FDFA'};color:${state.dualViewOn?'#fff':'#0F766E'}" title="Affiche deux colonnes par année, côte à côte, dans l'onglet Navigation : une AVEC les listes de repères, une SANS (coloriage manuel indépendant dans chaque volet). Bascule automatiquement sur Navigation quand tu l'actives.">🪟 Double vue</button>
       <button onclick="goCompareGames()" style="padding:3px 10px;background:#E8F5E9;color:#1B5E20;border:1.5px solid #2E7D32;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px" title="Afficher plusieurs lotos côte à côte (onglet Navigation)">🎮 Comparer plusieurs lotos</button>
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:3px 10px;background:#7C3AED;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">🎨 Exporter</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:3px 10px;background:#EDE9FE;color:#5B21B6;border:1.5px solid #7C3AED;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px">⚡ Rapide</button>
@@ -8651,17 +9182,20 @@ function anRender(){
         🪞 Miroir même ligne
         <input type="color" value="${state.mirLColor}" title="Couleur du miroir même ligne" onchange="state.mirLColor=this.value;lsSet('mirLColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('mirLStyle',state.mirLColor)}
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.mirPColor};cursor:pointer">
         <input type="checkbox" ${state.mirPAlways?'checked':''} onchange="state.mirPAlways=this.checked;render()">
         🪞 Miroir superposé <span style="font-size:9px;font-weight:400;color:#888">(même position)</span>
         <input type="color" value="${state.mirPColor}" title="Couleur du miroir superposé" onchange="state.mirPColor=this.value;lsSet('mirPColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('mirPStyle',state.mirPColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.mirPColor};font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.mirPGap||1)}" onchange="state.mirPGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid ${state.mirPColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.mirPColor}"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.superposColor};cursor:pointer">
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés
         <input type="color" value="${state.superposColor}" title="Couleur des mêmes numéros superposés" onchange="state.superposColor=this.value;lsSet('superposColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('superposStyle',state.superposColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#0891B2;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.supGap||1)}" onchange="state.supGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #0891B2;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#0891B2"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
         <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
@@ -8689,6 +9223,7 @@ function anRender(){
     ${(state.anMode==='contient'||state.anMode==='finit')?` • Chiffre: ${[0,1,2,3,4,5,6,7,8,9].map(dg=>`<button onclick="state.digitFilter=${dg};render()" style="padding:1px 7px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.digitFilter===dg?D.bg:'#ddd'};background:${state.digitFilter===dg?D.bg:'#fff'};color:${state.digitFilter===dg?'#fff':'#888'};cursor:pointer;font-weight:500">${dg}</button>`).join('')}`:''}
     ${state.anMode==='dizaine'?` • Dizaine: ${[0,1,2,3,4,5,6,7,8].map(dz=>`<button onclick="state.dizaineFilter=${dz};render()" style="padding:1px 6px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.dizaineFilter===dz?D.bg:'#ddd'};background:${state.dizaineFilter===dz?D.bg:'#fff'};color:${state.dizaineFilter===dz?'#fff':'#888'};cursor:pointer;font-weight:500">${dz}0-${dz}9</button>`).join('')}`:''}
     ${state.anMode==='groupe'?` • Groupe: ${[1,2,3,4,5,6,7,8,9].map(gr=>`<button onclick="state.groupeFilter=${gr};render()" style="padding:1px 8px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.groupeFilter===gr?D.bg:'#ddd'};background:${state.groupeFilter===gr?D.bg:'#fff'};color:${state.groupeFilter===gr?'#fff':'#888'};cursor:pointer;font-weight:500">${gr}</button>`).join('')}`:''}
+    ${state.anMode==='semaine'?` • N° de semaine: <input type="number" value="${state.semaineN||''}" min="1" max="53" placeholder="en cours" onchange="state.semaineN=this.value?parseInt(this.value):null;render()" style="width:60px;padding:1px 4px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px"> ${state.semaineN?`<button onclick="state.semaineN=null;render()" style="padding:1px 8px;margin-left:3px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">↺ semaine en cours</button>`:`<span style="font-size:9px;color:#888">(semaine en cours = ${ctx.semaineNum||''})</span>`}`:''}
     ${state.anMode==='suivi'?` • Nombre de tirages: ${[1,3,5].map(g=>`<button onclick="state.suiviN=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.suiviN===g?D.bg:'#ddd'};background:${state.suiviN===g?D.bg:'#fff'};color:${state.suiviN===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')}
     <div style="margin-top:3px">${ctx.recent.map((r,ri)=>`<span style="color:${ctx.suiviCol[ri%ctx.suiviCol.length]};font-weight:500">■</span> <b>${GAME.name} ${r.t}</b> (${r.d}): ${r.n.join(', ')}${r.m?' | M: '+r.m.join(', '):''}`).join(' &nbsp;•&nbsp; ')}</div>`:''}
     </div>
@@ -8833,7 +9368,7 @@ function anRender(){
     else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
     const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
-    html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap"><table class="excel-tbl"><thead><tr>`;
+    html+=`<div id="col-exan" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exan')" ontouchstart="touchStepStart(event,'exan')" ontouchmove="touchStepMoveExcel(event,'exan')" ontouchend="touchStepEnd('exan')" ontouchcancel="touchStepEnd('exan')"><table class="excel-tbl"><thead><tr>`;
     cols.forEach((c,ci)=>{const light=parseInt(c.color,16)>0x888888;html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
@@ -9024,6 +9559,7 @@ function __renderBody(){
 
   // ── ONGLET NAVIGATION ─────────────────────────────────────
   if(state.tab===0){
+    html+=listsStatusBarHTML();
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){
       html+=`<div class="card" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
@@ -9076,9 +9612,9 @@ function __renderBody(){
       </div>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année : une avec le coloriage manuel, une sans (propre)."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue</label>
-      ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewLeftOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet AVEC coloriage manuel, sur toutes les années."><input type="checkbox" ${state.dualViewLeftOn?'checked':''} onchange="state.dualViewLeftOn=this.checked;render()">👁 volet avec</label>
-      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewRightOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet SANS (propre, 3 facteurs seuls), sur toutes les années."><input type="checkbox" ${state.dualViewRightOn?'checked':''} onchange="state.dualViewRightOn=this.checked;render()">👁 volet sans</label>`:''}
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année, côte à côte : une AVEC les listes de repères, une SANS. Le coloriage manuel reste indépendant dans chaque volet."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue</label>
+      ${state.dualViewOn?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewLeftOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet AVEC repères, sur toutes les années."><input type="checkbox" ${state.dualViewLeftOn?'checked':''} onchange="state.dualViewLeftOn=this.checked;render()">👁 avec repères</label>
+      <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.dualViewRightOn?'#0F766E':'#aaa'}" title="Afficher (ou masquer) le volet SANS repères, sur toutes les années."><input type="checkbox" ${state.dualViewRightOn?'checked':''} onchange="state.dualViewRightOn=this.checked;render()">👁 sans repères</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'#166534':'#aaa'}" title="Active les 3 facteurs auto (miroir même ligne, miroir superposé, mêmes numéros superposés). Coloriage manuel et repérés restent visibles."><input type="checkbox" ${(state.mirLAlways&&state.mirPAlways&&state.superposAlways)?'checked':''} onchange="state.mirLAlways=state.mirPAlways=state.superposAlways=this.checked;render()">🎯 vue par défaut</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
@@ -9175,7 +9711,7 @@ function __renderBody(){
         const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
-        html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
+        html+=`<div id="col-exmg" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exmg')" ontouchstart="touchStepStart(event,'exmg')" ontouchmove="touchStepMoveExcel(event,'exmg')" ontouchend="touchStepEnd('exmg')" ontouchcancel="touchStepEnd('exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=parseInt(c.color,16)>0x888888;
@@ -9277,7 +9813,7 @@ function __renderBody(){
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
-      html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
+      html+=`<div id="col-exnav" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exnav')" ontouchstart="touchStepStart(event,'exnav')" ontouchmove="touchStepMoveExcel(event,'exnav')" ontouchend="touchStepEnd('exnav')" ontouchcancel="touchStepEnd('exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=parseInt(c.color,16)>0x888888;
@@ -9295,7 +9831,22 @@ function __renderBody(){
           const tc=tC(row.s);
           html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${multiBadgeHTML(row,fCell)}${row.t}</td>`;
           html+=`<td style="${fz(ci,1)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;color:#666;font-weight:400;font-size:${fCell}px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
-          const _e=elmHLMark(row);row.n.forEach((n,ni)=>{html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],fs:fNum},row.t+'_'+ni)}</td>`;});
+          const _e=elmHLMark(row);
+          // Couches "toujours actives" (Miroir même ligne / Miroir superposé / Mêmes numéros superposés) —
+          // manquaient en mode Excel car jamais calculées ici (contrairement à la grille Navigation).
+          const _gi2=IDX[row.t];
+          const _mgap2=Math.max(1,state.mirPGap||1);
+          const _prevR2=(_gi2!=null&&_gi2+_mgap2<T.length)?T[_gi2+_mgap2]:null;
+          const _nextR2=(_gi2!=null&&_gi2-_mgap2>=0)?T[_gi2-_mgap2]:null;
+          const _sgap2=Math.max(1,state.supGap||1);
+          const _olderR2=(_gi2!=null&&_gi2+_sgap2<T.length)?T[_gi2+_sgap2]:null;
+          const _newerR2=(_gi2!=null&&_gi2-_sgap2>=0)?T[_gi2-_sgap2]:null;
+          const _ns2=new Set(row.n);
+          row.n.forEach((n,ni)=>{
+            const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
+            const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,fs:fNum},row.t+'_'+ni)}</td>`;
+          });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
             html+=`<td style="${fz(ci,totIdx2+1)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`;
@@ -9489,6 +10040,7 @@ function __renderBody(){
   html+=fabHTML();
   if(state.repereGlobalOpen)html+=repereGlobalHTML();
   if(state.repere2GlobalOpen)html+=repere2GlobalHTML();
+  if(state.doublonsPanelOpen)html+=doublonsPanelHTML();
   if(state.coloringExportOpen)html+=coloringExportHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
@@ -9593,6 +10145,11 @@ const Comp = {
   calcComp, passData, passRender
 };
 
+// ── Préférences d'affichage des listes (visibilité, style, double vue) : restaurées
+// juste avant le premier rendu pour retrouver le même setup après fermeture du navigateur.
+loadListsVisiblePref();
+loadListStylePref();
+loadDualViewPref();
 // ── Démarrage sécurisé + splash (logo ~1,6s) ──
 (function(){
   var sp=null;

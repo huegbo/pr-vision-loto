@@ -82,12 +82,18 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.frozen{position:relative;}
 .cols.frozen .col:first-child{position:sticky;left:0;z-index:5;background:#fff;box-shadow:4px 0 10px rgba(31,45,61,.22);isolation:isolate;}
 .cols.frozen .col:first-child .col-hdr{position:sticky;top:0;}
-.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;max-width:100%;scroll-behavior:smooth;}
+.excel-wrap{position:relative;overflow:auto;max-width:100%;}
 .excel-tbl{border-collapse:separate;border-spacing:0;font-size:11.5px;width:max-content;table-layout:auto;}
-.excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
-.excel-blk{position:sticky;top:0;z-index:6;font-weight:600;font-size:11px;padding:4px;border-right:2px solid rgba(255,255,255,.3);}
-.excel-hd{position:sticky;top:22px;z-index:5;background:var(--ink);color:#fff;font-size:8px;font-weight:700;}
-.excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);}
+.excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;overflow:hidden;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
+/* iOS Safari a un bug connu : les cellules "position:sticky" à l'intérieur d'un conteneur
+   overflow:auto (comme .excel-wrap) restent visuellement "collées" en retard ou pas du tout
+   pendant le défilement tant qu'on ne force pas leur propre calque GPU. -webkit-overflow-scrolling:touch
+   aggrave ce bug (scroller "à l'ancienne" qui ne repeint pas les sticky pendant l'inertie) — retiré ci-dessus.
+   translateZ(0) force le calque GPU par cellule pour que le collage suive le doigt en temps réel. */
+.excel-tbl [style*="sticky"]{transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-blk{position:sticky;top:0;z-index:6;font-weight:600;font-size:11px;padding:4px;border-right:2px solid rgba(255,255,255,.3);transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-hd{position:sticky;top:22px;z-index:5;background:var(--ink);color:#fff;font-size:8px;font-weight:700;transform:translateZ(0);-webkit-transform:translateZ(0);}
+.excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);transform:translateZ(0);-webkit-transform:translateZ(0);}
 th.excel-frozen{z-index:9;}
 .excel-td.excel-frozen{background:#fff;}
 .col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;touch-action:none;}
@@ -317,6 +323,7 @@ const RAW_IT_TORINO=window.LOTO_DATA.RAW_IT_TORINO;
 const RAW_IT_VENEZIA=window.LOTO_DATA.RAW_IT_VENEZIA;
 const RAW_IT_NAZIONALE=window.LOTO_DATA.RAW_IT_NAZIONALE;
 const RAW_CM_CONTINENT=window.LOTO_DATA.RAW_CM_CONTINENT;
+const RAW_CM_DIGITAL=window.LOTO_DATA.RAW_CM_DIGITAL;
 const RAW_CM_SUPER4=window.LOTO_DATA.RAW_CM_SUPER4;
 const RAW_CM_PREMIERBET4=window.LOTO_DATA.RAW_CM_PREMIERBET4;
 const RAW_CM_LIONS=window.LOTO_DATA.RAW_CM_LIONS;
@@ -524,6 +531,7 @@ const GAMES={
   cm_noun:{name:'CM NOUN',icon:'🇨🇲',raw:RAW_CM_NOUN,hasM:true,bonusN:5,xtra:true},
   cm_sanaga:{name:'CM SANAGA',icon:'🇨🇲',raw:RAW_CM_SANAGA,hasM:true,bonusN:5,xtra:true},
   cm_wouri:{name:'CM WOURI',icon:'🇨🇲',raw:RAW_CM_WOURI,hasM:true,bonusN:5,xtra:true},
+  cm_digital:{name:'CM DIGITAL',icon:'🇨🇲',raw:RAW_CM_DIGITAL,hasM:true,bonusN:5,xtra:true},
 };
 let T,IDX,MAX_T,MIN_T,YEARS,BY_YEAR,GAME;
 
@@ -5083,11 +5091,29 @@ async function exportColoredExcel(){
           if(!includeColors)return;
           const cid=r.t+'_'+ni;
           const manual=state.coloredCells[cid]||state.colored[v];
-          let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-          if(!bg&&mk&&mk[ni]){bg=mk[ni][0];fg=mk[ni][1]||'#ffffff';}
-          if(bg){
-            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-            cell.font={color:{argb:hexToARGB(fg)},bold:true};
+          // hlStyle() traduit {bg,fg,style} en instructions génériques (plein/encadré/souligné/texte/
+          // symbole) — même logique que applyHl() à l'écran (numSpan). mk[ni] porte maintenant, en 3e
+          // position, le style choisi pour Miroir même ligne / Miroir superposé / Superposition (voir
+          // anMark()), donc l'export reproduit fidèlement la forme choisie, pas seulement la couleur.
+          let hs=null;
+          if(manual)hs=hlStyle(manual);
+          else if(mk&&mk[ni])hs=hlStyle({bg:mk[ni][0],fg:mk[ni][1],style:mk[ni][2]});
+          if(hs){
+            const bStyle={style:'medium',color:{argb:hexToARGB(hs.color)}};
+            if(hs.mode==='box'){
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+              cell.border={top:bStyle,bottom:bStyle,left:bStyle,right:bStyle};
+            }else if(hs.mode==='underline'){
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};
+              cell.border={bottom:bStyle};
+            }else if(hs.mode==='text'){
+              cell.font={color:{argb:hexToARGB(hs.color)},bold:true};
+            }else if(hs.mode==='sym'){
+              cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(hs.text)}}},{text:' '+hs.sym,font:{bold:true,color:{argb:hexToARGB(hs.color)}}}]};
+            }else{
+              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};
+              cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+            }
           }
         });
         // TOT juste après N5 (même ordre qu'à l'écran)
@@ -5106,11 +5132,15 @@ async function exportColoredExcel(){
             if(!includeColors)return;
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
-            let bg=colorBg(manual),fg=(manual&&manual.fg)||'#ffffff';
-            if(!bg&&D){const am=anValMark(v,ctx);if(am){bg=am[0];fg=am[1]||'#ffffff';}}
-            if(bg){
-              cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
-              cell.font={color:{argb:hexToARGB(fg)},bold:true};
+            let hs=manual?hlStyle(manual):null;
+            if(!hs&&D){const am=anValMark(v,ctx);if(am)hs=hlStyle({bg:am[0],fg:am[1]});}
+            if(hs){
+              const bStyleM={style:'medium',color:{argb:hexToARGB(hs.color)}};
+              if(hs.mode==='box'){cell.font={color:{argb:hexToARGB(hs.text)},bold:true};cell.border={top:bStyleM,bottom:bStyleM,left:bStyleM,right:bStyleM};}
+              else if(hs.mode==='underline'){cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};cell.border={bottom:bStyleM};}
+              else if(hs.mode==='text'){cell.font={color:{argb:hexToARGB(hs.color)},bold:true};}
+              else if(hs.mode==='sym'){cell.value={richText:[{text:String(v),font:{bold:true,color:{argb:hexToARGB(hs.text)}}},{text:' '+hs.sym,font:{bold:true,color:{argb:hexToARGB(hs.color)}}}]};}
+              else{cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};cell.font={color:{argb:hexToARGB(hs.text)},bold:true};}
             }
           });
           // TOT.M : somme des numéros machine réellement présents, comme à l'écran
@@ -6314,7 +6344,7 @@ function fabHTML(){
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
     ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
-    ['clear_all_colors','🧹','Tout annuler (efface toutes les couleurs)','#B71C1C','#fff'],
+    ['clear_all_colors','🧹','Tout effacer (efface toutes les couleurs)','#B71C1C','#fff'],
     ['reset_app','🔄','Réinitialiser à l’état par défaut (couleurs, listes, filtres, réglages)','#7C2D12','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
@@ -7456,6 +7486,46 @@ function touchStepMove(e,id){
 function touchStepEnd(id){
   delete _touchStep[id];
 }
+// Variantes "cran par cran" pour le mode Excel (table partagée entre toutes les années/jeux,
+// pas de virtualisation par ligne comme les cartes .col-body) : la hauteur de pas est mesurée
+// sur une <tr> du <tbody> plutôt que via VH[id]/_rowHOf (qui mesurerait la largeur de tout le
+// tableau, pas d'une ligne, et casserait le défilement). touchStepStart/touchStepEnd sont
+// réutilisées telles quelles (elles ne dépendent pas de la structure DOM).
+function _rowHOfExcel(el){
+  const tr=el&&el.querySelector('tbody tr');
+  return (tr&&tr.offsetHeight)?tr.offsetHeight:28;
+}
+function stepWheelExcel(e,id){
+  e.preventDefault();
+  if(_wheelBusy[id])return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const rowH=_rowHOfExcel(el);
+  el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
+  _wheelBusy[id]=true;
+  setTimeout(()=>{_wheelBusy[id]=false;},110);
+}
+function touchStepMoveExcel(e,id){
+  const st=_touchStep[id];
+  if(!st||!e.touches||!e.touches.length)return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const y=e.touches[0].clientY;
+  const dy=st.y-y;
+  if(!st.captured){
+    if(Math.abs(dy)<6)return;
+    st.captured=true;
+  }
+  e.preventDefault();
+  st.moved+=dy;
+  st.y=y;
+  const rowH=_rowHOfExcel(el);
+  if(Math.abs(st.moved)>=rowH){
+    const steps=Math.trunc(st.moved/rowH);
+    el.scrollTop+=steps*rowH;
+    st.moved-=steps*rowH;
+  }
+}
 const _progScroll={}; // colonnes dont le scrollTop vient d'être poussé PAR le code
                        // (pas par l'utilisateur) — évite les allers-retours infinis
                        // entre colonnes synchronisées (ancre/figé), source du
@@ -7745,6 +7815,20 @@ function repereStyleForNew(){
 // Change le style d'affichage de TOUS les repérés (listes 1 et 2) d'un coup : met à jour le
 // réglage global ET réécrit .style sur chaque entrée déjà stockée, pour que l'écran ET les
 // exports (Excel/PDF, qui relisent directement ce champ) restent synchronisés.
+// Boutons de style (Plein/Encadré/Souligné/Texte) pour les 3 couches "toujours actives"
+// (Miroir même ligne, Miroir superposé, Mêmes numéros superposés). Contrairement aux
+// repérés (state.repereDefined), ces couches n'ont pas de couleur stockée par numéro —
+// le style est un simple réglage global (state.mirLStyle etc.), relu en direct par
+// applyHl() dans numSpan() ET par anMark()/exportColoredExcel() pour l'export Excel.
+function setAlwaysStyle(key,s){
+  state[key]=s==='fill'?'':s;
+  lsSet(key,state[key]);
+  render();
+}
+function alwaysStyleBtns(key,color){
+  const cur=state[key]||'fill';
+  return `<span style="display:inline-flex;gap:2px" title="Forme d'affichage de cette couche, écran + export Excel">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setAlwaysStyle('${key}','${s}')" style="padding:1px 5px;border-radius:8px;cursor:pointer;font-weight:700;font-size:8px;border:1px solid ${color};background:${cur===s?color:'#fff'};color:${cur===s?'#fff':color}">${lbl}</button>`).join('')}</span>`;
+}
 function setRepereDisplayStyle(s){
   state.repereDisplayStyle=s;
   const st=(s&&s!=='fill')?s:undefined;
@@ -8941,7 +9025,7 @@ function anMark(row,ctx){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           const rc=ctx.repereMarks&&ctx.repereMarks[n];
-          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff',rc.style];
         });
         return;
       }
@@ -8949,7 +9033,7 @@ function anMark(row,ctx){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           const rc=ctx.repere2Marks&&ctx.repere2Marks[n];
-          if(rc)out[i]=[rc.bg,rc.fg||'#fff'];
+          if(rc)out[i]=[rc.bg,rc.fg||'#fff',rc.style];
         });
         return;
       }
@@ -8957,13 +9041,16 @@ function anMark(row,ctx){
       // Utilise la couleur personnalisée (réglable dans "Toujours actif") plutôt que la couleur par
       // défaut de AN_DEF, pour que l'export reproduise fidèlement ce qui est réellement affiché.
       const _col=k==='mirL'?(state.mirLColor||LD.bg):k==='mirP'?(state.mirPColor||LD.bg):k==='superpos'?(state.superposColor||LD.bg):LD.bg;
+      // Style choisi (Plein/Encadré/Souligné/Texte) pour cette couche — lu par exportColoredExcel()
+      // (via hlStyle()) pour reproduire le même rendu que l'écran dans le fichier Excel exporté.
+      const _sty=k==='mirL'?state.mirLStyle:k==='mirP'?state.mirPStyle:k==='superpos'?state.superposStyle:undefined;
       row.n.forEach((n,i)=>{
         if(out[i])return;
         let hit=false;
         if(k==='mirL')hit=!!(MIR[n]&&row.n.includes(MIR[n]));
         else if(k==='mirP')hit=!!(MIR[n]&&((prevR&&prevR.n[i]===MIR[n])||(nextR&&nextR.n[i]===MIR[n])));
         else if(k==='superpos')hit=!!((olderR&&olderR.n[i]===n)||(newerR&&newerR.n[i]===n));
-        if(hit)out[i]=[_col,'#fff'];
+        if(hit)out[i]=[_col,'#fff',_sty];
       });
     });
   }
@@ -9095,17 +9182,20 @@ function anRender(){
         🪞 Miroir même ligne
         <input type="color" value="${state.mirLColor}" title="Couleur du miroir même ligne" onchange="state.mirLColor=this.value;lsSet('mirLColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('mirLStyle',state.mirLColor)}
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.mirPColor};cursor:pointer">
         <input type="checkbox" ${state.mirPAlways?'checked':''} onchange="state.mirPAlways=this.checked;render()">
         🪞 Miroir superposé <span style="font-size:9px;font-weight:400;color:#888">(même position)</span>
         <input type="color" value="${state.mirPColor}" title="Couleur du miroir superposé" onchange="state.mirPColor=this.value;lsSet('mirPColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('mirPStyle',state.mirPColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.mirPColor};font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.mirPGap||1)}" onchange="state.mirPGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid ${state.mirPColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.mirPColor}"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.superposColor};cursor:pointer">
         <input type="checkbox" ${state.superposAlways?'checked':''} onchange="state.superposAlways=this.checked;render()">
         🪜 Mêmes numéros superposés
         <input type="color" value="${state.superposColor}" title="Couleur des mêmes numéros superposés" onchange="state.superposColor=this.value;lsSet('superposColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
+      ${alwaysStyleBtns('superposStyle',state.superposColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#0891B2;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.supGap||1)}" onchange="state.supGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #0891B2;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#0891B2"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
         <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
@@ -9278,7 +9368,7 @@ function anRender(){
     else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
     const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
-    html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap"><table class="excel-tbl"><thead><tr>`;
+    html+=`<div id="col-exan" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exan')" ontouchstart="touchStepStart(event,'exan')" ontouchmove="touchStepMoveExcel(event,'exan')" ontouchend="touchStepEnd('exan')" ontouchcancel="touchStepEnd('exan')"><table class="excel-tbl"><thead><tr>`;
     cols.forEach((c,ci)=>{const light=parseInt(c.color,16)>0x888888;html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
@@ -9621,7 +9711,7 @@ function __renderBody(){
         const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
-        html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
+        html+=`<div id="col-exmg" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exmg')" ontouchstart="touchStepStart(event,'exmg')" ontouchmove="touchStepMoveExcel(event,'exmg')" ontouchend="touchStepEnd('exmg')" ontouchcancel="touchStepEnd('exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=parseInt(c.color,16)>0x888888;
@@ -9723,7 +9813,7 @@ function __renderBody(){
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
-      html+=`<div style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap">
+      html+=`<div id="col-exnav" style="max-height:72vh;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exnav')" ontouchstart="touchStepStart(event,'exnav')" ontouchmove="touchStepMoveExcel(event,'exnav')" ontouchend="touchStepEnd('exnav')" ontouchcancel="touchStepEnd('exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=parseInt(c.color,16)>0x888888;

@@ -82,8 +82,9 @@ button{touch-action:manipulation;font-family:inherit;}
 .cols.frozen{position:relative;}
 .cols.frozen .col:first-child{position:sticky;left:0;z-index:5;background:#fff;box-shadow:4px 0 10px rgba(31,45,61,.22);isolation:isolate;}
 .cols.frozen .col:first-child .col-hdr{position:sticky;top:0;}
-.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;width:100%;max-width:100%;min-width:0;overscroll-behavior:contain;touch-action:pan-x pan-y;}
+.excel-wrap{position:relative;-webkit-overflow-scrolling:touch;overflow:auto;width:100%;max-width:100%;min-width:0;overscroll-behavior:contain;touch-action:pan-x pan-y;cursor:grab;scroll-snap-type:y proximity;}
 .excel-tbl{border-collapse:separate;border-spacing:0;font-size:11.5px;width:max-content;max-width:none;table-layout:auto;}
+.excel-tbl tbody tr{scroll-snap-align:start;}
 #app-content{width:100%;max-width:100%;min-width:0;overflow-x:hidden;}
 html{max-width:100%;overflow-x:hidden;}
 .excel-tbl th,.excel-tbl td{padding:5px 1px;text-align:center;white-space:nowrap;overflow:hidden;border-right:1px solid #e2e2e2;border-bottom:1px solid #ececec;}
@@ -7488,60 +7489,47 @@ function touchStepMove(e,id){
 function touchStepEnd(id){
   delete _touchStep[id];
 }
+// Glissement à la souris (clic-maintenu-tire) pour le mode Excel : marche sur
+// n'importe quel appareil (souris sans molette horizontale, trackpad, etc.),
+// indépendamment du wheel/touch. Seuil de 4px avant d'engager le drag pour
+// ne pas casser les clics normaux (ouvrir le menu couleur d'un numéro).
+function dragScrollStart(e,id){
+  if(e.button!==0)return; // clic gauche seulement
+  if(e.target.closest('button,a,input,select,textarea,label'))return;
+  const el=document.getElementById('col-'+id);
+  if(!el)return;
+  const startX=e.clientX,startY=e.clientY;
+  const startLeft=el.scrollLeft,startTop=el.scrollTop;
+  let dragging=false;
+  function onMove(ev){
+    const dx=ev.clientX-startX,dy=ev.clientY-startY;
+    if(!dragging){
+      if(Math.abs(dx)<4&&Math.abs(dy)<4)return;
+      dragging=true;
+      el.style.cursor='grabbing';
+      el.style.userSelect='none';
+    }
+    el.scrollLeft=startLeft-dx;
+    el.scrollTop=startTop-dy;
+    ev.preventDefault();
+  }
+  function onUp(){
+    el.style.cursor='';
+    el.style.userSelect='';
+    document.removeEventListener('mousemove',onMove);
+    document.removeEventListener('mouseup',onUp);
+  }
+  document.addEventListener('mousemove',onMove);
+  document.addEventListener('mouseup',onUp);
+}
 // Variantes "cran par cran" pour le mode Excel (table partagée entre toutes les années/jeux,
 // pas de virtualisation par ligne comme les cartes .col-body) : la hauteur de pas est mesurée
 // sur une <tr> du <tbody> plutôt que via VH[id]/_rowHOf (qui mesurerait la largeur de tout le
 // tableau, pas d'une ligne, et casserait le défilement). touchStepStart/touchStepEnd sont
 // réutilisées telles quelles (elles ne dépendent pas de la structure DOM).
-function _rowHOfExcel(el){
-  const tr=el&&el.querySelector('tbody tr');
-  return (tr&&tr.offsetHeight)?tr.offsetHeight:28;
-}
-function stepWheelExcel(e,id){
-  // Geste surtout horizontal (trackpad shift+molette, swipe latéral) : on laisse
-  // le défilement natif faire son travail, sinon impossible de voir les colonnes
-  // à droite du tableau (le tableau est plus large que son cadre).
-  if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||e.shiftKey)return;
-  e.preventDefault();
-  if(_wheelBusy[id])return;
-  const el=document.getElementById('col-'+id);
-  if(!el)return;
-  const rowH=_rowHOfExcel(el);
-  el.scrollTop+=(e.deltaY>0?1:-1)*rowH;
-  _wheelBusy[id]=true;
-  setTimeout(()=>{_wheelBusy[id]=false;},110);
-}
-function touchStepMoveExcel(e,id){
-  const st=_touchStep[id];
-  if(!st||!e.touches||!e.touches.length)return;
-  const el=document.getElementById('col-'+id);
-  if(!el)return;
-  if(st.horiz)return; // glissement horizontal détecté : scroll natif, on ne touche à rien
-  const y=e.touches[0].clientY;
-  const x=e.touches[0].clientX;
-  const dy=st.y-y;
-  const dx=st.x-x;
-  if(!st.captured){
-    // seuil un peu plus haut + biais horizontal (égalité = horizontal) pour laisser
-    // le pan latéral démarrer facilement au lieu d'être aspiré par le mode vertical.
-    if(Math.abs(dx)<10&&Math.abs(dy)<10)return;
-    if(Math.abs(dx)>=Math.abs(dy)){
-      st.horiz=true;
-      return;
-    }
-    st.captured=true;
-  }
-  e.preventDefault();
-  st.moved+=dy;
-  st.y=y;
-  st.x=x;
-  const rowH=_rowHOfExcel(el);
-  if(Math.abs(st.moved)>=rowH){
-    const steps=Math.trunc(st.moved/rowH);
-    el.scrollTop+=steps*rowH;
-    st.moved-=steps*rowH;
-  }
-}
+// (mode Excel : le pas-à-pas JS a été retiré, remplacé par scroll-snap CSS
+// pur sur .excel-wrap/.excel-tbl — voir CSS. Ça laisse le scroll horizontal
+// natif totalement libre, sans aucun handler JS pour l'intercepter.)
 const _progScroll={}; // colonnes dont le scrollTop vient d'être poussé PAR le code
                        // (pas par l'utilisateur) — évite les allers-retours infinis
                        // entre colonnes synchronisées (ancre/figé), source du
@@ -9384,7 +9372,7 @@ function anRender(){
     else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
     const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
-    html+=`<div id="col-exan" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exan')" ontouchstart="touchStepStart(event,'exan')" ontouchmove="touchStepMoveExcel(event,'exan')" ontouchend="touchStepEnd('exan')" ontouchcancel="touchStepEnd('exan')"><table class="excel-tbl"><thead><tr>`;
+    html+=`<div id="col-exan" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exan')"><table class="excel-tbl"><thead><tr>`;
     cols.forEach((c,ci)=>{const light=parseInt(c.color,16)>0x888888;html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
@@ -9727,7 +9715,7 @@ function __renderBody(){
         const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
-        html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exmg')" ontouchstart="touchStepStart(event,'exmg')" ontouchmove="touchStepMoveExcel(event,'exmg')" ontouchend="touchStepEnd('exmg')" ontouchcancel="touchStepEnd('exmg')">
+        html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=parseInt(c.color,16)>0x888888;
@@ -9829,7 +9817,7 @@ function __renderBody(){
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
-      html+=`<div id="col-exnav" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onwheel="stepWheelExcel(event,'exnav')" ontouchstart="touchStepStart(event,'exnav')" ontouchmove="touchStepMoveExcel(event,'exnav')" ontouchend="touchStepEnd('exnav')" ontouchcancel="touchStepEnd('exnav')">
+      html+=`<div id="col-exnav" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=parseInt(c.color,16)>0x888888;

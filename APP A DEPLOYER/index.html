@@ -7498,6 +7498,10 @@ function dragScrollStart(e,id){
   if(e.target.closest('button,a,input,select,textarea,label'))return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
+  // Empêche la sélection de texte native de démarrer dès le mousedown (sinon
+  // sur certains navigateurs/OS, glisser sur des cellules surligne le texte
+  // au lieu de faire défiler, et le scroll ne suit pas la souris).
+  e.preventDefault();
   const startX=e.clientX,startY=e.clientY;
   const startLeft=el.scrollLeft,startTop=el.scrollTop;
   let dragging=false;

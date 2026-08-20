@@ -7460,7 +7460,7 @@ function _rowHOf(el,id){
 const _touchStep={};
 function touchStepStart(e,id){
   if(!e.touches||!e.touches.length)return;
-  _touchStep[id]={y:e.touches[0].clientY,moved:0,captured:false};
+  _touchStep[id]={y:e.touches[0].clientY,x:e.touches[0].clientX,moved:0,captured:false,horiz:false};
 }
 function touchStepMove(e,id){
   const st=_touchStep[id];
@@ -7496,6 +7496,10 @@ function _rowHOfExcel(el){
   return (tr&&tr.offsetHeight)?tr.offsetHeight:28;
 }
 function stepWheelExcel(e,id){
+  // Geste surtout horizontal (trackpad shift+molette, swipe latéral) : on laisse
+  // le défilement natif faire son travail, sinon impossible de voir les colonnes
+  // à droite du tableau (le tableau est plus large que son cadre).
+  if(Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
   e.preventDefault();
   if(_wheelBusy[id])return;
   const el=document.getElementById('col-'+id);
@@ -7510,15 +7514,23 @@ function touchStepMoveExcel(e,id){
   if(!st||!e.touches||!e.touches.length)return;
   const el=document.getElementById('col-'+id);
   if(!el)return;
+  if(st.horiz)return; // glissement horizontal détecté : scroll natif, on ne touche à rien
   const y=e.touches[0].clientY;
+  const x=e.touches[0].clientX;
   const dy=st.y-y;
+  const dx=st.x-x;
   if(!st.captured){
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>=6){
+      st.horiz=true;
+      return;
+    }
     if(Math.abs(dy)<6)return;
     st.captured=true;
   }
   e.preventDefault();
   st.moved+=dy;
   st.y=y;
+  st.x=x;
   const rowH=_rowHOfExcel(el);
   if(Math.abs(st.moved)>=rowH){
     const steps=Math.trunc(st.moved/rowH);

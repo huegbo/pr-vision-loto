@@ -9728,17 +9728,17 @@ function __renderBody(){
         html+=`</tr><tr>`;
         cols.forEach((c,ci)=>{
           const heads=['N°','DATE','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TM']:[])];
-          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===0&&hi<2?'excel-frozen':''}" style="${ci===0&&hi<2?`left:${hi===0?0:34}px;`:''}">${h}</th>`;});
+          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===0&&hi<2?'excel-frozen':''}" style="${ci===0&&hi<2?`left:${hi===0?0:40}px;width:${hi===0?40:46}px;min-width:${hi===0?40:46}px;`:''}">${h}</th>`;});
         });
         html+=`</tr></thead><tbody>`;
         for(let ri=0;ri<maxRows;ri++){
           html+=`<tr>`;
           cols.forEach((c,ci)=>{
             const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
-            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0&&k<2?'excel-frozen':''}" style="${ci===0&&k<2?`left:${k===0?0:34}px;`:''}"></td>`;return;}
+            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0&&k<2?'excel-frozen':''}" style="${ci===0&&k<2?`left:${k===0?0:40}px;width:${k===0?40:46}px;min-width:${k===0?40:46}px;`:''}"></td>`;return;}
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;':''}">${row.t}</td>`;
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:34px;':''}">${row.d}</td>`;
+            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;width:40px;min-width:40px;':''}">${row.t}</td>`;
+            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:40px;width:46px;min-width:46px;':''}">${row.d}</td>`;
             const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // le temps d'un colonne : bascule T/IDX sur les données du bon jeu pour que miroir/superposition portent sur SES tirages
             const _mk=anMark(row,_mgCtx);
             T=_T0;IDX=_IDX0;

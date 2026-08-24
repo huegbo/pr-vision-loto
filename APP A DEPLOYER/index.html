@@ -1023,8 +1023,11 @@ function togoIncidenceHTML(rows){
   const sorted=Object.keys(freq).map(n=>({num:+n,count:freq[n],last:lastSeen[n]})).sort((a,b)=>b.count-a.count||a.num-b.num);
   const top=sorted.slice(0,15);
   return`<div class="card" style="margin-bottom:8px;background:#FFF7ED;border:1.5px solid #92400E">
-    <div style="font-size:11px;font-weight:700;color:#78350F;margin-bottom:2px">📊 Incidences historiques — ${jour} (pronostic)</div>
-    <div style="font-size:8.5px;color:#92400E;margin-bottom:8px">Fréquence de chaque numéro sur les ${rows.length} tirage${rows.length>1?'s':''} de ${jour} déjà enregistrés (jeux ${jour} actuellement cochés ci-dessus) — les plus sortis en premier, pour t'aider à pronostiquer le prochain ${jour}.</div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+      <div style="font-size:11px;font-weight:700;color:#78350F">📊 Incidences historiques — ${jour} (pronostic)</div>
+      <div style="display:flex;gap:4px;margin-left:auto">${addToListButtonsHTML(top.map(x=>x.num))}</div>
+    </div>
+    <div style="font-size:8.5px;color:#92400E;margin-bottom:8px">Fréquence de chaque numéro sur les ${rows.length} tirage${rows.length>1?'s':''} de ${jour} déjà enregistrés (jeux ${jour} actuellement cochés ci-dessus) — les plus sortis en premier, pour t'aider à pronostiquer le prochain ${jour}. Les boutons 📌 ci-dessus cochent ces ${top.length} numéros d'un coup.</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px">
       ${top.map(x=>`<div style="display:flex;flex-direction:column;align-items:center;background:#fff;border:1px solid #FCD9B6;border-radius:8px;padding:5px 8px;min-width:46px">
         <span style="font-size:15px;font-weight:700;color:#78350F">${x.num}</span>
@@ -1326,7 +1329,40 @@ function setMultiRepeatColor(num,color){
   try{localStorage.setItem('multiRepeatColors',JSON.stringify(state.multiRepeatColors));}catch(e){}
   render();
 }
-function multiRepeatsCardHTML(results,title,emptyMsg){
+// Export Excel du rapport "numéros répétés" (jour ou semaine) — exactement les lignes affichées à l'écran.
+async function exportMultiRepeats(results,filenamePrefix,sheetName,btnId){
+  if(!results||!results.length){alert('Aucun numéro à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=btnId?document.getElementById(btnId):null;
+  const btnLabel=btn?btn.textContent:null;
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet(sheetName);
+    ws.addRow(['Numéro','Nb jeux différents','Nb tirages','Pays concernés','Détail (pays · jeu · date)']).font={bold:true};
+    results.forEach(r=>{
+      const paysList=[...new Set(r.occ.map(o=>o.pays))].map(p=>MULTI_PAYS_LABELS[p]).join(', ');
+      const detail=r.occ.map(o=>`${MULTI_PAYS_LABELS[o.pays]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' | ');
+      const row=ws.addRow([r.num,r.nbJeux,r.nbOcc,paysList,detail]);
+      row.getCell(1).font={bold:true};
+      row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1F2D3D'}};
+      row.getCell(1).font={bold:true,color:{argb:'FFFFFFFF'}};
+    });
+    ws.columns.forEach((c,i)=>{c.width=i===4?80:(i===3?32:16);});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent=btnLabel;
+  }
+}
+function multiRepeatsCardHTML(results,title,emptyMsg,detectorFnName,filenamePrefix,btnId){
   if(!results.length){
     return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
       <div style="font-size:11px;font-weight:700;margin-bottom:2px">${title}</div>
@@ -1334,8 +1370,14 @@ function multiRepeatsCardHTML(results,title,emptyMsg){
     </div>`;
   }
   return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
-    <div style="font-size:11px;font-weight:700;margin-bottom:6px">${title} — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
-    <div style="font-size:8.5px;color:#999;margin-bottom:6px">Touche un numéro pour le colorer (ta sélection est mémorisée).</div>
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700">${title} — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
+      <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
+        ${addToListButtonsHTML(results.map(r=>r.num))}
+        <button id="${btnId}" onclick='exportMultiRepeats(${detectorFnName}(),"${filenamePrefix}","Répétés","${btnId}")' style="padding:2px 8px;font-size:9px;border-radius:8px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⬇ Excel</button>
+      </div>
+    </div>
+    <div style="font-size:8.5px;color:#999;margin-bottom:6px">Touche un numéro pour le colorer (ta sélection est mémorisée), coche-les tous dans une Liste avec 📌, ou exporte ce rapport en Excel avec ⬇.</div>
     <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
       ${results.map(r=>{
         const pc=[...new Set(r.occ.map(o=>o.pays))].map(p=>MULTI_PAYS_LABELS[p].split(' ')[0]).join(' ');
@@ -1357,9 +1399,128 @@ function multiRepeatsCardHTML(results,title,emptyMsg){
 }
 function multiRepeatsHTML(){
   return multiRepeatsCardHTML(detectMultiRepeatsDay(),"☀️ Numéros répétés dans la journée",
-      "Aucun numéro n'est encore ressorti dans 2 jeux différents le jour le plus récent des données.")
+      "Aucun numéro n'est encore ressorti dans 2 jeux différents le jour le plus récent des données.",
+      'detectMultiRepeatsDay','Repetes_jour','export-repeats-day-btn')
     + multiRepeatsCardHTML(detectMultiRepeatsWeek(),"🗓️ Numéros répétés dans la semaine (7 derniers jours)",
-      "Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.");
+      "Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.",
+      'detectMultiRepeatsWeek','Repetes_semaine','export-repeats-week-btn');
+}
+// ══════ Miroirs croisés entre jeux (un numéro sort dans un jeu, son miroir — ex: 27↔72 — sort dans un AUTRE jeu) ══════
+function buildMirrorCrossFromRows(rows){
+  const byNum={};
+  rows.forEach(r=>{
+    r.n.forEach(num=>{
+      if(!byNum[num])byNum[num]=[];
+      byNum[num].push({pays:r.pays,jeuLabel:r.jeuLabel,jeuKey:r.jeuKey,d:r.d,y:r.y,sortKey:r.sortKey});
+    });
+  });
+  const seenPairs=new Set();
+  const results=[];
+  Object.keys(byNum).forEach(numStr=>{
+    const num=+numStr;
+    const mir=MIR[num];
+    if(mir==null||!byNum[mir])return; // pas de miroir défini, ou le miroir n'est sorti nulle part sur la période
+    const pairKey=[num,mir].sort((a,b)=>a-b).join('-');
+    if(seenPairs.has(pairKey))return;
+    seenPairs.add(pairKey);
+    const occNum=byNum[num],occMir=byNum[mir];
+    const jeuxNum=new Set(occNum.map(o=>o.jeuKey)),jeuxMir=new Set(occMir.map(o=>o.jeuKey));
+    // pas intéressant si num et miroir ne sortent QUE dans le même unique jeu (pas "croisé")
+    if(jeuxNum.size===1&&jeuxMir.size===1&&[...jeuxNum][0]===[...jeuxMir][0])return;
+    results.push({num,mir,occNum,occMir,totalOcc:occNum.length+occMir.length});
+  });
+  results.sort((a,b)=>b.totalOcc-a.totalOcc||a.num-b.num);
+  return results;
+}
+let MULTI_MIRROR_DAY_CACHE=null;
+function detectMultiMirrorsDay(){
+  if(MULTI_MIRROR_DAY_CACHE)return MULTI_MIRROR_DAY_CACHE;
+  MULTI_MIRROR_DAY_CACHE=buildMirrorCrossFromRows(aiTodayRowsAll());
+  return MULTI_MIRROR_DAY_CACHE;
+}
+let MULTI_MIRROR_WEEK_CACHE=null;
+function detectMultiMirrorsWeek(){
+  if(MULTI_MIRROR_WEEK_CACHE)return MULTI_MIRROR_WEEK_CACHE;
+  const rows=parseMultiPaysAll();
+  if(!rows.length){MULTI_MIRROR_WEEK_CACHE=[];return[];}
+  const maxKey=rows[0].sortKey;
+  const yy=Math.floor(maxKey/10000),mm=Math.floor((maxKey%10000)/100),dd=maxKey%100;
+  const cutoffDate=new Date(yy,mm-1,dd);
+  cutoffDate.setDate(cutoffDate.getDate()-6);
+  const cutoffKey=cutoffDate.getFullYear()*10000+(cutoffDate.getMonth()+1)*100+cutoffDate.getDate();
+  const recent=rows.filter(r=>r.sortKey>=cutoffKey);
+  MULTI_MIRROR_WEEK_CACHE=buildMirrorCrossFromRows(recent);
+  return MULTI_MIRROR_WEEK_CACHE;
+}
+async function exportMultiMirrors(results,filenamePrefix,btnId){
+  if(!results||!results.length){alert('Aucune paire miroir à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=btnId?document.getElementById(btnId):null;
+  const btnLabel=btn?btn.textContent:null;
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Miroirs');
+    ws.addRow(['Numéro','Miroir','Détail Numéro','Détail Miroir']).font={bold:true};
+    results.forEach(r=>{
+      const detailNum=r.occNum.map(o=>`${MULTI_PAYS_LABELS[o.pays]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' | ');
+      const detailMir=r.occMir.map(o=>`${MULTI_PAYS_LABELS[o.pays]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' | ');
+      const row=ws.addRow([r.num,r.mir,detailNum,detailMir]);
+      row.getCell(1).font={bold:true};row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF5B21B6'}};row.getCell(1).font={bold:true,color:{argb:'FFFFFFFF'}};
+      row.getCell(2).font={bold:true};row.getCell(2).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF5B21B6'}};row.getCell(2).font={bold:true,color:{argb:'FFFFFFFF'}};
+    });
+    ws.columns.forEach((c,i)=>{c.width=i<2?12:60;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent=btnLabel;
+  }
+}
+function multiMirrorCardHTML(results,title,emptyMsg,detectorFnName,filenamePrefix,btnId){
+  if(!results.length){
+    return `<div class="card" style="margin-bottom:8px;background:#F3E8FF">
+      <div style="font-size:11px;font-weight:700;margin-bottom:2px">${title}</div>
+      <div style="font-size:10px;color:#888">${emptyMsg}</div>
+    </div>`;
+  }
+  const allNums=[];
+  results.forEach(r=>{allNums.push(r.num,r.mir);});
+  return `<div class="card" style="margin-bottom:8px;background:#F3E8FF;border:1.5px solid #7C3AED">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:#5B21B6">${title} — ${results.length} paire${results.length>1?'s':''} miroir détectée${results.length>1?'s':''} entre jeux</div>
+      <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
+        ${addToListButtonsHTML(allNums)}
+        <button id="${btnId}" onclick='exportMultiMirrors(${detectorFnName}(),"${filenamePrefix}","${btnId}")' style="padding:2px 8px;font-size:9px;border-radius:8px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⬇ Excel</button>
+      </div>
+    </div>
+    <div style="font-size:8.5px;color:#5B21B6;margin-bottom:6px">Un numéro sorti dans un jeu, dont le miroir (ex: 27↔72, 7↔70) sort dans un AUTRE jeu — sur la même période.</div>
+    <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+      ${results.map(r=>`<div style="background:#fff;border:1px solid #DDD6FE;border-radius:8px;padding:5px 8px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-weight:700;font-size:13px;color:#5B21B6">${r.num} ↔ ${r.mir}</span>
+        </div>
+        <div style="font-size:9px;color:#666;line-height:1.5">
+          <b>${r.num}</b> : ${r.occNum.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}<br>
+          <b>${r.mir}</b> : ${r.occMir.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+function multiMirrorsHTML(){
+  return multiMirrorCardHTML(detectMultiMirrorsDay(),"🪞 Miroirs croisés — journée",
+      "Aucun miroir croisé entre jeux différents le jour le plus récent des données.",
+      'detectMultiMirrorsDay','Miroirs_jour','export-mirrors-day-btn')
+    + multiMirrorCardHTML(detectMultiMirrorsWeek(),"🪞 Miroirs croisés — semaine (7 derniers jours)",
+      "Aucun miroir croisé entre jeux différents sur cette période.",
+      'detectMultiMirrorsWeek','Miroirs_semaine','export-mirrors-week-btn');
 }
 // ══════ Analyse IA — variante Multi-Pays (mêmes appels /api/analyse-ia que la version par jeu, état séparé) ══════
 function aiMultiLast10(){
@@ -1626,8 +1787,9 @@ function multiAiAnalysisHTML(){
     </div>
     ${state.multiAiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiProposeError}</div>`:''}
     ${(state.multiAiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
+        ${addToListButtonsHTML(extractNumsFromText(p.text))}
         <span onclick="removeAiMultiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
       </div>
       <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
@@ -1690,6 +1852,7 @@ function multiFiltreHTML(){
     ${multiAiCustomDateHTML()}
     ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
+    ${multiMirrorsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
@@ -6745,8 +6908,9 @@ function aiAnalysisHTML(){
     </div>
     ${state.aiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiProposeError}</div>`:''}
     ${(state.aiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
+        ${addToListButtonsHTML(extractNumsFromText(p.text))}
         <span onclick="removeAiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
       </div>
       <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
@@ -8683,6 +8847,42 @@ function toggleRepere2Grid(n){
   }
   saveRepere2DefinedState();
   render();
+}
+// ── Cocher en un clic des numéros venus d'ailleurs (analyse IA, numéros répétés, incidences...) ──
+// Ajoute une liste de numéros (déjà calculée par l'app, pas saisie par l'utilisateur) directement
+// dans la Liste A ou B, avec le même mécanisme que le collage manuel (couleur active, doublons
+// signalés, pas écrasés). Permet de dire "coche-moi ces 20 numéros partout" sans les retaper.
+function addNumsToList(nums,listKey){
+  nums=[...new Set((nums||[]).map(Number).filter(n=>n>=1&&n<=90))];
+  if(!nums.length){alert('Aucun numéro valide à ajouter');return;}
+  const isB=listKey==='B';
+  const target=isB?state.repere2Defined:state.repereDefined;
+  const activeTarget=isB?state.repere2Active:state.repereActive;
+  const otherTarget=isB?state.repereDefined:state.repere2Defined;
+  const color=isB
+    ?(state.rep2DefColor?{bg:state.rep2DefColor,fg:lumFg(state.rep2DefColor),style:state.rep2DefStyle||undefined}:pickHl())
+    :(state.repDefColor?{bg:state.repDefColor,fg:lumFg(state.repDefColor),style:state.repDefStyle||undefined}:pickHl());
+  const alreadyHere=nums.filter(n=>target[n]!==undefined);
+  const crossDup=nums.filter(n=>target[n]===undefined&&otherTarget[n]!==undefined);
+  const toAdd=nums.filter(n=>target[n]===undefined);
+  toAdd.forEach(n=>{target[n]=color;activeTarget[n]=true;});
+  if(toAdd.length){autoShowList(listKey);(isB?saveRepere2DefinedState:saveRepereDefinedState)();}
+  state.pasteReport=(alreadyHere.length||crossDup.length)?{listKey,added:toAdd.length,alreadyHere,crossDup}:null;
+  render();
+  alert(`${toAdd.length} numéro${toAdd.length>1?'s':''} ajouté${toAdd.length>1?'s':''} à Liste ${listKey}${alreadyHere.length?` (${alreadyHere.length} déjà présent${alreadyHere.length>1?'s':''})`:''}.`);
+}
+// Petit couple de boutons "📌 Liste A / 📌 Liste B" à coller à côté de n'importe quelle liste
+// de numéros déjà calculée (résultat IA, numéros répétés, incidences historiques...).
+function addToListButtonsHTML(nums){
+  nums=[...new Set((nums||[]).map(Number).filter(n=>n>=1&&n<=90))];
+  if(!nums.length)return'';
+  const arr='['+nums.join(',')+']';
+  return `<button onclick='addNumsToList(${arr},"A")' style="padding:2px 8px;font-size:9px;border-radius:8px;border:1px solid #0E7490;background:#fff;color:#0E7490;cursor:pointer;font-weight:600;white-space:nowrap">📌 Liste A</button><button onclick='addNumsToList(${arr},"B")' style="padding:2px 8px;font-size:9px;border-radius:8px;border:1px solid #B45309;background:#fff;color:#B45309;cursor:pointer;font-weight:600;white-space:nowrap">📌 Liste B</button>`;
+}
+// Extrait les numéros 1-90 mentionnés dans un texte libre (réponse IA en langage naturel).
+function extractNumsFromText(text){
+  if(!text)return[];
+  return[...new Set((String(text).match(/\b\d{1,2}\b/g)||[]).map(Number).filter(n=>n>=1&&n<=90))];
 }
 // Collage en masse pour la Liste B (équivalent du "+ Ajouter" texte de la Liste A, en plus
 // de la grille cliquable) : accepte virgules, espaces, points-virgules, ignore les doublons.

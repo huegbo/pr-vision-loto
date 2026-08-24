@@ -542,9 +542,9 @@ let T,IDX,MAX_T,MIN_T,YEARS,BY_YEAR,GAME;
 let BENIN_ALL_ROWS=null;
 const BENIN_JOUR_LABELS={L:'Lundi',MA:'Mardi',ME:'Mercredi',J:'Jeudi',V:'Vendredi',S:'Samedi',D:'Dimanche'};
 const BENIN_JOUR_ORDER=['L','MA','ME','J','V','S','D'];
-const BENIN_JEU_LABELS={F11:'Fortune 11H',F14:'Fortune 14H',F18:'Fortune 18H',S11:'Star 11H',S14:'Star 14H',S18:'Star 18H',D00:'Digital 00H',D20:'Digital 20H'};
-const BENIN_JEU_ORDER=['D00','D20','F11','F14','F18','S11','S14','S18'];
-const BENIN_JEU_COLORS={D00:'0E7C7B',D20:'17A398',F11:'1D4E89',F14:'2C6FB0',F18:'4A90D9',S11:'6D28D9',S14:'8B5CF6',S18:'A78BFA'};
+const BENIN_JEU_LABELS={F11:'Fortune 11H',F14:'Fortune 14H',F18:'Fortune 18H',S11:'Star 11H',S14:'Star 14H',S18:'Star 18H',D00:'Digital 00H',D08:'Digital 08H',D20:'Digital 20H'};
+const BENIN_JEU_ORDER=['D00','D08','D20','F11','F14','F18','S11','S14','S18'];
+const BENIN_JEU_COLORS={D00:'0E7C7B',D08:'0D9488',D20:'17A398',F11:'1D4E89',F14:'2C6FB0',F18:'4A90D9',S11:'6D28D9',S14:'8B5CF6',S18:'A78BFA'};
 function parseBeninAll(){
   if(BENIN_ALL_ROWS) return BENIN_ALL_ROWS;
   BENIN_ALL_ROWS=RAW_BENIN_ALL.trim().split('\n').map(line=>{
@@ -569,8 +569,8 @@ function toggleBeninJeu(code){
   render();
 }
 // Heure et famille : déduites du code du jeu (D00 -> 00H / Digital, F14 -> 14H / Fortune ...)
-const BENIN_HEURE={D00:'00H',D20:'20H',F11:'11H',S11:'11H',F14:'14H',S14:'14H',F18:'18H',S18:'18H'};
-const BENIN_HEURE_ORDER=['00H','11H','14H','18H','20H'];
+const BENIN_HEURE={D00:'00H',D08:'08H',D20:'20H',F11:'11H',S11:'11H',F14:'14H',S14:'14H',F18:'18H',S18:'18H'};
+const BENIN_HEURE_ORDER=['00H','08H','11H','14H','18H','20H'];
 const BENIN_FAMILLE={D:'Digital',F:'Fortune',S:'Star'};
 const BENIN_FAMILLE_ORDER=['Fortune','Star','Digital'];
 const BENIN_FAMILLE_COLORS={Fortune:'1D4E89',Star:'6D28D9',Digital:'0E7C7B'};
@@ -836,8 +836,9 @@ const TOGO_GAMES=[
   {key:'king',name:'KING',jour:'Vendredi',heure:'18h',raw:RAW_KING,color:'E11D48'},
   {key:'sam',name:'SAM',jour:'Samedi',heure:'13h',raw:RAW_SAM,color:'15803D'},
   {key:'bingo',name:'BINGO',jour:'Samedi',heure:'18h',raw:RAW_BINGO,color:'16A34A'},
+  {key:'detente',name:'DETENTE',jour:'Dimanche',heure:'16h',raw:RAW_DETENTE,color:'DB2777'},
 ];
-const TOGO_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const TOGO_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
 const TOGO_JEU_ORDER=TOGO_GAMES.map(g=>g.key);
 const TOGO_JEU_LABELS=Object.fromEntries(TOGO_GAMES.map(g=>[g.key,`${g.name} (${g.heure})`]));
 const TOGO_JEU_COLORS=Object.fromEntries(TOGO_GAMES.map(g=>[g.key,g.color]));

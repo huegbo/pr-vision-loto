@@ -2112,7 +2112,7 @@ let state={
   // classifications cochées (toutes activées par défaut)
   clActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true,miroir:true},
   // analyses
-  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9, semaineN:null, multFilter:2, xmultGap:1, // semaineN=null → semaine calendaire en cours ; sinon N° de semaine choisi (1-53) ; multFilter=multiplicateur pour 'xmult'/'xmultsup' (réglable 2-9) ; xmultGap=écart tirages pour 'xmultsup' (réglable)
+  anMode:'none', anWin:50, supGap:1, mirPGap:1, suiviN:1, digitFilter:9, dizaineFilter:2, groupeFilter:9, semaineN:null, multFilter:2, xmultGap:1, mirP2Gap:1, decompGap:1, // semaineN=null → semaine calendaire en cours ; sinon N° de semaine choisi (1-53) ; multFilter=multiplicateur pour 'xmult'/'xmultsup' (réglable 2-9) ; xmultGap=écart tirages pour 'xmultsup' (réglable) ; mirP2Gap=écart tirages pour 'mirP2' (double miroir superposé, réglable) ; decompGap=écart pour 'decomp' (décomposition même position, réglable)
   // Miroir même ligne : toujours actif par défaut (en plus de l'analyse choisie ci-dessus), décochable
   mirLAlways:true, mirPAlways:true, superposAlways:true,
   // Couleurs personnalisables des 3 couches toujours actives (persistées)
@@ -8423,6 +8423,8 @@ const AN_DEF=[
   {key:'geo',label:'✖️ Suite géométrique',bg:'#7C3AED',fg:'#fff',desc:'Au moins 3 numéros formant une suite à rapport constant (ex: 2-4-8)'},
   {key:'xmult',label:'🔗 Numéro & son multiple',bg:'#9333EA',fg:'#fff',desc:'Un numéro et son multiple (x2, x3...) présents dans le même tirage (multiplicateur réglable)'},
   {key:'xmultsup',label:'🔗📍 Multiple superposé',bg:'#0EA5E9',fg:'#fff',desc:'Un numéro et son multiple à la même position, N tirages plus tôt/tard (écart et multiplicateur réglables)'},
+  {key:'mirP2',label:'🪞🪞 Double miroir superposé',bg:'#86198F',fg:'#fff',desc:'Au moins 2 numéros et leurs miroirs à la même position, entre ce tirage et un tirage antérieur/postérieur (écart réglable)'},
+  {key:'decomp',label:'🧩 Décomposition (même position)',bg:'#EA580C',fg:'#fff',desc:'Un numéro égal à la somme de deux autres numéros à la même position, dans deux tirages antérieurs consécutifs (écart réglable) — ex: 67 = 36+31'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
   {key:'doubles',label:'👯 Doubles',bg:'#BE185D',fg:'#fff',desc:'Numéros doubles: 11, 22, 33, 44, 55, 66, 77, 88'},
@@ -8993,6 +8995,29 @@ function anMark(row,ctx){
     if(older)row.n.forEach((n,i)=>{if(older.n[i]===n*k||(n%k===0&&older.n[i]===n/k))S(i,state.xmultColor||D.bg);});
     if(newer)row.n.forEach((n,i)=>{if(newer.n[i]===n*k||(n%k===0&&newer.n[i]===n/k))S(i,state.xmultColor||D.bg);});
   }
+  if(m==='mirP2'){
+    const gi=IDX[row.t], gap=Math.max(1,state.mirP2Gap||1);
+    const older=gi+gap<T.length?T[gi+gap]:null; // N tirages plus tôt
+    const newer=gi-gap>=0?T[gi-gap]:null; // N tirages plus tard
+    [older,newer].forEach(other=>{
+      if(!other)return;
+      const hits=[];
+      row.n.forEach((n,i)=>{if(MIR[n]&&other.n[i]===MIR[n])hits.push(i);});
+      if(hits.length>=2)hits.forEach(i=>S(i,state.mirP2Color||D.bg));
+    });
+  }
+  if(m==='decomp'){
+    const gi=IDX[row.t], g1=Math.max(1,state.decompGap||1), col=state.decompColor||D.bg;
+    // Cas 1 : ce tirage EST la somme des 2 tirages antérieurs consécutifs (écart g1 et g1+1)
+    const o1=gi+g1<T.length?T[gi+g1]:null, o2=gi+g1+1<T.length?T[gi+g1+1]:null;
+    if(o1&&o2)row.n.forEach((n,i)=>{if(o1.n[i]+o2.n[i]===n)S(i,col);});
+    // Cas 2 : ce tirage est le 1er composant (associé au tirage juste après lui, la somme étant g1 tirages plus récente)
+    const sA=gi-g1, otherA=gi+1;
+    if(sA>=0&&otherA<T.length){const sRow=T[sA],oRow=T[otherA];row.n.forEach((n,i)=>{if(!out[i]&&n+oRow.n[i]===sRow.n[i])S(i,col);});}
+    // Cas 3 : ce tirage est le 2e composant (associé au tirage juste avant lui, la somme étant g1+1 tirages plus récente)
+    const sB=gi-g1-1, otherB=gi-1;
+    if(sB>=0&&otherB>=0){const sRow=T[sB],oRow=T[otherB];row.n.forEach((n,i)=>{if(!out[i]&&oRow.n[i]+n===sRow.n[i])S(i,col);});}
+  }
   if(m==='arith'||m==='geo'){
     // cherche la plus longue suite (arith ou géo) parmi les 5 numéros
     const idxByVal={};row.n.forEach((n,i)=>{if(!(n in idxByVal))idxByVal[n]=i;});
@@ -9238,7 +9263,9 @@ function anRender(){
     ${state.anMode==='chauds'?` • Fenêtre: <input type="number" value="${state.anWin}" min="5" max="1000" onchange="state.anWin=parseInt(this.value)||50;render()" style="width:55px;padding:1px 4px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px"> derniers tirages`:''}
     ${state.anMode==='intervalles'?` • Combinaison: ${[2,3].map(sz=>`<button onclick="state.intervalSize=${sz};render()" style="padding:1px 10px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${(state.intervalSize||2)===sz?D.bg:'#ddd'};background:${(state.intervalSize||2)===sz?D.bg:'#fff'};color:${(state.intervalSize||2)===sz?'#fff':'#888'};cursor:pointer;font-weight:500">${sz===2?'Paires':'Triplets'}</button>`).join('')}`:''}
     ${state.anMode==='superpos'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.supGap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.supGap===g?D.bg:'#ddd'};background:${state.supGap===g?D.bg:'#fff'};color:${state.supGap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} tirage(s)`:''}
-    ${state.anMode==='xmultsup'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.xmultGap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.xmultGap===g?D.bg:'#ddd'};background:${state.xmultGap===g?D.bg:'#fff'};color:${state.xmultGap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} tirage(s)`:''}
+    ${state.anMode==='xmultsup'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.xmultGap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.xmultGap===g?D.bg:'#ddd'};background:${state.xmultGap===g?D.bg:'#fff'};color:${state.xmultGap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} <input type="number" min="1" max="50" value="${Math.max(1,state.xmultGap||1)}" onchange="state.xmultGap=Math.max(1,parseInt(this.value)||1);render()" title="Écart personnalisé (après N tirages)" style="width:42px;margin-left:4px;padding:1px 3px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${D.bg}"> tirage(s)`:''}
+    ${state.anMode==='mirP2'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.mirP2Gap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.mirP2Gap===g?D.bg:'#ddd'};background:${state.mirP2Gap===g?D.bg:'#fff'};color:${state.mirP2Gap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} <input type="number" min="1" max="50" value="${Math.max(1,state.mirP2Gap||1)}" onchange="state.mirP2Gap=Math.max(1,parseInt(this.value)||1);render()" title="Écart personnalisé (après N tirages)" style="width:42px;margin-left:4px;padding:1px 3px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${D.bg}"> tirage(s)`:''}
+    ${state.anMode==='decomp'?` • Écart: ${[1,2,3,4,5].map(g=>`<button onclick="state.decompGap=${g};render()" style="padding:1px 8px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${state.decompGap===g?D.bg:'#ddd'};background:${state.decompGap===g?D.bg:'#fff'};color:${state.decompGap===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} <input type="number" min="1" max="50" value="${Math.max(1,state.decompGap||1)}" onchange="state.decompGap=Math.max(1,parseInt(this.value)||1);render()" title="Écart personnalisé" style="width:42px;margin-left:4px;padding:1px 3px;border:1.5px solid ${D.bg};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${D.bg}"> tirage(s)`:''}
     ${(state.anMode==='contient'||state.anMode==='finit')?` • Chiffre: ${[0,1,2,3,4,5,6,7,8,9].map(dg=>`<button onclick="state.digitFilter=${dg};render()" style="padding:1px 7px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.digitFilter===dg?D.bg:'#ddd'};background:${state.digitFilter===dg?D.bg:'#fff'};color:${state.digitFilter===dg?'#fff':'#888'};cursor:pointer;font-weight:500">${dg}</button>`).join('')}`:''}
     ${state.anMode==='dizaine'?` • Dizaine: ${[0,1,2,3,4,5,6,7,8].map(dz=>`<button onclick="state.dizaineFilter=${dz};render()" style="padding:1px 6px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.dizaineFilter===dz?D.bg:'#ddd'};background:${state.dizaineFilter===dz?D.bg:'#fff'};color:${state.dizaineFilter===dz?'#fff':'#888'};cursor:pointer;font-weight:500">${dz}0-${dz}9</button>`).join('')}`:''}
     ${state.anMode==='groupe'?` • Groupe: ${[1,2,3,4,5,6,7,8,9].map(gr=>`<button onclick="state.groupeFilter=${gr};render()" style="padding:1px 8px;margin-left:1px;font-size:10px;border-radius:8px;border:1.5px solid ${state.groupeFilter===gr?D.bg:'#ddd'};background:${state.groupeFilter===gr?D.bg:'#fff'};color:${state.groupeFilter===gr?'#fff':'#888'};cursor:pointer;font-weight:500">${gr}</button>`).join('')}`:''}

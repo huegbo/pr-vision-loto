@@ -1920,17 +1920,22 @@ function multiAiAnalysisHTML(){
       <button onclick="runAiMultiPropose({count:10})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&!state.multiAiProposeActive.pairs&&state.multiAiProposeActive.count===10?'⏳ Génération…':'✨ 10 numéros'}</button>
       <button onclick="runAiMultiPropose({count:23})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&!state.multiAiProposeActive.pairs&&state.multiAiProposeActive.count===23?'⏳ Génération…':'✨ 23 numéros'}</button>
       <button onclick="runAiMultiPropose({pairs:true,pairsCount:10})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#B45309'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&state.multiAiProposeActive.pairs?'⏳ Génération…':'🎲 10 tirages de 2 numéros'}</button>
-      ${(state.multiAiProposals||[]).length?`<button onclick="clearAiMultiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button>`:''}
+      ${(state.multiAiProposals||[]).length?`<button onclick="clearAiMultiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button><button id="export-multi-ai-all-btn" onclick="exportAllAiProposals('multi','export-multi-ai-all-btn')" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px">⬇ Export tout</button>`:''}
     </div>
     ${state.multiAiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiProposeError}</div>`:''}
-    ${(state.multiAiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
+    ${(state.multiAiProposals||[]).map(p=>{
+      const nums=extractNumsFromText(p.text);
+      const btnId='export-multi-ai-'+p.id;
+      return `<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
-        ${addToListButtonsHTML(extractNumsFromText(p.text))}
+        ${addToListButtonsHTML(nums)}
+        <button id="${btnId}" onclick="exportAiProposalById('${p.id}','multi','${btnId}')" style="padding:2px 8px;font-size:9px;border-radius:8px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⬇ Excel</button>
         <span onclick="removeAiMultiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
       </div>
+      ${numChipsHTML(nums)}
       <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
-    </div>`).join('')}
+    </div>`;}).join('')}
     ${!(state.multiAiProposals||[]).length&&!state.multiAiProposeError&&!state.multiAiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 5 ou 10 numéros, ou 10 tirages de 2 numéros chacun (paires), sur la base des 10 derniers tirages fusionnés (filtres actuels) et de l'analyse ci-dessus si disponible. Purement statistique — ne garantit aucun gain.</div>`:''}
   </div>`;
 }
@@ -7043,17 +7048,22 @@ function aiAnalysisHTML(){
       <button onclick="runAiPropose({count:10})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&!state.aiProposeActive.pairs&&state.aiProposeActive.count===10?'⏳ Génération…':'✨ 10 numéros'}</button>
       <button onclick="runAiPropose({count:23})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&!state.aiProposeActive.pairs&&state.aiProposeActive.count===23?'⏳ Génération…':'✨ 23 numéros'}</button>
       <button onclick="runAiPropose({pairs:true,pairsCount:10})" ${state.aiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.aiProposeLoading?'#94A3B8':'#B45309'};color:#fff;border:none;border-radius:6px;cursor:${state.aiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.aiProposeLoading&&state.aiProposeActive&&state.aiProposeActive.pairs?'⏳ Génération…':'🎲 10 tirages de 2 numéros'}</button>
-      ${(state.aiProposals||[]).length?`<button onclick="clearAiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button>`:''}
+      ${(state.aiProposals||[]).length?`<button onclick="clearAiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button><button id="export-ai-all-btn" onclick="exportAllAiProposals('single','export-ai-all-btn')" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px">⬇ Export tout</button>`:''}
     </div>
     ${state.aiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.aiProposeError}</div>`:''}
-    ${(state.aiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
+    ${(state.aiProposals||[]).map(p=>{
+      const nums=extractNumsFromText(p.text);
+      const btnId='export-ai-'+p.id;
+      return `<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
         <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
-        ${addToListButtonsHTML(extractNumsFromText(p.text))}
+        ${addToListButtonsHTML(nums)}
+        <button id="${btnId}" onclick="exportAiProposalById('${p.id}','single','${btnId}')" style="padding:2px 8px;font-size:9px;border-radius:8px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⬇ Excel</button>
         <span onclick="removeAiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
       </div>
+      ${numChipsHTML(nums)}
       <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
-    </div>`).join('')}
+    </div>`;}).join('')}
     ${!(state.aiProposals||[]).length&&!state.aiProposeError&&!state.aiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 5 ou 10 numéros, ou 10 tirages de 2 numéros chacun (paires), sur la base des mêmes tirages et de l'analyse ci-dessus si disponible. Chaque proposition reste affichée — les nouvelles s'ajoutent sans effacer les précédentes. Purement statistique — ne garantit aucun gain.</div>`:''}
   </div>`;
 }
@@ -9022,6 +9032,55 @@ function addToListButtonsHTML(nums){
 function extractNumsFromText(text){
   if(!text)return[];
   return[...new Set((String(text).match(/\b\d{1,2}\b/g)||[]).map(Number).filter(n=>n>=1&&n<=90))];
+}
+// "Matérialise" une liste de numéros en badges visuels (au lieu de laisser l'utilisateur les
+// repérer lui-même dans le texte libre de l'IA) — réutilisable partout où l'app affiche déjà
+// une liste de numéros calculée (répétés, miroirs, classification, propositions IA...).
+function numChipsHTML(nums){
+  nums=[...new Set((nums||[]).map(Number).filter(n=>n>=1&&n<=90))].sort((a,b)=>a-b);
+  if(!nums.length)return'';
+  return `<div style="display:flex;flex-wrap:wrap;gap:3px;margin:5px 0">${nums.map(n=>`<span style="display:inline-block;min-width:20px;text-align:center;padding:2px 5px;font-size:10px;font-weight:700;border-radius:6px;background:#0891B2;color:#fff">${n}</span>`).join('')}</div>`;
+}
+// Export Excel des numéros signalés/proposés par l'IA (une ou plusieurs propositions à la fois).
+async function exportAiNums(proposals,filenamePrefix,btnId){
+  if(!proposals||!proposals.length){alert('Aucune proposition à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=btnId?document.getElementById(btnId):null;
+  const btnLabel=btn?btn.textContent:null;
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Propositions IA');
+    ws.addRow(['Étiquette','Numéros proposés','Nb numéros','Texte complet de l’IA']).font={bold:true};
+    proposals.forEach(p=>{
+      const nums=extractNumsFromText(p.text).sort((a,b)=>a-b);
+      const row=ws.addRow([p.label,nums.join(', '),nums.length,p.text]);
+      row.getCell(1).font={bold:true,color:{argb:'FFFFFFFF'}};row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0891B2'}};
+      row.getCell(4).alignment={wrapText:true,vertical:'top'};
+    });
+    ws.columns.forEach((c,i)=>{c.width=[18,40,10,90][i]||30;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent=btnLabel;
+  }
+}
+function exportAiProposalById(id,scope,btnId){
+  const list=scope==='multi'?(state.multiAiProposals||[]):(state.aiProposals||[]);
+  const p=list.find(x=>x.id===id);
+  if(!p){alert('Proposition introuvable (a peut-être été retirée).');return;}
+  exportAiNums([p],scope==='multi'?'IA_MultiPays_proposition':'IA_proposition',btnId);
+}
+function exportAllAiProposals(scope,btnId){
+  const list=scope==='multi'?(state.multiAiProposals||[]):(state.aiProposals||[]);
+  exportAiNums(list,scope==='multi'?'IA_MultiPays_propositions':'IA_propositions',btnId);
 }
 // Collage en masse pour la Liste B (équivalent du "+ Ajouter" texte de la Liste A, en plus
 // de la grille cliquable) : accepte virgules, espaces, points-virgules, ignore les doublons.

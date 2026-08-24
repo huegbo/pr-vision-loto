@@ -1174,14 +1174,42 @@ function exportTogoFiltre(){
   exportCountryFiltre(rows,columns,'Togo_filtre','Togo','export-togo-btn');
 }
 // ══════ MULTI-PAYS — fusion Bénin + Togo + Cameroun (repérer un numéro qui revient d'un pays à l'autre) ══════
-const MULTI_PAYS_ORDER=['benin','togo','cameroun'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun'};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32'};
-const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 3 pays via les labels normalisés
+// ══════ CÔTE D'IVOIRE — jeux fusionnés pour Multi-Pays (jour de semaine calculé depuis la date, pas stocké) ══════
+const CI_DAY_NAMES=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const CI_PALETTE=['B45309','0E7490','7C2D12','4C1D95','9D174D','166534','1E40AF','92400E','5B21B6','065F46','A16207','831843','1E3A8A','3F6212','6B21A8','C2410C','0F766E','BE185D','3730A3','15803D','9A3412','1D4ED8','86198F','047857','B91C1C','334155','7E22CE','0369A1','A21CAF'];
+const CI_GAMES=Object.keys(GAMES).filter(k=>GAMES[k].icon==='🇨🇮').map((k,i)=>({key:k,name:GAMES[k].name,raw:GAMES[k].raw,color:CI_PALETTE[i%CI_PALETTE.length]}));
+const CI_JEU_LABELS=Object.fromEntries(CI_GAMES.map(g=>[g.key,g.name]));
+const CI_JEU_COLORS=Object.fromEntries(CI_GAMES.map(g=>[g.key,g.color]));
+let CI_ALL_ROWS=null;
+function parseCIAll(){
+  if(CI_ALL_ROWS)return CI_ALL_ROWS;
+  CI_ALL_ROWS=[];
+  CI_GAMES.forEach(g=>{
+    if(!g.raw)return;
+    g.raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
+      const p=line.split('|');
+      const t=+p[0],d=p[1],y=p[2];
+      const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+      const s=p[8]!==undefined&&p[8]!==''?+p[8]:n.reduce((a,b)=>a+b,0);
+      const bonusRaw=p.slice(9).filter(v=>v!==undefined&&v!=='');
+      const bonus=bonusRaw.length?bonusRaw.map(v=>+v):null;
+      const[dd,mm]=d.split('/').map(Number);
+      const jour=CI_DAY_NAMES[new Date(+y,mm-1,dd).getDay()];
+      CI_ALL_ROWS.push({jour,jeu:g.key,t,d,y,n,s,bonus});
+    });
+  });
+  return CI_ALL_ROWS;
+}
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire"};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C'};
+const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
   ...TOGO_GAMES.map(g=>({key:'togo:'+g.key,label:'🇹🇬 '+TOGO_JEU_LABELS[g.key],color:TOGO_JEU_COLORS[g.key]})),
   ...CAMEROUN_JEU_ORDER.map(k=>({key:'cameroun:'+k,label:'🇨🇲 '+CAMEROUN_JEU_LABELS[k],color:CAMEROUN_JEU_COLORS[k]})),
+  ...CI_GAMES.map(g=>({key:'cotedivoire:'+g.key,label:'🇨🇮 '+CI_JEU_LABELS[g.key],color:CI_JEU_COLORS[g.key]})),
 ];
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
 const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
@@ -1205,9 +1233,70 @@ function parseMultiPaysAll(){
       jeuKey:'cameroun:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cameroun:'+r.jeu]?MULTI_JEU_MAP['cameroun:'+r.jeu].label:r.jeu,jeuColor:CAMEROUN_JEU_COLORS[r.jeu],
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
   });
+  parseCIAll().forEach(r=>{
+    rows.push({pays:'cotedivoire',jourLabel:r.jour,
+      jeuKey:'cotedivoire:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cotedivoire:'+r.jeu]?MULTI_JEU_MAP['cotedivoire:'+r.jeu].label:r.jeu,jeuColor:CI_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.bonus});
+  });
   rows.sort((a,b)=>b.sortKey-a.sortKey);
   MULTI_PAYS_ROWS=rows;
   return rows;
+}
+// ══════ Détection automatique — numéros répétés d'un loto à l'autre (14 derniers jours, fixe, non paramétrable) ══════
+let MULTI_REPEATS_CACHE=null;
+function detectMultiRepeats(){
+  if(MULTI_REPEATS_CACHE)return MULTI_REPEATS_CACHE;
+  const rows=parseMultiPaysAll(); // toujours TOUS les pays/jeux/jours, peu importe les filtres à l'écran
+  if(!rows.length){MULTI_REPEATS_CACHE=[];return[];}
+  const maxKey=rows[0].sortKey; // rows triés du plus récent au plus ancien
+  const yy=Math.floor(maxKey/10000),mm=Math.floor((maxKey%10000)/100),dd=maxKey%100;
+  const cutoffDate=new Date(yy,mm-1,dd);
+  cutoffDate.setDate(cutoffDate.getDate()-14);
+  const cutoffKey=cutoffDate.getFullYear()*10000+(cutoffDate.getMonth()+1)*100+cutoffDate.getDate();
+  const recent=rows.filter(r=>r.sortKey>=cutoffKey);
+  const byNum={};
+  recent.forEach(r=>{
+    r.n.forEach(num=>{
+      if(!byNum[num])byNum[num]=[];
+      byNum[num].push({pays:r.pays,jeuLabel:r.jeuLabel,jeuKey:r.jeuKey,d:r.d,y:r.y,sortKey:r.sortKey});
+    });
+  });
+  const results=[];
+  Object.keys(byNum).forEach(numStr=>{
+    const occ=byNum[numStr];
+    const distinctJeux=[...new Set(occ.map(o=>o.jeuKey))];
+    if(distinctJeux.length>=2){
+      occ.sort((a,b)=>b.sortKey-a.sortKey);
+      results.push({num:+numStr,nbJeux:distinctJeux.length,nbOcc:occ.length,occ});
+    }
+  });
+  results.sort((a,b)=>b.nbJeux-a.nbJeux||b.nbOcc-a.nbOcc||a.num-b.num);
+  MULTI_REPEATS_CACHE=results;
+  return results;
+}
+function multiRepeatsHTML(){
+  const results=detectMultiRepeats();
+  if(!results.length){
+    return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
+      <div style="font-size:11px;font-weight:700;margin-bottom:2px">🤖 Numéros répétés entre lotos (14 derniers jours)</div>
+      <div style="font-size:10px;color:#888">Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.</div>
+    </div>`;
+  }
+  return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
+    <div style="font-size:11px;font-weight:700;margin-bottom:6px">🤖 Numéros répétés entre lotos (14 derniers jours) — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
+    <div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+      ${results.map(r=>{
+        const pc=[...new Set(r.occ.map(o=>o.pays))].map(p=>MULTI_PAYS_LABELS[p].split(' ')[0]).join(' ');
+        return `<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#1F2D3D;color:#fff;font-weight:700;font-size:11px">${r.num}</span>
+            <span style="font-size:10px;font-weight:600;color:#333">apparu dans ${r.nbJeux} jeux différents (${r.nbOcc} tirages) — ${pc}</span>
+          </div>
+          <div style="font-size:9px;color:#666;padding-left:30px">${r.occ.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 function toggleMultiPays(code){
   const i=state.multiPays.indexOf(code);
@@ -1230,7 +1319,7 @@ function multiFiltreHTML(){
   let html=`<div id="app-content">
   <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-size:14px;font-weight:600">🌍 MULTI-PAYS — Bénin + Togo + Cameroun</div>
+      <div style="font-size:14px;font-weight:600">🌍 MULTI-PAYS — Bénin + Togo + Cameroun + Côte d'Ivoire</div>
       <button id="export-multi-btn" onclick="exportMultiFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.multiFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
@@ -1257,8 +1346,9 @@ function multiFiltreHTML(){
         <button onclick="state.multiJeux=[...MULTI_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.multiJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
-      <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 3 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
+      <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
     </div>
+    ${multiRepeatsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
@@ -6595,12 +6685,12 @@ function bottomNavHTML(){
     ['multi','🌍','Multi-Pays'],
     ['pronostic','🍀','Pronostic'],
   ];
-  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;z-index:900">
+  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))));
-      return`<div onclick="goNav('${id}')" style="flex:1;text-align:center;padding:5px 2px;cursor:pointer;font-size:8.5px;font-weight:600;letter-spacing:.4px;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
-        <span style="font-size:18px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
-        <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
+      return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
+        <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
+        <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
       </div>`;
     }).join('')}
   </div>`;

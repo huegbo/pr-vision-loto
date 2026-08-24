@@ -618,7 +618,7 @@ function beninFiltreHTML(){
       </div>
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${BENIN_JEU_ORDER.map(code=>{const sel=state.beninJeux.includes(code);const c=BENIN_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<button onclick="toggleBeninJeu('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${BENIN_JEU_LABELS[code]}</button>`;}).join('')}
+        ${BENIN_JEU_ORDER.map(code=>{const sel=state.beninJeux.includes(code);const c=BENIN_JEU_COLORS[code];const light=isLightBg(c);return `<button onclick="toggleBeninJeu('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${BENIN_JEU_LABELS[code]}</button>`;}).join('')}
         <button onclick="state.beninJeux=[...BENIN_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.beninJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
@@ -642,7 +642,7 @@ function beninFiltreHTML(){
       </tr></thead><tbody>
       ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
-        const jc=BENIN_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const jc=BENIN_JEU_COLORS[r.jeu];const light=isLightBg(jc);
         const ms=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;
         const mCells=r.m?r.m.map(v=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${v!=null?v:'·'}</td>`).join(''):Array(5).fill(`<td style="background:${bg};font-size:9.5px;padding:4px;color:#ccc">·</td>`).join('');
         return `<tr>
@@ -712,7 +712,7 @@ function ghanaFiltreHTML(){
       </div>
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.ghanaJeux.length}/${GHANA_JEU_ORDER.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
-        ${GHANA_JEU_ORDER.map(code=>{const sel=state.ghanaJeux.includes(code);const c=GHANA_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<button onclick="toggleGhanaJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${GHANA_JEU_LABELS[code]}</button>`;}).join('')}
+        ${GHANA_JEU_ORDER.map(code=>{const sel=state.ghanaJeux.includes(code);const c=GHANA_JEU_COLORS[code];const light=isLightBg(c);return `<button onclick="toggleGhanaJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${GHANA_JEU_LABELS[code]}</button>`;}).join('')}
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
         <button onclick="state.ghanaJeux=[...GHANA_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
@@ -726,7 +726,7 @@ function ghanaFiltreHTML(){
       </tr></thead><tbody>
       ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
-        const jc=GHANA_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const jc=GHANA_JEU_COLORS[r.jeu];const light=isLightBg(jc);
         const tot=r.n.reduce((a,b)=>a+b,0);
         const ms=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;
         const mCells=r.m?r.m.map(v=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${v!=null?v:'·'}</td>`).join(''):Array(5).fill(`<td style="background:${bg};font-size:9.5px;padding:4px;color:#ccc">·</td>`).join('');
@@ -793,7 +793,7 @@ function camerounFiltreHTML(){
       </div>
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.camerounJeux.length}/${CAMEROUN_JEU_ORDER.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
-        ${CAMEROUN_JEU_ORDER.map(code=>{const sel=state.camerounJeux.includes(code);const c=CAMEROUN_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<button onclick="toggleCamerounJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${CAMEROUN_JEU_LABELS[code]}</button>`;}).join('')}
+        ${CAMEROUN_JEU_ORDER.map(code=>{const sel=state.camerounJeux.includes(code);const c=CAMEROUN_JEU_COLORS[code];const light=isLightBg(c);return `<button onclick="toggleCamerounJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${CAMEROUN_JEU_LABELS[code]}</button>`;}).join('')}
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
         <button onclick="state.camerounJeux=[...CAMEROUN_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
@@ -807,7 +807,7 @@ function camerounFiltreHTML(){
       </tr></thead><tbody>
       ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
-        const jc=CAMEROUN_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const jc=CAMEROUN_JEU_COLORS[r.jeu];const light=isLightBg(jc);
         const tot=r.n.reduce((a,b)=>a+b,0);
         const mCells=r.m?r.m.map(v=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${v!=null?v:'·'}</td>`).join(''):Array(5).fill(`<td style="background:${bg};font-size:9.5px;padding:4px;color:#ccc">·</td>`).join('');
         return `<tr>
@@ -986,19 +986,19 @@ function multiBadgeHTML(row,fS){
     const c=(typeof bjCodeOf==='function')?bjCodeOf(row):null;
     if(!c)return '';
     const o=bjOfficiel(row,c);
-    return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${parseInt(BENIN_JEU_COLORS[c],16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;
+    return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${isLightBg(BENIN_JEU_COLORS[c])?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;
   }
   if(GAME.key==='cm_tout'){
     const c=cmCodeOf(row);
     if(!c)return '';
     const col=CAMEROUN_JEU_COLORS[c]||'888888';
-    return `<span style="background:#${col};color:${parseInt(col,16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${CAMEROUN_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${CAMEROUN_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
   }
   if(GAME.key==='togo_tout'){
     const c=tgCodeOf(row);
     if(!c)return '';
     const col=TOGO_JEU_COLORS[c]||'888888';
-    return `<span style="background:#${col};color:${parseInt(col,16)>0x888888?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
   }
   return '';
 }
@@ -1023,7 +1023,7 @@ function togoFiltreHTML(){
       </div>
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.togoJeux.length}/${TOGO_JEU_ORDER.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
-        ${TOGO_JEU_ORDER.map(code=>{const sel=state.togoJeux.includes(code);const c=TOGO_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<button onclick="toggleTogoJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${TOGO_JEU_LABELS[code]}</button>`;}).join('')}
+        ${TOGO_JEU_ORDER.map(code=>{const sel=state.togoJeux.includes(code);const c=TOGO_JEU_COLORS[code];const light=isLightBg(c);return `<button onclick="toggleTogoJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${TOGO_JEU_LABELS[code]}</button>`;}).join('')}
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
         <button onclick="state.togoJeux=[...TOGO_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
@@ -1037,7 +1037,7 @@ function togoFiltreHTML(){
       </tr></thead><tbody>
       ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
-        const jc=TOGO_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const jc=TOGO_JEU_COLORS[r.jeu];const light=isLightBg(jc);
         const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
         return `<tr>
           <td style="background:#F0E6DA;font-weight:600;font-size:9.5px;padding:4px">${r.jour}</td>
@@ -1113,7 +1113,7 @@ function exportBeninFiltre(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
     &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
   const jeuFill=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
-  const jeuFont=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
+  const jeuFont=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
     {header:'Jour',get:r=>BENIN_JOUR_LABELS[r.jour],bg:'#E8EAF6'},
     {header:'Jeu',get:r=>BENIN_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
@@ -1130,7 +1130,7 @@ function exportBeninFiltre(){
 function exportGhanaFiltre(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
   const jeuFill=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c?'#'+c:null;};
-  const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
+  const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
     {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour],bg:'#E4F0E9'},
     {header:'Jeu',get:r=>GHANA_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
@@ -1145,7 +1145,7 @@ function exportGhanaFiltre(){
 function exportCamerounFiltre(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
   const jeuFill=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
-  const jeuFont=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
+  const jeuFont=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
     {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour],bg:'#E4F0E9'},
     {header:'Jeu',get:r=>CAMEROUN_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
@@ -1160,7 +1160,7 @@ function exportTogoFiltre(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   const jeuFill=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c?'#'+c:null;};
-  const jeuFont=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
+  const jeuFont=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
     {header:'Jour',get:r=>r.jour,bg:'#F0E6DA'},
     {header:'Jeu',get:r=>TOGO_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
@@ -1328,6 +1328,83 @@ function multiRepeatsHTML(){
     + multiRepeatsCardHTML(detectMultiRepeatsWeek(),"🗓️ Numéros répétés dans la semaine (7 derniers jours)",
       "Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.");
 }
+// ══════ Analyse IA — variante Multi-Pays (mêmes appels /api/analyse-ia que la version par jeu, état séparé) ══════
+function aiMultiLast10(){
+  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  return rows.slice(0,10).map(r=>({pays:MULTI_PAYS_LABELS[r.pays],jeu:r.jeuLabel,date:r.d+'/'+r.y,n:r.n,m:r.bonus&&r.bonus.some(v=>v!=null)?r.bonus:null}));
+}
+async function runAiMultiAnalysis(){
+  const tirages=aiMultiLast10();
+  if(!tirages.length){alert('Aucun tirage disponible pour ces filtres');return;}
+  state.multiAiLoading=true;state.multiAiError='';state.multiAiResult='';render();
+  try{
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:"Multi-Pays (fusion Bénin/Togo/Cameroun/Côte d'Ivoire)",tirages})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.multiAiError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.multiAiResult=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.multiAiError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.multiAiLoading=false;render();
+}
+async function runAiMultiPropose(opts){
+  const tirages=aiMultiLast10();
+  if(!tirages.length){alert('Aucun tirage disponible pour ces filtres');return;}
+  state.multiAiProposeActive=opts;
+  state.multiAiProposeLoading=true;state.multiAiProposeError='';render();
+  try{
+    const body={gameName:"Multi-Pays (fusion Bénin/Togo/Cameroun/Côte d'Ivoire)",tirages,propose:true,analyseText:state.multiAiResult||''};
+    if(opts.pairs){body.pairs=true;body.pairsCount=opts.pairsCount;}
+    else{body.count=opts.count;}
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.multiAiProposeError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else{
+      const label=opts.pairs?`${opts.pairsCount} combinaisons de 2 numéros`:`${opts.count} numéros`;
+      state.multiAiProposals=state.multiAiProposals||[];
+      state.multiAiProposals.unshift({id:Date.now()+'_'+Math.random().toString(36).slice(2,7),label,text:data.analyse||'Réponse vide.'});
+    }
+  }catch(e){
+    state.multiAiProposeError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.multiAiProposeLoading=false;state.multiAiProposeActive=null;render();
+}
+function removeAiMultiProposal(id){
+  state.multiAiProposals=(state.multiAiProposals||[]).filter(p=>p.id!==id);
+  render();
+}
+function clearAiMultiProposals(){
+  if(!(state.multiAiProposals||[]).length)return;
+  state.multiAiProposals=[];render();
+}
+function multiAiAnalysisHTML(){
+  return`<div class="card" style="margin-bottom:8px;background:#F0F9FF;border:1.5px solid #0284C7">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#075985">🤖 Analyse IA des 10 derniers tirages (Multi-Pays)</span>
+      <button onclick="runAiMultiAnalysis()" ${state.multiAiLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiLoading?'#94A3B8':'#0284C7'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiLoading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+    </div>
+    ${state.multiAiError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiError}</div>`:''}
+    ${state.multiAiResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#0C4A6E;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.multiAiResult}</div>`:''}
+    ${!state.multiAiResult&&!state.multiAiError&&!state.multiAiLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Génère un résumé (fréquences, sommes, pays/jeux) des 10 derniers tirages correspondant aux filtres actuels (Pays/Jour/Jeu), fusionnés dans une même chronologie.</div>`:''}
+    <div style="margin-top:8px;padding-top:8px;border-top:1px dashed #93C5FD;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:#075985">🎯 Proposer des numéros à jouer</span>
+      <button onclick="runAiMultiPropose({count:5})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&!state.multiAiProposeActive.pairs&&state.multiAiProposeActive.count===5?'⏳ Génération…':'✨ 5 numéros'}</button>
+      <button onclick="runAiMultiPropose({count:10})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&!state.multiAiProposeActive.pairs&&state.multiAiProposeActive.count===10?'⏳ Génération…':'✨ 10 numéros'}</button>
+      <button onclick="runAiMultiPropose({count:23})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#0891B2'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&!state.multiAiProposeActive.pairs&&state.multiAiProposeActive.count===23?'⏳ Génération…':'✨ 23 numéros'}</button>
+      <button onclick="runAiMultiPropose({pairs:true,pairsCount:10})" ${state.multiAiProposeLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiProposeLoading?'#94A3B8':'#B45309'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiProposeLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiProposeLoading&&state.multiAiProposeActive&&state.multiAiProposeActive.pairs?'⏳ Génération…':'🎲 10 tirages de 2 numéros'}</button>
+      ${(state.multiAiProposals||[]).length?`<button onclick="clearAiMultiProposals()" style="padding:4px 10px;background:#fff;color:#C62828;border:1px solid #C62828;border-radius:6px;cursor:pointer;font-weight:600;font-size:10px;margin-left:auto">🗑 Tout effacer</button>`:''}
+    </div>
+    ${state.multiAiProposeError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiProposeError}</div>`:''}
+    ${(state.multiAiProposals||[]).map(p=>`<div style="margin-top:7px;background:#fff;border:1px solid #BAE6FD;border-radius:6px;padding:8px 10px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+        <span style="font-size:9px;font-weight:700;color:#fff;background:#0891B2;border-radius:10px;padding:1px 8px">${p.label}</span>
+        <span onclick="removeAiMultiProposal('${p.id}')" style="margin-left:auto;cursor:pointer;font-size:11px;color:#94A3B8" title="Retirer cette proposition">✕</span>
+      </div>
+      <div style="font-size:11px;line-height:1.5;color:#164E63;white-space:pre-wrap">${p.text}</div>
+    </div>`).join('')}
+    ${!(state.multiAiProposals||[]).length&&!state.multiAiProposeError&&!state.multiAiProposeLoading?`<div style="margin-top:4px;font-size:9px;color:#64748B">Demande à l'IA de proposer 5 ou 10 numéros, ou 10 tirages de 2 numéros chacun (paires), sur la base des 10 derniers tirages fusionnés (filtres actuels) et de l'analyse ci-dessus si disponible. Purement statistique — ne garantit aucun gain.</div>`:''}
+  </div>`;
+}
 function toggleMultiPays(code){
   const i=state.multiPays.indexOf(code);
   if(i>=0)state.multiPays.splice(i,1);else state.multiPays.push(code);
@@ -1370,7 +1447,7 @@ function multiFiltreHTML(){
       </div>
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.multiJeux.length}/${MULTI_JEU_ORDER.length})</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:150px;overflow-y:auto">
-        ${MULTI_JEU_OPTIONS.map(o=>{const sel=state.multiJeux.includes(o.key);const c=o.color;const light=c&&parseInt(c,16)>0x888888;return `<button onclick="toggleMultiJeu('${o.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${o.label}</button>`;}).join('')}
+        ${MULTI_JEU_OPTIONS.map(o=>{const sel=state.multiJeux.includes(o.key);const c=o.color;const light=c&&isLightBg(c);return `<button onclick="toggleMultiJeu('${o.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${o.label}</button>`;}).join('')}
       </div>
       <div style="display:flex;gap:4px;margin-top:6px">
         <button onclick="state.multiJeux=[...MULTI_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
@@ -1378,6 +1455,7 @@ function multiFiltreHTML(){
       </div>
       <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
     </div>
+    ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1387,7 +1465,7 @@ function multiFiltreHTML(){
       ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
         const pc=MULTI_PAYS_COLORS[r.pays];
-        const jc=r.jeuColor;const light=jc&&parseInt(jc,16)>0x888888;
+        const jc=r.jeuColor;const light=jc&&isLightBg(jc);
         const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
         return `<tr>
           <td style="background:#${pc};color:#fff;font-weight:700;font-size:9px;padding:4px">${MULTI_PAYS_LABELS[r.pays]}</td>
@@ -1412,7 +1490,7 @@ function exportMultiFiltre(){
   const columns=[
     {header:'Pays',get:r=>MULTI_PAYS_LABELS[r.pays],bg:r=>'#'+MULTI_PAYS_COLORS[r.pays],fg:'#FFFFFF'},
     {header:'Jour',get:r=>r.jourLabel,bg:'#EEEEEE'},
-    {header:'Jeu',get:r=>r.jeuLabel,bg:r=>r.jeuColor?'#'+r.jeuColor:null,fg:r=>r.jeuColor&&parseInt(r.jeuColor,16)>0x888888?'#000000':'#FFFFFF'},
+    {header:'Jeu',get:r=>r.jeuLabel,bg:r=>r.jeuColor?'#'+r.jeuColor:null,fg:r=>r.jeuColor&&isLightBg(r.jeuColor)?'#000000':'#FFFFFF'},
     {header:'Date',get:r=>r.d+'/'+r.y},
     {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
     {header:'TOT',get:r=>r.s,total:true},
@@ -1815,7 +1893,7 @@ function pronosticPronosticTabHTML(){
   <div class="card" style="margin-bottom:8px">
     <div style="font-size:10px;font-weight:600;margin-bottom:6px">Jeu</div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:120px;overflow-y:auto">
-      ${games.map(x=>{const sel=x.key===state.pronosticJeu;const light=parseInt(x.color,16)>0x888888;return `<button onclick="setPronosticJeu('${x.key}')" style="padding:5px 9px;font-size:10.5px;border-radius:14px;cursor:pointer;font-weight:600;border:${sel?'2px solid #'+x.color:'1px solid #ddd'};background:${sel?'#'+x.color:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${x.icon} ${x.label}${x.sub?' ('+x.sub+')':''}</button>`;}).join('')}
+      ${games.map(x=>{const sel=x.key===state.pronosticJeu;const light=isLightBg(x.color);return `<button onclick="setPronosticJeu('${x.key}')" style="padding:5px 9px;font-size:10.5px;border-radius:14px;cursor:pointer;font-weight:600;border:${sel?'2px solid #'+x.color:'1px solid #ddd'};background:${sel?'#'+x.color:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${x.icon} ${x.label}${x.sub?' ('+x.sub+')':''}</button>`;}).join('')}
     </div>
   </div>
   <div class="card" style="margin-bottom:8px">
@@ -1951,7 +2029,7 @@ function pronosticProgrammeTabHTML(){
   <div class="card" style="margin-bottom:8px">
     <div style="font-size:12px;font-weight:700;margin-bottom:8px">📅 Programme des tirages Bénin</div>
     <div style="display:flex;flex-direction:column;gap:6px">
-      ${BENIN_JEU_ORDER.map(code=>{const c=BENIN_JEU_COLORS[code];const light=parseInt(c,16)>0x888888;return `<div onclick="setPronosticJeu('${code}');setPronosticSubTab('pronostic')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;cursor:pointer;background:#${c};color:${light?'#000':'#fff'};font-weight:700;font-size:12px"><span>${BENIN_JEU_LABELS[code]}</span><span>Tous les jours</span></div>`;}).join('')}
+      ${BENIN_JEU_ORDER.map(code=>{const c=BENIN_JEU_COLORS[code];const light=isLightBg(c);return `<div onclick="setPronosticJeu('${code}');setPronosticSubTab('pronostic')" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;cursor:pointer;background:#${c};color:${light?'#000':'#fff'};font-weight:700;font-size:12px"><span>${BENIN_JEU_LABELS[code]}</span><span>Tous les jours</span></div>`;}).join('')}
     </div>
     <div style="font-size:9px;color:#888;margin-top:8px">Touche un tirage pour le charger en Pronostic.</div>
   </div>`;
@@ -2374,6 +2452,14 @@ const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#
 const PC=[['#0D47A1','#1565C0','#E3F2FD'],['#1B5E20','#2E7D32','#E8F5E9'],['#B71C1C','#C62828','#FFEBEE'],['#4A148C','#6A1B9A','#F3E5F5']];
 
 function tC(s){if(s<150)return['#C8E6C9','#1B5E20'];if(s<250)return['#FFF9C4','#7B5E00'];if(s<300)return['#FFCCBC','#BF360C'];return['#EF9A9A','#B71C1C'];}
+// Luminance perçue d'une couleur hex (#RRGGBB ou RRGGBB) — remplace l'ancienne heuristique parseInt(c,16)>0x888888 qui donnait du texte noir illisible sur certains fonds sombres (ex: marron 92400E)
+function isLightBg(hex){
+  if(!hex)return false;
+  const h=String(hex).replace('#','');
+  const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  if(isNaN(r)||isNaN(g)||isNaN(b))return false;
+  return(0.299*r+0.587*g+0.114*b)>150;
+}
 
 // STATE
 let state={
@@ -2401,6 +2487,8 @@ let state={
   showPlan:false, planInput:'', planNums:[], planNote:'', savedPlans:[], planColor:'',
   aiLoading:false, aiResult:'', aiError:'',
   aiProposeLoading:false, aiProposeError:'', aiProposeActive:null, aiProposals:[],
+  multiAiLoading:false, multiAiResult:'', multiAiError:'',
+  multiAiProposeLoading:false, multiAiProposeError:'', multiAiProposeActive:null, multiAiProposals:[],
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],
@@ -4825,7 +4913,7 @@ function bjBarHTML(){
   if(!GAME||!BJ_MULTI.includes(GAME.key))return '';
   const f=state.bjFilter, act=bjFilterActive();
   const pil=(cat,v,lbl,bg)=>{const on=f[cat].includes(v);
-    return `<button onclick="bjToggle('${cat}','${v}')" style="padding:2px 8px;font-size:9.5px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+bg:'1px solid #ddd'};background:${on?'#'+bg:'#f7f7f7'};color:${on?(parseInt(bg,16)>0x888888?'#000':'#fff'):'#888'}">${on?'✓ ':''}${lbl}</button>`;};
+    return `<button onclick="bjToggle('${cat}','${v}')" style="padding:2px 8px;font-size:9.5px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+bg:'1px solid #ddd'};background:${on?'#'+bg:'#f7f7f7'};color:${on?(isLightBg(bg)?'#000':'#fff'):'#888'}">${on?'✓ ':''}${lbl}</button>`;};
   let n=0; try{n=state.selYears.reduce((a,y)=>a+rowsForYear(y).length,0);}catch(_){}
   return `<div style="margin-bottom:6px;background:#F5F7FB;border:1.5px solid ${act?'#111F33':'#DDE3EC'};border-radius:7px;padding:5px 8px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
@@ -4914,7 +5002,7 @@ function multiJeuBarHTML(){
         <span style="font-size:10px;font-weight:700;color:#166534">🇨🇲 Jeux inclus dans TOUT CAMEROUN</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px">
-        ${CAMEROUN_JEU_ORDER.map(c=>{const on=act.includes(c);const col=CAMEROUN_JEU_COLORS[c];return `<button onclick="toggleCmToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(parseInt(col,16)>0x888888?'#000':'#fff'):'#888'}">${on?'✓ ':''}${CAMEROUN_JEU_LABELS[c]||c}</button>`;}).join('')}
+        ${CAMEROUN_JEU_ORDER.map(c=>{const on=act.includes(c);const col=CAMEROUN_JEU_COLORS[c];return `<button onclick="toggleCmToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(isLightBg(col)?'#000':'#fff'):'#888'}">${on?'✓ ':''}${CAMEROUN_JEU_LABELS[c]||c}</button>`;}).join('')}
         <button onclick="state.cmToutJeux=[...CAMEROUN_JEU_ORDER];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Tous</button>
         <button onclick="state.cmToutJeux=[];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucun</button>
       </div>
@@ -4927,7 +5015,7 @@ function multiJeuBarHTML(){
         <span style="font-size:10px;font-weight:700;color:#7C2D12">🇹🇬 Jeux inclus dans TOUT TOGO</span>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px">
-        ${TOGO_JEU_ORDER.map(c=>{const on=act.includes(c);const col=TOGO_JEU_COLORS[c];return `<button onclick="toggleTogoToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(parseInt(col,16)>0x888888?'#000':'#fff'):'#888'}">${on?'✓ ':''}${TOGO_JEU_LABELS[c]||c}</button>`;}).join('')}
+        ${TOGO_JEU_ORDER.map(c=>{const on=act.includes(c);const col=TOGO_JEU_COLORS[c];return `<button onclick="toggleTogoToutJeu('${c}')" style="padding:2px 9px;font-size:10px;border-radius:11px;cursor:pointer;font-weight:600;border:${on?'2px solid #'+col:'1px solid #ddd'};background:${on?'#'+col:'#f5f5f5'};color:${on?(isLightBg(col)?'#000':'#fff'):'#888'}">${on?'✓ ':''}${TOGO_JEU_LABELS[c]||c}</button>`;}).join('')}
         <button onclick="state.togoToutJeux=[...TOGO_JEU_ORDER];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Tous</button>
         <button onclick="state.togoToutJeux=[];render()" style="padding:2px 9px;font-size:10px;border-radius:11px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucun</button>
       </div>
@@ -5159,7 +5247,7 @@ function exportPanelHTML(){
       <button onclick="exportYearsNone()" style="padding:1px 8px;font-size:9px;border-radius:10px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Aucune</button>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:2px;margin-bottom:8px;max-height:70px;overflow-y:auto">
-      ${YEARS.map(y=>{const sel=state.exportYears.includes(y);const c=YC[y]||'1F2D3D';return `<button onclick="toggleExportYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f9f9f9'};color:${sel?(parseInt(c,16)>0x888888?'#000':'#fff'):'#888'}">${y}</button>`;}).join('')}
+      ${YEARS.map(y=>{const sel=state.exportYears.includes(y);const c=YC[y]||'1F2D3D';return `<button onclick="toggleExportYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f9f9f9'};color:${sel?(isLightBg(c)?'#000':'#fff'):'#888'}">${y}</button>`;}).join('')}
     </div>
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px">
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;font-weight:600;color:#5B21B6"><input type="checkbox" ${state.exportColors!==false?'checked':''} onchange="state.exportColors=this.checked">🎨 Couleurs</label>
@@ -9130,7 +9218,7 @@ function anchorBarGHTML(){
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
       ${sg.map(k=>{const a=getAnchorG(k),o=off[k]||0,lk=isAnchorLockedG(k),c=YC[mgYearOf(k)]||'1F2D3D';
         return `<span style="display:inline-flex;align-items:stretch;border-radius:11px;overflow:hidden;border:${a?(lk?'2px solid #166534':'2px solid #'+c):'1px dashed #bbb'}">
-          <button onclick="setAnchorG('${k}')" style="padding:2px 8px;font-size:10px;cursor:pointer;font-weight:600;border:none;background:${a?'#'+c:'#fff'};color:${a?(parseInt(c,16)>0x888888?'#000':'#fff'):'#888'}">${GAMES[k].icon} ${GAMES[k].name} ${mgYearOf(k)}${a?' ⚓ '+a:' + ancre'}${o?` <span style="opacity:.85">↓${o}</span>`:''}</button>
+          <button onclick="setAnchorG('${k}')" style="padding:2px 8px;font-size:10px;cursor:pointer;font-weight:600;border:none;background:${a?'#'+c:'#fff'};color:${a?(isLightBg(c)?'#000':'#fff'):'#888'}">${GAMES[k].icon} ${GAMES[k].name} ${mgYearOf(k)}${a?' ⚓ '+a:' + ancre'}${o?` <span style="opacity:.85">↓${o}</span>`:''}</button>
           ${a?`<button onclick="toggleAnchorLockColG('${k}')" title="${lk?'Ligne '+a+' verrouillée':'Verrouiller la ligne '+a}" style="padding:2px 6px;font-size:10px;cursor:pointer;border:none;border-left:1px solid rgba(0,0,0,.15);background:${lk?'#166534':'#fff'};color:${lk?'#fff':'#999'}">${lk?'🔒':'🔓'}</button>`:''}
         </span>`;}).join('')}
     </div>
@@ -9231,7 +9319,7 @@ function anchorBarHTML(){
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">
       ${state.selYears.map(yr=>{const a=getAnchor(yr),o=off[yr]||0,c=YC[yr]||'1F2D3D',lk=isAnchorLocked(yr);
         return `<span style="display:inline-flex;align-items:stretch;border-radius:11px;overflow:hidden;border:${a?(lk?'2px solid #166534':'2px solid #'+c):'1px dashed #bbb'}">
-          <button onclick="setAnchor('${yr}')" style="padding:2px 8px;font-size:10px;cursor:pointer;font-weight:600;border:none;background:${a?'#'+c:'#fff'};color:${a?(parseInt(c,16)>0x888888?'#000':'#fff'):'#888'}">${yr}${a?' ⚓ '+a:' + ancre'}${o?` <span style="opacity:.85">↓${o}</span>`:''}</button>
+          <button onclick="setAnchor('${yr}')" style="padding:2px 8px;font-size:10px;cursor:pointer;font-weight:600;border:none;background:${a?'#'+c:'#fff'};color:${a?(isLightBg(c)?'#000':'#fff'):'#888'}">${yr}${a?' ⚓ '+a:' + ancre'}${o?` <span style="opacity:.85">↓${o}</span>`:''}</button>
           ${a?`<button onclick="toggleAnchorLockCol('${yr}')" title="${lk?'Ligne '+a+' verrouillée dans '+yr+' — clique pour libérer':'Verrouiller la ligne '+a+' dans '+yr}" style="padding:2px 6px;font-size:10px;cursor:pointer;border:none;border-left:1px solid rgba(0,0,0,.15);background:${lk?'#166534':'#fff'};color:${lk?'#fff':'#999'}">${lk?'🔒':'🔓'}</button>`:''}
         </span>`;}).join('')}
     </div>
@@ -9861,7 +9949,7 @@ function anRender(){
     </div>
     ${state.exportPanel?exportPanelHTML():''}
     <div style="display:flex;flex-wrap:wrap;gap:2px">
-      ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:'1px solid #ddd'};background:${sel?`#${color}`:'#f9f9f9'};color:${sel?(parseInt(color,16)>0x888888?'#000':'#fff'):'#777'}">${y}</button>`;}).join('')}
+      ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:'1px solid #ddd'};background:${sel?`#${color}`:'#f9f9f9'};color:${sel?(isLightBg(color)?'#000':'#fff'):'#777'}">${y}</button>`;}).join('')}
       ${!state.showAllYears?`<button onclick="state.showAllYears=true;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #aaa;background:#f0f0f0;color:#555;cursor:pointer">▼</button>`:''}
     </div>
   </div>`;
@@ -9881,7 +9969,7 @@ function anRender(){
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
     const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
     html+=`<div id="col-exan" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exan')"><table class="excel-tbl"><thead><tr>`;
-    cols.forEach((c,ci)=>{const light=parseInt(c.color,16)>0x888888;html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
+    cols.forEach((c,ci)=>{const light=isLightBg(c.color);html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
     cols.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${ci===0?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:8px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
@@ -9926,7 +10014,7 @@ function anRender(){
   html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
   state.selYears.forEach(yr=>{
     const color=YC[yr]||'1F2D3D';const rows=rowsForYear(yr).slice(0,3000);  // Analyses : non virtualisé, on borne large pour couvrir une année complète (jeux combinés type TOUT BENIN PLUS DIGITAL)
-    const light=parseInt(color,16)>0x888888;
+    const light=isLightBg(color);
     let cnt=0;const marks=rows.map(r=>{const mk=anMark(r,ctx);cnt+=mk.filter(Boolean).length;return mk;});
     html+=`<div class="col" style="border-color:#${color}">
       <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${GAME.name} ${yr}<div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages • ${cnt} ${D.label.replace(/^[^ ]+ /,'')}</div></div>
@@ -10176,7 +10264,7 @@ function __renderBody(){
       ${state.exportPanel?exportPanelHTML():''}
       ${state.rangePanel||state.rangeOn?rangePanelHTML():''}
       <div style="display:flex;flex-wrap:wrap;gap:2px">
-        ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);const hr=state.search.length>0&&(BY_YEAR[y]||[]).some(r=>searchMatch(r,state.search,state.searchPosMode,state.searchPosIdx));return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:hr?'2px solid #10B981':'1px solid #ddd'};background:${sel?`#${color}`:hr?'#F0FDF4':'#f9f9f9'};color:${sel?(parseInt(color,16)>0x888888?'#000':'#fff'):hr?'#059669':'#777'}">${y}${hr?'🎯':''}</button>`;}).join('')}
+        ${disp.map(y=>{const color=YC[y]||'1F2D3D';const sel=state.selYears.includes(y);const hr=state.search.length>0&&(BY_YEAR[y]||[]).some(r=>searchMatch(r,state.search,state.searchPosMode,state.searchPosIdx));return`<button onclick="toggleYear('${y}')" style="padding:1px 6px;font-size:9px;border-radius:3px;cursor:pointer;font-weight:500;border:${sel?`2px solid #${color}`:hr?'2px solid #10B981':'1px solid #ddd'};background:${sel?`#${color}`:hr?'#F0FDF4':'#f9f9f9'};color:${sel?(isLightBg(color)?'#000':'#fff'):hr?'#059669':'#777'}">${y}${hr?'🎯':''}</button>`;}).join('')}
         ${!state.showAllYears?`<button onclick="state.showAllYears=true;render()" style="padding:1px 6px;font-size:9px;border-radius:3px;border:1px solid #aaa;background:#f0f0f0;color:#555;cursor:pointer">▼</button>`:''}
       </div>`:`
       <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-wrap:wrap">
@@ -10231,7 +10319,7 @@ function __renderBody(){
         html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
-          const nCells=c.g.hasM?14:8;const light=parseInt(c.color,16)>0x888888;
+          const nCells=c.g.hasM?14:8;const light=isLightBg(c.color);
           html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}">${c.g.icon} ${c.g.name} ${c.year} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
         });
         html+=`</tr><tr>`;
@@ -10272,7 +10360,7 @@ function __renderBody(){
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
         mgColumns().forEach(({colId,key,year:gy})=>{
           const g=GAMES[key], gd=gameData(key);
-          const color=YC[gy]||'1F2D3D';const light=parseInt(color,16)>0x888888;
+          const color=YC[gy]||'1F2D3D';const light=isLightBg(color);
           const rows=gd.BY_YEAR[gy]||[];
           const _T0g=T,_IDX0g=IDX;T=gd.T;IDX=gd.IDX; // bascule T/IDX sur les données de CE jeu pour toute la colonne
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
@@ -10333,7 +10421,7 @@ function __renderBody(){
       html+=`<div id="col-exnav" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
-        const light=parseInt(c.color,16)>0x888888;
+        const light=isLightBg(c.color);
         html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?`left:0;`:''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:${fTitle}px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
       });
       html+=`</tr><tr>`;
@@ -10393,7 +10481,7 @@ function __renderBody(){
       state.selYears.forEach(yr=>{
         const color=YC[yr]||'1F2D3D';const rows=rowsForYear(yr);
         const _aT=getAnchor(yr);const _aLk=isAnchorLocked(yr);
-        const light=parseInt(color,16)>0x888888;
+        const light=isLightBg(color);
         let pinIdx=-1;
         if(state.pin){const[pd,pm]=state.pin.split('/');pinIdx=rows.findIndex(r=>{const[rd,rm]=r.d.split('/');return Math.abs(parseInt(rm)-parseInt(pm))*31+Math.abs(parseInt(rd)-parseInt(pd))<20;});}
         // Contenu partagé entre les deux volets en double vue (mêmes lignes, même

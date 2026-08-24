@@ -8393,12 +8393,21 @@ function runBacktest(strategyId,data){
   };
 }
 function runBacktestUI(){
-  state.backtestResult='loading';
-  render();
-  setTimeout(()=>{
-    state.backtestResult=runBacktest(state.backtestStrategy,T);
+  try{
+    state.backtestResult='loading';
     render();
-  },30);
+    setTimeout(()=>{
+      try{
+        state.backtestResult=runBacktest(state.backtestStrategy,T);
+      }catch(err){
+        state.backtestResult={error:'Erreur pendant le calcul : '+((err&&err.message)||err)};
+      }
+      render();
+    },30);
+  }catch(err){
+    state.backtestResult={error:'Erreur au lancement : '+((err&&err.message)||err)};
+    render();
+  }
 }
 
 const AN_DEF=[

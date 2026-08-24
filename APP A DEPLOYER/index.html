@@ -761,6 +761,16 @@ function parseCamerounAll(){
     const m=hasM?mRaw.map(v=>v===''||v===undefined?null:+v):null;
     return {jour:p[0],jeu:p[1],d:p[2],y:p[3],n,m};
   });
+  // Tri : date décroissante (le plus récent en premier), puis — au sein d'une même date — ordre
+  // chronologique des heures de tirage (MOUNGO 8h avant WOURI 9h30 avant ... avant CONTINENT 21h),
+  // via la position dans CAMEROUN_JEU_ORDER (qui suit déjà l'ordre des heures). Sans ce tri explicite,
+  // des jeux ajoutés en lot (ex: MFOUNDI/SANAGA/LIONS/MBOA/CONTINENT/SUPER4 le même jour) se
+  // retrouvent groupés dans leur ordre d'insertion au lieu d'être entrelacés par heure réelle.
+  CAMEROUN_ALL_ROWS.sort((a,b)=>{
+    const dateCmp=(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''));
+    if(dateCmp!==0)return dateCmp;
+    return CAMEROUN_JEU_ORDER.indexOf(b.jeu)-CAMEROUN_JEU_ORDER.indexOf(a.jeu);
+  });
   return CAMEROUN_ALL_ROWS;
 }
 function toggleCamerounJour(code){

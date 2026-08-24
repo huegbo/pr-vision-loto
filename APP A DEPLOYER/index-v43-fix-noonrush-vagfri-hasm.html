@@ -244,7 +244,6 @@ const YC={"2026": "006262", "2025": "6A3A1A", "2024": "3D5F00", "2023": "151365"
 // Resultats_Loteries_Togo_Benin_Cameroun_26.xlsx. Format standard de l'app :
 // t|jj/mm|aaaa|n1..n5|total[|bonus...]  — le plus récent en premier.
 const RAW_GH_G1=window.LOTO_DATA.RAW_GH_G1;
-const RAW_GH_NATIONAL=window.LOTO_DATA.RAW_GH_NATIONAL;
 const RAW_GH_G2=window.LOTO_DATA.RAW_GH_G2;
 const RAW_GH_G3=window.LOTO_DATA.RAW_GH_G3;
 const RAW_GH_G4=window.LOTO_DATA.RAW_GH_G4;
@@ -422,7 +421,6 @@ const GAMES={
   national:{name:'NATIONAL',icon:'🇬🇭',raw:RAW_NATIONAL,hasM:true,sum10:true},
 
   // ── GHANA (NLA) ──
-  gh_national:{name:'GH NATIONAL',icon:'🇬🇭',raw:RAW_GH_NATIONAL},
   gh_g1:{name:'GH 5-39 DIRECT FRIDAY',icon:'🇬🇭',raw:RAW_GH_G1},
   gh_g2:{name:'GH 5-39 DIRECT MONDAY',icon:'🇬🇭',raw:RAW_GH_G2},
   gh_g3:{name:'GH 5-39 DIRECT SATURDAY',icon:'🇬🇭',raw:RAW_GH_G3},
@@ -762,6 +760,16 @@ function parseCamerounAll(){
     const hasM=mRaw.some(v=>v!==''&&v!==undefined);
     const m=hasM?mRaw.map(v=>v===''||v===undefined?null:+v):null;
     return {jour:p[0],jeu:p[1],d:p[2],y:p[3],n,m};
+  });
+  // Tri : date décroissante (le plus récent en premier), puis — au sein d'une même date — ordre
+  // chronologique des heures de tirage (MOUNGO 8h avant WOURI 9h30 avant ... avant CONTINENT 21h),
+  // via la position dans CAMEROUN_JEU_ORDER (qui suit déjà l'ordre des heures). Sans ce tri explicite,
+  // des jeux ajoutés en lot (ex: MFOUNDI/SANAGA/LIONS/MBOA/CONTINENT/SUPER4 le même jour) se
+  // retrouvent groupés dans leur ordre d'insertion au lieu d'être entrelacés par heure réelle.
+  CAMEROUN_ALL_ROWS.sort((a,b)=>{
+    const dateCmp=(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''));
+    if(dateCmp!==0)return dateCmp;
+    return CAMEROUN_JEU_ORDER.indexOf(b.jeu)-CAMEROUN_JEU_ORDER.indexOf(a.jeu);
   });
   return CAMEROUN_ALL_ROWS;
 }

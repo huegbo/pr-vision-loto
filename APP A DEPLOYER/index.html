@@ -1377,6 +1377,80 @@ function clearAiMultiProposals(){
   if(!(state.multiAiProposals||[]).length)return;
   state.multiAiProposals=[];render();
 }
+// ══════ Analyse IA — journée en cours (tous pays fusionnés, + un panneau par pays), toujours sur TOUS les tirages du jour le plus récent, peu importe les filtres Pays/Jour/Jeu à l'écran ══════
+function aiTodayRowsAll(){
+  const rows=parseMultiPaysAll();
+  if(!rows.length)return[];
+  const maxKey=rows[0].sortKey;
+  return rows.filter(r=>r.sortKey===maxKey);
+}
+function aiTodayRowsForPays(pays){
+  return aiTodayRowsAll().filter(r=>r.pays===pays);
+}
+function aiRowsToPayload(rows){
+  return rows.map(r=>({pays:MULTI_PAYS_LABELS[r.pays],jeu:r.jeuLabel,date:r.d+'/'+r.y,n:r.n,m:r.bonus&&r.bonus.some(v=>v!=null)?r.bonus:null}));
+}
+async function runAiTodayAnalysis(){
+  const rows=aiTodayRowsAll();
+  if(!rows.length){alert("Aucun tirage disponible aujourd'hui");return;}
+  state.multiAiTodayLoading=true;state.multiAiTodayError='';state.multiAiTodayResult='';render();
+  try{
+    const d=rows[0].d+'/'+rows[0].y;
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`Multi-Pays — Journée du ${d} (Bénin+Togo+Cameroun+Côte d'Ivoire fusionnés)`,tirages:aiRowsToPayload(rows)})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.multiAiTodayError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.multiAiTodayResult=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.multiAiTodayError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.multiAiTodayLoading=false;render();
+}
+async function runAiTodayPaysAnalysis(pays){
+  const rows=aiTodayRowsForPays(pays);
+  if(!state.multiAiTodayByPays[pays])state.multiAiTodayByPays[pays]={loading:false,result:'',error:''};
+  if(!rows.length){alert("Aucun tirage aujourd'hui pour ce pays");return;}
+  state.multiAiTodayByPays[pays].loading=true;state.multiAiTodayByPays[pays].error='';state.multiAiTodayByPays[pays].result='';render();
+  try{
+    const d=rows[0].d+'/'+rows[0].y;
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`${MULTI_PAYS_LABELS[pays]} — Journée du ${d}`,tirages:aiRowsToPayload(rows)})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.multiAiTodayByPays[pays].error=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.multiAiTodayByPays[pays].result=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.multiAiTodayByPays[pays].error='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.multiAiTodayByPays[pays].loading=false;render();
+}
+function multiAiTodayHTML(){
+  const rows=aiTodayRowsAll();
+  if(!rows.length)return'';
+  const dateLabel=rows[0].d+'/'+rows[0].y;
+  const paysPresent=MULTI_PAYS_ORDER.filter(p=>rows.some(r=>r.pays===p));
+  return`<div class="card" style="margin-bottom:8px;background:#FFF7ED;border:1.5px solid #C2410C">
+    <div style="font-size:11px;font-weight:700;color:#7C2D12;margin-bottom:6px">🤖 Analyse IA de la journée — ${dateLabel} (${rows.length} tirage${rows.length>1?'s':''})</div>
+    <div style="background:#fff;border:1px solid #FDBA74;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:10.5px;font-weight:700;color:#7C2D12">🌍 Tous pays fusionnés</span>
+        <button onclick="runAiTodayAnalysis()" ${state.multiAiTodayLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiTodayLoading?'#94A3B8':'#C2410C'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiTodayLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiTodayLoading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+      </div>
+      ${state.multiAiTodayError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiTodayError}</div>`:''}
+      ${state.multiAiTodayResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#7C2D12;background:#FFF7ED;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.multiAiTodayResult}</div>`:''}
+    </div>
+    ${paysPresent.map(pays=>{
+      const st=state.multiAiTodayByPays[pays]||{loading:false,result:'',error:''};
+      const n=aiTodayRowsForPays(pays).length;
+      return`<div style="background:#fff;border:1px solid #FDBA74;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:10.5px;font-weight:700;color:#7C2D12">${MULTI_PAYS_LABELS[pays]} (${n} tirage${n>1?'s':''})</span>
+          <button onclick="runAiTodayPaysAnalysis('${pays}')" ${st.loading?'disabled':''} style="padding:4px 12px;background:${st.loading?'#94A3B8':'#'+MULTI_PAYS_COLORS[pays]};color:#fff;border:none;border-radius:6px;cursor:${st.loading?'default':'pointer'};font-weight:600;font-size:11px">${st.loading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+        </div>
+        ${st.error?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${st.error}</div>`:''}
+        ${st.result?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#7C2D12;background:#FFF7ED;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${st.result}</div>`:''}
+      </div>`;
+    }).join('')}
+    <div style="font-size:8.5px;color:#9A3412">Toujours basé sur TOUS les tirages du jour le plus récent des données, peu importe les filtres Pays/Jour/Jeu ci-dessus.</div>
+  </div>`;
+}
 function multiAiAnalysisHTML(){
   return`<div class="card" style="margin-bottom:8px;background:#F0F9FF;border:1.5px solid #0284C7">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1455,6 +1529,7 @@ function multiFiltreHTML(){
       </div>
       <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
     </div>
+    ${multiAiTodayHTML()}
     ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
@@ -2489,6 +2564,8 @@ let state={
   aiProposeLoading:false, aiProposeError:'', aiProposeActive:null, aiProposals:[],
   multiAiLoading:false, multiAiResult:'', multiAiError:'',
   multiAiProposeLoading:false, multiAiProposeError:'', multiAiProposeActive:null, multiAiProposals:[],
+  multiAiTodayLoading:false, multiAiTodayResult:'', multiAiTodayError:'',
+  multiAiTodayByPays:{},
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],

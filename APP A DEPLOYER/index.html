@@ -1287,6 +1287,12 @@ function detectMultiRepeatsDay(){
   MULTI_REPEATS_DAY_CACHE=buildRepeatsFromRows(today);
   return MULTI_REPEATS_DAY_CACHE;
 }
+const MULTI_REPEAT_PALETTE=['E53935','FB8C00','FDD835','43A047','1E88E5','8E24AA','D81B60','00897B'];
+function setMultiRepeatColor(num,color){
+  if(color)state.multiRepeatColors[num]=color;else delete state.multiRepeatColors[num];
+  try{localStorage.setItem('multiRepeatColors',JSON.stringify(state.multiRepeatColors));}catch(e){}
+  render();
+}
 function multiRepeatsCardHTML(results,title,emptyMsg){
   if(!results.length){
     return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
@@ -1296,13 +1302,19 @@ function multiRepeatsCardHTML(results,title,emptyMsg){
   }
   return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
     <div style="font-size:11px;font-weight:700;margin-bottom:6px">${title} — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
-    <div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+    <div style="font-size:8.5px;color:#999;margin-bottom:6px">Touche un numéro pour le colorer (ta sélection est mémorisée).</div>
+    <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
       ${results.map(r=>{
         const pc=[...new Set(r.occ.map(o=>o.pays))].map(p=>MULTI_PAYS_LABELS[p].split(' ')[0]).join(' ');
+        const chosen=state.multiRepeatColors[r.num];
         return `<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:#1F2D3D;color:#fff;font-weight:700;font-size:11px">${r.num}</span>
-            <span style="font-size:10px;font-weight:600;color:#333">apparu dans ${r.nbJeux} jeux différents (${r.nbOcc} tirages) — ${pc}</span>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:${chosen?'#'+chosen:'#1F2D3D'};color:#fff;font-weight:700;font-size:11px;flex-shrink:0">${r.num}</span>
+            <span style="font-size:10px;font-weight:600;color:#333;flex:1">apparu dans ${r.nbJeux} jeux différents (${r.nbOcc} tirages) — ${pc}</span>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center;padding-left:30px;margin-bottom:4px">
+            ${MULTI_REPEAT_PALETTE.map(c=>`<span onclick="setMultiRepeatColor(${r.num},'${c}')" style="width:14px;height:14px;border-radius:50%;background:#${c};cursor:pointer;border:${chosen===c?'2px solid #1F2D3D':'1px solid rgba(0,0,0,.15)'}"></span>`).join('')}
+            <span onclick="setMultiRepeatColor(${r.num},null)" style="width:14px;height:14px;border-radius:50%;background:#fff;border:1px solid #999;cursor:pointer;font-size:9px;line-height:12px;text-align:center;color:#999">✕</span>
           </div>
           <div style="font-size:9px;color:#666;padding-left:30px">${r.occ.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}</div>
         </div>`;
@@ -2451,6 +2463,7 @@ let state={
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
+  multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',

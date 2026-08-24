@@ -9008,25 +9008,27 @@ function anMark(row,ctx){
     });
   }
   if(m==='decomp'){
-    const gi=IDX[row.t], g1=Math.max(1,state.decompGap||1), col=state.decompColor||D.bg;
+    const gi=IDX[row.t], g1=Math.max(1,state.decompGap||1), col=state.decompColor||D.bg, nc=row.n.length;
+    // Les 2 composants d'une décomposition peuvent être dans une colonne différente de celle de la cible
+    // (ex: cible en colonne 2, composants tous deux en colonne 0) — on teste toutes les combinaisons A(cible)/B(composants).
     // Cas 1 : ce tirage EST la somme des 2 tirages antérieurs consécutifs (écart g1 et g1+1)
     const o1=gi+g1<T.length?T[gi+g1]:null, o2=gi+g1+1<T.length?T[gi+g1+1]:null;
-    if(o1&&o2)row.n.forEach((n,i)=>{if(o1.n[i]+o2.n[i]===n)S(i,col);});
+    if(o1&&o2)for(let A=0;A<nc;A++){if(out[A])continue;for(let B=0;B<nc;B++){if(o1.n[B]+o2.n[B]===row.n[A]){S(A,col);break;}}}
     // Cas 2 : ce tirage est le 1er composant (associé au tirage juste après lui, la somme étant g1 tirages plus récente)
     const sA=gi-g1, otherA=gi+1;
-    if(sA>=0&&otherA<T.length){const sRow=T[sA],oRow=T[otherA];row.n.forEach((n,i)=>{if(!out[i]&&n+oRow.n[i]===sRow.n[i])S(i,col);});}
+    if(sA>=0&&otherA<T.length){const sRow=T[sA],oRow=T[otherA];for(let B=0;B<nc;B++){if(out[B])continue;for(let A=0;A<nc;A++){if(row.n[B]+oRow.n[B]===sRow.n[A]){S(B,col);break;}}}}
     // Cas 3 : ce tirage est le 2e composant (associé au tirage juste avant lui, la somme étant g1+1 tirages plus récente)
     const sB=gi-g1-1, otherB=gi-1;
-    if(sB>=0&&otherB>=0){const sRow=T[sB],oRow=T[otherB];row.n.forEach((n,i)=>{if(!out[i]&&oRow.n[i]+n===sRow.n[i])S(i,col);});}
+    if(sB>=0&&otherB>=0){const sRow=T[sB],oRow=T[otherB];for(let B=0;B<nc;B++){if(out[B])continue;for(let A=0;A<nc;A++){if(oRow.n[B]+row.n[B]===sRow.n[A]){S(B,col);break;}}}}
     // Cas 4 : ce tirage EST la somme, encadré par un tirage plus récent et un tirage plus ancien (écart g1 de chaque côté) — ex: 48 = 28+20
     const nb=gi-g1>=0?T[gi-g1]:null, ob=gi+g1<T.length?T[gi+g1]:null;
-    if(nb&&ob)row.n.forEach((n,i)=>{if(!out[i]&&nb.n[i]+ob.n[i]===n)S(i,col);});
+    if(nb&&ob)for(let A=0;A<nc;A++){if(out[A])continue;for(let B=0;B<nc;B++){if(nb.n[B]+ob.n[B]===row.n[A]){S(A,col);break;}}}
     // Cas 5 : ce tirage est le composant le PLUS RÉCENT d'un tel encadrement (somme à g1, autre composant à 2×g1, plus ancien)
     const sC=gi+g1, otherC=gi+2*g1;
-    if(sC<T.length&&otherC<T.length){const sRow=T[sC],oRow=T[otherC];row.n.forEach((n,i)=>{if(!out[i]&&n+oRow.n[i]===sRow.n[i])S(i,col);});}
+    if(sC<T.length&&otherC<T.length){const sRow=T[sC],oRow=T[otherC];for(let B=0;B<nc;B++){if(out[B])continue;for(let A=0;A<nc;A++){if(row.n[B]+oRow.n[B]===sRow.n[A]){S(B,col);break;}}}}
     // Cas 6 : ce tirage est le composant le PLUS ANCIEN d'un tel encadrement (somme à g1, autre composant à 2×g1, plus récent)
     const sD=gi-g1, otherD=gi-2*g1;
-    if(sD>=0&&otherD>=0){const sRow=T[sD],oRow=T[otherD];row.n.forEach((n,i)=>{if(!out[i]&&oRow.n[i]+n===sRow.n[i])S(i,col);});}
+    if(sD>=0&&otherD>=0){const sRow=T[sD],oRow=T[otherD];for(let B=0;B<nc;B++){if(out[B])continue;for(let A=0;A<nc;A++){if(oRow.n[B]+row.n[B]===sRow.n[A]){S(B,col);break;}}}}
   }
   if(m==='decompX'){
     const gi=IDX[row.t], g1=Math.max(1,state.decompXGap||1), col=state.decompXColor||D.bg;

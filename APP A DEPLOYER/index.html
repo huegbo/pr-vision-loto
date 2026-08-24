@@ -1173,6 +1173,134 @@ function exportTogoFiltre(){
   ];
   exportCountryFiltre(rows,columns,'Togo_filtre','Togo','export-togo-btn');
 }
+// ══════ MULTI-PAYS — fusion Bénin + Togo + Cameroun (repérer un numéro qui revient d'un pays à l'autre) ══════
+const MULTI_PAYS_ORDER=['benin','togo','cameroun'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32'};
+const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 3 pays via les labels normalisés
+const MULTI_JEU_OPTIONS=[
+  ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
+  ...TOGO_GAMES.map(g=>({key:'togo:'+g.key,label:'🇹🇬 '+TOGO_JEU_LABELS[g.key],color:TOGO_JEU_COLORS[g.key]})),
+  ...CAMEROUN_JEU_ORDER.map(k=>({key:'cameroun:'+k,label:'🇨🇲 '+CAMEROUN_JEU_LABELS[k],color:CAMEROUN_JEU_COLORS[k]})),
+];
+const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
+const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
+let MULTI_PAYS_ROWS=null;
+function parseMultiPaysAll(){
+  if(MULTI_PAYS_ROWS)return MULTI_PAYS_ROWS;
+  const rows=[];
+  const sortKeyOf=(d,y)=>{const[dd,mm]=d.split('/').map(Number);return(+y)*10000+mm*100+dd;};
+  parseBeninAll().forEach(r=>{
+    rows.push({pays:'benin',jourLabel:BENIN_JOUR_LABELS[r.jour],
+      jeuKey:'benin:'+r.jeu,jeuLabel:MULTI_JEU_MAP['benin:'+r.jeu]?MULTI_JEU_MAP['benin:'+r.jeu].label:r.jeu,jeuColor:BENIN_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.m});
+  });
+  parseTogoAll().forEach(r=>{
+    rows.push({pays:'togo',jourLabel:r.jour,
+      jeuKey:'togo:'+r.jeu,jeuLabel:MULTI_JEU_MAP['togo:'+r.jeu]?MULTI_JEU_MAP['togo:'+r.jeu].label:r.jeu,jeuColor:TOGO_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.bonus});
+  });
+  parseCamerounAll().forEach(r=>{
+    rows.push({pays:'cameroun',jourLabel:GHANA_JOUR_LABELS[r.jour],
+      jeuKey:'cameroun:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cameroun:'+r.jeu]?MULTI_JEU_MAP['cameroun:'+r.jeu].label:r.jeu,jeuColor:CAMEROUN_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
+  });
+  rows.sort((a,b)=>b.sortKey-a.sortKey);
+  MULTI_PAYS_ROWS=rows;
+  return rows;
+}
+function toggleMultiPays(code){
+  const i=state.multiPays.indexOf(code);
+  if(i>=0)state.multiPays.splice(i,1);else state.multiPays.push(code);
+  render();
+}
+function toggleMultiJour(code){
+  const i=state.multiJours.indexOf(code);
+  if(i>=0)state.multiJours.splice(i,1);else state.multiJours.push(code);
+  render();
+}
+function toggleMultiJeu(code){
+  const i=state.multiJeux.indexOf(code);
+  if(i>=0)state.multiJeux.splice(i,1);else state.multiJeux.push(code);
+  render();
+}
+function multiFiltreHTML(){
+  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  const multiMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  let html=`<div id="app-content">
+  <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🌍 MULTI-PAYS — Bénin + Togo + Cameroun</div>
+      <button id="export-multi-btn" onclick="exportMultiFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.multiFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Pays</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${MULTI_PAYS_ORDER.map(code=>{const sel=state.multiPays.includes(code);const c=MULTI_PAYS_COLORS[code];return `<button onclick="toggleMultiPays('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?'#fff':'#777'}">${MULTI_PAYS_LABELS[code]}</button>`;}).join('')}
+        <button onclick="state.multiPays=[...MULTI_PAYS_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.multiPays=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${MULTI_JOUR_ORDER.map(code=>{const sel=state.multiJours.includes(code);return `<button onclick="toggleMultiJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #1F2D3D':'1px solid #ddd'};background:${sel?'#1F2D3D':'#f5f5f5'};color:${sel?'#fff':'#777'}">${code}</button>`;}).join('')}
+        <button onclick="state.multiJours=[...MULTI_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.multiJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.multiJeux.length}/${MULTI_JEU_ORDER.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:150px;overflow-y:auto">
+        ${MULTI_JEU_OPTIONS.map(o=>{const sel=state.multiJeux.includes(o.key);const c=o.color;const light=c&&parseInt(c,16)>0x888888;return `<button onclick="toggleMultiJeu('${o.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${o.label}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.multiJeux=[...MULTI_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.multiJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 3 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Pays','Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT',...Array.from({length:multiMaxBonus},(_,i)=>'M'+(i+1)),...(multiMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#1F2D3D;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const pc=MULTI_PAYS_COLORS[r.pays];
+        const jc=r.jeuColor;const light=jc&&parseInt(jc,16)>0x888888;
+        const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
+        return `<tr>
+          <td style="background:#${pc};color:#fff;font-weight:700;font-size:9px;padding:4px">${MULTI_PAYS_LABELS[r.pays]}</td>
+          <td style="background:#EEE;font-weight:600;font-size:9.5px;padding:4px">${r.jourLabel}</td>
+          <td style="background:${jc?'#'+jc:bg};color:${jc?(light?'#000':'#fff'):'#333'};font-weight:600;font-size:8.5px;padding:4px">${r.jeuLabel}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
+          ${Array.from({length:multiMaxBonus},(_,i)=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus&&r.bonus[i]!=null?r.bonus[i]:'·'}</td>`).join('')}
+          ${multiMaxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+function exportMultiFiltre(){
+  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const columns=[
+    {header:'Pays',get:r=>MULTI_PAYS_LABELS[r.pays],bg:r=>'#'+MULTI_PAYS_COLORS[r.pays],fg:'#FFFFFF'},
+    {header:'Jour',get:r=>r.jourLabel,bg:'#EEEEEE'},
+    {header:'Jeu',get:r=>r.jeuLabel,bg:r=>r.jeuColor?'#'+r.jeuColor:null,fg:r=>r.jeuColor&&parseInt(r.jeuColor,16)>0x888888?'#000000':'#FFFFFF'},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:'',fg:r=>r.bonus&&r.bonus[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
+  ];
+  exportCountryFiltre(rows,columns,'Multi_pays_filtre','MultiPays','export-multi-btn');
+}
 // ══════ PRONOSTIC — choisis tes numéros et partage-les (Togo + Bénin) ══════
 const PRONO_FORMATS=[
   {key:'numeros',label:'Numéros'},
@@ -2214,6 +2342,7 @@ let state={
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
+  multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
@@ -6445,6 +6574,7 @@ function goNav(id){
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
   else if(id==='togo'){state.togoFiltreOpen=!state.togoFiltreOpen;state.showSearchHub=false;}
   else if(id==='cameroun'){state.camerounFiltreOpen=!state.camerounFiltreOpen;state.showSearchHub=false;}
+  else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else{state.tab=id;state.showSearchHub=false;}
   render();
@@ -6462,11 +6592,12 @@ function bottomNavHTML(){
     ['ghana','🇬🇭','Ghana'],
     ['togo','🇹🇬','Togo'],
     ['cameroun','🇨🇲','Cameroun'],
+    ['multi','🌍','Multi-Pays'],
     ['pronostic','🍀','Pronostic'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))));
       return`<div onclick="goNav('${id}')" style="flex:1;text-align:center;padding:5px 2px;cursor:pointer;font-size:8.5px;font-weight:600;letter-spacing:.4px;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:18px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -9767,6 +9898,11 @@ function __renderBody(){
   }
   if(state.camerounFiltreOpen){
     document.getElementById('app').innerHTML=camerounFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.multiFiltreOpen){
+    document.getElementById('app').innerHTML=multiFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

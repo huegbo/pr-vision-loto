@@ -1522,6 +1522,143 @@ function multiMirrorsHTML(){
       "Aucun miroir croisé entre jeux différents sur cette période.",
       'detectMultiMirrorsWeek','Miroirs_semaine','export-mirrors-week-btn');
 }
+// ══════ Généralisation à TOUS les éléments de classification (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir) ══════
+// Même principe que les miroirs croisés (MIR[]), mais applicable à n'importe quel élément de
+// classification déjà présent dans l'app (CL_DEF/getCL) : un numéro sort dans un jeu, son
+// dérivé (par cette classification) sort dans un AUTRE jeu, sur la même période.
+function derivFor(num,typeKey){
+  if(typeKey==='miroir')return MIR[num];
+  const c=getCL(num);
+  const v=c[typeKey];
+  return (v!=null&&v>=1&&v<=90)?v:undefined;
+}
+function buildClassifCrossFromRows(rows,typeKey){
+  const byNum={};
+  rows.forEach(r=>{
+    r.n.forEach(num=>{
+      if(!byNum[num])byNum[num]=[];
+      byNum[num].push({pays:r.pays,jeuLabel:r.jeuLabel,jeuKey:r.jeuKey,d:r.d,y:r.y,sortKey:r.sortKey});
+    });
+  });
+  const seenPairs=new Set();
+  const results=[];
+  Object.keys(byNum).forEach(numStr=>{
+    const num=+numStr;
+    const der=derivFor(num,typeKey);
+    if(der==null||!byNum[der])return;
+    const pairKey=[num,der].sort((a,b)=>a-b).join('-');
+    if(seenPairs.has(pairKey))return;
+    seenPairs.add(pairKey);
+    const occNum=byNum[num],occDer=byNum[der];
+    const jeuxNum=new Set(occNum.map(o=>o.jeuKey)),jeuxDer=new Set(occDer.map(o=>o.jeuKey));
+    if(jeuxNum.size===1&&jeuxDer.size===1&&[...jeuxNum][0]===[...jeuxDer][0])return;
+    results.push({num,der,occNum,occDer,totalOcc:occNum.length+occDer.length});
+  });
+  results.sort((a,b)=>b.totalOcc-a.totalOcc||a.num-b.num);
+  return results;
+}
+let MULTI_CLASSIF_DAY_CACHE={};
+function detectMultiClassifDay(typeKey){
+  if(MULTI_CLASSIF_DAY_CACHE[typeKey])return MULTI_CLASSIF_DAY_CACHE[typeKey];
+  const res=buildClassifCrossFromRows(aiTodayRowsAll(),typeKey);
+  MULTI_CLASSIF_DAY_CACHE[typeKey]=res;
+  return res;
+}
+let MULTI_CLASSIF_WEEK_CACHE={};
+function detectMultiClassifWeek(typeKey){
+  if(MULTI_CLASSIF_WEEK_CACHE[typeKey])return MULTI_CLASSIF_WEEK_CACHE[typeKey];
+  const rows=parseMultiPaysAll();
+  if(!rows.length){MULTI_CLASSIF_WEEK_CACHE[typeKey]=[];return[];}
+  const maxKey=rows[0].sortKey;
+  const yy=Math.floor(maxKey/10000),mm=Math.floor((maxKey%10000)/100),dd=maxKey%100;
+  const cutoffDate=new Date(yy,mm-1,dd);
+  cutoffDate.setDate(cutoffDate.getDate()-6);
+  const cutoffKey=cutoffDate.getFullYear()*10000+(cutoffDate.getMonth()+1)*100+cutoffDate.getDate();
+  const recent=rows.filter(r=>r.sortKey>=cutoffKey);
+  const res=buildClassifCrossFromRows(recent,typeKey);
+  MULTI_CLASSIF_WEEK_CACHE[typeKey]=res;
+  return res;
+}
+function setMultiClassifType(v){ state.multiClassifType=v; render(); }
+async function exportMultiClassif(results,filenamePrefix,btnId,typeLabel){
+  if(!results||!results.length){alert('Aucune paire à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=btnId?document.getElementById(btnId):null;
+  const btnLabel=btn?btn.textContent:null;
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet(typeLabel.slice(0,28));
+    ws.addRow(['Numéro',typeLabel,'Détail Numéro','Détail '+typeLabel]).font={bold:true};
+    results.forEach(r=>{
+      const detailNum=r.occNum.map(o=>`${MULTI_PAYS_LABELS[o.pays]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' | ');
+      const detailDer=r.occDer.map(o=>`${MULTI_PAYS_LABELS[o.pays]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' | ');
+      const row=ws.addRow([r.num,r.der,detailNum,detailDer]);
+      row.getCell(1).font={bold:true,color:{argb:'FFFFFFFF'}};row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1565C0'}};
+      row.getCell(2).font={bold:true,color:{argb:'FFFFFFFF'}};row.getCell(2).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1565C0'}};
+    });
+    ws.columns.forEach((c,i)=>{c.width=i<2?12:60;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent=btnLabel;
+  }
+}
+function multiClassifCardHTML(results,cl,period,filenamePrefix,btnId){
+  const title=`${cl.label} croisé — ${period==='day'?'journée':'semaine (7 derniers jours)'}`;
+  if(!results.length){
+    return `<div class="card" style="margin-bottom:8px;background:#F5F5F5">
+      <div style="font-size:11px;font-weight:700;margin-bottom:2px">${title}</div>
+      <div style="font-size:10px;color:#888">Aucun élément « ${cl.label} » croisé entre jeux différents sur cette période.</div>
+    </div>`;
+  }
+  const allNums=[];
+  results.forEach(r=>{allNums.push(r.num,r.der);});
+  const callExpr=`detectMultiClassif${period==='day'?'Day':'Week'}(${JSON.stringify(cl.key)})`;
+  return `<div class="card" style="margin-bottom:8px;background:#F5F5F5;border:1.5px solid ${cl.bg}">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-size:11px;font-weight:700;color:${cl.bg}">${title} — ${results.length} paire${results.length>1?'s':''} détectée${results.length>1?'s':''} entre jeux</div>
+      <div style="display:flex;gap:4px;margin-left:auto;flex-wrap:wrap">
+        ${addToListButtonsHTML(allNums)}
+        <button id="${btnId}" onclick='exportMultiClassif(${callExpr},"${filenamePrefix}","${btnId}",${JSON.stringify(cl.label)})' style="padding:2px 8px;font-size:9px;border-radius:8px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600;white-space:nowrap">⬇ Excel</button>
+      </div>
+    </div>
+    <div style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
+      ${results.map(r=>`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:5px 8px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-weight:700;font-size:13px;color:${cl.bg}">${r.num} → ${r.der}</span>
+        </div>
+        <div style="font-size:9px;color:#666;line-height:1.5">
+          <b>${r.num}</b> : ${r.occNum.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}<br>
+          <b>${r.der}</b> : ${r.occDer.map(o=>`${MULTI_PAYS_LABELS[o.pays].split(' ')[0]} ${o.jeuLabel} (${o.d}/${o.y})`).join(' · ')}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+function multiClassifCrossHTML(){
+  const type=state.multiClassifType||'counter';
+  const cl=CL_DEF.find(c=>c.key===type)||CL_DEF[0];
+  const selectHTML=`<select onchange="setMultiClassifType(this.value)" style="font-size:9px;padding:2px 4px;border-radius:6px;border:1px solid #ccc">
+    ${CL_DEF.map(c=>`<option value="${c.key}" ${c.key===type?'selected':''}>${c.label}</option>`).join('')}
+  </select>`;
+  return `<div class="card" style="margin-bottom:8px;background:#FAFAFA;border:1px solid #ddd">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+      <div style="font-size:11px;font-weight:700">🧬 Éléments de classification croisés entre jeux</div>
+      ${selectHTML}
+    </div>
+    <div style="font-size:8.5px;color:#666;margin-bottom:6px">Choisis une classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv ou Miroir) pour voir quand l'élément dérivé d'un numéro sort dans un AUTRE jeu que celui d'origine.</div>
+    ${multiClassifCardHTML(detectMultiClassifDay(type),cl,'day','Classif_'+cl.key+'_jour','export-classif-day-btn')}
+    ${multiClassifCardHTML(detectMultiClassifWeek(type),cl,'week','Classif_'+cl.key+'_semaine','export-classif-week-btn')}
+  </div>`;
+}
 // ══════ Analyse IA — variante Multi-Pays (mêmes appels /api/analyse-ia que la version par jeu, état séparé) ══════
 function aiMultiLast10(){
   const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
@@ -1853,6 +1990,7 @@ function multiFiltreHTML(){
     ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
     ${multiMirrorsHTML()}
+    ${multiClassifCrossHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
@@ -2890,6 +3028,7 @@ let state={
   multiAiWeekdayByDay:{},
   multiAiCustomDate:'', multiAiCustomLoading:false, multiAiCustomResult:'', multiAiCustomError:'',
   multiAiCustomByPays:{},
+  multiClassifType:'counter', // classification choisie pour la détection croisée entre jeux (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir)
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],

@@ -3019,7 +3019,21 @@ function calcComp(){
 // Filtre les pastilles de « Comparer jeux » sans re-rendre (le champ garde le focus).
 // Devenu nécessaire au-delà de ~100 jeux : la liste complète n'était plus utilisable.
 // Raccourci depuis l'onglet Comparaison (qui, lui, compare des plages d'un même jeu)
+// S'assure que le jeu actuellement affiché est présélectionné en entrant dans "Comparer
+// plusieurs lotos", plutôt que de toujours retomber sur le couple par défaut benz/diamant.
+// Si l'utilisateur a déjà personnalisé sa sélection cette session, on la respecte et on
+// ajoute juste le jeu courant s'il n'y est pas déjà.
+function ensureCurrentGameInCompare(){
+  if(!state.game)return;
+  const isUntouchedDefault=state.selGames.length===2&&state.selGames.includes('benz')&&state.selGames.includes('diamant');
+  if(isUntouchedDefault&&state.game!=='benz'&&state.game!=='diamant'){
+    state.selGames=[state.game];
+  } else if(!state.selGames.includes(state.game)){
+    state.selGames=[state.game,...state.selGames];
+  }
+}
 function goCompareGames(){
+  ensureCurrentGameInCompare();
   state.tab=0; state.navMode='games'; state.showSearchHub=false;
   if(!state.mgYear)state.mgYear=YEARS[0];
   render();
@@ -9759,7 +9773,7 @@ function __renderBody(){
     html+=`<div class="card">
       <div style="display:flex;gap:4px;margin-bottom:6px">
         <button onclick="state.navMode='years';render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.navMode==='years'?'#1F2D3D':'#ddd'};background:${state.navMode==='years'?'#1F2D3D':'#f5f5f5'};color:${state.navMode==='years'?'#fff':'#555'};font-weight:500;font-size:11px;cursor:pointer">📅 Par années</button>
-        <button onclick="state.navMode='games';render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.navMode==='games'?'#1F2D3D':'#2E7D32'};background:${state.navMode==='games'?'#1F2D3D':'#E8F5E9'};color:${state.navMode==='games'?'#fff':'#1B5E20'};font-weight:700;font-size:11px;cursor:pointer" title="Afficher plusieurs lotos côte à côte, même d'un pays différent">🎮 Comparer plusieurs lotos</button>
+        <button onclick="ensureCurrentGameInCompare();state.navMode='games';render()" style="flex:1;padding:4px;border-radius:6px;border:2px solid ${state.navMode==='games'?'#1F2D3D':'#2E7D32'};background:${state.navMode==='games'?'#1F2D3D':'#E8F5E9'};color:${state.navMode==='games'?'#fff':'#1B5E20'};font-weight:700;font-size:11px;cursor:pointer" title="Afficher plusieurs lotos côte à côte, même d'un pays différent">🎮 Comparer plusieurs lotos</button>
       </div>
       ${state.navMode==='years'?`
       <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;align-items:center">

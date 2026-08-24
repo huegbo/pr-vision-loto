@@ -1451,6 +1451,50 @@ function multiAiTodayHTML(){
     <div style="font-size:8.5px;color:#9A3412">Toujours basé sur TOUS les tirages du jour le plus récent des données, peu importe les filtres Pays/Jour/Jeu ci-dessus.</div>
   </div>`;
 }
+// ══════ Analyse IA — historique par jour de la semaine (dernier Lundi, dernier Mardi, ...), tous pays fusionnés ══════
+function aiLastWeekdayRows(jourLabel){
+  const rows=parseMultiPaysAll().filter(r=>r.jourLabel===jourLabel); // déjà triées du plus récent au plus ancien
+  if(!rows.length)return[];
+  const maxKey=rows[0].sortKey;
+  return rows.filter(r=>r.sortKey===maxKey);
+}
+async function runAiWeekdayAnalysis(jourLabel){
+  const rows=aiLastWeekdayRows(jourLabel);
+  if(!state.multiAiWeekdayByDay[jourLabel])state.multiAiWeekdayByDay[jourLabel]={loading:false,result:'',error:''};
+  const st=state.multiAiWeekdayByDay[jourLabel];
+  if(!rows.length){alert('Aucun tirage trouvé pour ce jour de la semaine');return;}
+  st.loading=true;st.error='';st.result='';render();
+  try{
+    const d=rows[0].d+'/'+rows[0].y;
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`Multi-Pays — dernier ${jourLabel} (${d}, tous pays fusionnés)`,tirages:aiRowsToPayload(rows)})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){st.error=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else st.result=data.analyse||'Réponse vide.';
+  }catch(e){
+    st.error='Erreur réseau : '+(e&&e.message||e);
+  }
+  st.loading=false;render();
+}
+function multiAiWeekdayHTML(){
+  return`<div class="card" style="margin-bottom:8px;background:#F0FDF4;border:1.5px solid #15803D">
+    <div style="font-size:11px;font-weight:700;color:#14532D;margin-bottom:2px">📅 Analyse IA par jour de la semaine (historique)</div>
+    <div style="font-size:8.5px;color:#166534;margin-bottom:8px">Pour chaque jour, analyse TOUS les tirages (tous pays fusionnés) du dernier Lundi, dernier Mardi… — même si ce n'était pas aujourd'hui.</div>
+    ${MULTI_JOUR_ORDER.map(jour=>{
+      const rows=aiLastWeekdayRows(jour);
+      if(!rows.length)return'';
+      const st=state.multiAiWeekdayByDay[jour]||{loading:false,result:'',error:''};
+      const dateLabel=rows[0].d+'/'+rows[0].y;
+      return`<div style="background:#fff;border:1px solid #86EFAC;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:10.5px;font-weight:700;color:#14532D">${jour} (${dateLabel}) — ${rows.length} tirage${rows.length>1?'s':''}</span>
+          <button onclick="runAiWeekdayAnalysis('${jour}')" ${st.loading?'disabled':''} style="padding:4px 12px;background:${st.loading?'#94A3B8':'#15803D'};color:#fff;border:none;border-radius:6px;cursor:${st.loading?'default':'pointer'};font-weight:600;font-size:11px">${st.loading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+        </div>
+        ${st.error?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${st.error}</div>`:''}
+        ${st.result?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#14532D;background:#F0FDF4;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${st.result}</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 function multiAiAnalysisHTML(){
   return`<div class="card" style="margin-bottom:8px;background:#F0F9FF;border:1.5px solid #0284C7">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1530,6 +1574,7 @@ function multiFiltreHTML(){
       <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
     </div>
     ${multiAiTodayHTML()}
+    ${multiAiWeekdayHTML()}
     ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
@@ -2566,6 +2611,7 @@ let state={
   multiAiProposeLoading:false, multiAiProposeError:'', multiAiProposeActive:null, multiAiProposals:[],
   multiAiTodayLoading:false, multiAiTodayResult:'', multiAiTodayError:'',
   multiAiTodayByPays:{},
+  multiAiWeekdayByDay:{},
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],

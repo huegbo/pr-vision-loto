@@ -864,10 +864,15 @@ function parseTogoAll(){
       const s=p[8]!==undefined&&p[8]!==''?+p[8]:n.reduce((a,b)=>a+b,0);
       const bonusRaw=p.slice(9).filter(v=>v!==undefined&&v!=='');
       const bonus=bonusRaw.length?bonusRaw.map(v=>+v):null;
-      TOGO_ALL_ROWS.push({jour:g.jour,jeu:g.key,t,d,y,n,s,bonus});
+      const heureNum=parseInt(g.heure)||0; // heure de tirage (9h/13h/16h/18h...) — pour trier chronologiquement au sein d'une même date, indépendamment de la numérotation propre à chaque jeu
+      TOGO_ALL_ROWS.push({jour:g.jour,jeu:g.key,t,d,y,n,s,bonus,heureNum});
     });
   });
-  TOGO_ALL_ROWS.sort((a,b)=>(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''))||b.t-a.t);
+  // Tri : date décroissante (le plus récent en premier), puis — au sein d'une même date — heure de
+  // tirage décroissante (18h avant 13h avant 9h), car chaque jeu a sa propre numérotation `t`
+  // indépendante des autres jeux du même jour (ex: DIAMANT n°1331 vs GOLD n°164) : trier sur `t`
+  // ne respecte donc PAS l'ordre chronologique réel des tirages dans la journée.
+  TOGO_ALL_ROWS.sort((a,b)=>(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''))||b.heureNum-a.heureNum||b.t-a.t);
   return TOGO_ALL_ROWS;
 }
 function toggleTogoJour(code){

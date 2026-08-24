@@ -1495,6 +1495,85 @@ function multiAiWeekdayHTML(){
     }).join('')}
   </div>`;
 }
+// ══════ Analyse IA — date précise à paramétrer (n'importe quel jour de l'historique), tous pays fusionnés + par pays ══════
+function aiRowsForDateStr(isoDate){ // isoDate = "AAAA-MM-JJ" (valeur d'un <input type="date">)
+  if(!isoDate)return[];
+  const[y,m,d]=isoDate.split('-');
+  const dd=d+'/'+m; // même format que r.d ("JJ/MM", zéro-paddé) dans parseMultiPaysAll()
+  return parseMultiPaysAll().filter(r=>r.d===dd&&r.y===y);
+}
+function setMultiAiCustomDate(v){
+  state.multiAiCustomDate=v;
+  state.multiAiCustomResult='';state.multiAiCustomError='';state.multiAiCustomByPays={};
+  render();
+}
+async function runAiCustomDateAnalysis(){
+  if(!state.multiAiCustomDate){alert("Choisis d'abord une date");return;}
+  const rows=aiRowsForDateStr(state.multiAiCustomDate);
+  if(!rows.length){alert('Aucun tirage trouvé pour cette date dans les données');return;}
+  state.multiAiCustomLoading=true;state.multiAiCustomError='';state.multiAiCustomResult='';render();
+  try{
+    const d=rows[0].d+'/'+rows[0].y;
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`Multi-Pays — ${d} (tous pays fusionnés)`,tirages:aiRowsToPayload(rows)})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.multiAiCustomError=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.multiAiCustomResult=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.multiAiCustomError='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.multiAiCustomLoading=false;render();
+}
+async function runAiCustomPaysAnalysis(pays){
+  const rows=aiRowsForDateStr(state.multiAiCustomDate).filter(r=>r.pays===pays);
+  if(!state.multiAiCustomByPays[pays])state.multiAiCustomByPays[pays]={loading:false,result:'',error:''};
+  const st=state.multiAiCustomByPays[pays];
+  if(!rows.length){alert('Aucun tirage pour ce pays à cette date');return;}
+  st.loading=true;st.error='';st.result='';render();
+  try{
+    const d=rows[0].d+'/'+rows[0].y;
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`${MULTI_PAYS_LABELS[pays]} — ${d}`,tirages:aiRowsToPayload(rows)})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){st.error=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else st.result=data.analyse||'Réponse vide.';
+  }catch(e){
+    st.error='Erreur réseau : '+(e&&e.message||e);
+  }
+  st.loading=false;render();
+}
+function multiAiCustomDateHTML(){
+  const rows=state.multiAiCustomDate?aiRowsForDateStr(state.multiAiCustomDate):[];
+  const paysPresent=state.multiAiCustomDate?MULTI_PAYS_ORDER.filter(p=>rows.some(r=>r.pays===p)):[];
+  return`<div class="card" style="margin-bottom:8px;background:#FDF4FF;border:1.5px solid #8E24AA">
+    <div style="font-size:11px;font-weight:700;color:#4A148C;margin-bottom:2px">📆 Analyse IA d'une date précise</div>
+    <div style="font-size:8.5px;color:#6A1B9A;margin-bottom:8px">Choisis n'importe quelle date de l'historique pour analyser tous les tirages (tous pays fusionnés) de ce jour-là.</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <input type="date" value="${state.multiAiCustomDate||''}" onchange="setMultiAiCustomDate(this.value)" style="padding:5px 8px;border:1px solid #CE93D8;border-radius:6px;font-size:11px" />
+      ${state.multiAiCustomDate?`<span style="font-size:10px;color:#6A1B9A">${rows.length} tirage${rows.length>1?'s':''} trouvé${rows.length>1?'s':''}</span>`:''}
+    </div>
+    ${state.multiAiCustomDate&&rows.length?`
+    <div style="background:#fff;border:1px solid #E1BEE7;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:10.5px;font-weight:700;color:#4A148C">🌍 Tous pays fusionnés</span>
+        <button onclick="runAiCustomDateAnalysis()" ${state.multiAiCustomLoading?'disabled':''} style="padding:4px 12px;background:${state.multiAiCustomLoading?'#94A3B8':'#8E24AA'};color:#fff;border:none;border-radius:6px;cursor:${state.multiAiCustomLoading?'default':'pointer'};font-weight:600;font-size:11px">${state.multiAiCustomLoading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+      </div>
+      ${state.multiAiCustomError?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${state.multiAiCustomError}</div>`:''}
+      ${state.multiAiCustomResult?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#4A148C;background:#FDF4FF;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${state.multiAiCustomResult}</div>`:''}
+    </div>
+    ${paysPresent.map(pays=>{
+      const st=state.multiAiCustomByPays[pays]||{loading:false,result:'',error:''};
+      const n=rows.filter(r=>r.pays===pays).length;
+      return`<div style="background:#fff;border:1px solid #E1BEE7;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:10.5px;font-weight:700;color:#4A148C">${MULTI_PAYS_LABELS[pays]} (${n} tirage${n>1?'s':''})</span>
+          <button onclick="runAiCustomPaysAnalysis('${pays}')" ${st.loading?'disabled':''} style="padding:4px 12px;background:${st.loading?'#94A3B8':'#'+MULTI_PAYS_COLORS[pays]};color:#fff;border:none;border-radius:6px;cursor:${st.loading?'default':'pointer'};font-weight:600;font-size:11px">${st.loading?'⏳ Analyse en cours…':'✨ Lancer l’analyse'}</button>
+        </div>
+        ${st.error?`<div style="margin-top:6px;font-size:10px;color:#C62828;background:#FFEBEE;border-radius:5px;padding:5px 8px">⚠️ ${st.error}</div>`:''}
+        ${st.result?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#4A148C;background:#FDF4FF;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${st.result}</div>`:''}
+      </div>`;
+    }).join('')}
+    `:(state.multiAiCustomDate?`<div style="font-size:10px;color:#B91C1C">Aucun tirage trouvé pour cette date dans les données.</div>`:'')}
+  </div>`;
+}
 function multiAiAnalysisHTML(){
   return`<div class="card" style="margin-bottom:8px;background:#F0F9FF;border:1.5px solid #0284C7">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1575,6 +1654,7 @@ function multiFiltreHTML(){
     </div>
     ${multiAiTodayHTML()}
     ${multiAiWeekdayHTML()}
+    ${multiAiCustomDateHTML()}
     ${multiAiAnalysisHTML()}
     ${multiRepeatsHTML()}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
@@ -2612,6 +2692,8 @@ let state={
   multiAiTodayLoading:false, multiAiTodayResult:'', multiAiTodayError:'',
   multiAiTodayByPays:{},
   multiAiWeekdayByDay:{},
+  multiAiCustomDate:'', multiAiCustomLoading:false, multiAiCustomResult:'', multiAiCustomError:'',
+  multiAiCustomByPays:{},
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],

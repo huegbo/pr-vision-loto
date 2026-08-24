@@ -604,7 +604,8 @@ function beninFiltreHTML(){
   <div class="header" style="background:#111F33;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇧🇯 BENIN — Filtre Jour / Jeu</div>
-      <button onclick="state.beninFiltreOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+      <button id="export-benin-btn" onclick="exportBeninFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.beninFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
@@ -697,7 +698,8 @@ function ghanaFiltreHTML(){
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇬🇭 GHANA — Filtre Jour / Jeu</div>
-      <button onclick="state.ghanaFiltreOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+      <button id="export-ghana-btn" onclick="exportGhanaFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.ghanaFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
@@ -722,7 +724,7 @@ function ghanaFiltreHTML(){
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','M1','M2','M3','M4','M5','TOT.M'].map(h=>`<th style="position:sticky;top:0;background:#0B2A1E;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
-      ${rows.slice(0,400).map((r,ri)=>{
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
         const jc=GHANA_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
         const tot=r.n.reduce((a,b)=>a+b,0);
@@ -777,7 +779,8 @@ function camerounFiltreHTML(){
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇨🇲 CAMEROUN — Filtre Jour / Jeu</div>
-      <button onclick="state.camerounFiltreOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+      <button id="export-cameroun-btn" onclick="exportCamerounFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.camerounFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
@@ -802,7 +805,7 @@ function camerounFiltreHTML(){
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','X1','X2','X3','X4','X5'].map(h=>`<th style="position:sticky;top:0;background:#0B2A1E;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
-      ${rows.slice(0,400).map((r,ri)=>{
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
         const jc=CAMEROUN_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
         const tot=r.n.reduce((a,b)=>a+b,0);
@@ -824,6 +827,12 @@ function camerounFiltreHTML(){
 }
 // ══════ TOGO (LONATO) — filtre Jour / Jeu (vue dédiée, unifie les 12 jeux hebdo) ══════
 const TOGO_GAMES=[
+  {key:'matinal_lundi',name:'MATINAL',jour:'Lundi',heure:'9h',raw:RAW_MATINAL_LUNDI,color:'92400E'},
+  {key:'matinal_mardi',name:'MATINAL',jour:'Mardi',heure:'9h',raw:RAW_MATINAL_MARDI,color:'92400E'},
+  {key:'matinal_mercredi',name:'MATINAL',jour:'Mercredi',heure:'9h',raw:RAW_MATINAL_MERCREDI,color:'92400E'},
+  {key:'matinal_jeudi',name:'MATINAL',jour:'Jeudi',heure:'9h',raw:RAW_MATINAL_JEUDI,color:'92400E'},
+  {key:'matinal_vendredi',name:'MATINAL',jour:'Vendredi',heure:'9h',raw:RAW_MATINAL_VENDREDI,color:'92400E'},
+  {key:'matinal_samedi',name:'MATINAL',jour:'Samedi',heure:'9h',raw:RAW_MATINAL_SAMEDI,color:'92400E'},
   {key:'diamant',name:'DIAMANT',jour:'Lundi',heure:'13h',raw:RAW_DIAMANT,color:'1D4E89'},
   {key:'gold',name:'GOLD',jour:'Lundi',heure:'18h',raw:RAW_GOLD,color:'2C6FB0'},
   {key:'cash',name:'CASH',jour:'Mardi',heure:'13h',raw:RAW_CASH,color:'6D28D9'},
@@ -995,11 +1004,13 @@ function multiBadgeHTML(row,fS){
 }
 function togoFiltreHTML(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  const togoMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
   <div class="header" style="background:#4A2E1A;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇹🇬 TOGO (LONATO) — Filtre Jour / Jeu</div>
-      <button onclick="state.togoFiltreOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+      <button id="export-togo-btn" onclick="exportTogoFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.togoFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
@@ -1022,11 +1033,12 @@ function togoFiltreHTML(){
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
-        ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT','Bonus'].map(h=>`<th style="position:sticky;top:0;background:#4A2E1A;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+        ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT',...Array.from({length:togoMaxBonus},(_,i)=>'M'+(i+1)),...(togoMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#4A2E1A;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
-      ${rows.slice(0,400).map((r,ri)=>{
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
         const jc=TOGO_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
+        const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
         return `<tr>
           <td style="background:#F0E6DA;font-weight:600;font-size:9.5px;padding:4px">${r.jour}</td>
           <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${TOGO_JEU_LABELS[r.jeu]}</td>
@@ -1034,7 +1046,8 @@ function togoFiltreHTML(){
           <td style="background:${bg};font-size:9px;padding:4px;color:#888">${r.t}</td>
           ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
           <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
-          <td style="background:${r.bonus?'#EDE7FF':bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus?r.bonus.join(' - '):'·'}</td>
+          ${Array.from({length:togoMaxBonus},(_,i)=>`<td style="background:${r.bonus&&r.bonus[i]!=null?'#EDE7FF':bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus&&r.bonus[i]!=null?r.bonus[i]:'·'}</td>`).join('')}
+          ${togoMaxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
         </tr>`;
       }).join('')}
       </tbody></table>
@@ -1042,6 +1055,105 @@ function togoFiltreHTML(){
   </div>
   </div>`;
   return html;
+}
+// ══════ Export Excel générique pour les 4 onglets filtre Jour/Jeu (Bénin/Ghana/Togo/Cameroun) ══════
+// columns: [{header, get:(r)=>val, total?:bool}] — exporte TOUS les tirages filtrés (pas juste les 400 affichés)
+async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btnId){
+  if(!rows||!rows.length){alert('Aucun tirage à exporter (vérifie tes filtres)');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=btnId?document.getElementById(btnId):null;
+  const btnLabel=btn?btn.textContent:null;
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet(sheetName);
+    ws.addRow(columns.map(c=>c.header)).font={bold:true};
+    rows.slice().reverse().forEach(r=>{ // du plus ancien au plus récent, cohérent avec l'affichage écran
+      const vals=columns.map(c=>{const v=c.get(r);return v==null?'':v;});
+      const row=ws.addRow(vals);
+      columns.forEach((c,ci)=>{
+        if(c.total){
+          const v=c.get(r);
+          if(v!=null&&v!==''){
+            const tc=tC(v);
+            const cell=row.getCell(ci+1);
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+            cell.font={color:{argb:hexToARGB(tc[1])},bold:true};
+          }
+        }
+      });
+    });
+    ws.columns.forEach(c=>{c.width=10;});
+    ws.addRow([]);
+    ws.addRow(['Tirages exportés',rows.length,'Exporté le',new Date().toLocaleDateString('fr-FR')]);
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent=btnLabel;
+  }
+}
+function exportBeninFiltre(){
+  const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+  const columns=[
+    {header:'Jour',get:r=>BENIN_JOUR_LABELS[r.jour]},
+    {header:'Jeu',get:r=>BENIN_JEU_LABELS[r.jeu]},
+    {header:"Nom d'origine",get:r=>beninNomOrigine(r)},
+    {header:'Heure',get:r=>BENIN_HEURE[r.jeu]},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'A1',get:r=>r.n[0]},{header:'A2',get:r=>r.n[1]},{header:'A3',get:r=>r.n[2]},{header:'A4',get:r=>r.n[3]},{header:'A5',get:r=>r.n[4]},
+    {header:'TOT A',get:r=>r.s,total:true},
+    {header:'B1',get:r=>r.m?r.m[0]:''},{header:'B2',get:r=>r.m?r.m[1]:''},{header:'B3',get:r=>r.m?r.m[2]:''},{header:'B4',get:r=>r.m?r.m[3]:''},{header:'B5',get:r=>r.m?r.m[4]:''},
+    {header:'TOT B',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):''},
+  ];
+  exportCountryFiltre(rows,columns,'Benin_filtre','Bénin','export-benin-btn');
+}
+function exportGhanaFiltre(){
+  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  const columns=[
+    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour]},
+    {header:'Jeu',get:r=>GHANA_JEU_LABELS[r.jeu]},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.n.reduce((a,b)=>a+b,0),total:true},
+    {header:'M1',get:r=>r.m?r.m[0]:''},{header:'M2',get:r=>r.m?r.m[1]:''},{header:'M3',get:r=>r.m?r.m[2]:''},{header:'M4',get:r=>r.m?r.m[3]:''},{header:'M5',get:r=>r.m?r.m[4]:''},
+    {header:'TOT.M',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):''},
+  ];
+  exportCountryFiltre(rows,columns,'Ghana_filtre','Ghana','export-ghana-btn');
+}
+function exportCamerounFiltre(){
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  const columns=[
+    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour]},
+    {header:'Jeu',get:r=>CAMEROUN_JEU_LABELS[r.jeu]},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.n.reduce((a,b)=>a+b,0),total:true},
+    {header:'X1',get:r=>r.m?r.m[0]:''},{header:'X2',get:r=>r.m?r.m[1]:''},{header:'X3',get:r=>r.m?r.m[2]:''},{header:'X4',get:r=>r.m?r.m[3]:''},{header:'X5',get:r=>r.m?r.m[4]:''},
+  ];
+  exportCountryFiltre(rows,columns,'Cameroun_filtre','Cameroun','export-cameroun-btn');
+}
+function exportTogoFiltre(){
+  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const columns=[
+    {header:'Jour',get:r=>r.jour},
+    {header:'Jeu',get:r=>TOGO_JEU_LABELS[r.jeu]},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'Event',get:r=>r.t},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:''})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):''}]:[]),
+  ];
+  exportCountryFiltre(rows,columns,'Togo_filtre','Togo','export-togo-btn');
 }
 // ══════ PRONOSTIC — choisis tes numéros et partage-les (Togo + Bénin) ══════
 const PRONO_FORMATS=[

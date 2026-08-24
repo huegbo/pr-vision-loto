@@ -639,7 +639,7 @@ function beninFiltreHTML(){
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu',"Nom d'origine",'Heure','Date','A1','A2','A3','A4','A5','TOT A','B1','B2','B3','B4','B5','TOT B'].map(h=>`<th style="position:sticky;top:0;background:#111F33;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
-      ${rows.slice(0,400).map((r,ri)=>{
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
         const bg=ri%2===0?'#fff':'#F5F7FB';
         const jc=BENIN_JEU_COLORS[r.jeu];const light=parseInt(jc,16)>0x888888;
         const ms=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;

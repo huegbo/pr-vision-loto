@@ -9017,6 +9017,15 @@ function anMark(row,ctx){
     // Cas 3 : ce tirage est le 2e composant (associé au tirage juste avant lui, la somme étant g1+1 tirages plus récente)
     const sB=gi-g1-1, otherB=gi-1;
     if(sB>=0&&otherB>=0){const sRow=T[sB],oRow=T[otherB];row.n.forEach((n,i)=>{if(!out[i]&&oRow.n[i]+n===sRow.n[i])S(i,col);});}
+    // Cas 4 : ce tirage EST la somme, encadré par un tirage plus récent et un tirage plus ancien (écart g1 de chaque côté) — ex: 48 = 28+20
+    const nb=gi-g1>=0?T[gi-g1]:null, ob=gi+g1<T.length?T[gi+g1]:null;
+    if(nb&&ob)row.n.forEach((n,i)=>{if(!out[i]&&nb.n[i]+ob.n[i]===n)S(i,col);});
+    // Cas 5 : ce tirage est le composant le PLUS RÉCENT d'un tel encadrement (somme à g1, autre composant à 2×g1, plus ancien)
+    const sC=gi+g1, otherC=gi+2*g1;
+    if(sC<T.length&&otherC<T.length){const sRow=T[sC],oRow=T[otherC];row.n.forEach((n,i)=>{if(!out[i]&&n+oRow.n[i]===sRow.n[i])S(i,col);});}
+    // Cas 6 : ce tirage est le composant le PLUS ANCIEN d'un tel encadrement (somme à g1, autre composant à 2×g1, plus récent)
+    const sD=gi-g1, otherD=gi-2*g1;
+    if(sD>=0&&otherD>=0){const sRow=T[sD],oRow=T[otherD];row.n.forEach((n,i)=>{if(!out[i]&&oRow.n[i]+n===sRow.n[i])S(i,col);});}
   }
   if(m==='arith'||m==='geo'){
     // cherche la plus longue suite (arith ou géo) parmi les 5 numéros

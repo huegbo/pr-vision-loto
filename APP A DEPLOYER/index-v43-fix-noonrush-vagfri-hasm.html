@@ -1068,7 +1068,7 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet(sheetName);
     ws.addRow(columns.map(c=>c.header)).font={bold:true};
-    rows.slice().reverse().forEach(r=>{ // du plus ancien au plus récent, cohérent avec l'affichage écran
+    rows.slice(0,400).reverse().forEach(r=>{ // même plafond (400 plus récents) et même ordre que l'affichage écran
       const vals=columns.map(c=>{const v=c.get(r);return v==null?'':v;});
       const row=ws.addRow(vals);
       columns.forEach((c,ci)=>{
@@ -1085,7 +1085,7 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
     });
     ws.columns.forEach(c=>{c.width=10;});
     ws.addRow([]);
-    ws.addRow(['Tirages exportés',rows.length,'Exporté le',new Date().toLocaleDateString('fr-FR')]);
+    ws.addRow(['Tirages exportés',Math.min(rows.length,400),'Exporté le',new Date().toLocaleDateString('fr-FR')]);
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');

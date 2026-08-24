@@ -1072,14 +1072,24 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
       const vals=columns.map(c=>{const v=c.get(r);return v==null?'':v;});
       const row=ws.addRow(vals);
       columns.forEach((c,ci)=>{
+        const v=c.get(r);
+        const cell=row.getCell(ci+1);
         if(c.total){
-          const v=c.get(r);
           if(v!=null&&v!==''){
             const tc=tC(v);
-            const cell=row.getCell(ci+1);
             cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
             cell.font={color:{argb:hexToARGB(tc[1])},bold:true};
           }
+        }else if(c.totalM){
+          if(v!=null&&v!==''){
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB('#EDE7FF')}};
+            cell.font={color:{argb:hexToARGB('#6D28D9')},bold:true};
+          }
+        }else{
+          const bg=typeof c.bg==='function'?c.bg(r):c.bg;
+          const fg=typeof c.fg==='function'?c.fg(r):c.fg;
+          if(bg)cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(bg)}};
+          if(fg||bg)cell.font={color:{argb:hexToARGB(fg||'#000000')},bold:!!bg};
         }
       });
     });
@@ -1102,56 +1112,64 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
 function exportBeninFiltre(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
     &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+  const jeuFill=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
   const columns=[
-    {header:'Jour',get:r=>BENIN_JOUR_LABELS[r.jour]},
-    {header:'Jeu',get:r=>BENIN_JEU_LABELS[r.jeu]},
+    {header:'Jour',get:r=>BENIN_JOUR_LABELS[r.jour],bg:'#E8EAF6'},
+    {header:'Jeu',get:r=>BENIN_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
     {header:"Nom d'origine",get:r=>beninNomOrigine(r)},
     {header:'Heure',get:r=>BENIN_HEURE[r.jeu]},
     {header:'Date',get:r=>r.d+'/'+r.y},
     {header:'A1',get:r=>r.n[0]},{header:'A2',get:r=>r.n[1]},{header:'A3',get:r=>r.n[2]},{header:'A4',get:r=>r.n[3]},{header:'A5',get:r=>r.n[4]},
     {header:'TOT A',get:r=>r.s,total:true},
-    {header:'B1',get:r=>r.m?r.m[0]:''},{header:'B2',get:r=>r.m?r.m[1]:''},{header:'B3',get:r=>r.m?r.m[2]:''},{header:'B4',get:r=>r.m?r.m[3]:''},{header:'B5',get:r=>r.m?r.m[4]:''},
-    {header:'TOT B',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):''},
+    {header:'B1',get:r=>r.m?r.m[0]:'',fg:r=>r.m?'#6D28D9':null},{header:'B2',get:r=>r.m?r.m[1]:'',fg:r=>r.m?'#6D28D9':null},{header:'B3',get:r=>r.m?r.m[2]:'',fg:r=>r.m?'#6D28D9':null},{header:'B4',get:r=>r.m?r.m[3]:'',fg:r=>r.m?'#6D28D9':null},{header:'B5',get:r=>r.m?r.m[4]:'',fg:r=>r.m?'#6D28D9':null},
+    {header:'TOT B',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):'',totalM:true},
   ];
   exportCountryFiltre(rows,columns,'Benin_filtre','Bénin','export-benin-btn');
 }
 function exportGhanaFiltre(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  const jeuFill=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
   const columns=[
-    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour]},
-    {header:'Jeu',get:r=>GHANA_JEU_LABELS[r.jeu]},
+    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour],bg:'#E4F0E9'},
+    {header:'Jeu',get:r=>GHANA_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
     {header:'Date',get:r=>r.d+'/'+r.y},
     {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
     {header:'TOT',get:r=>r.n.reduce((a,b)=>a+b,0),total:true},
-    {header:'M1',get:r=>r.m?r.m[0]:''},{header:'M2',get:r=>r.m?r.m[1]:''},{header:'M3',get:r=>r.m?r.m[2]:''},{header:'M4',get:r=>r.m?r.m[3]:''},{header:'M5',get:r=>r.m?r.m[4]:''},
-    {header:'TOT.M',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):''},
+    {header:'M1',get:r=>r.m?r.m[0]:'',fg:r=>r.m?'#6D28D9':null},{header:'M2',get:r=>r.m?r.m[1]:'',fg:r=>r.m?'#6D28D9':null},{header:'M3',get:r=>r.m?r.m[2]:'',fg:r=>r.m?'#6D28D9':null},{header:'M4',get:r=>r.m?r.m[3]:'',fg:r=>r.m?'#6D28D9':null},{header:'M5',get:r=>r.m?r.m[4]:'',fg:r=>r.m?'#6D28D9':null},
+    {header:'TOT.M',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):'',totalM:true},
   ];
   exportCountryFiltre(rows,columns,'Ghana_filtre','Ghana','export-ghana-btn');
 }
 function exportCamerounFiltre(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  const jeuFill=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
   const columns=[
-    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour]},
-    {header:'Jeu',get:r=>CAMEROUN_JEU_LABELS[r.jeu]},
+    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour],bg:'#E4F0E9'},
+    {header:'Jeu',get:r=>CAMEROUN_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
     {header:'Date',get:r=>r.d+'/'+r.y},
     {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
     {header:'TOT',get:r=>r.n.reduce((a,b)=>a+b,0),total:true},
-    {header:'X1',get:r=>r.m?r.m[0]:''},{header:'X2',get:r=>r.m?r.m[1]:''},{header:'X3',get:r=>r.m?r.m[2]:''},{header:'X4',get:r=>r.m?r.m[3]:''},{header:'X5',get:r=>r.m?r.m[4]:''},
+    {header:'X1',get:r=>r.m?r.m[0]:'',fg:r=>r.m?'#6D28D9':null},{header:'X2',get:r=>r.m?r.m[1]:'',fg:r=>r.m?'#6D28D9':null},{header:'X3',get:r=>r.m?r.m[2]:'',fg:r=>r.m?'#6D28D9':null},{header:'X4',get:r=>r.m?r.m[3]:'',fg:r=>r.m?'#6D28D9':null},{header:'X5',get:r=>r.m?r.m[4]:'',fg:r=>r.m?'#6D28D9':null},
   ];
   exportCountryFiltre(rows,columns,'Cameroun_filtre','Cameroun','export-cameroun-btn');
 }
 function exportTogoFiltre(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const jeuFill=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c&&parseInt(c,16)>0x888888?'#000000':'#FFFFFF';};
   const columns=[
-    {header:'Jour',get:r=>r.jour},
-    {header:'Jeu',get:r=>TOGO_JEU_LABELS[r.jeu]},
+    {header:'Jour',get:r=>r.jour,bg:'#F0E6DA'},
+    {header:'Jeu',get:r=>TOGO_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
     {header:'Date',get:r=>r.d+'/'+r.y},
     {header:'Event',get:r=>r.t},
     {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
     {header:'TOT',get:r=>r.s,total:true},
-    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:''})),
-    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):''}]:[]),
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:'',fg:r=>r.bonus&&r.bonus[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
   ];
   exportCountryFiltre(rows,columns,'Togo_filtre','Togo','export-togo-btn');
 }

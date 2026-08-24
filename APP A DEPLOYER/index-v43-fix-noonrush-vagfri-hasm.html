@@ -1242,20 +1242,10 @@ function parseMultiPaysAll(){
   MULTI_PAYS_ROWS=rows;
   return rows;
 }
-// ══════ Détection automatique — numéros répétés d'un loto à l'autre (14 derniers jours, fixe, non paramétrable) ══════
-let MULTI_REPEATS_CACHE=null;
-function detectMultiRepeats(){
-  if(MULTI_REPEATS_CACHE)return MULTI_REPEATS_CACHE;
-  const rows=parseMultiPaysAll(); // toujours TOUS les pays/jeux/jours, peu importe les filtres à l'écran
-  if(!rows.length){MULTI_REPEATS_CACHE=[];return[];}
-  const maxKey=rows[0].sortKey; // rows triés du plus récent au plus ancien
-  const yy=Math.floor(maxKey/10000),mm=Math.floor((maxKey%10000)/100),dd=maxKey%100;
-  const cutoffDate=new Date(yy,mm-1,dd);
-  cutoffDate.setDate(cutoffDate.getDate()-14);
-  const cutoffKey=cutoffDate.getFullYear()*10000+(cutoffDate.getMonth()+1)*100+cutoffDate.getDate();
-  const recent=rows.filter(r=>r.sortKey>=cutoffKey);
+// ══════ Détection automatique — numéros répétés d'un loto à l'autre (fixe, non paramétrable) ══════
+function buildRepeatsFromRows(list){
   const byNum={};
-  recent.forEach(r=>{
+  list.forEach(r=>{
     r.n.forEach(num=>{
       if(!byNum[num])byNum[num]=[];
       byNum[num].push({pays:r.pays,jeuLabel:r.jeuLabel,jeuKey:r.jeuKey,d:r.d,y:r.y,sortKey:r.sortKey});
@@ -1271,19 +1261,41 @@ function detectMultiRepeats(){
     }
   });
   results.sort((a,b)=>b.nbJeux-a.nbJeux||b.nbOcc-a.nbOcc||a.num-b.num);
-  MULTI_REPEATS_CACHE=results;
   return results;
 }
-function multiRepeatsHTML(){
-  const results=detectMultiRepeats();
+let MULTI_REPEATS_WEEK_CACHE=null;
+function detectMultiRepeatsWeek(){
+  if(MULTI_REPEATS_WEEK_CACHE)return MULTI_REPEATS_WEEK_CACHE;
+  const rows=parseMultiPaysAll(); // toujours TOUS les pays/jeux/jours, peu importe les filtres à l'écran
+  if(!rows.length){MULTI_REPEATS_WEEK_CACHE=[];return[];}
+  const maxKey=rows[0].sortKey; // rows triés du plus récent au plus ancien
+  const yy=Math.floor(maxKey/10000),mm=Math.floor((maxKey%10000)/100),dd=maxKey%100;
+  const cutoffDate=new Date(yy,mm-1,dd);
+  cutoffDate.setDate(cutoffDate.getDate()-6); // 7 jours glissants (jour courant inclus)
+  const cutoffKey=cutoffDate.getFullYear()*10000+(cutoffDate.getMonth()+1)*100+cutoffDate.getDate();
+  const recent=rows.filter(r=>r.sortKey>=cutoffKey);
+  MULTI_REPEATS_WEEK_CACHE=buildRepeatsFromRows(recent);
+  return MULTI_REPEATS_WEEK_CACHE;
+}
+let MULTI_REPEATS_DAY_CACHE=null;
+function detectMultiRepeatsDay(){
+  if(MULTI_REPEATS_DAY_CACHE)return MULTI_REPEATS_DAY_CACHE;
+  const rows=parseMultiPaysAll();
+  if(!rows.length){MULTI_REPEATS_DAY_CACHE=[];return[];}
+  const maxKey=rows[0].sortKey; // jour le plus récent présent dans les données
+  const today=rows.filter(r=>r.sortKey===maxKey);
+  MULTI_REPEATS_DAY_CACHE=buildRepeatsFromRows(today);
+  return MULTI_REPEATS_DAY_CACHE;
+}
+function multiRepeatsCardHTML(results,title,emptyMsg){
   if(!results.length){
     return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
-      <div style="font-size:11px;font-weight:700;margin-bottom:2px">🤖 Numéros répétés entre lotos (14 derniers jours)</div>
-      <div style="font-size:10px;color:#888">Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.</div>
+      <div style="font-size:11px;font-weight:700;margin-bottom:2px">${title}</div>
+      <div style="font-size:10px;color:#888">${emptyMsg}</div>
     </div>`;
   }
   return `<div class="card" style="margin-bottom:8px;background:#F5F7FB">
-    <div style="font-size:11px;font-weight:700;margin-bottom:6px">🤖 Numéros répétés entre lotos (14 derniers jours) — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
+    <div style="font-size:11px;font-weight:700;margin-bottom:6px">${title} — ${results.length} numéro${results.length>1?'s':''} détecté${results.length>1?'s':''}, calculé automatiquement sur tous les pays/jeux</div>
     <div style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:5px">
       ${results.map(r=>{
         const pc=[...new Set(r.occ.map(o=>o.pays))].map(p=>MULTI_PAYS_LABELS[p].split(' ')[0]).join(' ');
@@ -1297,6 +1309,12 @@ function multiRepeatsHTML(){
       }).join('')}
     </div>
   </div>`;
+}
+function multiRepeatsHTML(){
+  return multiRepeatsCardHTML(detectMultiRepeatsDay(),"☀️ Numéros répétés dans la journée",
+      "Aucun numéro n'est encore ressorti dans 2 jeux différents le jour le plus récent des données.")
+    + multiRepeatsCardHTML(detectMultiRepeatsWeek(),"🗓️ Numéros répétés dans la semaine (7 derniers jours)",
+      "Aucun numéro n'est encore ressorti dans 2 jeux différents sur cette période.");
 }
 function toggleMultiPays(code){
   const i=state.multiPays.indexOf(code);

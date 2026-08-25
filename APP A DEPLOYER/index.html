@@ -317,6 +317,14 @@ const RAW_CI_MONNI=window.LOTO_DATA.RAW_CI_MONNI;
 const RAW_CI_CASH=window.LOTO_DATA.RAW_CI_CASH;
 const RAW_CI_SOLUTION=window.LOTO_DATA.RAW_CI_SOLUTION;
 const RAW_CI_WARI=window.LOTO_DATA.RAW_CI_WARI;
+const RAW_CI_MONDAY_SPECIAL=window.LOTO_DATA.RAW_CI_MONDAY_SPECIAL;
+const RAW_CI_LUCKY_TUESDAY=window.LOTO_DATA.RAW_CI_LUCKY_TUESDAY;
+const RAW_CI_MIDWEEK=window.LOTO_DATA.RAW_CI_MIDWEEK;
+const RAW_CI_FORTUNE_THURSDAY=window.LOTO_DATA.RAW_CI_FORTUNE_THURSDAY;
+const RAW_CI_FRIDAY_BONANZA=window.LOTO_DATA.RAW_CI_FRIDAY_BONANZA;
+const RAW_CI_NATIONAL2=window.LOTO_DATA.RAW_CI_NATIONAL2;
+const RAW_CI_DAYOFF=window.LOTO_DATA.RAW_CI_DAYOFF;
+const RAW_CI_NUIT_ETOILEE=window.LOTO_DATA.RAW_CI_NUIT_ETOILEE;
 const RAW_BF_NEKRE=window.LOTO_DATA.RAW_BF_NEKRE;
 const RAW_BF_KOUNANDIA=window.LOTO_DATA.RAW_BF_KOUNANDIA;
 const RAW_BF_WELHY=window.LOTO_DATA.RAW_BF_WELHY;
@@ -494,6 +502,14 @@ const GAMES={
   ci_cash:{name:'CASH (CI)',icon:'🇨🇮',raw:RAW_CI_CASH,hasM:true},
   ci_solution:{name:'SOLUTION',icon:'🇨🇮',raw:RAW_CI_SOLUTION,hasM:true},
   ci_wari:{name:'WARI',icon:'🇨🇮',raw:RAW_CI_WARI,hasM:true},
+  ci_monday_special:{name:'MONDAY SPECIAL',icon:'🇨🇮',raw:RAW_CI_MONDAY_SPECIAL,hasM:false},
+  ci_lucky_tuesday:{name:'LUCKY TUESDAY',icon:'🇨🇮',raw:RAW_CI_LUCKY_TUESDAY,hasM:false},
+  ci_midweek:{name:'MIDWEEK',icon:'🇨🇮',raw:RAW_CI_MIDWEEK,hasM:false},
+  ci_fortune_thursday:{name:'FORTUNE THURSDAY',icon:'🇨🇮',raw:RAW_CI_FORTUNE_THURSDAY,hasM:false},
+  ci_friday_bonanza:{name:'FRIDAY BONANZA',icon:'🇨🇮',raw:RAW_CI_FRIDAY_BONANZA,hasM:false},
+  ci_national:{name:'NATIONAL (CI)',icon:'🇨🇮',raw:RAW_CI_NATIONAL2,hasM:false},
+  ci_dayoff:{name:'DAY OFF',icon:'🇨🇮',raw:RAW_CI_DAYOFF,hasM:true},
+  ci_nuit_etoilee:{name:'NUIT ÉTOILÉE',icon:'🇨🇮',raw:RAW_CI_NUIT_ETOILEE,hasM:true},
   bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE},
   bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA},
   bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY},
@@ -1272,6 +1288,89 @@ function parseCIAll(){
     return CI_GAMES.findIndex(x=>x.key===b.jeu)-CI_GAMES.findIndex(x=>x.key===a.jeu);
   });
   return CI_ALL_ROWS;
+}
+// ══════ CÔTE D'IVOIRE — vue autonome Filtre Jour / Jeu (mêmes filtres que Bénin/Ghana/Togo/Cameroun) ══════
+const CI_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function toggleCIJour(code){
+  const i=state.ciJours.indexOf(code);
+  if(i>=0)state.ciJours.splice(i,1);else state.ciJours.push(code);
+  render();
+}
+function toggleCIJeu(code){
+  const i=state.ciJeux.indexOf(code);
+  if(i>=0)state.ciJeux.splice(i,1);else state.ciJeux.push(code);
+  render();
+}
+function ciFiltreHTML(){
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const ciMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  let html=`<div id="app-content">
+  <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🇨🇮 CÔTE D'IVOIRE (LONACI) — Filtre Jour / Jeu</div>
+      <button id="export-ci-btn" onclick="exportCIFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.ciFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${CI_JOUR_ORDER.map(code=>{const sel=state.ciJours.includes(code);return `<button onclick="toggleCIJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #7C2D12':'1px solid #ddd'};background:${sel?'#7C2D12':'#f5f5f5'};color:${sel?'#fff':'#777'}">${code}</button>`;}).join('')}
+        <button onclick="state.ciJours=[...CI_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ciJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.ciJeux.length}/${CI_GAMES.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
+        ${CI_GAMES.map(g=>{const sel=state.ciJeux.includes(g.key);const c=CI_JEU_COLORS[g.key];const light=isLightBg(c);return `<button onclick="toggleCIJeu('${g.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${CI_JEU_LABELS[g.key]}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.ciJeux=CI_GAMES.map(g=>g.key);render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ciJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT',...Array.from({length:ciMaxBonus},(_,i)=>'M'+(i+1)),...(ciMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const jc=CI_JEU_COLORS[r.jeu];const light=isLightBg(jc);
+        const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
+        return `<tr>
+          <td style="background:#FBE4D5;font-weight:600;font-size:9.5px;padding:4px">${r.jour}</td>
+          <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${CI_JEU_LABELS[r.jeu]}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          <td style="background:${bg};font-size:9px;padding:4px;color:#888">${r.t}</td>
+          ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
+          ${Array.from({length:ciMaxBonus},(_,i)=>`<td style="background:${r.bonus&&r.bonus[i]!=null?'#EDE7FF':bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus&&r.bonus[i]!=null?r.bonus[i]:'·'}</td>`).join('')}
+          ${ciMaxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+function exportCIFiltre(){
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const jeuFill=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
+  const columns=[
+    {header:'Jour',get:r=>r.jour,bg:'#FBE4D5'},
+    {header:'Jeu',get:r=>CI_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'Event',get:r=>r.t},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:'',fg:r=>r.bonus&&r.bonus[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
+  ];
+  exportCountryFiltre(rows,columns,'CoteIvoire_filtre',"Côte d'Ivoire",'export-ci-btn');
 }
 const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire'];
 const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire"};
@@ -3142,6 +3241,7 @@ let state={
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
+  ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key),
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
@@ -7381,6 +7481,7 @@ function goNav(id){
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
   else if(id==='togo'){state.togoFiltreOpen=!state.togoFiltreOpen;state.showSearchHub=false;}
   else if(id==='cameroun'){state.camerounFiltreOpen=!state.camerounFiltreOpen;state.showSearchHub=false;}
+  else if(id==='cotedivoire'){state.ciFiltreOpen=!state.ciFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else{state.tab=id;state.showSearchHub=false;}
@@ -7399,12 +7500,13 @@ function bottomNavHTML(){
     ['ghana','🇬🇭','Ghana'],
     ['togo','🇹🇬','Togo'],
     ['cameroun','🇨🇲','Cameroun'],
+    ['cotedivoire','🇨🇮','C. Ivoire'],
     ['multi','🌍','Multi-Pays'],
     ['pronostic','🍀','Pronostic'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -10790,6 +10892,11 @@ function __renderBody(){
   }
   if(state.camerounFiltreOpen){
     document.getElementById('app').innerHTML=camerounFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.ciFiltreOpen){
+    document.getElementById('app').innerHTML=ciFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

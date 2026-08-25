@@ -1229,6 +1229,16 @@ function exportTogoFiltre(){
 const CI_DAY_NAMES=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const CI_PALETTE=['B45309','0E7490','7C2D12','4C1D95','9D174D','166534','1E40AF','92400E','5B21B6','065F46','A16207','831843','1E3A8A','3F6212','6B21A8','C2410C','0F766E','BE185D','3730A3','15803D','9A3412','1D4ED8','86198F','047857','B91C1C','334155','7E22CE','0369A1','A21CAF'];
 const CI_GAMES=Object.keys(GAMES).filter(k=>GAMES[k].icon==='🇨🇮').map((k,i)=>({key:k,name:GAMES[k].name,raw:GAMES[k].raw,color:CI_PALETTE[i%CI_PALETTE.length]}));
+// Heure de tirage extraite du nom du jeu quand elle y est indiquée (ex: "DIGITAL 21H" → 21,
+// "DIGITAL REVEIL 07H" → 7) — sert de tri chronologique au sein d'une même date. Les jeux CI dont
+// le nom n'indique pas d'heure (SOUTRA, MOAYE, AWALE...) n'ont pas cette info dans les données ;
+// ils gardent alors une position stable (via l'ordre de CI_GAMES) plutôt que d'être mélangés.
+function ciHeureNum(jeuKey){
+  const g=CI_GAMES.find(x=>x.key===jeuKey);
+  if(!g)return -1;
+  const m=g.name.match(/(\d{1,2})\s*H\b/i);
+  return m?parseInt(m[1],10):-1; // -1 = heure inconnue
+}
 const CI_JEU_LABELS=Object.fromEntries(CI_GAMES.map(g=>[g.key,g.name]));
 const CI_JEU_COLORS=Object.fromEntries(CI_GAMES.map(g=>[g.key,g.color]));
 let CI_ALL_ROWS=null;
@@ -1250,6 +1260,17 @@ function parseCIAll(){
       CI_ALL_ROWS.push({jour,jeu:g.key,t,d,y,n,s,bonus});
     });
   });
+  // Tri : date décroissante (le plus récent en premier), puis — au sein d'une même date — heure de
+  // tirage décroissante quand elle est connue (ex: DIGITAL 23H avant DIGITAL 21H), sinon l'ordre
+  // stable de CI_GAMES. Évite que des jeux ajoutés le même jour à des moments différents se
+  // retrouvent mélangés au lieu de suivre la chronologie réelle des tirages.
+  CI_ALL_ROWS.sort((a,b)=>{
+    const dateCmp=(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''));
+    if(dateCmp!==0)return dateCmp;
+    const heureCmp=ciHeureNum(b.jeu)-ciHeureNum(a.jeu);
+    if(heureCmp!==0)return heureCmp;
+    return CI_GAMES.findIndex(x=>x.key===b.jeu)-CI_GAMES.findIndex(x=>x.key===a.jeu);
+  });
   return CI_ALL_ROWS;
 }
 const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire'];
@@ -1265,6 +1286,17 @@ const MULTI_JEU_OPTIONS=[
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
 const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
 let MULTI_PAYS_ROWS=null;
+// Heure de tirage (0-23) toutes origines confondues, pour trier chronologiquement au sein d'une
+// même date dans la vue Multi-Pays fusionnée — sans quoi les tirages d'un même jour se
+// retrouvaient groupés par pays (dans l'ordre où chaque pays est fusionné) plutôt que par heure
+// réelle. -1 = heure inconnue pour ce jeu (reste en dernier, ordre stable).
+function multiHeureNum(pays,jeuRawKey){
+  if(pays==='benin'){const h=BENIN_HEURE[jeuRawKey];return h?parseInt(h,10):-1;}
+  if(pays==='togo'){const g=TOGO_GAMES.find(x=>x.key===jeuRawKey);return g?parseInt(g.heure,10):-1;}
+  if(pays==='cameroun'){const lbl=CAMEROUN_JEU_LABELS[jeuRawKey]||'';const m=lbl.match(/(\d{1,2})h/i);return m?parseInt(m[1],10):-1;}
+  if(pays==='cotedivoire')return ciHeureNum(jeuRawKey);
+  return -1;
+}
 function parseMultiPaysAll(){
   if(MULTI_PAYS_ROWS)return MULTI_PAYS_ROWS;
   const rows=[];
@@ -1272,24 +1304,24 @@ function parseMultiPaysAll(){
   parseBeninAll().forEach(r=>{
     rows.push({pays:'benin',jourLabel:BENIN_JOUR_LABELS[r.jour],
       jeuKey:'benin:'+r.jeu,jeuLabel:MULTI_JEU_MAP['benin:'+r.jeu]?MULTI_JEU_MAP['benin:'+r.jeu].label:r.jeu,jeuColor:BENIN_JEU_COLORS[r.jeu],
-      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.m});
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('benin',r.jeu),n:r.n,s:r.s,bonus:r.m});
   });
   parseTogoAll().forEach(r=>{
     rows.push({pays:'togo',jourLabel:r.jour,
       jeuKey:'togo:'+r.jeu,jeuLabel:MULTI_JEU_MAP['togo:'+r.jeu]?MULTI_JEU_MAP['togo:'+r.jeu].label:r.jeu,jeuColor:TOGO_JEU_COLORS[r.jeu],
-      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.bonus});
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('togo',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
   });
   parseCamerounAll().forEach(r=>{
     rows.push({pays:'cameroun',jourLabel:GHANA_JOUR_LABELS[r.jour],
       jeuKey:'cameroun:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cameroun:'+r.jeu]?MULTI_JEU_MAP['cameroun:'+r.jeu].label:r.jeu,jeuColor:CAMEROUN_JEU_COLORS[r.jeu],
-      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('cameroun',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
   });
   parseCIAll().forEach(r=>{
     rows.push({pays:'cotedivoire',jourLabel:r.jour,
       jeuKey:'cotedivoire:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cotedivoire:'+r.jeu]?MULTI_JEU_MAP['cotedivoire:'+r.jeu].label:r.jeu,jeuColor:CI_JEU_COLORS[r.jeu],
-      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),n:r.n,s:r.s,bonus:r.bonus});
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('cotedivoire',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
   });
-  rows.sort((a,b)=>b.sortKey-a.sortKey);
+  rows.sort((a,b)=>b.sortKey-a.sortKey||b.heureNum-a.heureNum);
   MULTI_PAYS_ROWS=rows;
   return rows;
 }

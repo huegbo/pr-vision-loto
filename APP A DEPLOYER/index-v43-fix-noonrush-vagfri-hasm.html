@@ -317,6 +317,14 @@ const RAW_CI_MONNI=window.LOTO_DATA.RAW_CI_MONNI;
 const RAW_CI_CASH=window.LOTO_DATA.RAW_CI_CASH;
 const RAW_CI_SOLUTION=window.LOTO_DATA.RAW_CI_SOLUTION;
 const RAW_CI_WARI=window.LOTO_DATA.RAW_CI_WARI;
+const RAW_CI_MONDAY_SPECIAL=window.LOTO_DATA.RAW_CI_MONDAY_SPECIAL;
+const RAW_CI_LUCKY_TUESDAY=window.LOTO_DATA.RAW_CI_LUCKY_TUESDAY;
+const RAW_CI_MIDWEEK=window.LOTO_DATA.RAW_CI_MIDWEEK;
+const RAW_CI_FORTUNE_THURSDAY=window.LOTO_DATA.RAW_CI_FORTUNE_THURSDAY;
+const RAW_CI_FRIDAY_BONANZA=window.LOTO_DATA.RAW_CI_FRIDAY_BONANZA;
+const RAW_CI_NATIONAL2=window.LOTO_DATA.RAW_CI_NATIONAL2;
+const RAW_CI_DAYOFF=window.LOTO_DATA.RAW_CI_DAYOFF;
+const RAW_CI_NUIT_ETOILEE=window.LOTO_DATA.RAW_CI_NUIT_ETOILEE;
 const RAW_BF_NEKRE=window.LOTO_DATA.RAW_BF_NEKRE;
 const RAW_BF_KOUNANDIA=window.LOTO_DATA.RAW_BF_KOUNANDIA;
 const RAW_BF_WELHY=window.LOTO_DATA.RAW_BF_WELHY;
@@ -416,7 +424,7 @@ const GAMES={
   bj_f_ven:{name:'FORTUNE VENDREDI',icon:'🇧🇯',raw:RAW_BJ_F_VEN,hasM:true,sum10:true},
   bj_s_sam:{name:'STAR SAMEDI',icon:'🇧🇯',raw:RAW_BJ_S_SAM,hasM:true,sum10:true},
   bj_s_dim:{name:'STAR DIMANCHE',icon:'🇧🇯',raw:RAW_BJ_S_DIM,hasM:true,sum10:true},
-  cagliari:{name:'CAGLIARI',icon:'🇮🇹',raw:RAW_CAGLIARI},
+  cagliari:{name:'IT CAGLIARI',icon:'🇮🇹',raw:RAW_CAGLIARI},
   malta:{name:'MALTA',icon:'🇲🇹',raw:RAW_MALTA},
   national:{name:'NATIONAL',icon:'🇬🇭',raw:RAW_NATIONAL,hasM:true,sum10:true},
 
@@ -494,6 +502,14 @@ const GAMES={
   ci_cash:{name:'CASH (CI)',icon:'🇨🇮',raw:RAW_CI_CASH,hasM:true},
   ci_solution:{name:'SOLUTION',icon:'🇨🇮',raw:RAW_CI_SOLUTION,hasM:true},
   ci_wari:{name:'WARI',icon:'🇨🇮',raw:RAW_CI_WARI,hasM:true},
+  ci_monday_special:{name:'MONDAY SPECIAL',icon:'🇨🇮',raw:RAW_CI_MONDAY_SPECIAL,hasM:false},
+  ci_lucky_tuesday:{name:'LUCKY TUESDAY',icon:'🇨🇮',raw:RAW_CI_LUCKY_TUESDAY,hasM:false},
+  ci_midweek:{name:'MIDWEEK',icon:'🇨🇮',raw:RAW_CI_MIDWEEK,hasM:false},
+  ci_fortune_thursday:{name:'FORTUNE THURSDAY',icon:'🇨🇮',raw:RAW_CI_FORTUNE_THURSDAY,hasM:false},
+  ci_friday_bonanza:{name:'FRIDAY BONANZA',icon:'🇨🇮',raw:RAW_CI_FRIDAY_BONANZA,hasM:false},
+  ci_national:{name:'NATIONAL (CI)',icon:'🇨🇮',raw:RAW_CI_NATIONAL2,hasM:false},
+  ci_dayoff:{name:'DAY OFF',icon:'🇨🇮',raw:RAW_CI_DAYOFF,hasM:true},
+  ci_nuit_etoilee:{name:'NUIT ÉTOILÉE',icon:'🇨🇮',raw:RAW_CI_NUIT_ETOILEE,hasM:true},
   bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE},
   bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA},
   bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY},
@@ -1273,15 +1289,218 @@ function parseCIAll(){
   });
   return CI_ALL_ROWS;
 }
-const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire"};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C'};
+// ══════ CÔTE D'IVOIRE — vue autonome Filtre Jour / Jeu (mêmes filtres que Bénin/Ghana/Togo/Cameroun) ══════
+const CI_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function toggleCIJour(code){
+  const i=state.ciJours.indexOf(code);
+  if(i>=0)state.ciJours.splice(i,1);else state.ciJours.push(code);
+  render();
+}
+function toggleCIJeu(code){
+  const i=state.ciJeux.indexOf(code);
+  if(i>=0)state.ciJeux.splice(i,1);else state.ciJeux.push(code);
+  render();
+}
+function ciFiltreHTML(){
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const ciMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  let html=`<div id="app-content">
+  <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🇨🇮 CÔTE D'IVOIRE (LONACI) — Filtre Jour / Jeu</div>
+      <button id="export-ci-btn" onclick="exportCIFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.ciFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${CI_JOUR_ORDER.map(code=>{const sel=state.ciJours.includes(code);return `<button onclick="toggleCIJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #7C2D12':'1px solid #ddd'};background:${sel?'#7C2D12':'#f5f5f5'};color:${sel?'#fff':'#777'}">${code}</button>`;}).join('')}
+        <button onclick="state.ciJours=[...CI_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ciJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.ciJeux.length}/${CI_GAMES.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
+        ${CI_GAMES.map(g=>{const sel=state.ciJeux.includes(g.key);const c=CI_JEU_COLORS[g.key];const light=isLightBg(c);return `<button onclick="toggleCIJeu('${g.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${CI_JEU_LABELS[g.key]}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.ciJeux=CI_GAMES.map(g=>g.key);render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ciJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT',...Array.from({length:ciMaxBonus},(_,i)=>'M'+(i+1)),...(ciMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const jc=CI_JEU_COLORS[r.jeu];const light=isLightBg(jc);
+        const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
+        return `<tr>
+          <td style="background:#FBE4D5;font-weight:600;font-size:9.5px;padding:4px">${r.jour}</td>
+          <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${CI_JEU_LABELS[r.jeu]}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          <td style="background:${bg};font-size:9px;padding:4px;color:#888">${r.t}</td>
+          ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
+          ${Array.from({length:ciMaxBonus},(_,i)=>`<td style="background:${r.bonus&&r.bonus[i]!=null?'#EDE7FF':bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus&&r.bonus[i]!=null?r.bonus[i]:'·'}</td>`).join('')}
+          ${ciMaxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+function exportCIFiltre(){
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const jeuFill=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
+  const columns=[
+    {header:'Jour',get:r=>r.jour,bg:'#FBE4D5'},
+    {header:'Jeu',get:r=>CI_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'Event',get:r=>r.t},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:'',fg:r=>r.bonus&&r.bonus[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
+  ];
+  exportCountryFiltre(rows,columns,'CoteIvoire_filtre',"Côte d'Ivoire",'export-ci-btn');
+}
+// ══════ ITALIE — vue autonome Filtre Jour / Roue (mêmes filtres que Bénin/Ghana/Togo/Cameroun/C.Ivoire) ══════
+const IT_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const IT_PALETTE=['1D4E89','B45309','166534','7C2D12','4C1D95','9D174D','0E7490','92400E','5B21B6','065F46','A16207','C2410C'];
+const IT_GAMES=Object.keys(GAMES).filter(k=>GAMES[k].icon==='🇮🇹').map((k,i)=>({key:k,name:GAMES[k].name,raw:GAMES[k].raw,color:IT_PALETTE[i%IT_PALETTE.length]}));
+const IT_JEU_LABELS=Object.fromEntries(IT_GAMES.map(g=>[g.key,g.name]));
+const IT_JEU_COLORS=Object.fromEntries(IT_GAMES.map(g=>[g.key,g.color]));
+let IT_ALL_ROWS=null;
+function parseITAll(){
+  if(IT_ALL_ROWS)return IT_ALL_ROWS;
+  IT_ALL_ROWS=[];
+  IT_GAMES.forEach(g=>{
+    if(!g.raw)return;
+    const n6=!!GAMES[g.key].n6;
+    g.raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
+      const p=line.split('|');
+      const t=+p[0],d=p[1],y=p[2];
+      const n=n6?[+p[3],+p[4],+p[5],+p[6],+p[7],+p[8]]:[+p[3],+p[4],+p[5],+p[6],+p[7]];
+      const sIdx=n6?9:8;
+      const s=p[sIdx]!==undefined&&p[sIdx]!==''?+p[sIdx]:n.reduce((a,b)=>a+b,0);
+      const bonusRaw=p.slice(sIdx+1).filter(v=>v!==undefined&&v!=='');
+      const bonus=bonusRaw.length?bonusRaw.map(v=>+v):null;
+      const[dd,mm]=d.split('/').map(Number);
+      const jour=CI_DAY_NAMES[new Date(+y,mm-1,dd).getDay()];
+      IT_ALL_ROWS.push({jour,jeu:g.key,t,d,y,n,s,bonus});
+    });
+  });
+  // Tri : date décroissante, puis — au sein d'une même date (toutes les roues tirent le même soir) —
+  // l'ordre stable de IT_GAMES.
+  IT_ALL_ROWS.sort((a,b)=>{
+    const dateCmp=(b.y+b.d.split('/').reverse().join('')).localeCompare(a.y+a.d.split('/').reverse().join(''));
+    if(dateCmp!==0)return dateCmp;
+    return IT_GAMES.findIndex(x=>x.key===b.jeu)-IT_GAMES.findIndex(x=>x.key===a.jeu);
+  });
+  return IT_ALL_ROWS;
+}
+function toggleITJour(code){
+  const i=state.itJours.indexOf(code);
+  if(i>=0)state.itJours.splice(i,1);else state.itJours.push(code);
+  render();
+}
+function toggleITJeu(code){
+  const i=state.itJeux.indexOf(code);
+  if(i>=0)state.itJeux.splice(i,1);else state.itJeux.push(code);
+  render();
+}
+function itFiltreHTML(){
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  const itMaxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
+  const itMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  let html=`<div id="app-content">
+  <div class="header" style="background:#006341;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🇮🇹 ITALIE (Lotto / SuperEnalotto) — Filtre Jour / Roue</div>
+      <button id="export-it-btn" onclick="exportITFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.itFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${IT_JOUR_ORDER.map(code=>{const sel=state.itJours.includes(code);return `<button onclick="toggleITJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #006341':'1px solid #ddd'};background:${sel?'#006341':'#f5f5f5'};color:${sel?'#fff':'#777'}">${code}</button>`;}).join('')}
+        <button onclick="state.itJours=[...IT_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.itJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Roue (${state.itJeux.length}/${IT_GAMES.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
+        ${IT_GAMES.map(g=>{const sel=state.itJeux.includes(g.key);const c=IT_JEU_COLORS[g.key];const light=isLightBg(c);return `<button onclick="toggleITJeu('${g.key}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${IT_JEU_LABELS[g.key]}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.itJeux=IT_GAMES.map(g=>g.key);render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.itJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Jour','Roue','Date','Event',...Array.from({length:itMaxN},(_,i)=>'N'+(i+1)),'TOT',...Array.from({length:itMaxBonus},(_,i)=>'M'+(i+1)),...(itMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#006341;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const jc=IT_JEU_COLORS[r.jeu];const light=isLightBg(jc);
+        const bTot=r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):null;
+        return `<tr>
+          <td style="background:#D9EDE3;font-weight:600;font-size:9.5px;padding:4px">${r.jour}</td>
+          <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${IT_JEU_LABELS[r.jeu]}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          <td style="background:${bg};font-size:9px;padding:4px;color:#888">${r.t}</td>
+          ${Array.from({length:itMaxN},(_,i)=>`<td style="background:${bg};font-size:9.5px;padding:4px">${r.n&&r.n[i]!=null?r.n[i]:'·'}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
+          ${Array.from({length:itMaxBonus},(_,i)=>`<td style="background:${r.bonus&&r.bonus[i]!=null?'#EDE7FF':bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.bonus&&r.bonus[i]!=null?r.bonus[i]:'·'}</td>`).join('')}
+          ${itMaxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+function exportITFiltre(){
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  const maxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
+  const jeuFill=(r)=>{const c=IT_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=IT_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
+  const columns=[
+    {header:'Jour',get:r=>r.jour,bg:'#D9EDE3'},
+    {header:'Roue',get:r=>IT_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'Event',get:r=>r.t},
+    ...Array.from({length:maxN},(_,i)=>({header:'N'+(i+1),get:r=>r.n&&r.n[i]!=null?r.n[i]:''})),
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.bonus&&r.bonus[i]!=null?r.bonus[i]:'',fg:r=>r.bonus&&r.bonus[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.bonus?r.bonus.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
+  ];
+  exportCountryFiltre(rows,columns,'Italie_filtre','Italie','export-it-btn');
+}
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E'};
 const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
   ...TOGO_GAMES.map(g=>({key:'togo:'+g.key,label:'🇹🇬 '+TOGO_JEU_LABELS[g.key],color:TOGO_JEU_COLORS[g.key]})),
   ...CAMEROUN_JEU_ORDER.map(k=>({key:'cameroun:'+k,label:'🇨🇲 '+CAMEROUN_JEU_LABELS[k],color:CAMEROUN_JEU_COLORS[k]})),
   ...CI_GAMES.map(g=>({key:'cotedivoire:'+g.key,label:'🇨🇮 '+CI_JEU_LABELS[g.key],color:CI_JEU_COLORS[g.key]})),
+  ...GHANA_JEU_ORDER.map(k=>({key:'ghana:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
 ];
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
 const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
@@ -1295,6 +1514,7 @@ function multiHeureNum(pays,jeuRawKey){
   if(pays==='togo'){const g=TOGO_GAMES.find(x=>x.key===jeuRawKey);return g?parseInt(g.heure,10):-1;}
   if(pays==='cameroun'){const lbl=CAMEROUN_JEU_LABELS[jeuRawKey]||'';const m=lbl.match(/(\d{1,2})h/i);return m?parseInt(m[1],10):-1;}
   if(pays==='cotedivoire')return ciHeureNum(jeuRawKey);
+  if(pays==='ghana')return -1; // pas d'heure de tirage connue dans les données Ghana (jour uniquement)
   return -1;
 }
 function parseMultiPaysAll(){
@@ -1320,6 +1540,11 @@ function parseMultiPaysAll(){
     rows.push({pays:'cotedivoire',jourLabel:r.jour,
       jeuKey:'cotedivoire:'+r.jeu,jeuLabel:MULTI_JEU_MAP['cotedivoire:'+r.jeu]?MULTI_JEU_MAP['cotedivoire:'+r.jeu].label:r.jeu,jeuColor:CI_JEU_COLORS[r.jeu],
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('cotedivoire',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
+  });
+  parseGhanaAll().forEach(r=>{
+    rows.push({pays:'ghana',jourLabel:GHANA_JOUR_LABELS[r.jour],
+      jeuKey:'ghana:'+r.jeu,jeuLabel:MULTI_JEU_MAP['ghana:'+r.jeu]?MULTI_JEU_MAP['ghana:'+r.jeu].label:r.jeu,jeuColor:GHANA_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('ghana',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
   });
   rows.sort((a,b)=>b.sortKey-a.sortKey||b.heureNum-a.heureNum);
   MULTI_PAYS_ROWS=rows;
@@ -2667,6 +2892,35 @@ function zoomStep(dir){
   idx=Math.max(0,Math.min(ZOOM_LEVELS.length-1,idx+dir));
   setZoom(ZOOM_LEVELS[idx]);
 }
+// ── Bouton flottant + panneau bas d'écran pour la Taille de texte (zoom) ──
+// Rend le réglage de zoom existant (state.zoom/setZoom/zoomStep) accessible
+// depuis n'importe quel écran, sans créer un second système de zoom.
+function toggleZoomSheet(){state.zoomSheetOpen=!state.zoomSheetOpen;render();}
+function closeZoomSheet(){state.zoomSheetOpen=false;render();}
+function zoomFabHTML(){
+  return `<div onclick="toggleZoomSheet()" title="Taille de texte" style="position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0E7490,#0891B2);box-shadow:0 6px 18px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:996;font-size:18px;color:#fff">🔠</div>`;
+}
+function zoomSheetHTML(){
+  const idx=Math.max(0,ZOOM_LEVELS.indexOf(state.zoom));
+  const atMin=state.zoom<=ZOOM_LEVELS[0];
+  const atMax=state.zoom>=ZOOM_LEVELS[ZOOM_LEVELS.length-1];
+  return `<div onclick="closeZoomSheet()" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998"></div>
+  <div style="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#fff;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.35)">
+    <div style="width:36px;height:4px;border-radius:2px;background:#ddd;margin:0 auto 12px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:600;color:#1F2D3D">🔠 Taille de texte</span>
+      <span onclick="closeZoomSheet()" style="cursor:pointer;font-size:18px;color:#999;padding:2px 6px">✕</span>
+    </div>
+    <div style="text-align:center;font-size:28px;font-weight:700;color:#0E7490;margin-bottom:16px">${Math.round(state.zoom*100)}%</div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button onclick="zoomStep(-1)" ${atMin?'disabled':''} style="flex:1;padding:14px 0;border-radius:12px;border:none;background:${atMin?'#eee':'#E8EAF6'};color:${atMin?'#aaa':'#1F2D3D'};font-size:15px;font-weight:600;cursor:${atMin?'default':'pointer'}">－ Diminuer</button>
+      <button onclick="zoomStep(1)" ${atMax?'disabled':''} style="flex:1;padding:14px 0;border-radius:12px;border:none;background:${atMax?'#eee':'#0E7490'};color:${atMax?'#aaa':'#fff'};font-size:15px;font-weight:600;cursor:${atMax?'default':'pointer'}">＋ Augmenter</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+      ${ZOOM_LEVELS.map((z,i)=>`<button onclick="setZoom(${z})" style="padding:5px 10px;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;border:2px solid ${i===idx?'#0E7490':'#ddd'};background:${i===idx?'#E8EAF6':'#fff'};color:#333">${Math.round(z*100)}%</button>`).join('')}
+    </div>
+  </div>`;
+}
 // ── Synchronisation Supabase (multi-appareils) ──────────────────────────
 // Toute clé lue/écrite via lsGetOr/lsSet/lsRemove est aussi poussée vers/tirée
 // depuis la table app_kv (key text, value json, updated_at timestamptz).
@@ -3142,6 +3396,8 @@ let state={
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
+  ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key),
+  itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key),
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
@@ -3152,7 +3408,7 @@ let state={
   pronosticOrdre:'saisi', pronosticAuto:0,   // ordre des numeros a l'export : 'saisi' ou 'croissant'        // contour des boules : absent par défaut
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
-  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
@@ -7381,6 +7637,8 @@ function goNav(id){
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
   else if(id==='togo'){state.togoFiltreOpen=!state.togoFiltreOpen;state.showSearchHub=false;}
   else if(id==='cameroun'){state.camerounFiltreOpen=!state.camerounFiltreOpen;state.showSearchHub=false;}
+  else if(id==='cotedivoire'){state.ciFiltreOpen=!state.ciFiltreOpen;state.showSearchHub=false;}
+  else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else{state.tab=id;state.showSearchHub=false;}
@@ -7399,12 +7657,14 @@ function bottomNavHTML(){
     ['ghana','🇬🇭','Ghana'],
     ['togo','🇹🇬','Togo'],
     ['cameroun','🇨🇲','Cameroun'],
+    ['cotedivoire','🇨🇮','C. Ivoire'],
+    ['italie','🇮🇹','Italie'],
     ['multi','🌍','Multi-Pays'],
     ['pronostic','🍀','Pronostic'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -10793,6 +11053,16 @@ function __renderBody(){
     applyTheme();
     return;
   }
+  if(state.ciFiltreOpen){
+    document.getElementById('app').innerHTML=ciFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.itFiltreOpen){
+    document.getElementById('app').innerHTML=itFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
   if(state.multiFiltreOpen){
     document.getElementById('app').innerHTML=multiFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
@@ -11326,10 +11596,12 @@ function __renderBody(){
   html+=bottomNavHTML();
   html+=downloadAppButtonHTML();
   html+=fabHTML();
+  html+=zoomFabHTML();
   if(state.repereGlobalOpen)html+=repereGlobalHTML();
   if(state.repere2GlobalOpen)html+=repere2GlobalHTML();
   if(state.doublonsPanelOpen)html+=doublonsPanelHTML();
   if(state.coloringExportOpen)html+=coloringExportHTML();
+  if(state.zoomSheetOpen)html+=zoomSheetHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
   <div id="popup" class="popup" style="display:none"></div>

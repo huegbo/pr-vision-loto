@@ -2892,6 +2892,35 @@ function zoomStep(dir){
   idx=Math.max(0,Math.min(ZOOM_LEVELS.length-1,idx+dir));
   setZoom(ZOOM_LEVELS[idx]);
 }
+// ── Bouton flottant + panneau bas d'écran pour la Taille de texte (zoom) ──
+// Rend le réglage de zoom existant (state.zoom/setZoom/zoomStep) accessible
+// depuis n'importe quel écran, sans créer un second système de zoom.
+function toggleZoomSheet(){state.zoomSheetOpen=!state.zoomSheetOpen;render();}
+function closeZoomSheet(){state.zoomSheetOpen=false;render();}
+function zoomFabHTML(){
+  return `<div onclick="toggleZoomSheet()" title="Taille de texte" style="position:fixed;right:16px;bottom:calc(78px + env(safe-area-inset-bottom));width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#0E7490,#0891B2);box-shadow:0 6px 18px rgba(0,0,0,.32);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:996;font-size:18px;color:#fff">🔠</div>`;
+}
+function zoomSheetHTML(){
+  const idx=Math.max(0,ZOOM_LEVELS.indexOf(state.zoom));
+  const atMin=state.zoom<=ZOOM_LEVELS[0];
+  const atMax=state.zoom>=ZOOM_LEVELS[ZOOM_LEVELS.length-1];
+  return `<div onclick="closeZoomSheet()" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998"></div>
+  <div style="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#fff;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.35)">
+    <div style="width:36px;height:4px;border-radius:2px;background:#ddd;margin:0 auto 12px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <span style="font-size:16px;font-weight:600;color:#1F2D3D">🔠 Taille de texte</span>
+      <span onclick="closeZoomSheet()" style="cursor:pointer;font-size:18px;color:#999;padding:2px 6px">✕</span>
+    </div>
+    <div style="text-align:center;font-size:28px;font-weight:700;color:#0E7490;margin-bottom:16px">${Math.round(state.zoom*100)}%</div>
+    <div style="display:flex;gap:10px;margin-bottom:14px">
+      <button onclick="zoomStep(-1)" ${atMin?'disabled':''} style="flex:1;padding:14px 0;border-radius:12px;border:none;background:${atMin?'#eee':'#E8EAF6'};color:${atMin?'#aaa':'#1F2D3D'};font-size:15px;font-weight:600;cursor:${atMin?'default':'pointer'}">－ Diminuer</button>
+      <button onclick="zoomStep(1)" ${atMax?'disabled':''} style="flex:1;padding:14px 0;border-radius:12px;border:none;background:${atMax?'#eee':'#0E7490'};color:${atMax?'#aaa':'#fff'};font-size:15px;font-weight:600;cursor:${atMax?'default':'pointer'}">＋ Augmenter</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center">
+      ${ZOOM_LEVELS.map((z,i)=>`<button onclick="setZoom(${z})" style="padding:5px 10px;border-radius:8px;font-size:11px;font-weight:500;cursor:pointer;border:2px solid ${i===idx?'#0E7490':'#ddd'};background:${i===idx?'#E8EAF6':'#fff'};color:#333">${Math.round(z*100)}%</button>`).join('')}
+    </div>
+  </div>`;
+}
 // ── Synchronisation Supabase (multi-appareils) ──────────────────────────
 // Toute clé lue/écrite via lsGetOr/lsSet/lsRemove est aussi poussée vers/tirée
 // depuis la table app_kv (key text, value json, updated_at timestamptz).
@@ -3379,7 +3408,7 @@ let state={
   pronosticOrdre:'saisi', pronosticAuto:0,   // ordre des numeros a l'export : 'saisi' ou 'croissant'        // contour des boules : absent par défaut
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
-  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
@@ -11567,10 +11596,12 @@ function __renderBody(){
   html+=bottomNavHTML();
   html+=downloadAppButtonHTML();
   html+=fabHTML();
+  html+=zoomFabHTML();
   if(state.repereGlobalOpen)html+=repereGlobalHTML();
   if(state.repere2GlobalOpen)html+=repere2GlobalHTML();
   if(state.doublonsPanelOpen)html+=doublonsPanelHTML();
   if(state.coloringExportOpen)html+=coloringExportHTML();
+  if(state.zoomSheetOpen)html+=zoomSheetHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
   <div id="popup" class="popup" style="display:none"></div>

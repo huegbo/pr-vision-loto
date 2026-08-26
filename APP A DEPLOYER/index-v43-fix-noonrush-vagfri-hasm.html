@@ -6459,6 +6459,7 @@ async function exportColoredExcel(){
           totCell.font={color:{argb:hexToARGB(tc[1])},bold:true};
         }
         if(includeM&&r.m){
+          const bmk=anMarkBonus(r,ctx); // couche "Miroir même ligne/superposé toujours actif" côté bonus
           r.m.forEach((v,mi)=>{
             if(isNaN(v))return; // case vide (« · » à l'écran) — on laisse la cellule Excel vide
             const cell=row.getCell(startCol+3+nNums+mi);
@@ -6467,6 +6468,7 @@ async function exportColoredExcel(){
             const cid=r.t+'_m'+mi;
             const manual=state.coloredCells[cid]||state.colored[v];
             let hs=manual?hlStyle(manual):null;
+            if(!hs&&bmk&&bmk[mi])hs=hlStyle({bg:bmk[mi][0],fg:bmk[mi][1],style:bmk[mi][2]});
             if(!hs&&D){const am=anValMark(v,ctx);if(am)hs=hlStyle({bg:am[0],fg:am[1]});}
             if(hs){
               const bStyleM={style:'medium',color:{argb:hexToARGB(hs.color)}};
@@ -10585,11 +10587,40 @@ function anMark(row,ctx){
       row.n.forEach((n,i)=>{
         if(out[i])return;
         let hit=false;
-        if(k==='mirL')hit=!!(MIR[n]&&row.n.includes(MIR[n]));
+        if(k==='mirL')hit=!!(MIR[n]&&(row.n.includes(MIR[n])||(row.m&&row.m.includes(MIR[n]))));
         else if(k==='mirP')hit=!!(MIR[n]&&((prevR&&prevR.n[i]===MIR[n])||(nextR&&nextR.n[i]===MIR[n])));
         else if(k==='superpos')hit=!!((olderR&&olderR.n[i]===n)||(newerR&&newerR.n[i]===n));
         if(hit)out[i]=[_col,'#fff',_sty];
       });
+    });
+  }
+  return out;
+}
+// Marquage "Miroir même ligne / superposé" pour les numéros complémentaires (bonus, N6-N10).
+// Même principe que les couches "toujours actives" de anMark(), mais pour row.m — comble le
+// trou où un miroir entièrement situé côté bonus (ex: 78/87) n'était jamais comparé.
+function anMarkBonus(row,ctx){
+  if(!row.m)return null;
+  const out=[null,null,null,null,null];
+  if(!state.mirLAlways&&!state.mirPAlways)return out;
+  const gi=IDX[row.t];
+  const mgap=Math.max(1,state.mirPGap||1);
+  const prevR=(gi!=null&&gi+mgap<T.length)?T[gi+mgap]:null;
+  const nextR=(gi!=null&&gi-mgap>=0)?T[gi-mgap]:null;
+  if(state.mirLAlways){
+    const _col=state.mirLColor||'#AB47BC';
+    row.m.forEach((n,i)=>{
+      if(out[i]||isNaN(n))return;
+      if(MIR[n]&&(row.n.includes(MIR[n])||row.m.includes(MIR[n])))out[i]=[_col,'#fff',state.mirLStyle];
+    });
+  }
+  if(state.mirPAlways){
+    const _col=state.mirPColor||'#AB47BC';
+    row.m.forEach((n,i)=>{
+      if(out[i]||isNaN(n))return;
+      const pv=prevR&&prevR.m?prevR.m[i]:null;
+      const nv=nextR&&nextR.m?nextR.m[i]:null;
+      if(MIR[n]&&((pv===MIR[n])||(nv===MIR[n])))out[i]=[_col,'#fff',state.mirPStyle];
     });
   }
   return out;
@@ -10936,7 +10967,8 @@ function anRender(){
         }else{
         html+=GAME.xtra?`<td style="${fz(ci,7)}background:#FFEBEE;font-weight:700;color:#B71C1C;font-size:9px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`:`<td style="${fz(ci,7)}background:${tc[0]};font-weight:500;color:${tc[1]};font-size:9px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
         if(GAME.hasM){
-          [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,an:anValMark(row.m[mi],ctx)},'an'+ci+'_'+row.t+'_m'+mi):'·'}</td>`;});
+          const _bmk=row.m?anMarkBonus(row,ctx):null;
+          [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,an:(_bmk&&_bmk[mi])||anValMark(row.m[mi],ctx)},'an'+ci+'_'+row.t+'_m'+mi):'·'}</td>`;});
           if(GAME.xtra){
             html+=`<td style="background:#FFEBEE;font-weight:700;color:#B71C1C;font-size:9px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
           }else{
@@ -10971,7 +11003,7 @@ function anRender(){
         <div style="font-size:8px;color:#555">${row.d}</div>
         ${row.n.map((n,ni)=>numSpan(n,{an:mk[ni]},row.t+'_'+ni)).join('')}
         ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>`}
-        ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,an:anValMark(row.m[mi],ctx)},row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
+        ${GAME.hasM?(()=>{const _bmk=row.m?anMarkBonus(row,ctx):null;return[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,an:(_bmk&&_bmk[mi])||anValMark(row.m[mi],ctx)},row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join('');})():''}
         ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
       </div>`;
     });

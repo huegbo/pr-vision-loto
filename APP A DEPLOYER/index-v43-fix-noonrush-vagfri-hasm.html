@@ -9874,6 +9874,7 @@ const AN_DEF=[
   {key:'mirP2',label:'🪞🪞 Double miroir superposé',bg:'#86198F',fg:'#fff',desc:'Au moins 2 numéros et leurs miroirs à la même position, entre ce tirage et un tirage antérieur/postérieur (écart réglable)'},
   {key:'decomp',label:'🧩 Décomposition',bg:'#EA580C',fg:'#fff',desc:'Un numéro égal à la somme de deux autres numéros (même colonne ou colonne différente) dans des tirages voisins (écart réglable) — ex: 67=36+31, ou 64=60+4'},
   {key:'decompX',label:'🧩➕ Décomposition croisée',bg:'#059669',fg:'#fff',desc:'Un numéro égal à un numéro d\'une autre colonne (même tirage) + le numéro de cette même colonne dans un tirage voisin (écart réglable) — ex: 67 = 15+52'},
+  {key:'sumCounterMir',label:'➕🪞 Somme → Counter → Miroir',bg:'#9D174D',fg:'#fff',desc:'2 numéros de la même ligne dont la somme, ramenée dans 1-90 par ±45 (son "counterpart"), a son miroir (chiffres inversés) présent sur cette même ligne — ex: 53+37=90 → counterpart 45 → miroir 54, présent sur la ligne'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
   {key:'doubles',label:'👯 Doubles',bg:'#BE185D',fg:'#fff',desc:'Numéros doubles: 11, 22, 33, 44, 55, 66, 77, 88'},
@@ -10522,6 +10523,20 @@ function anMark(row,ctx){
         if(A===B)continue;
         if(older.n[B]+row.n[B]===older.n[A]){S(B,col);break;}
       }
+    }
+  }
+  if(m==='sumCounterMir'){
+    // Pour chaque paire de numéros de la ligne : somme -> counterpart (±45, ramené dans 1-90) -> miroir (chiffres inversés).
+    // Si ce miroir est aussi présent sur la même ligne (à une 3e position), on marque les 3 numéros.
+    // Ex: 53+37=90 -> counterpart=45 (90>45 -> 90-45) -> miroir(45)=54 -> si 54 est sur la ligne, hit.
+    const col=D.bg;
+    for(let i=0;i<row.n.length;i++)for(let j=i+1;j<row.n.length;j++){
+      const s=row.n[i]+row.n[j];
+      const cnt=s<=45?s+45:s-45>0?s-45:((s-1+45)%90)+1; // counterpart: +45 si <=45, sinon -45 (repli 1-90 si somme >90)
+      const mir=MIR[cnt];
+      if(mir==null)continue;
+      const k=row.n.findIndex((v,idx)=>idx!==i&&idx!==j&&v===mir);
+      if(k>=0){S(i,col);S(j,col);S(k,col);}
     }
   }
   if(m==='arith'||m==='geo'){

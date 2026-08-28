@@ -1538,9 +1538,9 @@ function exportITFiltre(){
   ];
   exportCountryFiltre(rows,columns,'Italie_filtre','Italie','export-it-btn');
 }
-const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana'};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E'};
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','italie'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',italie:'🇮🇹 Italie'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',italie:'006341'};
 const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
@@ -1548,6 +1548,7 @@ const MULTI_JEU_OPTIONS=[
   ...CAMEROUN_JEU_ORDER.map(k=>({key:'cameroun:'+k,label:'🇨🇲 '+CAMEROUN_JEU_LABELS[k],color:CAMEROUN_JEU_COLORS[k]})),
   ...CI_GAMES.map(g=>({key:'cotedivoire:'+g.key,label:'🇨🇮 '+CI_JEU_LABELS[g.key],color:CI_JEU_COLORS[g.key]})),
   ...GHANA_JEU_ORDER.map(k=>({key:'ghana:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
+  ...IT_GAMES.map(g=>({key:'italie:'+g.key,label:'🇮🇹 '+IT_JEU_LABELS[g.key],color:IT_JEU_COLORS[g.key]})),
 ];
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
 const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
@@ -1562,6 +1563,7 @@ function multiHeureNum(pays,jeuRawKey){
   if(pays==='cameroun'){const lbl=CAMEROUN_JEU_LABELS[jeuRawKey]||'';const m=lbl.match(/(\d{1,2})h/i);return m?parseInt(m[1],10):-1;}
   if(pays==='cotedivoire')return ciHeureNum(jeuRawKey);
   if(pays==='ghana')return -1; // pas d'heure de tirage connue dans les données Ghana (jour uniquement)
+  if(pays==='italie')return -1; // pas d'heure de tirage connue dans les données Italie (jour uniquement)
   return -1;
 }
 function parseMultiPaysAll(){
@@ -1592,6 +1594,11 @@ function parseMultiPaysAll(){
     rows.push({pays:'ghana',jourLabel:GHANA_JOUR_LABELS[r.jour],
       jeuKey:'ghana:'+r.jeu,jeuLabel:MULTI_JEU_MAP['ghana:'+r.jeu]?MULTI_JEU_MAP['ghana:'+r.jeu].label:r.jeu,jeuColor:GHANA_JEU_COLORS[r.jeu],
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('ghana',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
+  });
+  parseITAll().forEach(r=>{
+    rows.push({pays:'italie',jourLabel:r.jour,
+      jeuKey:'italie:'+r.jeu,jeuLabel:MULTI_JEU_MAP['italie:'+r.jeu]?MULTI_JEU_MAP['italie:'+r.jeu].label:r.jeu,jeuColor:IT_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('italie',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
   });
   rows.sort((a,b)=>b.sortKey-a.sortKey||b.heureNum-a.heureNum);
   MULTI_PAYS_ROWS=rows;

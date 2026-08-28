@@ -203,6 +203,25 @@ const RAW_MIDWEEK=window.LOTO_DATA.RAW_MIDWEEK;
 const RAW_ASEDA=window.LOTO_DATA.RAW_ASEDA;
 const RAW_PRECISE=window.LOTO_DATA.RAW_PRECISE;
 const RAW_ALPHA=window.LOTO_DATA.RAW_ALPHA;
+const RAW_DELTA=window.LOTO_DATA.RAW_DELTA;
+const RAW_OMEGA=window.LOTO_DATA.RAW_OMEGA;
+const RAW_EXCEL=window.LOTO_DATA.RAW_EXCEL;
+const RAW_PRIME=window.LOTO_DATA.RAW_PRIME;
+const RAW_KENSTAR=window.LOTO_DATA.RAW_KENSTAR;
+const RAW_ALPHA_EXPRESS_MON=window.LOTO_DATA.RAW_ALPHA_EXPRESS_MON;
+const RAW_ALPHA_EXPRESS_TUE=window.LOTO_DATA.RAW_ALPHA_EXPRESS_TUE;
+const RAW_ALPHA_EXPRESS_WED=window.LOTO_DATA.RAW_ALPHA_EXPRESS_WED;
+const RAW_ALPHA_EXPRESS_THU=window.LOTO_DATA.RAW_ALPHA_EXPRESS_THU;
+const RAW_ALPHA_EXPRESS_FRI=window.LOTO_DATA.RAW_ALPHA_EXPRESS_FRI;
+const RAW_ALPHA_EXPRESS_SAT=window.LOTO_DATA.RAW_ALPHA_EXPRESS_SAT;
+const RAW_ALPHA_EXPRESS_SUN=window.LOTO_DATA.RAW_ALPHA_EXPRESS_SUN;
+const RAW_ALPHA_ONE_MON=window.LOTO_DATA.RAW_ALPHA_ONE_MON;
+const RAW_ALPHA_ONE_TUE=window.LOTO_DATA.RAW_ALPHA_ONE_TUE;
+const RAW_ALPHA_ONE_WED=window.LOTO_DATA.RAW_ALPHA_ONE_WED;
+const RAW_ALPHA_ONE_THU=window.LOTO_DATA.RAW_ALPHA_ONE_THU;
+const RAW_ALPHA_ONE_FRI=window.LOTO_DATA.RAW_ALPHA_ONE_FRI;
+const RAW_ALPHA_ONE_SAT=window.LOTO_DATA.RAW_ALPHA_ONE_SAT;
+const RAW_ALPHA_ONE_SUN=window.LOTO_DATA.RAW_ALPHA_ONE_SUN;
 const RAW_TOUTBENIN=window.LOTO_DATA.RAW_TOUTBENIN;
 const RAW_BJ_F_LUN=window.LOTO_DATA.RAW_BJ_F_LUN;
 const RAW_BJ_F_MAR=window.LOTO_DATA.RAW_BJ_F_MAR;
@@ -399,8 +418,27 @@ const GAMES={
   matinal_samedi:{name:'MATINAL SAMEDI',icon:'🇹🇬',raw:RAW_MATINAL_SAMEDI,hasM:true,sum10:true},
   midweek:{name:'MID-WEEK',icon:'🇬🇭',raw:RAW_MIDWEEK,hasM:true,sum10:true},
   aseda:{name:'SUNDAY ASEDA',icon:'🇬🇭',raw:RAW_ASEDA,hasM:true,sum10:true},
-  precise:{name:'PRECISE',icon:'🇬🇭',raw:RAW_PRECISE,hasM:true,sum10:true},
+  precise:{name:'PRECISE LOTTO',icon:'🇬🇭',raw:RAW_PRECISE,hasM:true,sum10:true},
   alpha:{name:'ALPHA LOTTO',icon:'🇬🇭',raw:RAW_ALPHA,hasM:true,sum10:true},
+  delta:{name:'DELTA LOTTO',icon:'🇬🇭',raw:RAW_DELTA,hasM:true,sum10:true},
+  omega:{name:'OMEGA LOTTO',icon:'🇬🇭',raw:RAW_OMEGA,hasM:true,sum10:true},
+  excel:{name:'EXCEL LOTTO',icon:'🇬🇭',raw:RAW_EXCEL,hasM:true,sum10:true},
+  prime:{name:'PRIME LOTTO',icon:'🇬🇭',raw:RAW_PRIME,hasM:true,sum10:true},
+  kenstar:{name:'KENSTAR LOTTO',icon:'🇬🇭',raw:RAW_KENSTAR,hasM:true,sum10:true},
+  alpha_express_mon:{name:'ALPHA EXPRESS MONDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_MON,hasM:true,sum10:true},
+  alpha_express_tue:{name:'ALPHA EXPRESS TUESDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_TUE,hasM:true,sum10:true},
+  alpha_express_wed:{name:'ALPHA EXPRESS WEDNESDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_WED,hasM:true,sum10:true},
+  alpha_express_thu:{name:'ALPHA EXPRESS THURSDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_THU,hasM:true,sum10:true},
+  alpha_express_fri:{name:'ALPHA EXPRESS FRIDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_FRI,hasM:true,sum10:true},
+  alpha_express_sat:{name:'ALPHA EXPRESS SATURDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_SAT,hasM:true,sum10:true},
+  alpha_express_sun:{name:'ALPHA EXPRESS SUNDAY',icon:'🇬🇭',raw:RAW_ALPHA_EXPRESS_SUN,hasM:true,sum10:true},
+  alpha_one_mon:{name:'MONDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_MON,hasM:true,sum10:true},
+  alpha_one_tue:{name:'TUESDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_TUE,hasM:true,sum10:true},
+  alpha_one_wed:{name:'WEDNESDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_WED,hasM:true,sum10:true},
+  alpha_one_thu:{name:'THURSDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_THU,hasM:true,sum10:true},
+  alpha_one_fri:{name:'FRIDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_FRI,hasM:true,sum10:true},
+  alpha_one_sat:{name:'SATURDAY ALPHA ONE',icon:'🇬🇭',raw:RAW_ALPHA_ONE_SAT,hasM:true,sum10:true},
+  alpha_one_sun:{name:'ALPHA ONE SUNDAY',icon:'🇬🇭',raw:RAW_ALPHA_ONE_SUN,hasM:true,sum10:true},
   toutbenin:{name:'TOUT BENIN PLUS DIGITAL',icon:'🇧🇯',raw:RAW_TOUTBENIN,hasM:true,sum10:true},
   benin_all_jeu:{name:'ALL BENIN (officiel)',icon:'🇧🇯',raw:RAW_BENIN_ALL_JEU,hasM:true,sum10:true},
   digital_benin:{name:'DIGITAL BENIN',icon:'🇧🇯',raw:RAW_DIGITAL_BENIN,hasM:true,sum10:true},

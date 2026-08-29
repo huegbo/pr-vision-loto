@@ -548,9 +548,9 @@ const GAMES={
   ci_national:{name:'NATIONAL (CI)',icon:'🇨🇮',raw:RAW_CI_NATIONAL2,hasM:false},
   ci_dayoff:{name:'DAY OFF',icon:'🇨🇮',raw:RAW_CI_DAYOFF,hasM:true},
   ci_nuit_etoilee:{name:'NUIT ÉTOILÉE',icon:'🇨🇮',raw:RAW_CI_NUIT_ETOILEE,hasM:true},
-  bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE},
-  bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA},
-  bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY},
+  bf_nekre:{name:'NEKRE',icon:'🇧🇫',raw:RAW_BF_NEKRE,hasM:false},
+  bf_kounandia:{name:'KOUNANDIA',icon:'🇧🇫',raw:RAW_BF_KOUNANDIA,hasM:false},
+  bf_welhy:{name:'WELHY',icon:'🇧🇫',raw:RAW_BF_WELHY,hasM:false},
   it_palermo:{name:'IT PALERMO',icon:'🇮🇹',raw:RAW_IT_PALERMO},
   it_roma:{name:'IT ROMA',icon:'🇮🇹',raw:RAW_IT_ROMA},
   it_torino:{name:'IT TORINO',icon:'🇮🇹',raw:RAW_IT_TORINO},
@@ -1538,9 +1538,35 @@ function exportITFiltre(){
   ];
   exportCountryFiltre(rows,columns,'Italie_filtre','Italie','export-it-btn');
 }
-const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','italie'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',italie:'🇮🇹 Italie'};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',italie:'006341'};
+// ── BURKINA FASO (LONAB — Faso Loto 5/90) : jeux hebdomadaires Nékré (Lun), Kounandia (Mer), Welhy (Ven) ──
+const BF_GAMES=[
+  {key:'bf_nekre',jour:'Lundi',color:'CE1126'},
+  {key:'bf_kounandia',jour:'Mercredi',color:'009E49'},
+  {key:'bf_welhy',jour:'Vendredi',color:'B8860B'},
+];
+const BF_JEU_LABELS=Object.fromEntries(BF_GAMES.map(g=>[g.key,GAMES[g.key].name]));
+const BF_JEU_COLORS=Object.fromEntries(BF_GAMES.map(g=>[g.key,g.color]));
+let BF_ALL_ROWS=null;
+function parseBFAll(){
+  if(BF_ALL_ROWS)return BF_ALL_ROWS;
+  BF_ALL_ROWS=[];
+  BF_GAMES.forEach(g=>{
+    const raw=GAMES[g.key].raw;
+    if(!raw)return;
+    raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
+      const p=line.split('|');
+      const t=+p[0],d=p[1],y=p[2];
+      const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+      const s=p[8]!==undefined&&p[8]!==''?+p[8]:n.reduce((a,b)=>a+b,0);
+      BF_ALL_ROWS.push({jour:g.jour,jeu:g.key,t,d,y,n,s,bonus:null});
+    });
+  });
+  return BF_ALL_ROWS;
+}
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','italie','burkina'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',italie:'🇮🇹 Italie',burkina:'🇧🇫 Burkina Faso'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',italie:'006341',burkina:'CE1126'};
 const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
@@ -1549,6 +1575,7 @@ const MULTI_JEU_OPTIONS=[
   ...CI_GAMES.map(g=>({key:'cotedivoire:'+g.key,label:'🇨🇮 '+CI_JEU_LABELS[g.key],color:CI_JEU_COLORS[g.key]})),
   ...GHANA_JEU_ORDER.map(k=>({key:'ghana:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
   ...IT_GAMES.map(g=>({key:'italie:'+g.key,label:'🇮🇹 '+IT_JEU_LABELS[g.key],color:IT_JEU_COLORS[g.key]})),
+  ...BF_GAMES.map(g=>({key:'burkina:'+g.key,label:'🇧🇫 '+BF_JEU_LABELS[g.key],color:BF_JEU_COLORS[g.key]})),
 ];
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
 const MULTI_JEU_MAP=Object.fromEntries(MULTI_JEU_OPTIONS.map(o=>[o.key,o]));
@@ -1564,6 +1591,7 @@ function multiHeureNum(pays,jeuRawKey){
   if(pays==='cotedivoire')return ciHeureNum(jeuRawKey);
   if(pays==='ghana')return -1; // pas d'heure de tirage connue dans les données Ghana (jour uniquement)
   if(pays==='italie')return -1; // pas d'heure de tirage connue dans les données Italie (jour uniquement)
+  if(pays==='burkina')return -1; // pas d'heure de tirage connue dans les données Burkina Faso (jour uniquement)
   return -1;
 }
 function parseMultiPaysAll(){
@@ -1599,6 +1627,11 @@ function parseMultiPaysAll(){
     rows.push({pays:'italie',jourLabel:r.jour,
       jeuKey:'italie:'+r.jeu,jeuLabel:MULTI_JEU_MAP['italie:'+r.jeu]?MULTI_JEU_MAP['italie:'+r.jeu].label:r.jeu,jeuColor:IT_JEU_COLORS[r.jeu],
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('italie',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
+  });
+  parseBFAll().forEach(r=>{
+    rows.push({pays:'burkina',jourLabel:r.jour,
+      jeuKey:'burkina:'+r.jeu,jeuLabel:MULTI_JEU_MAP['burkina:'+r.jeu]?MULTI_JEU_MAP['burkina:'+r.jeu].label:r.jeu,jeuColor:BF_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('burkina',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
   });
   rows.sort((a,b)=>b.sortKey-a.sortKey||b.heureNum-a.heureNum);
   MULTI_PAYS_ROWS=rows;
@@ -6800,6 +6833,85 @@ function dbtPanelHTML(){
   </div>`;
 }
 
+// ══════ MÊME TOTAL SUPERPOSÉ — N numéros aux MÊMES positions (colonnes alignées),
+// comparés entre un tirage et un tirage situé à un écart réglable au-dessus/en-dessous ══════
+// Ex. écart=1, N=3, positions 1-3-5 : tirage i : n1+n3+n5  ==  tirage i±1 : n1+n3+n5
+// Contrairement à "Double même total" (paires libres, positions différentes possibles),
+// ici les positions testées sont TOUJOURS LES MÊMES des deux côtés (superposition verticale).
+function vtotCombos(n,k){ // toutes les combinaisons d'indices [0..n-1] de taille k
+  const out=[];
+  (function rec(start,cur){
+    if(cur.length===k){out.push(cur.slice());return;}
+    for(let i=start;i<n;i++){cur.push(i);rec(i+1,cur);cur.pop();}
+  })(0,[]);
+  return out;
+}
+function runVtot(){
+  const N=Math.max(1,Math.min(5,parseInt(state.vtotN)||2)), gap=Math.max(1,Math.min(5,parseInt(state.vtotGap)||1));
+  const combos=vtotCombos(5,N), res=[];
+  for(let i=0;i<T.length;i++){
+    const r=T[i];
+    [[i-gap,'dessus'],[i+gap,'dessous']].forEach(([j,lbl])=>{
+      if(j<0||j>=T.length)return;
+      const v=T[j];
+      combos.forEach(idxs=>{
+        const sa=idxs.reduce((s,ix)=>s+r.n[ix],0), sb=idxs.reduce((s,ix)=>s+v.n[ix],0);
+        if(sa===sb)res.push({r,voisin:v,total:sa,pos:idxs,valsA:idxs.map(ix=>r.n[ix]),valsB:idxs.map(ix=>v.n[ix]),ou:lbl});
+      });
+    });
+  }
+  state.vtotRes=res;render();
+  setTimeout(()=>{const e=document.getElementById('vtot-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function vtotClear(){state.vtotRes=null;render();}
+function vtotResultHTML(){
+  if(!state.vtotRes)return '';
+  const res=state.vtotRes,MAX=300;
+  if(!res.length)return `<div id="vtot-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
+  const show=res.slice(0,MAX);
+  return `<div id="vtot-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#9A3412;margin-bottom:4px">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table class="excel-tbl" style="width:100%"><thead><tr>
+      ${['N°','Date','Tirage','Positions alignées','Voisin (écart)','Total'].map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+    </tr></thead><tbody>
+    ${show.map((x,k)=>{const bg=k%2?'#FFF7ED':'#fff';return `<tr>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.n.join(' ')}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#9A3412">N${x.pos.map(p=>p+1).join(',N')} <span style="color:#888;font-weight:400">(${x.valsA.join('+')})</span></td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.ou} · ${x.voisin.d}/${x.voisin.y}<br><span style="color:#888">${x.voisin.n.join(' ')}</span> <span style="color:#9A3412;font-weight:600">(${x.valsB.join('+')})</span></td>
+      <td style="background:#FFEDD5;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.total}</td>
+    </tr>`;}).join('')}
+    </tbody></table></div></div>`;
+}
+function vtotPanelHTML(){
+  const N=state.vtotN||2, gap=state.vtotGap||1;
+  return `<div style="background:#fff;border:1.5px solid #9A3412;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#9A3412;margin-bottom:5px">🧱 Même total superposé — N numéros aux mêmes positions, écart réglable</div>
+    <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#9A3412">
+      Compare un tirage à un autre situé N tirage(s) plus haut/bas (superposition verticale, comme Miroir superposé). Pour un nombre de numéros choisi (1 à 5), toutes les combinaisons de positions <b>alignées</b> (mêmes colonnes des deux côtés) sont testées : si le total à ces positions est identique dans les deux tirages, c'est un résultat.
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#777">${T.length} tirages</span>
+      <span style="font-size:9px;color:#9A3412;font-weight:600">Numéros alignés</span>
+      <div style="display:flex;gap:3px">
+        ${[1,2,3,4,5].map(v=>`<button onclick="state.vtotN=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${N===v?'#9A3412':'#ddd'};background:${N===v?'#9A3412':'#fff'};color:${N===v?'#fff':'#9A3412'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
+      </div>
+      <span style="font-size:9px;color:#9A3412;font-weight:600;margin-left:6px">Écart (tirages)</span>
+      <div style="display:flex;gap:3px">
+        ${[1,2,3,4,5].map(v=>`<button onclick="state.vtotGap=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${gap===v?'#9A3412':'#ddd'};background:${gap===v?'#9A3412':'#fff'};color:${gap===v?'#fff':'#9A3412'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button onclick="runVtot()" style="padding:4px 14px;background:#9A3412;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="vtotClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+      <span style="font-size:8px;color:#9A3412">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
+    </div>
+    ${vtotResultHTML()}
+  </div>`;
+}
+
 // ══════ NUMÉRO + UN DE SES ÉLÉMENTS ══════
 // « éléments » = les dérivés déjà définis dans CL_DEF : Counter, Bonanza, Malta, Key,
 // Turning, Partner, Shadow, Equiv, Miroir.
@@ -7001,6 +7113,95 @@ function elmPanelHTML(){
   </div>`;
 }
 
+// ══════ TOTAL : NUMÉRO + SON ÉLÉMENT DE CLASSIFICATION ══════
+// Ex. le numéro 1 tiré + son Counter (46) = 47. On vérifie si 47 est le total du
+// tirage lui-même (même ligne) ou le total d'un tirage superposé (écart réglable).
+// Utilise les mêmes dérivés que le module "Numéro + un de ses éléments" (ELM_DEF/elmDerivs).
+function runCet(){
+  const type=state.cetType||'counter', vs=state.cetVs||'ligne', gap=Math.max(1,Math.min(5,parseInt(state.cetGap)||1));
+  const res=[];
+  for(let i=0;i<T.length;i++){
+    const r=T[i];
+    r.n.forEach((n,pi)=>{
+      const d=elmDerivs(n), v=d[type];
+      if(v===undefined||v===n)return;
+      const total=n+v;
+      if(vs==='ligne'){
+        if(total===r.s)res.push({r,num:n,pos:pi+1,elmVal:v,total,cible:r,ou:'même ligne (total du tirage)'});
+      }else{
+        [[i-gap,'dessus'],[i+gap,'dessous']].forEach(([j,lbl])=>{
+          if(j<0||j>=T.length)return;
+          const v2=T[j];
+          if(total===v2.s)res.push({r,num:n,pos:pi+1,elmVal:v,total,cible:v2,ou:lbl});
+        });
+      }
+    });
+  }
+  state.cetRes=res;render();
+  setTimeout(()=>{const e=document.getElementById('cet-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function cetClear(){state.cetRes=null;render();}
+function cetResultHTML(){
+  if(!state.cetRes)return '';
+  const res=state.cetRes,MAX=300;
+  const label=(ELM_DEF.find(d=>d.key===(state.cetType||'counter'))||{}).label||'Élément';
+  if(!res.length)return `<div id="cet-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
+  const show=res.slice(0,MAX);
+  return `<div id="cet-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#0F766E;margin-bottom:4px">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table class="excel-tbl" style="width:100%"><thead><tr>
+      ${['N°','Date','Tirage','Numéro + '+label,'Total obtenu','Tirage cible','Où'].map(h=>`<th style="position:sticky;top:0;background:#0F766E;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+    </tr></thead><tbody>
+    ${show.map((x,k)=>{const bg=k%2?'#F0FDFA':'#fff';return `<tr>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.n.join(' ')}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#0F766E">${x.num} + ${x.elmVal}</td>
+      <td style="background:#CCFBF1;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.total}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">n°${x.cible.t} — ${x.cible.d}/${x.cible.y}<br><span style="color:#888">${x.cible.n.join(' ')}</span> <span style="color:#0F766E;font-weight:600">(total ${x.cible.s})</span></td>
+      <td style="background:${bg};font-size:9px;padding:3px 4px;color:#555">${x.ou}</td>
+    </tr>`;}).join('')}
+    </tbody></table></div></div>`;
+}
+function cetPanelHTML(){
+  const type=state.cetType||'counter', vs=state.cetVs||'ligne', gap=state.cetGap||1;
+  return `<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🧮 Total numéro + élément — la somme d'un numéro et d'un de ses dérivés reconstruit un total</div>
+    <div style="background:#F0FDFA;border:1px solid #99F6E4;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#0F766E">
+      Ex: le numéro <b>1</b> tiré + son Counter (<b>46</b>) = <b>47</b>. On vérifie si 47 est le total du tirage lui-même (même ligne) ou le total d'un tirage superposé (écart réglable).
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#7C2D12;font-weight:600">${GAME.icon||''} ${GAME.name}</span>
+      <span style="font-size:9px;color:#888">${T.length} tirages</span>
+      <span style="font-size:9px;color:#0F766E;font-weight:600;margin-left:6px">Élément</span>
+      <select onchange="state.cetType=this.value;state.cetRes=null;render()" style="padding:2px 6px;border:1.5px solid #0F766E;border-radius:5px;font-size:10px;font-weight:600;color:#0F766E;background:#fff">
+        ${ELM_DEF.map(d=>`<option value="${d.key}" ${type===d.key?'selected':''}>${d.label}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:6px">
+      ${[['ligne','Total du tirage (même ligne)','Numéro + élément = total affiché de ce tirage'],
+         ['superpose','Total d’un tirage superposé','Numéro + élément = total d’un tirage N lignes plus haut/bas (écart réglable)']]
+        .map(([k,t,d])=>`<label style="display:flex;align-items:flex-start;gap:6px;cursor:pointer;padding:4px 6px;border-radius:6px;background:${vs===k?'#CCFBF1':'#FAFAFA'};border:1px solid ${vs===k?'#0F766E':'#eee'}">
+        <input type="radio" name="cetvs" ${vs===k?'checked':''} onchange="state.cetVs='${k}';state.cetRes=null;render()" style="margin-top:1px">
+        <span><b style="font-size:10px;color:#0F766E">${t}</b><br><span style="font-size:9px;color:#666">${d}</span></span>
+      </label>`).join('')}
+    </div>
+    ${vs==='superpose'?`<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600">Écart (tirages)</span>
+      <div style="display:flex;gap:3px">
+        ${[1,2,3,4,5].map(v=>`<button onclick="state.cetGap=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${gap===v?'#0F766E':'#ddd'};background:${gap===v?'#0F766E':'#fff'};color:${gap===v?'#fff':'#0F766E'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
+      </div>
+    </div>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button onclick="runCet()" style="padding:4px 14px;background:#0F766E;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="cetClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+      <span style="font-size:8px;color:#0F766E">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
+    </div>
+    ${cetResultHTML()}
+  </div>`;
+}
+
 function searchHubHTML(){
   const modules=[
     ['🔢','Recherche numéros','Trouve les tirages contenant des numéros','num'],
@@ -7010,7 +7211,9 @@ function searchHubHTML(){
     ['📐','Tracer Plan','Combien de fois une combinaison est sortie','plan'],
     ['🪜','Séquence libre','Motif vertical, numéros à toute position','vseq'],
     ['➕','Double même total','Deux paires qui donnent le même total','dbt'],
+    ['🧱','Même total superposé','N numéros aux mêmes positions, écart réglable','vtot'],
     ['🧩','Numéro + son élément','Un numéro et un de ses dérivés de classification','elm'],
+    ['🧮','Total numéro + élément','Numéro + son dérivé (Counter, Code, Miroir…) = un total','cet'],
   ];
   let h=`<div class="card" style="border:2px solid #6D28D9;background:#FaF8FF">
     <div style="font-size:13px;font-weight:500;color:#6D28D9;margin-bottom:6px">🔎 Modules de recherche</div>
@@ -7064,7 +7267,9 @@ function searchHubHTML(){
   </div>`;
   h+=vseqPanelHTML();
   h+=dbtPanelHTML();
+  h+=vtotPanelHTML();
   h+=elmPanelHTML();
+  h+=cetPanelHTML();
   // Recherche par formule (suite étalée sur plusieurs tirages)
   h+=`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#7C3AED;margin-bottom:5px">🧮 Suite par formule (étalée sur plusieurs tirages)</div>

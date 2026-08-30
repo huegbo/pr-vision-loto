@@ -286,6 +286,7 @@ const RAW_GH_G18=window.LOTO_DATA.RAW_GH_G18;
 const RAW_GH_G19=window.LOTO_DATA.RAW_GH_G19;
 const RAW_GH_G20=window.LOTO_DATA.RAW_GH_G20;
 const RAW_GH_G21=window.LOTO_DATA.RAW_GH_G21;
+const RAW_GH_HOME_LUCKY=window.LOTO_DATA.RAW_GH_HOME_LUCKY;
 const RAW_GH_G22=window.LOTO_DATA.RAW_GH_G22;
 const RAW_GH_G23=window.LOTO_DATA.RAW_GH_G23;
 const RAW_GH_G24=window.LOTO_DATA.RAW_GH_G24;
@@ -473,6 +474,7 @@ const GAMES={
   gh_g19:{name:'GH SUNDAY ASEDA',icon:'🇬🇭',raw:RAW_GH_G19,hasM:true},
   gh_g20:{name:'GH SATURDAY NOON RUSH',icon:'🇬🇭',raw:RAW_GH_G20,hasM:true},
   gh_g21:{name:'GH SPORTS',icon:'🇬🇭',raw:RAW_GH_G21,hasM:true},
+  gh_home_lucky:{name:'GH HOME LUCKY',icon:'🇬🇭',raw:RAW_GH_HOME_LUCKY,hasM:true},
   gh_g22:{name:'GH SUNDAY SPECIAL',icon:'🇬🇭',raw:RAW_GH_G22,hasM:true},
   gh_g23:{name:'GH SUPER 6',icon:'🇬🇭',raw:RAW_GH_G23},
   gh_g24:{name:'GH THURSDAY NOON RUSH',icon:'🇬🇭',raw:RAW_GH_G24,hasM:true},
@@ -739,16 +741,16 @@ function beninFiltreHTML(){
 }
 const GHANA_JOUR_LABELS={MO:'Lundi',TU:'Mardi',WE:'Mercredi',TH:'Jeudi',FR:'Vendredi',SA:'Samedi',SU:'Dimanche'};
 const GHANA_JOUR_ORDER=['MO','TU','WE','TH','FR','SA','SU'];
-const GHANA_JEU_LABELS={G1:'5-39 Direct Friday',G2:'5-39 Direct Monday',G3:'5-39 Direct Saturday',G4:'5-39 Direct Thursday',G5:'5-39 Direct Tuesday',G6:'5-39 Direct Wednesday',G7:'DAYWA',G8:'FORTUNE THURSDAY',G9:'FRIDAY BONANZA',G10:'Friday Noon Rush',G11:'Golden Souvenir',G12:'LUCKY TUESDAY',G13:'MID WEEK',G14:'MONDAY SPECIAL',G15:'Monday Noon Rush',G16:'Obiri',G17:'Old Soldier',G18:'Pioneer',G19:'SUNDAY ASEDA',G20:'Saturday Noon Rush',G21:'Sports',G22:'Sunday Special',G23:'Super 6',G24:'Thursday Noon Rush',G25:'Tuesday Noon Rush',G26:'VAG',G27:'VAG Friday',G28:'VAG Monday',G29:'VAG Saturday',G30:'VAG Thursday',G31:'VAG Tuesday',G32:'VAG Wednesday',G33:'Vag East',G34:'Vag West',G35:'Wednesday Noon Rush',NATL:'NATIONAL GH',
+const GHANA_JEU_LABELS={G1:'5-39 Direct Friday',G2:'5-39 Direct Monday',G3:'5-39 Direct Saturday',G4:'5-39 Direct Thursday',G5:'5-39 Direct Tuesday',G6:'5-39 Direct Wednesday',G7:'DAYWA',G8:'FORTUNE THURSDAY',G9:'FRIDAY BONANZA',G10:'Friday Noon Rush',G11:'Golden Souvenir',G12:'LUCKY TUESDAY',G13:'MID WEEK',G14:'MONDAY SPECIAL',G15:'Monday Noon Rush',G16:'Obiri',G17:'Old Soldier',G18:'Pioneer',G19:'SUNDAY ASEDA',G20:'Saturday Noon Rush',G21:'Sports',HOMELUCKY:'Home Lucky',G22:'Sunday Special',G23:'Super 6',G24:'Thursday Noon Rush',G25:'Tuesday Noon Rush',G26:'VAG',G27:'VAG Friday',G28:'VAG Monday',G29:'VAG Saturday',G30:'VAG Thursday',G31:'VAG Tuesday',G32:'VAG Wednesday',G33:'Vag East',G34:'Vag West',G35:'Wednesday Noon Rush',NATL:'NATIONAL GH',
   precise:'GH PRECISE LOTTO',alpha:'GH ALPHA LOTTO',delta:'GH DELTA LOTTO',omega:'GH OMEGA LOTTO',excel:'GH EXCEL LOTTO',prime:'GH PRIME LOTTO',kenstar:'GH KENSTAR LOTTO',
   alpha_express_mon:'GH ALPHA EXPRESS MONDAY',alpha_express_tue:'GH ALPHA EXPRESS TUESDAY',alpha_express_wed:'GH ALPHA EXPRESS WEDNESDAY',alpha_express_thu:'GH ALPHA EXPRESS THURSDAY',alpha_express_fri:'GH ALPHA EXPRESS FRIDAY',alpha_express_sat:'GH ALPHA EXPRESS SATURDAY',alpha_express_sun:'GH ALPHA EXPRESS SUNDAY',
   alpha_one_mon:'GH MONDAY ALPHA ONE',alpha_one_tue:'GH TUESDAY ALPHA ONE',alpha_one_wed:'GH WEDNESDAY ALPHA ONE',alpha_one_thu:'GH THURSDAY ALPHA ONE',alpha_one_fri:'GH FRIDAY ALPHA ONE',alpha_one_sat:'GH SATURDAY ALPHA ONE',alpha_one_sun:'GH ALPHA ONE SUNDAY'};
 const GHANA_ALPHA_FAMILY_ORDER=['precise','alpha','delta','omega','excel','prime','kenstar','alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri','alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu','alpha_one_fri','alpha_one_sat','alpha_one_sun'];
 // Alias — famille GH ALPHALOTTO FAMILY affichée en onglet autonome (à côté de Ghana) et en pseudo-pays distinct dans Multi-Pays
 const GH_ALPHA_JEU_ORDER=GHANA_ALPHA_FAMILY_ORDER;
-const GHANA_CORE_JEU_ORDER=['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12','G13','G14','G15','G16','G17','G18','G19','G20','G21','G22','G23','G24','G25','G26','G27','G28','G29','G30','G31','G32','G33','G34','G35','NATL'];
+const GHANA_CORE_JEU_ORDER=['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12','G13','G14','G15','G16','G17','G18','G19','G20','G21','HOMELUCKY','G22','G23','G24','G25','G26','G27','G28','G29','G30','G31','G32','G33','G34','G35','NATL'];
 const GHANA_JEU_ORDER=[...GHANA_CORE_JEU_ORDER,...GHANA_ALPHA_FAMILY_ORDER];
-const GHANA_JEU_COLORS={G1:'0E7C7B',G2:'17A398',G3:'2DC6B0',G4:'1D4E89',G5:'2C6FB0',G6:'4A90D9',G7:'6D28D9',G8:'8B5CF6',G9:'A78BFA',G10:'B45309',G11:'D97706',G12:'F59E0B',G13:'BE123C',G14:'E11D48',G15:'FB7185',G16:'15803D',G17:'16A34A',G18:'4ADE80',G19:'5B21B6',G20:'7C3AED',G21:'9333EA',G22:'0369A1',G23:'0284C7',G24:'38BDF8',G25:'9D174D',G26:'DB2777',G27:'F472B6',G28:'334155',G29:'475569',G30:'64748B',G31:'78350F',G32:'92400E',G33:'B45309',G34:'1E293B',G35:'44403C',NATL:'CA8A04',
+const GHANA_JEU_COLORS={G1:'0E7C7B',G2:'17A398',G3:'2DC6B0',G4:'1D4E89',G5:'2C6FB0',G6:'4A90D9',G7:'6D28D9',G8:'8B5CF6',G9:'A78BFA',G10:'B45309',G11:'D97706',G12:'F59E0B',G13:'BE123C',G14:'E11D48',G15:'FB7185',G16:'15803D',G17:'16A34A',G18:'4ADE80',G19:'5B21B6',G20:'7C3AED',G21:'9333EA',HOMELUCKY:'0D9488',G22:'0369A1',G23:'0284C7',G24:'38BDF8',G25:'9D174D',G26:'DB2777',G27:'F472B6',G28:'334155',G29:'475569',G30:'64748B',G31:'78350F',G32:'92400E',G33:'B45309',G34:'1E293B',G35:'44403C',NATL:'CA8A04',
   precise:'059669',alpha:'2563EB',delta:'DC2626',omega:'C026D3',excel:'EA580C',prime:'0891B2',kenstar:'CA8A04',
   alpha_express_mon:'166534',alpha_express_tue:'991B1B',alpha_express_wed:'7C2D12',alpha_express_thu:'3730A3',alpha_express_fri:'BE185D',alpha_express_sat:'0E7490',alpha_express_sun:'4D7C0F',
   alpha_one_mon:'1D4ED8',alpha_one_tue:'B91C1C',alpha_one_wed:'6D28D9',alpha_one_thu:'0D9488',alpha_one_fri:'C2410C',alpha_one_sat:'A16207',alpha_one_sun:'4338CA'};
@@ -777,6 +779,30 @@ function parseGhanaAll(){
       const m=(p.length>=14)?[+p[9],+p[10],+p[11],+p[12],+p[13]]:null;
       rows.push({jour,jeu:key,d:p[1],y:p[2],n,m});
     });
+  });
+  // GH SPORTS (G21) : fusionné depuis RAW_GH_G21 comme la famille Alpha Lotto, mais SANS jour
+  // fixe — son jour de tirage a changé plusieurs fois entre 2017 et 2026 (dimanche, lundi,
+  // mardi, samedi selon les périodes), donc calculé dynamiquement à partir de la date de
+  // chaque tirage plutôt que fixé une fois pour toutes comme GHANA_ALPHA_FAMILY_JOUR.
+  const GH_DOW_CODE=['SU','MO','TU','WE','TH','FR','SA']; // Date.getDay() : 0=dimanche
+  GAMES.gh_g21.raw.trim().split('\n').forEach(line=>{
+    const p=line.split('|');
+    const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+    const m=(p.length>=14)?[+p[9],+p[10],+p[11],+p[12],+p[13]]:null;
+    const [dd,mm]=p[1].split('/').map(Number);
+    const jour=GH_DOW_CODE[new Date(+p[2],mm-1,dd).getDay()];
+    rows.push({jour,jeu:'G21',d:p[1],y:p[2],n,m});
+  });
+  // GH HOME LUCKY : même principe que GH SPORTS (G21) — jour de tirage variable dans le
+  // temps (mardi puis mercredi puis mardi puis lundi/mardi selon les périodes 2013-2022),
+  // donc calculé dynamiquement à partir de la date de chaque tirage.
+  GAMES.gh_home_lucky.raw.trim().split('\n').forEach(line=>{
+    const p=line.split('|');
+    const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+    const m=(p.length>=14)?[+p[9],+p[10],+p[11],+p[12],+p[13]]:null;
+    const [dd,mm]=p[1].split('/').map(Number);
+    const jour=GH_DOW_CODE[new Date(+p[2],mm-1,dd).getDay()];
+    rows.push({jour,jeu:'HOMELUCKY',d:p[1],y:p[2],n,m});
   });
   // Le composite RAW_GHANA_ALL est déjà du plus récent au plus ancien, mais la famille Alpha Lotto
   // a été fusionnée jeu par jeu (bloc par bloc) juste au-dessus — sans ce tri global, les tirages

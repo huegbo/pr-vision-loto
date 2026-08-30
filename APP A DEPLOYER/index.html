@@ -8113,7 +8113,7 @@ function fabHTML(){
   h+=`<div onclick="toggleFab()" style="position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#6D28D9,#0891B2);box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:996;font-size:22px">${state.showFab?'✕':'⊞'}</div>`;
   if(state.showFab){
     h+=`<div onclick="toggleFab()" style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:995"></div>
-    <div style="position:fixed;right:16px;bottom:142px;z-index:997;background:#1F2D3D;border-radius:18px;padding:16px;width:270px;max-width:80vw;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+    <div style="position:fixed;right:16px;bottom:142px;top:calc(10px + env(safe-area-inset-top));z-index:997;background:#1F2D3D;border-radius:18px;padding:16px;width:270px;max-width:80vw;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow-y:auto;-webkit-overflow-scrolling:touch">
       <div style="color:#fff;font-size:16px;font-weight:500;text-align:center;margin-bottom:12px">Que voulez-vous faire ?</div>
       ${items.map(([a,ic,lbl,bg,fg])=>`<div onclick="fabGo('${a}')" style="display:flex;align-items:center;gap:10px;background:${bg};color:${fg};border-radius:12px;padding:11px 14px;margin-bottom:10px;cursor:pointer;font-weight:500;font-size:14px"><span style="font-size:18px">${ic}</span>${lbl}</div>`).join('')}
     </div>`;

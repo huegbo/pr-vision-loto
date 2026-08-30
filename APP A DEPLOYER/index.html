@@ -743,7 +743,10 @@ const GHANA_JEU_LABELS={G1:'5-39 Direct Friday',G2:'5-39 Direct Monday',G3:'5-39
   alpha_express_mon:'ALPHA EXPRESS MONDAY',alpha_express_tue:'ALPHA EXPRESS TUESDAY',alpha_express_wed:'ALPHA EXPRESS WEDNESDAY',alpha_express_thu:'ALPHA EXPRESS THURSDAY',alpha_express_fri:'ALPHA EXPRESS FRIDAY',alpha_express_sat:'ALPHA EXPRESS SATURDAY',alpha_express_sun:'ALPHA EXPRESS SUNDAY',
   alpha_one_mon:'MONDAY ALPHA ONE',alpha_one_tue:'TUESDAY ALPHA ONE',alpha_one_wed:'WEDNESDAY ALPHA ONE',alpha_one_thu:'THURSDAY ALPHA ONE',alpha_one_fri:'FRIDAY ALPHA ONE',alpha_one_sat:'SATURDAY ALPHA ONE',alpha_one_sun:'ALPHA ONE SUNDAY'};
 const GHANA_ALPHA_FAMILY_ORDER=['precise','alpha','delta','omega','excel','prime','kenstar','alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri','alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu','alpha_one_fri','alpha_one_sat','alpha_one_sun'];
-const GHANA_JEU_ORDER=['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12','G13','G14','G15','G16','G17','G18','G19','G20','G21','G22','G23','G24','G25','G26','G27','G28','G29','G30','G31','G32','G33','G34','G35','NATL',...GHANA_ALPHA_FAMILY_ORDER];
+// Alias — famille GH ALPHALOTTO FAMILY affichée en onglet autonome (à côté de Ghana) et en pseudo-pays distinct dans Multi-Pays
+const GH_ALPHA_JEU_ORDER=GHANA_ALPHA_FAMILY_ORDER;
+const GHANA_CORE_JEU_ORDER=['G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12','G13','G14','G15','G16','G17','G18','G19','G20','G21','G22','G23','G24','G25','G26','G27','G28','G29','G30','G31','G32','G33','G34','G35','NATL'];
+const GHANA_JEU_ORDER=[...GHANA_CORE_JEU_ORDER,...GHANA_ALPHA_FAMILY_ORDER];
 const GHANA_JEU_COLORS={G1:'0E7C7B',G2:'17A398',G3:'2DC6B0',G4:'1D4E89',G5:'2C6FB0',G6:'4A90D9',G7:'6D28D9',G8:'8B5CF6',G9:'A78BFA',G10:'B45309',G11:'D97706',G12:'F59E0B',G13:'BE123C',G14:'E11D48',G15:'FB7185',G16:'15803D',G17:'16A34A',G18:'4ADE80',G19:'5B21B6',G20:'7C3AED',G21:'9333EA',G22:'0369A1',G23:'0284C7',G24:'38BDF8',G25:'9D174D',G26:'DB2777',G27:'F472B6',G28:'334155',G29:'475569',G30:'64748B',G31:'78350F',G32:'92400E',G33:'B45309',G34:'1E293B',G35:'44403C',NATL:'CA8A04',
   precise:'059669',alpha:'2563EB',delta:'DC2626',omega:'C026D3',excel:'EA580C',prime:'0891B2',kenstar:'CA8A04',
   alpha_express_mon:'166534',alpha_express_tue:'991B1B',alpha_express_wed:'7C2D12',alpha_express_thu:'3730A3',alpha_express_fri:'BE185D',alpha_express_sat:'0E7490',alpha_express_sun:'4D7C0F',
@@ -776,6 +779,92 @@ function parseGhanaAll(){
   });
   GHANA_ALL_ROWS=rows;
   return GHANA_ALL_ROWS;
+}
+// ══════ GH ALPHALOTTO FAMILY — vue autonome, à côté de Ghana (Precise/Alpha/Delta/Omega/Excel/Prime/Kenstar + Alpha Express/One) ══════
+let GH_ALPHA_ALL_ROWS=null;
+function parseGhAlphaAll(){
+  if(GH_ALPHA_ALL_ROWS) return GH_ALPHA_ALL_ROWS;
+  GH_ALPHA_ALL_ROWS=parseGhanaAll().filter(r=>GH_ALPHA_JEU_ORDER.includes(r.jeu));
+  return GH_ALPHA_ALL_ROWS;
+}
+function toggleGhAlphaJour(code){
+  const i=state.ghAlphaJours.indexOf(code);
+  if(i>=0)state.ghAlphaJours.splice(i,1);else state.ghAlphaJours.push(code);
+  render();
+}
+function toggleGhAlphaJeu(code){
+  const i=state.ghAlphaJeux.indexOf(code);
+  if(i>=0)state.ghAlphaJeux.splice(i,1);else state.ghAlphaJeux.push(code);
+  render();
+}
+function ghAlphaFiltreHTML(){
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  let html=`<div id="app-content">
+  <div class="header" style="background:#4C1D95;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">🇬🇭 GH ALPHALOTTO FAMILY — Filtre Jour / Jeu</div>
+      <button id="export-ghalpha-btn" onclick="exportGhAlphaFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.ghAlphaFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div class="card" style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        ${GHANA_JOUR_ORDER.map(code=>{const sel=state.ghAlphaJours.includes(code);return `<button onclick="toggleGhAlphaJour('${code}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #4C1D95':'1px solid #ddd'};background:${sel?'#4C1D95':'#f5f5f5'};color:${sel?'#fff':'#777'}">${GHANA_JOUR_LABELS[code]}</button>`;}).join('')}
+        <button onclick="state.ghAlphaJours=[...GHANA_JOUR_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ghAlphaJours=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jeu (${state.ghAlphaJeux.length}/${GH_ALPHA_JEU_ORDER.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;max-height:130px;overflow-y:auto">
+        ${GH_ALPHA_JEU_ORDER.map(code=>{const sel=state.ghAlphaJeux.includes(code);const c=GHANA_JEU_COLORS[code];const light=isLightBg(c);return `<button onclick="toggleGhAlphaJeu('${code}')" style="padding:3px 8px;font-size:9.5px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?(light?'#000':'#fff'):'#777'}">${GHANA_JEU_LABELS[code]}</button>`;}).join('')}
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px">
+        <button onclick="state.ghAlphaJeux=[...GH_ALPHA_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.ghAlphaJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
+    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+      <table class="excel-tbl"><thead><tr>
+        ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','M1','M2','M3','M4','M5','TOT.M'].map(h=>`<th style="position:sticky;top:0;background:#4C1D95;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      </tr></thead><tbody>
+      ${rows.slice(0,400).reverse().map((r,ri)=>{
+        const bg=ri%2===0?'#fff':'#F5F7FB';
+        const jc=GHANA_JEU_COLORS[r.jeu];const light=isLightBg(jc);
+        const tot=r.n.reduce((a,b)=>a+b,0);
+        const ms=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;
+        const mCells=r.m?r.m.map(v=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${v!=null?v:'·'}</td>`).join(''):Array(5).fill(`<td style="background:${bg};font-size:9.5px;padding:4px;color:#ccc">·</td>`).join('');
+        return `<tr>
+          <td style="background:#EDE7FF;font-weight:600;font-size:9.5px;padding:4px">${GHANA_JOUR_LABELS[r.jour]}</td>
+          <td style="background:#${jc};color:${light?'#000':'#fff'};font-weight:600;font-size:8.5px;padding:4px">${GHANA_JEU_LABELS[r.jeu]}</td>
+          <td style="background:${bg};font-size:9.5px;padding:4px">${r.d}/${r.y}</td>
+          ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+          <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${tot}</td>
+          ${mCells}
+          <td style="background:${ms!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${ms!=null?ms:'·'}</td>
+        </tr>`;
+      }).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+  return html;
+}
+function exportGhAlphaFiltre(){
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  const jeuFill=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c?'#'+c:null;};
+  const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
+  const columns=[
+    {header:'Jour',get:r=>GHANA_JOUR_LABELS[r.jour],bg:'#EDE7FF'},
+    {header:'Jeu',get:r=>GHANA_JEU_LABELS[r.jeu],bg:jeuFill,fg:jeuFont},
+    {header:'Date',get:r=>r.d+'/'+r.y},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.n.reduce((a,b)=>a+b,0),total:true},
+    {header:'M1',get:r=>r.m?r.m[0]:'',fg:r=>r.m?'#6D28D9':null},{header:'M2',get:r=>r.m?r.m[1]:'',fg:r=>r.m?'#6D28D9':null},{header:'M3',get:r=>r.m?r.m[2]:'',fg:r=>r.m?'#6D28D9':null},{header:'M4',get:r=>r.m?r.m[3]:'',fg:r=>r.m?'#6D28D9':null},{header:'M5',get:r=>r.m?r.m[4]:'',fg:r=>r.m?'#6D28D9':null},
+    {header:'TOT.M',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):'',totalM:true},
+  ];
+  exportCountryFiltre(rows,columns,'GH_AlphaLotto_family_filtre','GH_AlphaLotto_Family','export-ghalpha-btn');
 }
 function toggleGhanaJour(code){
   const i=state.ghanaJours.indexOf(code);
@@ -1596,16 +1685,17 @@ function parseBFAll(){
   });
   return BF_ALL_ROWS;
 }
-const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','italie','burkina'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',italie:'🇮🇹 Italie',burkina:'🇧🇫 Burkina Faso'};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',italie:'006341',burkina:'CE1126'};
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','ghalpha','italie','burkina'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',ghalpha:'🇬🇭 GH ALPHALOTTO FAMILY',italie:'🇮🇹 Italie',burkina:'🇧🇫 Burkina Faso'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',ghalpha:'4C1D95',italie:'006341',burkina:'CE1126'};
 const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
   ...TOGO_GAMES.map(g=>({key:'togo:'+g.key,label:'🇹🇬 '+TOGO_JEU_LABELS[g.key],color:TOGO_JEU_COLORS[g.key]})),
   ...CAMEROUN_JEU_ORDER.map(k=>({key:'cameroun:'+k,label:'🇨🇲 '+CAMEROUN_JEU_LABELS[k],color:CAMEROUN_JEU_COLORS[k]})),
   ...CI_GAMES.map(g=>({key:'cotedivoire:'+g.key,label:'🇨🇮 '+CI_JEU_LABELS[g.key],color:CI_JEU_COLORS[g.key]})),
-  ...GHANA_JEU_ORDER.map(k=>({key:'ghana:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
+  ...GHANA_CORE_JEU_ORDER.map(k=>({key:'ghana:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
+  ...GH_ALPHA_JEU_ORDER.map(k=>({key:'ghalpha:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
   ...IT_GAMES.map(g=>({key:'italie:'+g.key,label:'🇮🇹 '+IT_JEU_LABELS[g.key],color:IT_JEU_COLORS[g.key]})),
   ...BF_GAMES.map(g=>({key:'burkina:'+g.key,label:'🇧🇫 '+BF_JEU_LABELS[g.key],color:BF_JEU_COLORS[g.key]})),
 ];
@@ -1622,6 +1712,7 @@ function multiHeureNum(pays,jeuRawKey){
   if(pays==='cameroun'){const lbl=CAMEROUN_JEU_LABELS[jeuRawKey]||'';const m=lbl.match(/(\d{1,2})h/i);return m?parseInt(m[1],10):-1;}
   if(pays==='cotedivoire')return ciHeureNum(jeuRawKey);
   if(pays==='ghana')return -1; // pas d'heure de tirage connue dans les données Ghana (jour uniquement)
+  if(pays==='ghalpha')return -1; // pas d'heure de tirage connue (jour uniquement)
   if(pays==='italie')return -1; // pas d'heure de tirage connue dans les données Italie (jour uniquement)
   if(pays==='burkina')return -1; // pas d'heure de tirage connue dans les données Burkina Faso (jour uniquement)
   return -1;
@@ -1651,9 +1742,11 @@ function parseMultiPaysAll(){
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('cotedivoire',r.jeu),n:r.n,s:r.s,bonus:r.bonus});
   });
   parseGhanaAll().forEach(r=>{
-    rows.push({pays:'ghana',jourLabel:GHANA_JOUR_LABELS[r.jour],
-      jeuKey:'ghana:'+r.jeu,jeuLabel:MULTI_JEU_MAP['ghana:'+r.jeu]?MULTI_JEU_MAP['ghana:'+r.jeu].label:r.jeu,jeuColor:GHANA_JEU_COLORS[r.jeu],
-      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('ghana',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
+    const isAlphaFamily=GH_ALPHA_JEU_ORDER.includes(r.jeu);
+    const pays=isAlphaFamily?'ghalpha':'ghana';
+    rows.push({pays,jourLabel:GHANA_JOUR_LABELS[r.jour],
+      jeuKey:pays+':'+r.jeu,jeuLabel:MULTI_JEU_MAP[pays+':'+r.jeu]?MULTI_JEU_MAP[pays+':'+r.jeu].label:r.jeu,jeuColor:GHANA_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum(pays,r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
   });
   parseITAll().forEach(r=>{
     rows.push({pays:'italie',jourLabel:r.jour,
@@ -3513,6 +3606,7 @@ let state={
   beninFiltreOpen:false, beninJours:[...BENIN_JOUR_ORDER], beninJeux:[...BENIN_JEU_ORDER],
   beninHeures:[...BENIN_HEURE_ORDER], beninFamilles:[...BENIN_FAMILLE_ORDER],
   ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
+  ghAlphaFiltreOpen:false, ghAlphaJours:[...GHANA_JOUR_ORDER], ghAlphaJeux:[...GH_ALPHA_JEU_ORDER],
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key),
@@ -7928,6 +8022,7 @@ function goNav(id){
   if(id==='search'){state.showSearchHub=!state.showSearchHub;loadHist();}
   else if(id==='benin'){state.beninFiltreOpen=!state.beninFiltreOpen;state.showSearchHub=false;}
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
+  else if(id==='ghalpha'){state.ghAlphaFiltreOpen=!state.ghAlphaFiltreOpen;state.showSearchHub=false;}
   else if(id==='togo'){state.togoFiltreOpen=!state.togoFiltreOpen;state.showSearchHub=false;}
   else if(id==='cameroun'){state.camerounFiltreOpen=!state.camerounFiltreOpen;state.showSearchHub=false;}
   else if(id==='cotedivoire'){state.ciFiltreOpen=!state.ciFiltreOpen;state.showSearchHub=false;}
@@ -7948,6 +8043,7 @@ function bottomNavHTML(){
     ['search','🔎','Recherche'],
     ['benin','🇧🇯','Bénin'],
     ['ghana','🇬🇭','Ghana'],
+    ['ghalpha','🎰','GH Alpha'],
     ['togo','🇹🇬','Togo'],
     ['cameroun','🇨🇲','Cameroun'],
     ['cotedivoire','🇨🇮','C. Ivoire'],
@@ -7957,7 +8053,7 @@ function bottomNavHTML(){
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub)))))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -11378,6 +11474,11 @@ function __renderBody(){
   }
   if(state.ghanaFiltreOpen){
     document.getElementById('app').innerHTML=ghanaFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.ghAlphaFiltreOpen){
+    document.getElementById('app').innerHTML=ghAlphaFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

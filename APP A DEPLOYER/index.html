@@ -11827,42 +11827,53 @@ function __renderBody(){
       if(!sg.length){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else if(state.excelMode){
-        // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
+        // ── MODE EXCEL multi-jeux : 1er jeu ENTIÈREMENT figé à gauche (toutes ses colonnes,
+        // pas seulement N°/DATE), scroll vertical commun. Largeurs fixes par type de colonne
+        // pour pouvoir calculer les offsets `left` cumulés du bloc figé.
         const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
+        const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
+        const mgWidthsOf=g=>{
+          const arr=[_MG_W_T,_MG_W_D,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_TOT];
+          if(g.hasM)arr.push(_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_TOT);
+          return arr;
+        };
+        const _mgW0=cols[0]?mgWidthsOf(cols[0].g):[];
+        const _mgLefts0=[];{let acc=0;_mgW0.forEach(w=>{_mgLefts0.push(acc);acc+=w;});}
+        const mgFz=(ci,idx)=>ci===0?`left:${_mgLefts0[idx]}px;width:${_mgW0[idx]}px;min-width:${_mgW0[idx]}px;`:'';
         html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=isLightBg(c.color);
-          html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}">${c.g.icon} ${c.g.name} ${c.label} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
+          html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}${ci===0?';left:0px':''}">${c.g.icon} ${c.g.name} ${c.label} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
         });
         html+=`</tr><tr>`;
         cols.forEach((c,ci)=>{
           const heads=['N°','DATE','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TM']:[])];
-          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===0&&hi<2?'excel-frozen':''}" style="${ci===0&&hi<2?`left:${hi===0?0:40}px;width:${hi===0?40:46}px;min-width:${hi===0?40:46}px;`:''}">${h}</th>`;});
+          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===0?'excel-frozen':''}" style="${mgFz(ci,hi)}">${h}</th>`;});
         });
         html+=`</tr></thead><tbody>`;
         for(let ri=0;ri<maxRows;ri++){
           html+=`<tr>`;
           cols.forEach((c,ci)=>{
             const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
-            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0&&k<2?'excel-frozen':''}" style="${ci===0&&k<2?`left:${k===0?0:40}px;width:${k===0?40:46}px;min-width:${k===0?40:46}px;`:''}"></td>`;return;}
+            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${ci===0?'left:0px;width:40px;min-width:40px;':''}">${row.t}</td>`;
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${ci===0?'left:40px;width:46px;min-width:46px;':''}">${row.d}</td>`;
+            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
+            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;
             const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // le temps d'un colonne : bascule T/IDX sur les données du bon jeu pour que miroir/superposition portent sur SES tirages
             const _mk=anMark(row,_mgCtx);
             T=_T0;IDX=_IDX0;
-            row.n.forEach((n,ni)=>{html+=`<td class="excel-td" style="background:${bg}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
-            html+=g.xtra?`<td class="excel-td" style="font-weight:700;color:#B71C1C;background:#FFEBEE">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td" style="font-weight:500;color:${tc[1]};background:${tc[0]}">${row.s}</td>`;
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            html+=g.xtra?`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
-              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td" style="background:${bg}">${row.m?numSpan(row.m[mi],{isM:true},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
+              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
               if(g.xtra){
-                html+=`<td class="excel-td" style="font-weight:700;color:#B71C1C;background:#FFEBEE">${row.x?row.x[1]:'·'}</td>`;
+                html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
               }else{
                 const ms=row.m?row.m.reduce((a,b)=>a+b,0):0;const mc=tC(ms);
-                html+=`<td class="excel-td" style="font-weight:500;color:${row.m?mc[1]:'#ccc'};background:${row.m?mc[0]:bg}">${row.m?ms:'·'}</td>`;
+                html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:${row.m?mc[1]:'#ccc'};background:${row.m?mc[0]:bg};${mgFz(ci,13)}">${row.m?ms:'·'}</td>`;
               }
             }
           });

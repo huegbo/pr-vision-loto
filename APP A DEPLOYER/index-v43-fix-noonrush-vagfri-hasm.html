@@ -3796,6 +3796,16 @@ function clearAllColorsEverywhere(){
   state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
 }
+// ══════ Mode vierge — état totalement vide, SANS repère, aucun numéro coloré, MÊME les
+// miroirs/superposition (contrairement à "Tout effacer" qui, lui, remet Miroir même ligne /
+// Miroir superposé / Superposition ACTIFS par défaut). Demandé explicitement : "je veux un état
+// où l'appli devient sans repère, vide, aucun numéro coloré, même les miroir[s]". ══════
+function clearAllColorsBlank(){
+  clearAllColorsEverywhere(); // couleurs manuelles, repères, blocs — sur tous les lotos
+  state.mirLAlways=false;  // éteint Miroir même ligne
+  state.mirPAlways=false;  // éteint Miroir superposé
+  state.superposAlways=false; // éteint Mêmes numéros superposés
+}
 // ══════ Réinitialiser à l'état par défaut — remise à zéro complète, différent de "Tout annuler" ══════
 // "Tout annuler" (clearAllColorsEverywhere) n'efface que couleurs/repères/blocs + remet Miroir/Superposition par défaut.
 // "Réinitialiser" va plus loin : Liste A/B, double vue, filtres Bénin/Togo/Cameroun/Ghana, thème, réglages écarts/couleurs,
@@ -8013,6 +8023,12 @@ function fabGo(action){
     }
     render();return;
   }
+  else if(action==='clear_all_blank'){
+    if(confirm("Mode vierge : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition sont aussi ÉTEINTS (état totalement vide, aucun numéro coloré).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
+      clearAllColorsBlank();
+    }
+    render();return;
+  }
   else if(action==='reset_app'){
     resetAppDefault();
     return;
@@ -8086,6 +8102,7 @@ function fabHTML(){
     ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
     ['clear_all_colors','🧹','Tout effacer (efface toutes les couleurs)','#B71C1C','#fff'],
+    ['clear_all_blank','🚫','Mode vierge (rien de coloré, miroirs éteints aussi)','#4A148C','#fff'],
     ['reset_app','🔄','Réinitialiser à l’état par défaut (couleurs, listes, filtres, réglages)','#7C2D12','#fff'],
     ['search','🔍','Modules de recherche','#EF4444','#fff'],
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
@@ -11667,6 +11684,7 @@ function __renderBody(){
       html+=`<div class="card" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
         ${coloredList.map(([n,c])=>`<button onclick="colorAll(${n})" style="padding:1px 8px;background:${c.bg};color:${c.fg};border:none;border-radius:20px;font-weight:500;font-size:11px;cursor:pointer">${n}✕</button>`).join('')}
         <button onclick="clearAllColorsEverywhere();render()" style="padding:1px 7px;background:#EF5350;color:#fff;border:none;border-radius:5px;font-size:9px;cursor:pointer;font-weight:500">Tout effacer</button>
+        <button onclick="clearAllColorsBlank();render()" title="Comme 'Tout effacer' mais éteint aussi Miroir même ligne / Miroir superposé / Superposition — état totalement vierge" style="padding:1px 7px;background:#4A148C;color:#fff;border:none;border-radius:5px;font-size:9px;cursor:pointer;font-weight:500">🚫 Mode vierge</button>
         <button onclick="undoColorAction()" ${state.colorUndoStack.length?'':'disabled'} style="padding:1px 7px;background:${state.colorUndoStack.length?'#455A64':'#ccc'};color:#fff;border:none;border-radius:5px;font-size:9px;cursor:${state.colorUndoStack.length?'pointer':'default'};font-weight:500">↩️ Annuler${state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':''}</button>
       </div>`;
     }

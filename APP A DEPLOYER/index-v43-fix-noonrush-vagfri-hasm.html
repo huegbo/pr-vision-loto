@@ -413,7 +413,7 @@ const GAMES={
   king:{name:'KING',icon:'🇹🇬',raw:RAW_KING,day:'Vendredi 18h'},
   sam:{name:'SAM',icon:'🇹🇬',raw:RAW_SAM,day:'Samedi 13h',hasM:true,bonusN:1},
   bingo:{name:'BINGO',icon:'🇹🇬',raw:RAW_BINGO,day:'Samedi 18h'},
-  detente:{name:'DETENTE',icon:'🇹🇬',raw:RAW_DETENTE,day:'Dimanche 16h'},
+  detente:{name:'DETENTE',icon:'🇹🇬',raw:RAW_DETENTE,day:'Dimanche 16h',hasM:true},
   matinal:{name:'MATINAL',icon:'🇹🇬',raw:RAW_MATINAL,hasM:true,sum10:true},
   matinal_lundi:{name:'MATINAL LUNDI',icon:'🇹🇬',raw:RAW_MATINAL_LUNDI,hasM:true,sum10:true},
   matinal_mardi:{name:'MATINAL MARDI',icon:'🇹🇬',raw:RAW_MATINAL_MARDI,hasM:true,sum10:true},
@@ -4556,15 +4556,12 @@ function calcComp(){
 // Devenu nécessaire au-delà de ~100 jeux : la liste complète n'était plus utilisable.
 // Raccourci depuis l'onglet Comparaison (qui, lui, compare des plages d'un même jeu)
 // S'assure que le jeu actuellement affiché est présélectionné en entrant dans "Comparer
-// plusieurs lotos", plutôt que de toujours retomber sur le couple par défaut benz/diamant.
-// Si l'utilisateur a déjà personnalisé sa sélection cette session, on la respecte et on
-// ajoute juste le jeu courant s'il n'y est pas déjà.
+// plusieurs lotos". IMPORTANT : n'efface JAMAIS la sélection existante (bug signalé :
+// "ces 2 lotto viennent et effacent la lotto qui était là") — on ne fait qu'AJOUTER le
+// jeu courant s'il n'y est pas déjà, jamais retirer ou remplacer ce qui était sélectionné.
 function ensureCurrentGameInCompare(){
   if(!state.game)return;
-  const isUntouchedDefault=state.selGames.length===2&&state.selGames.includes('benz')&&state.selGames.includes('diamant');
-  if(isUntouchedDefault&&state.game!=='benz'&&state.game!=='diamant'){
-    state.selGames=[state.game];
-  } else if(!state.selGames.includes(state.game)){
+  if(!state.selGames.includes(state.game)){
     state.selGames=[state.game,...state.selGames];
   }
 }
@@ -6338,7 +6335,7 @@ function exportPanelHTML(){
 // externe : le HTML généré est un rendu fidèle (mêmes couleurs, mêmes badges de classification)
 // de ce qui est affiché à l'écran, comme une vraie capture d'écran imprimable.
 function exportMgColumnsPDF(){
-  const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,rows:(gd.BY_YEAR[y]||[]).slice()};});
+  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgColRows(gd,col).slice()};});
   if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
   const btns=document.querySelectorAll('.export-mg-pdf-btn');
   btns.forEach(b=>b.textContent='⏳ Génération...');
@@ -6384,7 +6381,7 @@ function exportMgColumnsPDF(){
           else{const validM=(r.m||[]).filter(v=>!isNaN(v));const ms=validM.length?validM.reduce((a,b)=>a+b,0):null;const mc=ms!=null?tC(ms):null;rowsHtml+=`<td class="tot" style="${mc?`background:${mc[0]};color:${mc[1]}`:''}">${ms!=null?ms:'·'}</td>`;}
         }
       });
-      blocks+=`<div class="block"><div class="blk-hdr">${c.g.icon} ${c.g.name} ${c.year} <span class="cnt">(${c.rows.length} tirages)</span></div>
+      blocks+=`<div class="block"><div class="blk-hdr">${c.g.icon} ${c.g.name} ${c.label} <span class="cnt">(${c.rows.length} tirages)</span></div>
         <table><thead><tr>${heads.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
       T=_T0;IDX=_IDX0;
     });
@@ -6443,7 +6440,7 @@ function exportMgColumnsPDF(){
 // (miroir même ligne, miroir superposé, mêmes numéros superposés, repérés) tel qu'affiché à l'écran.
 async function exportMgColumnsExcel(){
   if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
-  const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,rows:(gd.BY_YEAR[y]||[]).slice()};});
+  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgColRows(gd,col).slice()};});
   if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
   const btns=document.querySelectorAll('.export-mg-btn');
   btns.forEach(b=>b.textContent='⏳ Génération...');
@@ -6470,7 +6467,7 @@ async function exportMgColumnsExcel(){
     cols.forEach((c,ci)=>{
       const startCol=colOffsets[ci],blockCols=blockColsOf(c);
       const tCell=titleRow.getCell(startCol);
-      tCell.value=c.g.icon+' '+c.g.name+' '+c.year;
+      tCell.value=c.g.icon+' '+c.g.name+' '+c.label;
       tCell.font={bold:true};
       ws.mergeCells(titleRow.number,startCol,titleRow.number,startCol+blockCols-1);
       const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?['M1','M2','M3','M4','M5',(c.g.xtra?'X2':'TOT.M')]:[])];
@@ -10447,21 +10444,101 @@ function anchorKey(yr){return GAME.key+'|'+yr;}
 function mgYearOf(k){const y=(state.mgYears||{})[k];return y||state.mgYear;}
 function setMgYear(k,v){state.mgYears=state.mgYears||{};v=String(v||'').trim();if(!v||v===state.mgYear)delete state.mgYears[k];else state.mgYears[k]=v;render();}
 function resetMgYears(){state.mgYears={};render();}
+// ── Mode "N° de tirage" par jeu — alternative à l'année : au lieu d'ajouter toute l'année,
+// on choisit une plage de N° de tirage précise (ex: Benz tirage 10 à 40).
+function mgModeOf(k){return (state.mgModes||{})[k]||'year';}
+function setMgMode(k,v){state.mgModes=state.mgModes||{};state.mgModes[k]=v;render();}
+function mgRangeOf(k){
+  const r=(state.mgRanges||{})[k];
+  if(r)return r;
+  const T=gameData(k).T; // T[0]=le plus récent (t max), T[T.length-1]=le plus ancien (t min)
+  const hi=T[0]?T[0].t:1,lo=T[T.length-1]?T[T.length-1].t:1;
+  return {from:lo,to:hi};
+}
+function setMgRange(k,field,v){
+  state.mgRanges=state.mgRanges||{};
+  const cur=mgRangeOf(k);
+  const n=parseInt(v);
+  state.mgRanges[k]={...cur,[field]:isNaN(n)?cur[field]:n};
+  render();
+}
+// ── Mode "N° de semaine" par jeu — plage de semaines calendaires ISO (1-53), fusionnée sur
+// TOUTES les années disponibles (ex: Benz de la semaine 2 à la fin de l'année = semaines 2 à 53,
+// pour chaque année confondue). Par défaut: semaine 2 → 53 (exclut seulement la 1ère semaine).
+function mgWeekRangeOf(k){
+  const r=(state.mgWeekRanges||{})[k];
+  return r||{from:2,to:53};
+}
+function setMgWeekRange(k,field,v){
+  state.mgWeekRanges=state.mgWeekRanges||{};
+  const cur=mgWeekRangeOf(k);
+  const n=parseInt(v);
+  state.mgWeekRanges[k]={...cur,[field]:isNaN(n)?cur[field]:n};
+  render();
+}
 // ── Colonnes de comparaison : 1 colonne "de base" par jeu sélectionné (state.selGames),
 // + des colonnes "supplémentaires" (state.mgSlots) permettant de comparer LE MÊME jeu sur
-// plusieurs années différentes en même temps (au lieu qu'une année en remplace une autre).
+// plusieurs années (ou plages de N° de tirage / N° de semaine) différentes en même temps.
 function mgColumns(){
-  const base=state.selGames.filter(k=>GAMES[k]).map(k=>({colId:k,key:k,year:mgYearOf(k)}));
-  const extra=(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>({colId:s.key+'~'+s.id,key:s.key,year:s.year}));
+  const base=state.selGames.filter(k=>GAMES[k]).map(k=>{
+    const mode=mgModeOf(k);
+    if(mode==='range')return {colId:k,key:k,mode,range:mgRangeOf(k)};
+    if(mode==='week')return {colId:k,key:k,mode,week:mgWeekRangeOf(k)};
+    return {colId:k,key:k,mode:'year',year:mgYearOf(k)};
+  });
+  const extra=(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{
+    if(s.mode==='range')return {colId:s.key+'~'+s.id,key:s.key,mode:'range',range:{from:s.from,to:s.to}};
+    if(s.mode==='week')return {colId:s.key+'~'+s.id,key:s.key,mode:'week',week:{from:s.weekFrom,to:s.weekTo}};
+    return {colId:s.key+'~'+s.id,key:s.key,mode:'year',year:s.year};
+  });
   return [...base,...extra];
+}
+// Retourne les tirages (ordre chronologique croissant, comme BY_YEAR) pour une colonne, selon son mode.
+function mgColRows(gd,col){
+  if(col.mode==='range'){
+    const from=col.range?col.range.from:null,to=col.range?col.range.to:null;
+    if(from==null||to==null)return [];
+    const lo=Math.min(from,to),hi=Math.max(from,to);
+    return gd.T.filter(r=>r.t>=lo&&r.t<=hi).slice().reverse();
+  }
+  if(col.mode==='week'){
+    const from=col.week?col.week.from:null,to=col.week?col.week.to:null;
+    if(from==null||to==null)return [];
+    const lo=Math.min(from,to),hi=Math.max(from,to);
+    return gd.T.filter(r=>{const w=isoWeekOf(r.d,r.y).week;return w>=lo&&w<=hi;}).slice().reverse();
+  }
+  return gd.BY_YEAR[col.year]||[];
+}
+function mgColLabel(col){
+  if(col.mode==='range')return `N°${col.range.from}-${col.range.to}`;
+  if(col.mode==='week')return `Sem.${col.week.from}-${col.week.to} (ttes années)`;
+  return String(col.year);
+}
+// Couleur de badge par colonne : reprend la palette par année en mode 'year' (comportement
+// historique), et retombe sur une couleur neutre mais distincte par mode pour 'range'/'week'
+// (qui n'ont pas d'année unique à colorer).
+function mgColColor(col){
+  if(col.mode==='range')return '0E7C7B';
+  if(col.mode==='week')return '7C3AED';
+  return YC[col.year]||'1F2D3D';
+}
+// Petit toggle 3 boutons (Année / N° tirage / N° semaine) réutilisé pour la ligne de base
+// d'un jeu ET pour chaque colonne supplémentaire (mgSlots) — fnName est le nom de la fonction
+// globale à appeler au clic (setMgMode ou setMgSlotMode), id l'identifiant qu'elle attend.
+function mgModeToggleHTML(fnName,id,mode){
+  const opts=[['year','Année'],['range','N° tirage'],['week','N° semaine']];
+  return `<span style="display:inline-flex;border-radius:6px;overflow:hidden;border:1px solid #ccc">
+    ${opts.map(([m,l])=>`<button type="button" onclick="event.stopPropagation();${fnName}('${id}','${m}')" style="padding:1px 5px;font-size:8px;font-weight:600;cursor:pointer;border:none;background:${mode===m?'#1F2D3D':'#f3f3f3'};color:${mode===m?'#fff':'#666'}">${l}</button>`).join('')}
+  </span>`;
 }
 function addMgSlot(key){
   if(!GAMES[key])return;
   const years=Object.keys(gameData(key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
   const used=new Set([mgYearOf(key),...((state.mgSlots||[]).filter(s=>s.key===key).map(s=>s.year))]);
   const y=years.find(yy=>!used.has(yy))||years[0]||mgYearOf(key);
+  const r=mgRangeOf(key),w=mgWeekRangeOf(key);
   state.mgSlots=state.mgSlots||[];
-  state.mgSlots.push({id:'s'+Date.now()+Math.floor(Math.random()*1000),key,year:y});
+  state.mgSlots.push({id:'s'+Date.now()+Math.floor(Math.random()*1000),key,mode:'year',year:y,from:r.from,to:r.to,weekFrom:w.from,weekTo:w.to});
   render();
 }
 function removeMgSlot(id){
@@ -10471,6 +10548,25 @@ function removeMgSlot(id){
 function setMgSlotYear(id,v){
   const s=(state.mgSlots||[]).find(x=>x.id===id);
   if(s)s.year=v;
+  render();
+}
+function setMgSlotMode(id,v){
+  const s=(state.mgSlots||[]).find(x=>x.id===id);
+  if(s)s.mode=v;
+  render();
+}
+function setMgSlotRange(id,field,v){
+  const s=(state.mgSlots||[]).find(x=>x.id===id);
+  if(!s)return;
+  const n=parseInt(v);
+  if(!isNaN(n))s[field]=n;
+  render();
+}
+function setMgSlotWeekRange(id,field,v){
+  const s=(state.mgSlots||[]).find(x=>x.id===id);
+  if(!s)return;
+  const n=parseInt(v);
+  if(!isNaN(n))s[field]=n; // field: 'weekFrom' ou 'weekTo'
   render();
 }
 function anchorKeyG(k){return 'G:'+k+'|'+mgYearOf(k);}
@@ -11685,22 +11781,43 @@ function __renderBody(){
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
       </div>
       ${state.selGames.filter(k=>GAMES[k]).length?`<div style="margin-top:5px">
-        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">Année par jeu : <span style="font-weight:400;color:#888">(➕ pour comparer le même jeu sur une autre année, en plus — pas à la place)</span></div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px">
-          ${state.selGames.filter(k=>GAMES[k]).map(k=>{const y=mgYearOf(k);const ys=Object.keys(gameData(k).BY_YEAR).sort((a,b)=>b.localeCompare(a));const c=YC[y]||'1F2D3D';const custom=!!(state.mgYears||{})[k];
-            return `<span style="display:inline-flex;align-items:center;gap:3px;border:${custom?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:1px 4px 1px 7px;background:#fff">
+        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">Colonnes par jeu : <span style="font-weight:400;color:#888">(Année, N° de tirage ex. 10 à 40, ou N° de semaine ISO ex. 2 à 53 — cumulées sur toutes les années. ➕ pour ajouter une autre colonne du même jeu, en plus)</span></div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          ${state.selGames.filter(k=>GAMES[k]).map(k=>{
+            const mode=mgModeOf(k);const y=mgYearOf(k);const ys=Object.keys(gameData(k).BY_YEAR).sort((a,b)=>b.localeCompare(a));
+            const c=mgColColor({mode,year:y});const custom=!!(state.mgYears||{})[k];
+            const rg=mgRangeOf(k),wk=mgWeekRangeOf(k);
+            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:${(custom||mode!=='year')?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:2px 4px 2px 7px;background:#fff">
               <span style="font-size:9px;font-weight:600;color:#1F2D3D">${GAMES[k].icon} ${GAMES[k].name}</span>
-              <select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
+              ${mgModeToggleHTML('setMgMode',k,mode)}
+              ${mode==='year'?`<select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===y?'selected':''}>${o}</option>`).join(''):`<option>${y}</option>`}
-              </select>
-              <button type="button" onclick="event.stopPropagation();addMgSlot('${k}')" title="Ajouter une autre année de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#fff;background:#2E7D32;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">➕</button>
+              </select>`:''}
+              ${mode==='range'?`<input type="number" value="${rg.from}" onchange="setMgRange('${k}','from',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:9px;color:#888">à</span>
+                <input type="number" value="${rg.to}" onchange="setMgRange('${k}','to',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">`:''}
+              ${mode==='week'?`<input type="number" min="1" max="53" value="${wk.from}" onchange="setMgWeekRange('${k}','from',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:9px;color:#888">à</span>
+                <input type="number" min="1" max="53" value="${wk.to}" onchange="setMgWeekRange('${k}','to',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:8px;color:#888">(ttes années)</span>`:''}
+              <button type="button" onclick="event.stopPropagation();addMgSlot('${k}')" title="Ajouter une autre colonne de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#fff;background:#2E7D32;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">➕</button>
             </span>`;}).join('')}
-          ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));const c=YC[s.year]||'1F2D3D';
-            return `<span style="display:inline-flex;align-items:center;gap:3px;border:2px solid #${c};border-radius:11px;padding:1px 4px 1px 7px;background:#FFF7ED">
+          ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{
+            const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
+            const mode=s.mode||'year';const c=mgColColor({mode,year:s.year});
+            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:2px solid #${c};border-radius:11px;padding:2px 4px 2px 7px;background:#FFF7ED">
               <span style="font-size:9px;font-weight:600;color:#1F2D3D">${GAMES[s.key].icon} ${GAMES[s.key].name}</span>
-              <select onchange="setMgSlotYear('${s.id}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
+              ${mgModeToggleHTML('setMgSlotMode',s.id,mode)}
+              ${mode==='year'?`<select onchange="setMgSlotYear('${s.id}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===s.year?'selected':''}>${o}</option>`).join(''):`<option>${s.year}</option>`}
-              </select>
+              </select>`:''}
+              ${mode==='range'?`<input type="number" value="${s.from}" onchange="setMgSlotRange('${s.id}','from',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:9px;color:#888">à</span>
+                <input type="number" value="${s.to}" onchange="setMgSlotRange('${s.id}','to',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">`:''}
+              ${mode==='week'?`<input type="number" min="1" max="53" value="${s.weekFrom}" onchange="setMgSlotWeekRange('${s.id}','weekFrom',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:9px;color:#888">à</span>
+                <input type="number" min="1" max="53" value="${s.weekTo}" onchange="setMgSlotWeekRange('${s.id}','weekTo',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+                <span style="font-size:8px;color:#888">(ttes années)</span>`:''}
               <button type="button" onclick="event.stopPropagation();removeMgSlot('${s.id}')" title="Retirer cette colonne supplémentaire" style="cursor:pointer;font-weight:700;color:#fff;background:#C62828;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">✕</button>
             </span>`;}).join('')}
         </div></div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}`}
@@ -11711,14 +11828,14 @@ function __renderBody(){
         html+=`<div style="text-align:center;color:#aaa;padding:40px">Sélectionne au moins un jeu</div>`;
       }else if(state.excelMode){
         // ── MODE EXCEL multi-jeux : 1er jeu figé à gauche, scroll vertical commun ──
-        const cols=mgColumns().map(({colId,key,year:y})=>{const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,year:y,color:YC[y]||'1F2D3D',rows:gd.BY_YEAR[y]||[]};});
+        const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=isLightBg(c.color);
-          html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}">${c.g.icon} ${c.g.name} ${c.year} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
+          html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}">${c.g.icon} ${c.g.name} ${c.label} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
         });
         html+=`</tr><tr>`;
         cols.forEach((c,ci)=>{
@@ -11756,13 +11873,15 @@ function __renderBody(){
         const _gOff=anchorOffsetsG();
         const _mgCtx2=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
-        mgColumns().forEach(({colId,key,year:gy})=>{
+        mgColumns().forEach(col=>{
+          const {colId,key}=col;
           const g=GAMES[key], gd=gameData(key);
-          const color=YC[gy]||'1F2D3D';const light=isLightBg(color);
-          const rows=gd.BY_YEAR[gy]||[];
+          const color=mgColColor(col);const light=isLightBg(color);
+          const rows=mgColRows(gd,col);
+          const colLbl=mgColLabel(col);
           const _T0g=T,_IDX0g=IDX;T=gd.T;IDX=gd.IDX; // bascule T/IDX sur les données de CE jeu pour toute la colonne
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
-            <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${gy} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
+            <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${colLbl} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
             <div class="${g.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(g.xtra?'X1':'TOT'),...(g.hasM?(g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(g.hasM?[g.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
             <div class="col-body" id="col-${colId}" onscroll="syncScroll('${colId}')" onwheel="stepWheel(event,'${colId}')" ontouchstart="touchStepStart(event,'${colId}')" ontouchmove="touchStepMove(event,'${colId}')" ontouchend="touchStepEnd('${colId}')" ontouchcancel="touchStepEnd('${colId}')">
               ${rows.length?rows.map((row,ri)=>{
@@ -11777,7 +11896,7 @@ function __renderBody(){
                   ${g.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
                   ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
                 </div>`;
-              }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${gy} pour ce jeu</div>`}
+              }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${colLbl} pour ce jeu</div>`}
             </div>
           </div>`;
           T=_T0g;IDX=_IDX0g; // restaure T/IDX globaux pour ne pas perturber le reste du rendu

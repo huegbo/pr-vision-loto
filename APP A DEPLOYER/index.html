@@ -7097,7 +7097,10 @@ function elmHLPartoutFromMenu(n){
   state.elmHLDraft={sel,mode:'partout',gap:state.elmHLGap||1,num:n};
   const m=document.getElementById('nmenu');if(m)m.style.display='none';
   const ov=document.getElementById('popup-overlay');if(ov)ov.style.display='none';
-  state.showSearchHub=false;state.tab=0; // colonnes de Navigation
+  // Ne force plus l'onglet Navigation (tab=0) : le coloriage "en exergue" s'applique déjà dans
+  // Navigation, Analyses ET Comparer plusieurs lotos, donc on reste là où l'utilisateur était
+  // (bug signalé : "l'appli bouge et m'amène à un autre endroit, je veux continuer là-bas").
+  state.showSearchHub=false;
   elmHLApply();
   setTimeout(()=>{const e=document.getElementById('elmhl-bar');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},80);
 }

@@ -7084,17 +7084,32 @@ function vtotPanelHTML(){
 // mais en croisant somme et différence au lieu de comparer deux sommes) ══════
 // Ex. tirage A, positions 1-2 : |56-10| = 46 (différence) ; tirage B, positions 1-2 : 2+44 = 46 (total)
 function vtotdRun(gap){ // calcule les résultats sur le jeu actuellement chargé (T global)
+  // "toute position superposée" : les 2 positions testées côté A n'ont pas besoin d'être les
+  // mêmes colonnes que côté B (comme "Décomposition croisée") — on teste TOUTES les paires
+  // de positions des deux côtés, indépendamment (pas seulement les paires alignées).
   const pairs=vtotCombos(5,2), res=[];
+  const cols=[{key:'n',label:'Gagnants',pfx:'N'}];
+  if(GAME.hasM)cols.push({key:'m',label:'Machine',pfx:'M'});
   for(let i=0;i<T.length;i++){
     const r=T[i];
     [[i-gap,'dessus'],[i+gap,'dessous']].forEach(([j,lbl])=>{
       if(j<0||j>=T.length)return;
       const v=T[j];
-      pairs.forEach(idxs=>{
-        const[p1,p2]=idxs, a1=r.n[p1],a2=r.n[p2], b1=v.n[p1],b2=v.n[p2];
-        const sa=a1+a2, da=Math.abs(a1-a2), sb=b1+b2, db=Math.abs(b1-b2);
-        if(sa===db)res.push({r,voisin:v,val:sa,pos:idxs,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'sommeA_diffB'});
-        if(da===sb)res.push({r,voisin:v,val:da,pos:idxs,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'diffA_sommeB'});
+      cols.forEach(col=>{
+        const rc=r[col.key],vc=v[col.key];
+        if(!rc||!vc)return;
+        pairs.forEach(idxsA=>{
+          const[p1,p2]=idxsA, a1=rc[p1],a2=rc[p2];
+          if([a1,a2].some(x=>x===undefined||Number.isNaN(x)))return;
+          const sa=a1+a2, da=Math.abs(a1-a2);
+          pairs.forEach(idxsB=>{
+            const[q1,q2]=idxsB, b1=vc[q1],b2=vc[q2];
+            if([b1,b2].some(x=>x===undefined||Number.isNaN(x)))return;
+            const sb=b1+b2, db=Math.abs(b1-b2);
+            if(sa===db)res.push({r,voisin:v,val:sa,posA:idxsA,posB:idxsB,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'sommeA_diffB',col:col.label,pfx:col.pfx});
+            if(da===sb)res.push({r,voisin:v,val:da,posA:idxsA,posB:idxsB,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'diffA_sommeB',col:col.label,pfx:col.pfx});
+          });
+        });
       });
     });
   }
@@ -7138,7 +7153,7 @@ function vtotdMultiResultHTML(){
         <span style="font-size:11px;font-weight:500;color:#7C2D12">${res.icon} ${res.gameName}</span>
         <span style="font-size:11px;font-weight:700;color:${res.count?'#9A3412':'#bbb'}">${res.count} résultat(s)</span>
       </div>
-      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (N${x.pos.map(p=>p+1).join(',N')}=${x.val})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (${x.col==='Machine'?'⚙️':'🎯'} ${x.posA.map(p=>x.pfx+(p+1)).join(',')}↔${x.posB.map(p=>x.pfx+(p+1)).join(',')}=${x.val})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
     </div>`).join('')}
     </div></div>`;
 }
@@ -7151,18 +7166,19 @@ function vtotdResultHTML(){
     <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
-      ${['N°','Date','Tirage','Positions','Tirage','Voisin (écart)','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+      ${['N°','Date','Colonne','Positions','Tirage','Voisin (écart)','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
     </tr></thead><tbody>
     ${show.map((x,k)=>{const bg=k%2?'#FFF1E6':'#fff';
       const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = <b>${x.val}</b> (total)`:`|${x.valsA.join('-')}| = <b>${x.val}</b> (différence)`;
       const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = <b>${x.val}</b> (différence)`:`${x.valsB.join('+')} = <b>${x.val}</b> (total)`;
+      const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
       return `<tr>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
-      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.n.join(' ')}</td>
-      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#7C2D12">N${x.pos.map(p=>p+1).join(',N')}</td>
+      <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${x.col==='Machine'?'⚙️ Machine':'🎯 Gagnants'}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#7C2D12">${posLab}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;color:#7C2D12">${labA}</td>
-      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.ou} · ${x.voisin.d}/${x.voisin.y}<br><span style="color:#888">${x.voisin.n.join(' ')}</span><br>${labB}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.ou} · ${x.voisin.d}/${x.voisin.y}<br>${labB}</td>
       <td style="background:#FFE4D0;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.val}</td>
     </tr>`;}).join('')}
     </tbody></table></div></div>`;
@@ -7170,9 +7186,9 @@ function vtotdResultHTML(){
 function vtotdPanelHTML(){
   const gap=state.vtotdGap||1;
   return `<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#7C2D12;margin-bottom:5px">⚖️ Total ↔ Différence superposé — 2 numéros aux mêmes positions, écart réglable</div>
+    <div style="font-size:11px;font-weight:500;color:#7C2D12;margin-bottom:5px">⚖️ Total ↔ Différence superposé — 2 numéros, toute position, écart réglable</div>
     <div style="background:#FFF1E6;border:1px solid #FED7AA;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#7C2D12">
-      Compare un tirage à un autre situé N tirage(s) plus haut/bas (superposition verticale, comme Miroir superposé). Pour chaque paire de positions <b>alignées</b> (mêmes colonnes des deux côtés), si le <b>total</b> des 2 numéros d'un tirage est égal à la <b>différence</b> (valeur absolue) des 2 numéros à ces mêmes positions dans l'autre tirage, c'est un résultat.
+      Compare un tirage à un autre situé N tirage(s) plus haut/bas (superposition verticale, comme Miroir superposé). Pour <b>toutes</b> les paires de positions (pas seulement les mêmes colonnes des deux côtés), si le <b>total</b> de 2 numéros d'un tirage est égal à la <b>différence</b> (valeur absolue) de 2 numéros de l'autre tirage, c'est un résultat. Testé à la fois sur les numéros gagnants et, si le jeu en a, sur les numéros machine.
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#777">${T.length} tirages</span>
@@ -7500,7 +7516,7 @@ function searchHubHTML(){
     ['🪜','Séquence libre','Motif vertical, numéros à toute position','vseq'],
     ['➕','Double même total','Deux paires qui donnent le même total','dbt'],
     ['🧱','Même total superposé','N numéros aux mêmes positions, écart réglable','vtot'],
-    ['⚖️','Total ↔ Différence superposé','Total d\'un côté = différence de l\'autre, mêmes positions, écart réglable','vtotd'],
+    ['⚖️','Total ↔ Différence superposé','Total d\'un côté = différence de l\'autre, toute position, écart réglable','vtotd'],
     ['🧩','Numéro + son élément','Un numéro et un de ses dérivés de classification','elm'],
     ['🧮','Total numéro + élément','Numéro + son dérivé (Counter, Code, Miroir…) = un total','cet'],
   ];

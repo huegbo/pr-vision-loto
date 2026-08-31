@@ -7166,18 +7166,20 @@ async function exportVtotDExcel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Total-Différence');
-    const header=['N°','Date','Colonne','Positions','Numéros tirage','Détail tirage','Écart','N° voisin','Date voisin','Numéros voisin','Détail voisin','Valeur'];
+    const header=['N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
     res.forEach(x=>{
       const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
       const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
       const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
-      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,x.r.n.join(' '),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.voisin.n.join(' '),labB,x.val]);
+      const nA=x.col==='Machine'?x.r.m:x.r.n, nB=x.col==='Machine'?x.voisin.m:x.voisin.n;
+      const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(nA),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(nB),labB,x.val]);
       const valCell=row.getCell(header.length);
       valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
       valCell.font={bold:true};
     });
-    ws.columns.forEach(c=>{c.width=14;});
+    ws.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
@@ -7200,20 +7202,22 @@ async function exportVtotDMultiExcel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Total-Différence (multi-jeux)');
-    const header=['Jeu','N°','Date','Colonne','Positions','Numéros tirage','Détail tirage','Écart','N° voisin','Date voisin','Numéros voisin','Détail voisin','Valeur'];
+    const header=['Jeu','N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     r.results.forEach(res=>{
       res.rows.forEach(x=>{
         const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
         const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
         const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
-        const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,x.r.n.join(' '),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.voisin.n.join(' '),labB,x.val]);
+        const nA=x.col==='Machine'?x.r.m:x.r.n, nB=x.col==='Machine'?x.voisin.m:x.voisin.n;
+        const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(nA),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(nB),labB,x.val]);
         const valCell=row.getCell(header.length);
         valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
         valCell.font={bold:true};
       });
     });
-    ws.columns.forEach(c=>{c.width=14;});
+    ws.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');

@@ -7188,8 +7188,8 @@ async function exportVtotDExcel(){
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     res.forEach(x=>{
-      const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
-      const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
+      const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
+      const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
       const posLab=x.posALab+' ↔ '+x.posBLab;
       const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
       const valCell=row.getCell(header.length);
@@ -7197,13 +7197,23 @@ async function exportVtotDExcel(){
       valCell.font={bold:true};
     });
     // Tirage normal : liste brute complète de tous les tirages du jeu, ajoutée en bas.
+    // Les numéros ayant servi à au moins un résultat sont surlignés, pour repérer d'un
+    // coup d'œil les numéros "actifs" dans la liste brute (utile pour faire des simulations).
+    const hitSet=new Set();
+    res.forEach(x=>{
+      x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
+      x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
+    });
     ws.addRow([]);ws.addRow([]);
-    ws.addRow(['📋 Tirage normal — historique complet '+GAME.name+' ('+T.length+' tirages)']).font={bold:true,italic:true};
+    ws.addRow(['📋 Tirage normal — historique complet '+GAME.name+' ('+T.length+' tirages) — numéros surlignés = utilisés dans un résultat']).font={bold:true,italic:true};
     const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
     ws.addRow(hdrAll).font={bold:true};
     T.slice().reverse().forEach(r=>{ // ordre chronologique croissant, comme le reste de l'export
       const tot=r.s!=null?r.s:(r.n?r.n.reduce((a,b)=>a+b,0):'');
-      ws.addRow([r.t,(r.d||'')+'/'+(r.y||''),...ns5(r.n),...ns5(r.m),tot]);
+      const nCells=ns5(r.n),mCells=ns5(r.m);
+      const rowObj=ws.addRow([r.t,(r.d||'')+'/'+(r.y||''),...nCells,...mCells,tot]);
+      nCells.forEach((v,i)=>{if(v!==''&&hitSet.has(r.t+'|N'+(i+1))){const c=rowObj.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
+      mCells.forEach((v,i)=>{if(v!==''&&hitSet.has(r.t+'|M'+(i+1))){const c=rowObj.getCell(8+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
     });
     ws.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
@@ -7236,8 +7246,8 @@ async function exportVtotDMultiExcel(){
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     r.results.forEach(res=>{
       res.rows.forEach(x=>{
-        const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
-        const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
+        const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
+        const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
         const posLab=x.posALab+' ↔ '+x.posBLab;
         const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
         const valCell=row.getCell(header.length);
@@ -7254,11 +7264,19 @@ async function exportVtotDMultiExcel(){
       while(usedNames.has(sheetName)){sheetName=('Tirages '+res.gameName).slice(0,28-String(n).length)+' ('+n+')';n++;}
       usedNames.add(sheetName);
       const wsAll=wb.addWorksheet(sheetName);
+      const hitSet=new Set();
+      res.rows.forEach(x=>{
+        x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
+        x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
+      });
       const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
       wsAll.addRow(hdrAll).font={bold:true};
       T.slice().reverse().forEach(row=>{
         const tot=row.s!=null?row.s:(row.n?row.n.reduce((a,b)=>a+b,0):'');
-        wsAll.addRow([row.t,(row.d||'')+'/'+(row.y||''),...ns5(row.n),...ns5(row.m),tot]);
+        const nCells=ns5(row.n),mCells=ns5(row.m);
+        const rowObj=wsAll.addRow([row.t,(row.d||'')+'/'+(row.y||''),...nCells,...mCells,tot]);
+        nCells.forEach((v,i)=>{if(v!==''&&hitSet.has(row.t+'|N'+(i+1))){const c=rowObj.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
+        mCells.forEach((v,i)=>{if(v!==''&&hitSet.has(row.t+'|M'+(i+1))){const c=rowObj.getCell(8+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
       });
       wsAll.columns.forEach(c=>{c.width=11;});
     });
@@ -7289,8 +7307,8 @@ function vtotdResultHTML(){
       ${['N°','Date','Colonne','Positions','Tirage','Voisin (écart)','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
     </tr></thead><tbody>
     ${show.map((x,k)=>{const bg=k%2?'#FFF1E6':'#fff';
-      const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = <b>${x.val}</b> (total)`:`|${x.valsA.join('-')}| = <b>${x.val}</b> (différence)`;
-      const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = <b>${x.val}</b> (différence)`:`${x.valsB.join('+')} = <b>${x.val}</b> (total)`;
+      const labA=(x.sens==='sommeA_diffB'?`<b>${x.posALab}</b>: ${x.valsA.join('+')} = <b>${x.val}</b> (total)`:`<b>${x.posALab}</b>: |${x.valsA.join('-')}| = <b>${x.val}</b> (différence)`);
+      const labB=(x.sens==='sommeA_diffB'?`<b>${x.posBLab}</b>: |${x.valsB.join('-')}| = <b>${x.val}</b> (différence)`:`<b>${x.posBLab}</b>: ${x.valsB.join('+')} = <b>${x.val}</b> (total)`);
       const posLab=x.posALab+' ↔ '+x.posBLab;
       const colIcon=x.colKey==='m'?'⚙️ Machine':x.colKey==='mix'?'🔀 Mixte':'🎯 Gagnants';
       return `<tr>

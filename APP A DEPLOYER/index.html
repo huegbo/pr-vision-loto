@@ -7375,18 +7375,60 @@ function vtotdWeekRows(){
   if(!refIds.size)return [];
   return all.filter(x=>refIds.has(x.r.t)).map(x=>Object.assign({},x,{week:weekRangeOf(x.voisin.d,x.voisin.y)}));
 }
+// Balaie TOUS les écarts possibles (pas seulement celui réglé au-dessus) pour le(s) tirage(s) de
+// référence uniquement — ne compare le(s) tirage(s) choisi(s) qu'à chaque autre tirage du jeu
+// (même position), donc reste rapide même sur un gros historique. Trié par écart croissant.
+function vtotdWeekAutoRows(){
+  const refIds=vtotdWeekRefIds();
+  if(!refIds.size)return [];
+  const cols=[{key:'n',label:'Gagnants',pfx:'N',n:5,mix:false}];
+  if(GAME.hasM){
+    cols.push({key:'m',label:'Machine',pfx:'M',n:5,mix:false});
+    cols.push({key:'mix',label:'Mixte',pfx:'X',n:10,mix:true});
+  }
+  cols.forEach(col=>{col.pairs=vtotCombos(col.n,2);});
+  const posLabel=(col,idxs)=>idxs.map(p=>col.mix?(p<5?'N'+(p+1):'M'+(p-5+1)):col.pfx+(p+1)).join(',');
+  const out=[];
+  T.forEach((r,i)=>{
+    if(!refIds.has(r.t))return;
+    T.forEach((v,j)=>{
+      if(j===i)return;
+      const gap=Math.abs(i-j),lbl=j<i?'dessus':'dessous'; // T=plus récent en premier
+      cols.forEach(col=>{
+        const rc=col.mix?(r.n&&r.m?[...r.n,...r.m]:null):r[col.key];
+        const vc=col.mix?(v.n&&v.m?[...v.n,...v.m]:null):v[col.key];
+        if(!rc||!vc)return;
+        col.pairs.forEach(idxs=>{
+          const[p1,p2]=idxs,a1=rc[p1],a2=rc[p2];
+          if([a1,a2].some(x=>x===undefined||Number.isNaN(x)))return;
+          const b1=vc[p1],b2=vc[p2];
+          if([b1,b2].some(x=>x===undefined||Number.isNaN(x)))return;
+          const sa=a1+a2,da=Math.abs(a1-a2),sb=b1+b2,db=Math.abs(b1-b2),posLab=posLabel(col,idxs);
+          if(sa===db)out.push({r,voisin:v,val:sa,posALab:posLab,posBLab:posLab,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'sommeA_diffB',col:col.label,colKey:col.key,gap,week:weekRangeOf(v.d,v.y)});
+          if(da===sb)out.push({r,voisin:v,val:da,posALab:posLab,posBLab:posLab,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'diffA_sommeB',col:col.label,colKey:col.key,gap,week:weekRangeOf(v.d,v.y)});
+        });
+      });
+    });
+  });
+  out.sort((a,b)=>a.gap-b.gap);
+  return out;
+}
 function vtotdWeekHTML(){
   if(!state.vtotdWeekOn)return '';
   const mode=state.vtotdWeekMode||'last3';
   const refLab=mode==='last1'?'le dernier tirage':mode==='pick'?(state.vtotdWeekPick?'le tirage N°'+state.vtotdWeekPick:'un tirage à choisir ci-dessus'):'les 3 derniers tirages';
   if(mode==='pick'&&!state.vtotdWeekPick)return `<div style="margin-top:6px;padding:6px;background:#FFF1E6;border:1px solid #FED7AA;border-radius:6px;font-size:10px;color:#7C2D12">Indique un N° de tirage ci-dessus.</div>`;
-  const rows=vtotdWeekRows();
-  if(!rows.length)return `<div style="margin-top:6px;padding:6px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune semaine ne matche avec ${refLab} (écart ${state.vtotdGap||1}, même position).</div>`;
+  const auto=!!state.vtotdWeekAuto;
+  const MAX=150;
+  const allRows=auto?vtotdWeekAutoRows():vtotdWeekRows();
+  const rows=allRows.slice(0,MAX);
+  const ecartLab=auto?'tous écarts balayés':`écart ${state.vtotdGap||1}`;
+  if(!allRows.length)return `<div style="margin-top:6px;padding:6px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune semaine ne matche avec ${refLab} (${ecartLab}, même position).</div>`;
   return `<div style="margin-top:6px">
-    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🗓️ ${rows.length} match${rows.length>1?'s':''} de semaine avec ${refLab}</div>
+    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🗓️ ${allRows.length} match${allRows.length>1?'s':''} de semaine avec ${refLab} (${ecartLab})${allRows.length>MAX?` — les ${MAX} premiers (écart le plus petit d'abord)`:''}</div>
     <div style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
-      ${['Tirage réf.','Date','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+      ${(auto?['Tirage réf.','Date','Écart','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur']:['Tirage réf.','Date','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur']).map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
     </tr></thead><tbody>
     ${rows.map((x,k)=>{const bg=k%2?'#FFF7ED':'#fff';
       const colIcon=x.colKey==='m'?'⚙️ Machine':x.colKey==='mix'?'🔀 Mixte':'🎯 Gagnants';
@@ -7394,6 +7436,7 @@ function vtotdWeekHTML(){
       return `<tr>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
+      ${auto?`<td style="background:${bg};font-size:9.5px;padding:3px 4px;text-align:center;font-weight:700;color:#9A3412">${x.gap}</td>`:''}
       <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${colIcon}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#7C2D12">${posLab}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.voisin.t} <span style="color:#888;font-weight:400">(${x.ou})</span></td>
@@ -7471,6 +7514,7 @@ function vtotdPanelHTML(){
       <button onclick="state.vtotdWeekMode='pick';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${state.vtotdWeekMode==='pick'?'#7C2D12':'#ddd'};background:${state.vtotdWeekMode==='pick'?'#7C2D12':'#fff'};color:${state.vtotdWeekMode==='pick'?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">Choisir un N°</button>
       ${state.vtotdWeekMode==='pick'?`<input type="number" min="${MIN_T}" max="${MAX_T}" placeholder="N° tirage" value="${state.vtotdWeekPick||''}" onchange="state.vtotdWeekPick=this.value;render()" style="width:80px;padding:2px 4px;border:1.5px solid #7C2D12;border-radius:6px;font-size:10px;text-align:center;font-weight:700;color:#7C2D12">`:''}
     </div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:9.5px;font-weight:600;color:#9A3412;margin:2px 0 4px"><input type="checkbox" ${state.vtotdWeekAuto?'checked':''} onchange="state.vtotdWeekAuto=this.checked;render()">🔍 Balayer tous les écarts (au lieu de l'écart réglé ci-dessus) — trouve directement le(s) écart(s) qui matche(nt)</label>
     ${vtotdWeekHTML()}`:''}
     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#7C2D12;margin:5px 0"><input type="checkbox" ${state.vtotdMulti?'checked':''} onchange="state.vtotdMulti=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois</label>
     ${state.vtotdMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#FFF1E6;border-radius:6px">

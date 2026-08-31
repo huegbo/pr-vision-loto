@@ -6917,7 +6917,10 @@ function runDbt(){
       dbtPairs(r.n).forEach(p=>{const k=dbtKey(p);(by[k]=by[k]||[]).push(p);});
       Object.keys(by).map(Number).sort((a,b)=>a-b).forEach(k=>{
         const kept=dbtDisjoint(by[k],min);
-        if(kept)res.push({r,total:k,qty,paires:kept.map(p=>`${p.a}${sep}${p.b}`),ou:'même ligne'});
+        if(kept){
+          const cells=[];kept.forEach(p=>{cells.push({tId:r.t,idx:p.i},{tId:r.t,idx:p.j});});
+          res.push({r,total:k,qty,paires:kept.map(p=>`${p.a}${sep}${p.b}`),ou:'même ligne',cells});
+        }
       });
     }else if(mode==='voisin'){
       const mine={};dbtPairs(r.n).forEach(p=>{const k=dbtKey(p);(mine[k]=mine[k]||[]).push(p);});
@@ -6926,8 +6929,10 @@ function runDbt(){
         const v=T[j],vs={};dbtPairs(v.n).forEach(p=>{const k=dbtKey(p);(vs[k]=vs[k]||[]).push(p);});
         Object.keys(mine).map(Number).sort((a,b)=>a-b).forEach(k=>{
           if(!vs[k])return;
+          const mp=mine[k][0],vp=vs[k][0];
           res.push({r,total:k,qty,voisin:v,
-            paires:[mine[k][0].a+sep+mine[k][0].b,vs[k][0].a+sep+vs[k][0].b],ou:lbl});
+            paires:[mp.a+sep+mp.b,vp.a+sep+vp.b],ou:lbl,
+            cells:[{tId:r.t,idx:mp.i},{tId:r.t,idx:mp.j},{tId:v.t,idx:vp.i},{tId:v.t,idx:vp.j}]});
         });
       });
     }else{ // cheval
@@ -6935,11 +6940,14 @@ function runDbt(){
         if(j<0||j>=T.length)return;
         const v=T[j],by={};
         r.n.forEach((a,ia)=>v.n.forEach((b,ib)=>{
-          const k=qty==='diff'?Math.abs(a-b):a+b;(by[k]=by[k]||[]).push({a,b,k1:'r'+ia,k2:'v'+ib});
+          const k=qty==='diff'?Math.abs(a-b):a+b;(by[k]=by[k]||[]).push({a,b,ia,ib,k1:'r'+ia,k2:'v'+ib});
         }));
         Object.keys(by).map(Number).sort((a,b)=>a-b).forEach(k=>{
           const kept=dbtDisjoint(by[k],min);
-          if(kept)res.push({r,total:k,qty,voisin:v,paires:kept.map(p=>`${p.a}${sep}${p.b}`),ou:lbl});
+          if(kept){
+            const cells=[];kept.forEach(p=>{cells.push({tId:r.t,idx:p.ia},{tId:v.t,idx:p.ib});});
+            res.push({r,total:k,qty,voisin:v,paires:kept.map(p=>`${p.a}${sep}${p.b}`),ou:lbl,cells});
+          }
         });
       });
     }
@@ -6955,7 +6963,7 @@ function dbtResultHTML(){
   const show=res.slice(0,MAX);
   const qtyLab=(res[0]&&res[0].qty==='diff')?'Différence':'Total';
   return `<div id="dbt-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#166534;margin-bottom:4px">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#166534">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-dbt-btn" onclick="exportDbtExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${['N°','Date','Tirage',qtyLab,'Paires','Où'].map(h=>`<th style="position:sticky;top:0;background:#166534;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
@@ -7010,6 +7018,59 @@ function dbtPanelHTML(){
     </div>
     ${dbtResultHTML()}
   </div>`;
+}
+async function exportDbtExcel(){
+  const res=state.dbtRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-dbt-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const qty=res[0].qty||'total';
+    const qtyLab=qty==='diff'?'Différence':'Total';
+    const mode=state.dbtMode||'ligne';
+    const modeLab=mode==='voisin'?('Même '+(qty==='diff'?'différence':'total')+' au voisin'):(mode==='cheval'?'Paire à cheval':'Même ligne');
+    const ws=wb.addWorksheet(('Double meme '+(qty==='diff'?'difference':'total')).slice(0,31));
+    ws.addRow(['Filtre : Double même '+(qty==='diff'?'différence':'total')+' — '+modeLab]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5',qtyLab,'Paires','Où','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(x=>{
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,...ns5(x.r.n),x.total,x.paires.join('  ·  '),x.ou,
+        x.voisin?x.voisin.t:'',x.voisin?(x.voisin.d+'/'+x.voisin.y):'',...(x.voisin?ns5(x.voisin.n):['','','','',''])]);
+      if(last3Ids.has(x.r.t)||(x.voisin&&last3Ids.has(x.voisin.t))){
+        for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};
+        row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};
+      }
+      (x.cells||[]).forEach(c=>{
+        if(c.tId===x.r.t){
+          const cell=row.getCell(3+c.idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};
+        }else if(x.voisin&&c.tId===x.voisin.t){
+          const cell=row.getCell(13+c.idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};
+        }
+      });
+      row.getCell(8).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    // Tirage normal : historique complet du jeu, grille années côte à côte, en bas du même onglet.
+    const hitSet=new Set();
+    res.forEach(x=>{(x.cells||[]).forEach(c=>hitSet.add(c.tId+'|N'+(c.idx+1)));});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_double_meme_'+(qty==='diff'?'difference':'total')+'_'+mode+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 
 // ══════ MÊME TOTAL SUPERPOSÉ — N numéros aux MÊMES positions (colonnes alignées),

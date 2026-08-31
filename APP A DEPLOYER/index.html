@@ -7146,7 +7146,7 @@ function vtotdMultiResultHTML(){
   if(!r)return'';
   const total=r.results.reduce((a,x)=>a+x.count,0);
   return`<div id="vtotd-multi-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">${r.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (écart ${r.gap})</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:#7C2D12">${r.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (écart ${r.gap})</span><button id="export-vtotd-multi-btn" onclick="exportVtotDMultiExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
     ${r.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#FFF1E6':'#fafafa'}">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -7157,13 +7157,83 @@ function vtotdMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
+async function exportVtotDExcel(){
+  const res=state.vtotdRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vtotd-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Total-Différence');
+    const header=['N°','Date','Colonne','Positions','Numéros tirage','Détail tirage','Écart','N° voisin','Date voisin','Numéros voisin','Détail voisin','Valeur'];
+    ws.addRow(header).font={bold:true};
+    res.forEach(x=>{
+      const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
+      const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
+      const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,x.r.n.join(' '),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.voisin.n.join(' '),labB,x.val]);
+      const valCell=row.getCell(header.length);
+      valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
+      valCell.font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=14;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_total_difference_superpose.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
+async function exportVtotDMultiExcel(){
+  const r=state.vtotdMultiRes;
+  if(!r||!r.results||!r.results.some(x=>x.count)){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vtotd-multi-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Total-Différence (multi-jeux)');
+    const header=['Jeu','N°','Date','Colonne','Positions','Numéros tirage','Détail tirage','Écart','N° voisin','Date voisin','Numéros voisin','Détail voisin','Valeur'];
+    ws.addRow(header).font={bold:true};
+    r.results.forEach(res=>{
+      res.rows.forEach(x=>{
+        const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
+        const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
+        const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
+        const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,x.r.n.join(' '),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.voisin.n.join(' '),labB,x.val]);
+        const valCell=row.getCell(header.length);
+        valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
+        valCell.font={bold:true};
+      });
+    });
+    ws.columns.forEach(c=>{c.width=14;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='multi_jeux_total_difference_superpose.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 function vtotdResultHTML(){
   if(!state.vtotdRes)return '';
   const res=state.vtotdRes,MAX=300;
   if(!res.length)return `<div id="vtotd-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
   const show=res.slice(0,MAX);
   return `<div id="vtotd-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:#7C2D12">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-vtotd-btn" onclick="exportVtotDExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${['N°','Date','Colonne','Positions','Tirage','Voisin (écart)','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}

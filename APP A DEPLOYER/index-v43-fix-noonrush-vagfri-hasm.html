@@ -7196,12 +7196,21 @@ async function exportVtotDExcel(){
       valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
       valCell.font={bold:true};
     });
+    // Tirage normal : liste brute complète de tous les tirages du jeu, ajoutée en bas.
+    ws.addRow([]);ws.addRow([]);
+    ws.addRow(['📋 Tirage normal — historique complet '+GAME.name+' ('+T.length+' tirages)']).font={bold:true,italic:true};
+    const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
+    ws.addRow(hdrAll).font={bold:true};
+    T.slice().reverse().forEach(r=>{ // ordre chronologique croissant, comme le reste de l'export
+      const tot=r.s!=null?r.s:(r.n?r.n.reduce((a,b)=>a+b,0):'');
+      ws.addRow([r.t,(r.d||'')+'/'+(r.y||''),...ns5(r.n),...ns5(r.m),tot]);
+    });
     ws.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_total_difference_superpose.xlsx';
+    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_total_difference_superpose_'+(state.vtotdSamePos?'meme_position':'toute_position')+'.xlsx';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
   }catch(err){
@@ -7237,11 +7246,28 @@ async function exportVtotDMultiExcel(){
       });
     });
     ws.columns.forEach(c=>{c.width=11;});
+    // Tirage normal : un onglet séparé par jeu avec sa liste brute complète.
+    const savedKey=GAME.key, usedNames=new Set();
+    r.results.forEach(res=>{
+      loadGame(res.game);
+      let sheetName=('Tirages '+res.gameName).slice(0,31), n=2;
+      while(usedNames.has(sheetName)){sheetName=('Tirages '+res.gameName).slice(0,28-String(n).length)+' ('+n+')';n++;}
+      usedNames.add(sheetName);
+      const wsAll=wb.addWorksheet(sheetName);
+      const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
+      wsAll.addRow(hdrAll).font={bold:true};
+      T.slice().reverse().forEach(row=>{
+        const tot=row.s!=null?row.s:(row.n?row.n.reduce((a,b)=>a+b,0):'');
+        wsAll.addRow([row.t,(row.d||'')+'/'+(row.y||''),...ns5(row.n),...ns5(row.m),tot]);
+      });
+      wsAll.columns.forEach(c=>{c.width=11;});
+    });
+    loadGame(savedKey);
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
-    a.download='multi_jeux_total_difference_superpose.xlsx';
+    a.download='multi_jeux_total_difference_superpose_'+(r.samePos?'meme_position':'toute_position')+'.xlsx';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
   }catch(err){

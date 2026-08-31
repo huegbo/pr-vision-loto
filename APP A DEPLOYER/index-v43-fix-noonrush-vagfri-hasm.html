@@ -7204,7 +7204,8 @@ function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName){
   years.forEach(()=>{if(blockCols>1)ws.mergeCells(r1.number,mc,r1.number,mc+blockCols-1);mc+=blockCols;});
   const headerRow2=[];
   years.forEach(()=>{headerRow2.push('Date','N1','N2','N3','N4','N5');if(hasM)headerRow2.push('M1','M2','M3','M4','M5');headerRow2.push('Total');});
-  ws.addRow(headerRow2).font={bold:true};
+  const r2=ws.addRow(headerRow2);r2.font={bold:true};
+  const headerRowNum=r2.number; // dernière ligne d'en-tête de la grille (avant les données)
   for(let ri=0;ri<maxRows;ri++){
     const rowVals=[];
     years.forEach(y=>{
@@ -7230,6 +7231,10 @@ function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName){
       cc+=blockCols;
     });
   }
+  // Fige le bloc de l'année la plus récente (colonnes) + les lignes d'en-tête de la grille,
+  // exactement comme le fait l'export "mode Excel" stylisé — utile pour comparer plein de
+  // lotos en parallèle sans perdre l'année récente ni les en-têtes en défilant.
+  ws.views=[{state:'frozen',xSplit:blockCols,ySplit:headerRowNum}];
 }
 async function exportVtotDExcel(){
   const allRes=state.vtotdRes;
@@ -7271,8 +7276,12 @@ async function exportVtotDExcel(){
       x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
       x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
     });
-    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name);
     ws.columns.forEach(c=>{c.width=11;});
+    // Grille "Tirage normal" sur son propre onglet (comme en mode multi-jeux) : le gel de
+    // l'année récente/en-têtes ne s'applique alors qu'à cette grille, pas au tableau de résultats.
+    const wsGrid=wb.addWorksheet(('Tirages '+GAME.name).slice(0,31));
+    addTirageNormalGrid(wsGrid,T.slice().reverse(),hitSet,GAME.hasM,GAME.name);
+    wsGrid.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');

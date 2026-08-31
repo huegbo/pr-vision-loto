@@ -7547,6 +7547,97 @@ function vtotdPanelHTML(){
   </div>`;
 }
 
+// ══════ « MÊME TOTAL / DIFFÉRENCE ENTRE 2 TIRAGES » — compare le TOTAL GLOBAL (somme des 5
+// numéros, colonne TOT) de deux tirages séparés par un pas réglable (dessus/dessous) : soit ils
+// ont exactement le même total (mode « Même total »), soit l'écart entre les deux totaux vaut une
+// valeur précise choisie (mode « Même différence ») ══════
+function vttTotal(r){return r.s!=null?r.s:(r.n?r.n.reduce((a,b)=>a+b,0):0);}
+function vttRun(gap,mode,target){
+  const res=[];
+  for(let i=0;i<T.length;i++){
+    const r=T[i];
+    [[i-gap,'dessus'],[i+gap,'dessous']].forEach(([j,lbl])=>{
+      if(j<0||j>=T.length)return;
+      const v=T[j];
+      const rs=vttTotal(r),vs=vttTotal(v),diff=Math.abs(rs-vs);
+      if(mode==='same'){
+        if(rs===vs)res.push({r,voisin:v,rs,vs,diff,ou:lbl});
+      }else{
+        if(diff===target)res.push({r,voisin:v,rs,vs,diff,ou:lbl});
+      }
+    });
+  }
+  res.reverse(); // ordre chronologique : du plus ancien au plus récent
+  return res;
+}
+function runVtt(){
+  const gap=Math.max(1,Math.min(T.length-1,parseInt(state.vttGap)||1));
+  const mode=state.vttMode||'same';
+  const target=parseInt(state.vttTarget);
+  if(mode==='diff'&&isNaN(target)){state.vttRes=null;render();return;}
+  state.vttRes=vttRun(gap,mode,isNaN(target)?0:target);
+  render();
+}
+function vttClear(){state.vttRes=null;render();}
+function vttResultHTML(){
+  if(!state.vttRes)return '';
+  const res=state.vttRes,MAX=300;
+  if(!res.length)return `<div style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
+  const show=res.slice(0,MAX);
+  return `<div style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#0369A1;margin-bottom:4px">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table class="excel-tbl" style="width:100%"><thead><tr>
+      ${['N°','Date','Total','↔','N° voisin','Date voisin','Total voisin','Écart'].map(h=>`<th style="position:sticky;top:0;background:#0369A1;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+    </tr></thead><tbody>
+    ${show.map((x,k)=>{const bg=k%2?'#E0F2FE':'#fff';
+      return `<tr>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
+      <td style="background:#DBEAFE;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.rs}</td>
+      <td style="background:${bg};font-size:9px;padding:3px 4px;text-align:center;color:#0369A1;font-weight:600">${x.ou}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.voisin.t}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.voisin.d}/${x.voisin.y}</td>
+      <td style="background:#DBEAFE;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.vs}</td>
+      <td style="background:#BFDBFE;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.diff}</td>
+    </tr>`;}).join('')}
+    </tbody></table></div></div>`;
+}
+function vttPanelHTML(){
+  const gap=state.vttGap||1;
+  const mode=state.vttMode||'same';
+  const gapMax=Math.max(1,T.length-1);
+  return `<div style="background:#fff;border:1.5px solid #0369A1;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0369A1;margin-bottom:5px">🎯 Même Total / Différence entre 2 tirages — pas réglable</div>
+    <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#0369A1">
+      Compare le <b>total global</b> (somme des 5 numéros, colonne TOT) d'un tirage à celui d'un autre tirage situé à un pas (écart) réglable au-dessus/en-dessous. <b>Même total</b> : les deux totaux sont identiques. <b>Même différence</b> : l'écart entre les deux totaux vaut exactement la valeur cible que tu choisis.
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#777">${T.length} tirages</span>
+      <span style="font-size:9px;color:#0369A1;font-weight:600">Pas (tirages)</span>
+      <div style="display:flex;gap:3px">
+        ${[1,2,3,4,5].map(v=>`<button onclick="state.vttGap=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${gap===v?'#0369A1':'#ddd'};background:${gap===v?'#0369A1':'#fff'};color:${gap===v?'#fff':'#0369A1'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
+      </div>
+      <span style="font-size:9px;color:#0369A1;font-weight:600">N=</span>
+      <input type="number" min="1" max="${gapMax}" value="${gap}" onchange="state.vttGap=Math.max(1,Math.min(${gapMax},parseInt(this.value)||1));render()" style="width:52px;padding:2px 4px;border:1.5px solid #0369A1;border-radius:6px;font-size:10px;text-align:center;font-weight:700;color:#0369A1">
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#0369A1;font-weight:600">Mode</span>
+      <div style="display:flex;gap:3px">
+        <button onclick="state.vttMode='same';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${mode==='same'?'#0369A1':'#ddd'};background:${mode==='same'?'#0369A1':'#fff'};color:${mode==='same'?'#fff':'#0369A1'};cursor:pointer;font-weight:600">Même total</button>
+        <button onclick="state.vttMode='diff';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${mode==='diff'?'#0369A1':'#ddd'};background:${mode==='diff'?'#0369A1':'#fff'};color:${mode==='diff'?'#fff':'#0369A1'};cursor:pointer;font-weight:600">Même différence</button>
+      </div>
+      ${mode==='diff'?`<span style="font-size:9px;color:#0369A1;font-weight:600">Écart cible =</span><input type="number" min="0" placeholder="Ex: 40" value="${state.vttTarget||''}" onchange="state.vttTarget=this.value;render()" style="width:70px;padding:2px 4px;border:1.5px solid #0369A1;border-radius:6px;font-size:10px;text-align:center;font-weight:700;color:#0369A1">`:''}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button onclick="runVtt()" style="padding:4px 14px;background:#0369A1;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="vttClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+      <span style="font-size:8px;color:#0369A1">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
+    </div>
+    ${vttResultHTML()}
+  </div>`;
+}
+
 // ══════ NUMÉRO + UN DE SES ÉLÉMENTS ══════
 // « éléments » = les dérivés déjà définis dans CL_DEF : Counter, Bonanza, Malta, Key,
 // Turning, Partner, Shadow, Equiv, Miroir.
@@ -7908,6 +7999,7 @@ function searchHubHTML(){
   h+=dbtPanelHTML();
   h+=vtotPanelHTML();
   h+=vtotdPanelHTML();
+  h+=vttPanelHTML();
   h+=elmPanelHTML();
   h+=cetPanelHTML();
   // Recherche par formule (suite étalée sur plusieurs tirages)

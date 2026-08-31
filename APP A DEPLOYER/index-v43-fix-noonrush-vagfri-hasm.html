@@ -7355,6 +7355,54 @@ async function exportVtotDMultiExcel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
+// ══════ « Semaine qui matche » — prend le(s) dernier(s) tirage(s) (dernier seul, 3 derniers, ou
+// un N° précis choisi) et cherche, via le même moteur Total↔Différence en MÊME POSITION (dessus/
+// dessous, écart réglable state.vtotdGap), à quel(s) tirage(s) plus ancien(s) il(s) matche(nt) —
+// puis affiche la semaine calendaire (lundi→dimanche) de ce(s) tirage(s) voisin(s) ══════
+function vtotdWeekRefIds(){
+  const mode=state.vtotdWeekMode||'last3';
+  if(mode==='last1')return new Set(T.slice(0,1).map(r=>r.t));
+  if(mode==='pick'&&state.vtotdWeekPick){
+    const n=parseInt(state.vtotdWeekPick);
+    return new Set(T.filter(r=>r.t===n).map(r=>r.t));
+  }
+  return new Set(T.slice(0,3).map(r=>r.t)); // last3 par défaut
+}
+function vtotdWeekRows(){
+  const gap=Math.max(1,Math.min(T.length-1,parseInt(state.vtotdGap)||1));
+  const all=vtotdRun(gap,true); // même position, comme demandé
+  const refIds=vtotdWeekRefIds();
+  if(!refIds.size)return [];
+  return all.filter(x=>refIds.has(x.r.t)).map(x=>Object.assign({},x,{week:weekRangeOf(x.voisin.d,x.voisin.y)}));
+}
+function vtotdWeekHTML(){
+  if(!state.vtotdWeekOn)return '';
+  const mode=state.vtotdWeekMode||'last3';
+  const refLab=mode==='last1'?'le dernier tirage':mode==='pick'?(state.vtotdWeekPick?'le tirage N°'+state.vtotdWeekPick:'un tirage à choisir ci-dessus'):'les 3 derniers tirages';
+  if(mode==='pick'&&!state.vtotdWeekPick)return `<div style="margin-top:6px;padding:6px;background:#FFF1E6;border:1px solid #FED7AA;border-radius:6px;font-size:10px;color:#7C2D12">Indique un N° de tirage ci-dessus.</div>`;
+  const rows=vtotdWeekRows();
+  if(!rows.length)return `<div style="margin-top:6px;padding:6px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune semaine ne matche avec ${refLab} (écart ${state.vtotdGap||1}, même position).</div>`;
+  return `<div style="margin-top:6px">
+    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🗓️ ${rows.length} match${rows.length>1?'s':''} de semaine avec ${refLab}</div>
+    <div style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
+    <table class="excel-tbl" style="width:100%"><thead><tr>
+      ${['Tirage réf.','Date','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+    </tr></thead><tbody>
+    ${rows.map((x,k)=>{const bg=k%2?'#FFF7ED':'#fff';
+      const colIcon=x.colKey==='m'?'⚙️ Machine':x.colKey==='mix'?'🔀 Mixte':'🎯 Gagnants';
+      const posLab=x.posALab+' ↔ '+x.posBLab;
+      return `<tr>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
+      <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${colIcon}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#7C2D12">${posLab}</td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.voisin.t} <span style="color:#888;font-weight:400">(${x.ou})</span></td>
+      <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.voisin.d}/${x.voisin.y}</td>
+      <td style="background:#FFE4D0;font-weight:700;font-size:9.5px;padding:3px 4px;text-align:center">${x.week.label}</td>
+      <td style="background:${bg};font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.val}</td>
+    </tr>`;}).join('')}
+    </tbody></table></div></div>`;
+}
 function vtotdResultHTML(){
   if(!state.vtotdRes)return '';
   const res=state.vtotdRes,MAX=300;
@@ -7416,6 +7464,14 @@ function vtotdPanelHTML(){
         <button onclick="state.vtotdSamePos=true;render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${samePos?'#7C2D12':'#ddd'};background:${samePos?'#7C2D12':'#fff'};color:${samePos?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">Même position</button>
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#7C2D12;margin:5px 0"><input type="checkbox" ${state.vtotdWeekOn?'checked':''} onchange="state.vtotdWeekOn=this.checked;render()">🗓️ Semaine qui matche (même position) avec le(s) dernier(s) tirage(s)</label>
+    ${state.vtotdWeekOn?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0 2px;padding:5px;background:#FFF1E6;border-radius:6px">
+      <button onclick="state.vtotdWeekMode='last1';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${(state.vtotdWeekMode||'last3')==='last1'?'#7C2D12':'#ddd'};background:${(state.vtotdWeekMode||'last3')==='last1'?'#7C2D12':'#fff'};color:${(state.vtotdWeekMode||'last3')==='last1'?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">Dernier tirage</button>
+      <button onclick="state.vtotdWeekMode='last3';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${(state.vtotdWeekMode||'last3')==='last3'?'#7C2D12':'#ddd'};background:${(state.vtotdWeekMode||'last3')==='last3'?'#7C2D12':'#fff'};color:${(state.vtotdWeekMode||'last3')==='last3'?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">3 derniers tirages</button>
+      <button onclick="state.vtotdWeekMode='pick';render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${state.vtotdWeekMode==='pick'?'#7C2D12':'#ddd'};background:${state.vtotdWeekMode==='pick'?'#7C2D12':'#fff'};color:${state.vtotdWeekMode==='pick'?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">Choisir un N°</button>
+      ${state.vtotdWeekMode==='pick'?`<input type="number" min="${MIN_T}" max="${MAX_T}" placeholder="N° tirage" value="${state.vtotdWeekPick||''}" onchange="state.vtotdWeekPick=this.value;render()" style="width:80px;padding:2px 4px;border:1.5px solid #7C2D12;border-radius:6px;font-size:10px;text-align:center;font-weight:700;color:#7C2D12">`:''}
+    </div>
+    ${vtotdWeekHTML()}`:''}
     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#7C2D12;margin:5px 0"><input type="checkbox" ${state.vtotdMulti?'checked':''} onchange="state.vtotdMulti=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois</label>
     ${state.vtotdMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#FFF1E6;border-radius:6px">
       ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.vtotdMultiGames||[]).includes(k);return`<button onclick="toggleVtotdMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#7C2D12':'#ccc'};background:${sel?'#7C2D12':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
@@ -10677,6 +10733,16 @@ const AN_DEF=[
   {key:'semaine',label:'📅 Répétés semaine',bg:'#DC2626',fg:'#fff',desc:"Numéros qui reviennent dans au moins 2 tirages d'une semaine calendaire (lundi à dimanche) — semaine en cours par défaut, ou n'importe quel N° de semaine (réglable)"},
 ];
 // Numéro de semaine ISO 8601 (lundi=début) + année ISO correspondante, pour une date au format 'dd/mm' + année 'yyyy'
+// Renvoie la semaine calendaire (lundi → dimanche) qui contient la date dd/mm de l'année y.
+function weekRangeOf(dm,y){
+  const [dd,mm]=String(dm).split('/').map(Number);
+  const d=new Date(parseInt(y,10),(mm||1)-1,dd||1);
+  const dow=(d.getDay()+6)%7; // lundi=0 ... dimanche=6
+  const mon=new Date(d);mon.setDate(d.getDate()-dow);
+  const sun=new Date(mon);sun.setDate(mon.getDate()+6);
+  const f=x=>String(x.getDate()).padStart(2,'0')+'/'+String(x.getMonth()+1).padStart(2,'0')+'/'+x.getFullYear();
+  return {mon,sun,label:f(mon)+' → '+f(sun)};
+}
 function isoWeekOf(dm,y){
   const [dd,mm]=String(dm).split('/').map(Number);
   const d=new Date(Date.UTC(parseInt(y,10),(mm||1)-1,dd||1));

@@ -7145,6 +7145,7 @@ function runVtotD(){
     state.vtotdRes=vtotdRun(gap,samePos);
     state.vtotdMultiRes=null;
   }
+  state.vtotdUnchecked=new Set(); // nouvelle recherche → tout est coché par défaut
   render();
   setTimeout(()=>{const e=document.getElementById('vtotd-res')||document.getElementById('vtotd-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
@@ -7153,6 +7154,17 @@ function toggleVtotdMultiGame(k){
   if(!state.vtotdMultiGames)state.vtotdMultiGames=[];
   const i=state.vtotdMultiGames.indexOf(k);
   if(i>=0)state.vtotdMultiGames.splice(i,1);else state.vtotdMultiGames.push(k);
+  render();
+}
+function toggleVtotdRowCheck(k){
+  if(!state.vtotdUnchecked)state.vtotdUnchecked=new Set();
+  if(state.vtotdUnchecked.has(k))state.vtotdUnchecked.delete(k);else state.vtotdUnchecked.add(k);
+  render();
+}
+function vtotdCheckAll(){state.vtotdUnchecked=new Set();render();}
+function vtotdCheckNone(){
+  const n=(state.vtotdRes||[]).length;
+  state.vtotdUnchecked=new Set(Array.from({length:n},(_,i)=>i));
   render();
 }
 function vtotdMultiResultHTML(){
@@ -7173,8 +7185,11 @@ function vtotdMultiResultHTML(){
     </div></div>`;
 }
 async function exportVtotDExcel(){
-  const res=state.vtotdRes;
-  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  const allRes=state.vtotdRes;
+  if(!allRes||!allRes.length){alert('Aucun résultat à exporter');return;}
+  const unchecked=state.vtotdUnchecked||new Set();
+  const res=allRes.filter((x,k)=>!unchecked.has(k));
+  if(!res.length){alert('Aucun résultat coché à exporter — coche au moins une ligne.');return;}
   if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
   const btn=document.getElementById('export-vtotd-btn');
   if(btn)btn.textContent='⏳...';
@@ -7182,22 +7197,27 @@ async function exportVtotDExcel(){
     const wb=new ExcelJS.Workbook();
     const modeLab=state.vtotdSamePos?'Même position':'Toute position';
     const ws=wb.addWorksheet('Total-Différence');
-    ws.addRow(['Filtre : Total ↔ Différence superposé — '+modeLab]).font={bold:true,italic:true};
+    ws.addRow(['Filtre : Total ↔ Différence superposé — '+modeLab+(res.length<allRes.length?' — '+res.length+'/'+allRes.length+' résultats cochés exportés':'')]).font={bold:true,italic:true};
     ws.addRow([]);
     const header=['N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','VM1','VM2','VM3','VM4','VM5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    // Colonnes exactes des numéros testés, côté tirage (5-14) et côté voisin (19-28),
+    // pour surligner le résultat de façon évidente directement dans la ligne.
+    const posColIdx=(lab,side)=>{const isM=lab[0]==='M',idx=parseInt(lab.slice(1))-1;return side==='A'?(isM?10+idx:5+idx):(isM?24+idx:19+idx);};
     res.forEach(x=>{
       const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
       const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
       const posLab=x.posALab+' ↔ '+x.posBLab;
       const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
+      x.posALab.split(',').forEach(lab=>{const c=row.getCell(posColIdx(lab,'A'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
+      x.posBLab.split(',').forEach(lab=>{const c=row.getCell(posColIdx(lab,'B'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
       const valCell=row.getCell(header.length);
       valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
       valCell.font={bold:true};
     });
     // Tirage normal : liste brute complète de tous les tirages du jeu, ajoutée en bas.
-    // Les numéros ayant servi à au moins un résultat sont surlignés, pour repérer d'un
+    // Les numéros ayant servi à au moins un résultat coché sont surlignés, pour repérer d'un
     // coup d'œil les numéros "actifs" dans la liste brute (utile pour faire des simulations).
     const hitSet=new Set();
     res.forEach(x=>{
@@ -7300,18 +7320,27 @@ function vtotdResultHTML(){
   if(!res.length)return `<div id="vtotd-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
   const show=res.slice(0,MAX);
   const modeLab=state.vtotdSamePos?'Même position':'Toute position';
+  const unchecked=state.vtotdUnchecked||new Set();
+  const checkedCount=res.length-unchecked.size;
   return `<div id="vtotd-res" style="margin-top:7px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#7C2D12">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><span style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:8px;background:#FFF1E6;color:#7C2D12;border:1px solid #FED7AA">⚖️ ${modeLab}</span><button id="export-vtotd-btn" onclick="exportVtotDExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+      <button onclick="vtotdCheckAll()" style="padding:2px 8px;font-size:8.5px;border-radius:8px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:600">☑️ Tout cocher</button>
+      <button onclick="vtotdCheckNone()" style="padding:2px 8px;font-size:8.5px;border-radius:8px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:600">⬜ Rien cocher</button>
+      <span style="font-size:8.5px;color:#7C2D12">${checkedCount}/${res.length} coché${checkedCount>1?'s':''} (exportés)</span>
+    </div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
+      <th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px"></th>
       ${['N°','Date','Colonne','Positions','Tirage','Voisin (écart)','Valeur'].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
     </tr></thead><tbody>
-    ${show.map((x,k)=>{const bg=k%2?'#FFF1E6':'#fff';
+    ${show.map((x,k)=>{const bg=k%2?'#FFF1E6':'#fff';const isChecked=!unchecked.has(k);
       const labA=(x.sens==='sommeA_diffB'?`<b>${x.posALab}</b>: ${x.valsA.join('+')} = <b>${x.val}</b> (total)`:`<b>${x.posALab}</b>: |${x.valsA.join('-')}| = <b>${x.val}</b> (différence)`);
       const labB=(x.sens==='sommeA_diffB'?`<b>${x.posBLab}</b>: |${x.valsB.join('-')}| = <b>${x.val}</b> (différence)`:`<b>${x.posBLab}</b>: ${x.valsB.join('+')} = <b>${x.val}</b> (total)`);
       const posLab=x.posALab+' ↔ '+x.posBLab;
       const colIcon=x.colKey==='m'?'⚙️ Machine':x.colKey==='mix'?'🔀 Mixte':'🎯 Gagnants';
-      return `<tr>
+      return `<tr style="${isChecked?'':'opacity:.45'}">
+      <td style="background:${bg};padding:3px 4px;text-align:center"><input type="checkbox" ${isChecked?'checked':''} onchange="toggleVtotdRowCheck(${k})"></td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
       <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${colIcon}</td>

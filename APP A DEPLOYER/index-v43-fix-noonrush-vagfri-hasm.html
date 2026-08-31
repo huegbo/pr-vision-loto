@@ -7087,27 +7087,36 @@ function vtotdRun(gap){ // calcule les résultats sur le jeu actuellement charg�
   // "toute position superposée" : les 2 positions testées côté A n'ont pas besoin d'être les
   // mêmes colonnes que côté B (comme "Décomposition croisée") — on teste TOUTES les paires
   // de positions des deux côtés, indépendamment (pas seulement les paires alignées).
-  const pairs=vtotCombos(5,2), res=[];
-  const cols=[{key:'n',label:'Gagnants',pfx:'N'}];
-  if(GAME.hasM)cols.push({key:'m',label:'Machine',pfx:'M'});
+  // 3 groupes testés si le jeu a des numéros machine : Gagnants seuls, Machine seuls, et
+  // Mixte (les 5 Gagnants + 5 Machine réunis en un seul groupe de 10 — paires croisées incluses).
+  const res=[];
+  const cols=[{key:'n',label:'Gagnants',pfx:'N',n:5,mix:false}];
+  if(GAME.hasM){
+    cols.push({key:'m',label:'Machine',pfx:'M',n:5,mix:false});
+    cols.push({key:'mix',label:'Mixte',pfx:'X',n:10,mix:true});
+  }
+  cols.forEach(col=>{col.pairs=vtotCombos(col.n,2);});
+  const posLabel=(col,idxs)=>idxs.map(p=>col.mix?(p<5?'N'+(p+1):'M'+(p-5+1)):col.pfx+(p+1)).join(',');
   for(let i=0;i<T.length;i++){
     const r=T[i];
     [[i-gap,'dessus'],[i+gap,'dessous']].forEach(([j,lbl])=>{
       if(j<0||j>=T.length)return;
       const v=T[j];
       cols.forEach(col=>{
-        const rc=r[col.key],vc=v[col.key];
+        const rc=col.mix?(r.n&&r.m?[...r.n,...r.m]:null):r[col.key];
+        const vc=col.mix?(v.n&&v.m?[...v.n,...v.m]:null):v[col.key];
         if(!rc||!vc)return;
-        pairs.forEach(idxsA=>{
+        col.pairs.forEach(idxsA=>{
           const[p1,p2]=idxsA, a1=rc[p1],a2=rc[p2];
           if([a1,a2].some(x=>x===undefined||Number.isNaN(x)))return;
           const sa=a1+a2, da=Math.abs(a1-a2);
-          pairs.forEach(idxsB=>{
+          col.pairs.forEach(idxsB=>{
             const[q1,q2]=idxsB, b1=vc[q1],b2=vc[q2];
             if([b1,b2].some(x=>x===undefined||Number.isNaN(x)))return;
             const sb=b1+b2, db=Math.abs(b1-b2);
-            if(sa===db)res.push({r,voisin:v,val:sa,posA:idxsA,posB:idxsB,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'sommeA_diffB',col:col.label,pfx:col.pfx});
-            if(da===sb)res.push({r,voisin:v,val:da,posA:idxsA,posB:idxsB,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'diffA_sommeB',col:col.label,pfx:col.pfx});
+            const posALab=posLabel(col,idxsA), posBLab=posLabel(col,idxsB);
+            if(sa===db)res.push({r,voisin:v,val:sa,posALab,posBLab,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'sommeA_diffB',col:col.label,colKey:col.key});
+            if(da===sb)res.push({r,voisin:v,val:da,posALab,posBLab,valsA:[a1,a2],valsB:[b1,b2],ou:lbl,sens:'diffA_sommeB',col:col.label,colKey:col.key});
           });
         });
       });
@@ -7154,7 +7163,7 @@ function vtotdMultiResultHTML(){
         <span style="font-size:11px;font-weight:500;color:#7C2D12">${res.icon} ${res.gameName}</span>
         <span style="font-size:11px;font-weight:700;color:${res.count?'#9A3412':'#bbb'}">${res.count} résultat(s)</span>
       </div>
-      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (${x.col==='Machine'?'⚙️':'🎯'} ${x.posA.map(p=>x.pfx+(p+1)).join(',')}↔${x.posB.map(p=>x.pfx+(p+1)).join(',')}=${x.val})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (${x.colKey==='m'?'⚙️':x.colKey==='mix'?'🔀':'🎯'} ${x.posALab}↔${x.posBLab}=${x.val})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
     </div>`).join('')}
     </div></div>`;
 }
@@ -7167,15 +7176,14 @@ async function exportVtotDExcel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Total-Différence');
-    const header=['N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','Détail voisin','Valeur'];
+    const header=['N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','VM1','VM2','VM3','VM4','VM5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     res.forEach(x=>{
       const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
       const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
-      const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
-      const nA=x.col==='Machine'?x.r.m:x.r.n, nB=x.col==='Machine'?x.voisin.m:x.voisin.n;
-      const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
-      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(nA),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(nB),labB,x.val]);
+      const posLab=x.posALab+' ↔ '+x.posBLab;
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
       const valCell=row.getCell(header.length);
       valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
       valCell.font={bold:true};
@@ -7203,16 +7211,15 @@ async function exportVtotDMultiExcel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Total-Différence (multi-jeux)');
-    const header=['Jeu','N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','Détail voisin','Valeur'];
+    const header=['Jeu','N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','VM1','VM2','VM3','VM4','VM5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     r.results.forEach(res=>{
       res.rows.forEach(x=>{
         const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = ${x.val} (total)`:`|${x.valsA.join('-')}| = ${x.val} (différence)`;
         const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.valsB.join('+')} = ${x.val} (total)`;
-        const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
-        const nA=x.col==='Machine'?x.r.m:x.r.n, nB=x.col==='Machine'?x.voisin.m:x.voisin.n;
-        const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(nA),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(nB),labB,x.val]);
+        const posLab=x.posALab+' ↔ '+x.posBLab;
+        const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
         const valCell=row.getCell(header.length);
         valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
         valCell.font={bold:true};
@@ -7246,11 +7253,12 @@ function vtotdResultHTML(){
     ${show.map((x,k)=>{const bg=k%2?'#FFF1E6':'#fff';
       const labA=x.sens==='sommeA_diffB'?`${x.valsA.join('+')} = <b>${x.val}</b> (total)`:`|${x.valsA.join('-')}| = <b>${x.val}</b> (différence)`;
       const labB=x.sens==='sommeA_diffB'?`|${x.valsB.join('-')}| = <b>${x.val}</b> (différence)`:`${x.valsB.join('+')} = <b>${x.val}</b> (total)`;
-      const posLab=x.posA.map(p=>x.pfx+(p+1)).join(',')+' ↔ '+x.posB.map(p=>x.pfx+(p+1)).join(',');
+      const posLab=x.posALab+' ↔ '+x.posBLab;
+      const colIcon=x.colKey==='m'?'⚙️ Machine':x.colKey==='mix'?'🔀 Mixte':'🎯 Gagnants';
       return `<tr>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r.t}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r.d}/${x.r.y}</td>
-      <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${x.col==='Machine'?'⚙️ Machine':'🎯 Gagnants'}</td>
+      <td style="background:${bg};font-size:9px;padding:3px 4px;font-weight:600">${colIcon}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600;color:#7C2D12">${posLab}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px;color:#7C2D12">${labA}</td>
       <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.ou} · ${x.voisin.d}/${x.voisin.y}<br>${labB}</td>
@@ -7263,7 +7271,7 @@ function vtotdPanelHTML(){
   return `<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#7C2D12;margin-bottom:5px">⚖️ Total ↔ Différence superposé — 2 numéros, toute position, écart réglable</div>
     <div style="background:#FFF1E6;border:1px solid #FED7AA;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#7C2D12">
-      Compare un tirage à un autre situé N tirage(s) plus haut/bas (superposition verticale, comme Miroir superposé). Pour <b>toutes</b> les paires de positions (pas seulement les mêmes colonnes des deux côtés), si le <b>total</b> de 2 numéros d'un tirage est égal à la <b>différence</b> (valeur absolue) de 2 numéros de l'autre tirage, c'est un résultat. Testé à la fois sur les numéros gagnants et, si le jeu en a, sur les numéros machine.
+      Compare un tirage à un autre situé N tirage(s) plus haut/bas (superposition verticale, comme Miroir superposé). Pour <b>toutes</b> les paires de positions (pas seulement les mêmes colonnes des deux côtés), si le <b>total</b> de 2 numéros d'un tirage est égal à la <b>différence</b> (valeur absolue) de 2 numéros de l'autre tirage, c'est un résultat. Testé sur les numéros gagnants seuls, sur les numéros machine seuls (si le jeu en a), et sur <b>Mixte</b> (les 5 gagnants + 5 machine réunis en un seul groupe de 10 — inclut les paires croisées gagnant↔machine).
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#777">${T.length} tirages</span>

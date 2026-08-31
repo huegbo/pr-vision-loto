@@ -7083,8 +7083,7 @@ function vtotPanelHTML(){
 // à ces mêmes positions de l'autre côté (superposition verticale, comme "Même total superposé"
 // mais en croisant somme et différence au lieu de comparer deux sommes) ══════
 // Ex. tirage A, positions 1-2 : |56-10| = 46 (différence) ; tirage B, positions 1-2 : 2+44 = 46 (total)
-function runVtotD(){
-  const gap=Math.max(1,Math.min(5,parseInt(state.vtotdGap)||1));
+function vtotdRun(gap){ // calcule les résultats sur le jeu actuellement chargé (T global)
   const pairs=vtotCombos(5,2), res=[];
   for(let i=0;i<T.length;i++){
     const r=T[i];
@@ -7099,10 +7098,50 @@ function runVtotD(){
       });
     });
   }
-  state.vtotdRes=res;render();
-  setTimeout(()=>{const e=document.getElementById('vtotd-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+  return res;
 }
-function vtotdClear(){state.vtotdRes=null;render();}
+function runVtotD(){
+  const gap=Math.max(1,Math.min(5,parseInt(state.vtotdGap)||1));
+  if(state.vtotdMulti&&state.vtotdMultiGames&&state.vtotdMultiGames.length){
+    const savedKey=GAME.key, results=[];
+    for(const gk of state.vtotdMultiGames){
+      loadGame(gk);
+      const r=vtotdRun(gap);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:r.length,rows:r});
+    }
+    loadGame(savedKey);
+    state.vtotdMultiRes={gap,results};
+    state.vtotdRes=null;
+  }else{
+    state.vtotdRes=vtotdRun(gap);
+    state.vtotdMultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('vtotd-res')||document.getElementById('vtotd-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function vtotdClear(){state.vtotdRes=null;state.vtotdMultiRes=null;render();}
+function toggleVtotdMultiGame(k){
+  if(!state.vtotdMultiGames)state.vtotdMultiGames=[];
+  const i=state.vtotdMultiGames.indexOf(k);
+  if(i>=0)state.vtotdMultiGames.splice(i,1);else state.vtotdMultiGames.push(k);
+  render();
+}
+function vtotdMultiResultHTML(){
+  const r=state.vtotdMultiRes;
+  if(!r)return'';
+  const total=r.results.reduce((a,x)=>a+x.count,0);
+  return`<div id="vtotd-multi-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">${r.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (écart ${r.gap})</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
+    ${r.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#FFF1E6':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#7C2D12">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#9A3412':'#bbb'}">${res.count} résultat(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (N${x.pos.map(p=>p+1).join(',N')}=${x.val})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div></div>`;
+}
 function vtotdResultHTML(){
   if(!state.vtotdRes)return '';
   const res=state.vtotdRes,MAX=300;
@@ -7142,12 +7181,19 @@ function vtotdPanelHTML(){
         ${[1,2,3,4,5].map(v=>`<button onclick="state.vtotdGap=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${gap===v?'#7C2D12':'#ddd'};background:${gap===v?'#7C2D12':'#fff'};color:${gap===v?'#fff':'#7C2D12'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
       </div>
     </div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#7C2D12;margin:5px 0"><input type="checkbox" ${state.vtotdMulti?'checked':''} onchange="state.vtotdMulti=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois</label>
+    ${state.vtotdMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#FFF1E6;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.vtotdMultiGames||[]).includes(k);return`<button onclick="toggleVtotdMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#7C2D12':'#ccc'};background:${sel?'#7C2D12':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.vtotdMultiGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.vtotdMultiGames=[];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:''}
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <button onclick="runVtotD()" style="padding:4px 14px;background:#7C2D12;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
       <button onclick="vtotdClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#7C2D12">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
     ${vtotdResultHTML()}
+    ${vtotdMultiResultHTML()}
   </div>`;
 }
 

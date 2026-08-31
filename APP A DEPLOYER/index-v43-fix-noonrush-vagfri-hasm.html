@@ -7184,7 +7184,8 @@ function vtotdMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
-function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName){
+function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName,freeze){
+  if(freeze===undefined)freeze=true; // false quand la grille est accolée sous un grand tableau (même onglet) : le gel figerait tout ce qu'il y a au-dessus.
   // "Tirage normal" en mode Excel : années côte à côte horizontalement, année la plus
   // récente en premier (à gauche), et à l'intérieur de chaque année, ordre chronologique
   // de janvier à décembre — comme le mode Excel de l'appli (comparaison par année).
@@ -7231,10 +7232,12 @@ function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName){
       cc+=blockCols;
     });
   }
-  // Fige le bloc de l'année la plus récente (colonnes) + les lignes d'en-tête de la grille,
-  // exactement comme le fait l'export "mode Excel" stylisé — utile pour comparer plein de
-  // lotos en parallèle sans perdre l'année récente ni les en-têtes en défilant.
-  ws.views=[{state:'frozen',xSplit:blockCols,ySplit:headerRowNum}];
+  if(freeze){
+    // Fige le bloc de l'année la plus récente (colonnes) + les lignes d'en-tête de la grille,
+    // exactement comme le fait l'export "mode Excel" stylisé — utile pour comparer plein de
+    // lotos en parallèle sans perdre l'année récente ni les en-têtes en défilant.
+    ws.views=[{state:'frozen',xSplit:blockCols,ySplit:headerRowNum}];
+  }
 }
 async function exportVtotDExcel(){
   const allRes=state.vtotdRes;
@@ -7257,11 +7260,18 @@ async function exportVtotDExcel(){
     // Colonnes exactes des numéros testés, côté tirage (5-14) et côté voisin (19-28),
     // pour surligner le résultat de façon évidente directement dans la ligne.
     const posColIdx=(lab,side)=>{const isM=lab[0]==='M',idx=parseInt(lab.slice(1))-1;return side==='A'?(isM?10+idx:5+idx):(isM?24+idx:19+idx);};
+    // Les 3 derniers tirages du jeu — toute ligne où le tirage OU le voisin en fait partie
+    // reçoit un fond vert distinct, pour les repérer d'un coup d'œil dans l'export.
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
     res.forEach(x=>{
       const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
       const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
       const posLab=x.posALab+' ↔ '+x.posBLab;
       const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
+      if(last3Ids.has(x.r.t)||last3Ids.has(x.voisin.t)){
+        for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};
+        row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};
+      }
       x.posALab.split(',').forEach(lab=>{const c=row.getCell(posColIdx(lab,'A'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
       x.posBLab.split(',').forEach(lab=>{const c=row.getCell(posColIdx(lab,'B'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
       const valCell=row.getCell(header.length);
@@ -7276,12 +7286,10 @@ async function exportVtotDExcel(){
       x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
       x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
     });
+    // Grille "Tirage normal" ajoutée en bas du même onglet, sous le tableau de résultats
+    // (pas de gel de colonnes/en-têtes ici : ça figerait aussi tout le tableau au-dessus).
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
     ws.columns.forEach(c=>{c.width=11;});
-    // Grille "Tirage normal" sur son propre onglet (comme en mode multi-jeux) : le gel de
-    // l'année récente/en-têtes ne s'applique alors qu'à cette grille, pas au tableau de résultats.
-    const wsGrid=wb.addWorksheet(('Tirages '+GAME.name).slice(0,31));
-    addTirageNormalGrid(wsGrid,T.slice().reverse(),hitSet,GAME.hasM,GAME.name);
-    wsGrid.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
@@ -7311,12 +7319,19 @@ async function exportVtotDMultiExcel(){
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     const posColIdxM=(lab,side)=>{const isM=lab[0]==='M',idx=parseInt(lab.slice(1))-1;return side==='A'?(isM?11+idx:6+idx):(isM?25+idx:20+idx);};
+    const savedKey=GAME.key; // restauré tout en bas, une fois les onglets "Tirage normal" générés
     r.results.forEach(res=>{
+      loadGame(res.game); // pour connaître les 3 derniers tirages DE CE JEU précisément
+      const last3Ids=new Set(T.slice(0,3).map(rr=>rr.t));
       res.rows.forEach(x=>{
         const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
         const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
         const posLab=x.posALab+' ↔ '+x.posBLab;
         const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
+        if(last3Ids.has(x.r.t)||last3Ids.has(x.voisin.t)){
+          for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};
+          row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};
+        }
         x.posALab.split(',').forEach(lab=>{const c=row.getCell(posColIdxM(lab,'A'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
         x.posBLab.split(',').forEach(lab=>{const c=row.getCell(posColIdxM(lab,'B'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
         const valCell=row.getCell(header.length);
@@ -7326,7 +7341,7 @@ async function exportVtotDMultiExcel(){
     });
     ws.columns.forEach(c=>{c.width=11;});
     // Tirage normal : un onglet séparé par jeu, en grille années côte à côte (mode Excel).
-    const savedKey=GAME.key, usedNames=new Set();
+    const usedNames=new Set();
     r.results.forEach(res=>{
       loadGame(res.game);
       let sheetName=('Tirages '+res.gameName).slice(0,31), n=2;

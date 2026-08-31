@@ -7129,7 +7129,7 @@ function vtotdRun(gap,samePos){ // calcule les résultats sur le jeu actuellemen
   return res;
 }
 function runVtotD(){
-  const gap=Math.max(1,Math.min(5,parseInt(state.vtotdGap)||1));
+  const gap=Math.max(1,Math.min(T.length-1,parseInt(state.vtotdGap)||1));
   const samePos=!!state.vtotdSamePos;
   if(state.vtotdMulti&&state.vtotdMultiGames&&state.vtotdMultiGames.length){
     const savedKey=GAME.key, results=[];
@@ -7406,6 +7406,8 @@ function vtotdPanelHTML(){
       <div style="display:flex;gap:3px">
         ${[1,2,3,4,5].map(v=>`<button onclick="state.vtotdGap=${v};render()" style="padding:2px 9px;font-size:10px;border-radius:8px;border:1.5px solid ${gap===v?'#7C2D12':'#ddd'};background:${gap===v?'#7C2D12':'#fff'};color:${gap===v?'#fff':'#7C2D12'};cursor:pointer;font-weight:700">${v}</button>`).join('')}
       </div>
+      <span style="font-size:9px;color:#7C2D12;font-weight:600">N=</span>
+      <input type="number" min="1" max="${Math.max(1,T.length-1)}" value="${gap}" onchange="state.vtotdGap=Math.max(1,Math.min(${Math.max(1,T.length-1)},parseInt(this.value)||1));render()" style="width:52px;padding:2px 4px;border:1.5px solid #7C2D12;border-radius:6px;font-size:10px;text-align:center;font-weight:700;color:#7C2D12">
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#7C2D12;font-weight:600">Positions</span>

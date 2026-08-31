@@ -7184,6 +7184,53 @@ function vtotdMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
+function addTirageNormalGrid(ws,tirages,hitSet,hasM,gameName){
+  // "Tirage normal" en mode Excel : années côte à côte horizontalement, année la plus
+  // récente en premier (à gauche), et à l'intérieur de chaque année, ordre chronologique
+  // de janvier à décembre — comme le mode Excel de l'appli (comparaison par année).
+  const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+  const byYear={};
+  tirages.forEach(r=>{const y=r.y||'?';(byYear[y]=byYear[y]||[]).push(r);});
+  // tirages = ordre chronologique croissant global → dans chaque année, on garde cet ordre (jan→déc)
+  const years=Object.keys(byYear).sort((a,b)=>b-a); // année récente en premier
+  const maxRows=Math.max(0,...years.map(y=>byYear[y].length));
+  const blockCols=1+5+(hasM?5:0)+1; // Date + N1-5 + [M1-5] + Total
+  ws.addRow([]);ws.addRow([]);
+  ws.addRow(['📋 Tirage normal — historique complet '+gameName+' ('+tirages.length+' tirages, '+years.length+' années) — numéros surlignés = utilisés dans un résultat']).font={bold:true,italic:true};
+  const headerRow1=[];
+  years.forEach(y=>{headerRow1.push(y+' ('+byYear[y].length+')');for(let i=1;i<blockCols;i++)headerRow1.push('');});
+  const r1=ws.addRow(headerRow1);r1.font={bold:true};
+  let mc=1;
+  years.forEach(()=>{if(blockCols>1)ws.mergeCells(r1.number,mc,r1.number,mc+blockCols-1);mc+=blockCols;});
+  const headerRow2=[];
+  years.forEach(()=>{headerRow2.push('Date','N1','N2','N3','N4','N5');if(hasM)headerRow2.push('M1','M2','M3','M4','M5');headerRow2.push('Total');});
+  ws.addRow(headerRow2).font={bold:true};
+  for(let ri=0;ri<maxRows;ri++){
+    const rowVals=[];
+    years.forEach(y=>{
+      const row=byYear[y][ri];
+      if(!row){for(let i=0;i<blockCols;i++)rowVals.push('');return;}
+      const tot=row.s!=null?row.s:(row.n?row.n.reduce((a,b)=>a+b,0):'');
+      rowVals.push(row.d,...ns5(row.n));
+      if(hasM)rowVals.push(...ns5(row.m));
+      rowVals.push(tot);
+    });
+    const rowObj=ws.addRow(rowVals);
+    let cc=1;
+    years.forEach(y=>{
+      const row=byYear[y][ri];
+      if(row){
+        const nStart=cc+1;
+        [0,1,2,3,4].forEach(i=>{if(hitSet.has(row.t+'|N'+(i+1))){const c=rowObj.getCell(nStart+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
+        if(hasM){
+          const mStart=nStart+5;
+          [0,1,2,3,4].forEach(i=>{if(hitSet.has(row.t+'|M'+(i+1))){const c=rowObj.getCell(mStart+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
+        }
+      }
+      cc+=blockCols;
+    });
+  }
+}
 async function exportVtotDExcel(){
   const allRes=state.vtotdRes;
   if(!allRes||!allRes.length){alert('Aucun résultat à exporter');return;}
@@ -7216,7 +7263,7 @@ async function exportVtotDExcel(){
       valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
       valCell.font={bold:true};
     });
-    // Tirage normal : liste brute complète de tous les tirages du jeu, ajoutée en bas.
+    // Tirage normal : historique complet du jeu, en grille années côte à côte (mode Excel).
     // Les numéros ayant servi à au moins un résultat coché sont surlignés, pour repérer d'un
     // coup d'œil les numéros "actifs" dans la liste brute (utile pour faire des simulations).
     const hitSet=new Set();
@@ -7224,17 +7271,7 @@ async function exportVtotDExcel(){
       x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
       x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
     });
-    ws.addRow([]);ws.addRow([]);
-    ws.addRow(['📋 Tirage normal — historique complet '+GAME.name+' ('+T.length+' tirages) — numéros surlignés = utilisés dans un résultat']).font={bold:true,italic:true};
-    const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
-    ws.addRow(hdrAll).font={bold:true};
-    T.slice().reverse().forEach(r=>{ // ordre chronologique croissant, comme le reste de l'export
-      const tot=r.s!=null?r.s:(r.n?r.n.reduce((a,b)=>a+b,0):'');
-      const nCells=ns5(r.n),mCells=ns5(r.m);
-      const rowObj=ws.addRow([r.t,(r.d||'')+'/'+(r.y||''),...nCells,...mCells,tot]);
-      nCells.forEach((v,i)=>{if(v!==''&&hitSet.has(r.t+'|N'+(i+1))){const c=rowObj.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
-      mCells.forEach((v,i)=>{if(v!==''&&hitSet.has(r.t+'|M'+(i+1))){const c=rowObj.getCell(8+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
-    });
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name);
     ws.columns.forEach(c=>{c.width=11;});
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
@@ -7264,19 +7301,22 @@ async function exportVtotDMultiExcel(){
     const header=['Jeu','N°','Date','Colonne','Positions','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Détail tirage','Écart','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','VM1','VM2','VM3','VM4','VM5','Détail voisin','Valeur'];
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const posColIdxM=(lab,side)=>{const isM=lab[0]==='M',idx=parseInt(lab.slice(1))-1;return side==='A'?(isM?11+idx:6+idx):(isM?25+idx:20+idx);};
     r.results.forEach(res=>{
       res.rows.forEach(x=>{
         const labA=(x.sens==='sommeA_diffB'?`${x.posALab}: ${x.valsA.join('+')} = ${x.val} (total)`:`${x.posALab}: |${x.valsA.join('-')}| = ${x.val} (différence)`);
         const labB=(x.sens==='sommeA_diffB'?`${x.posBLab}: |${x.valsB.join('-')}| = ${x.val} (différence)`:`${x.posBLab}: ${x.valsB.join('+')} = ${x.val} (total)`);
         const posLab=x.posALab+' ↔ '+x.posBLab;
         const row=ws.addRow([res.gameName,x.r.t,x.r.d+'/'+x.r.y,x.col,posLab,...ns5(x.r.n),...ns5(x.r.m),labA,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),...ns5(x.voisin.m),labB,x.val]);
+        x.posALab.split(',').forEach(lab=>{const c=row.getCell(posColIdxM(lab,'A'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
+        x.posBLab.split(',').forEach(lab=>{const c=row.getCell(posColIdxM(lab,'B'));c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF59D'}};c.font={bold:true};});
         const valCell=row.getCell(header.length);
         valCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
         valCell.font={bold:true};
       });
     });
     ws.columns.forEach(c=>{c.width=11;});
-    // Tirage normal : un onglet séparé par jeu avec sa liste brute complète.
+    // Tirage normal : un onglet séparé par jeu, en grille années côte à côte (mode Excel).
     const savedKey=GAME.key, usedNames=new Set();
     r.results.forEach(res=>{
       loadGame(res.game);
@@ -7289,15 +7329,7 @@ async function exportVtotDMultiExcel(){
         x.posALab.split(',').forEach(lab=>hitSet.add(x.r.t+'|'+lab));
         x.posBLab.split(',').forEach(lab=>hitSet.add(x.voisin.t+'|'+lab));
       });
-      const hdrAll=['Tirage','Date','N1','N2','N3','N4','N5','M1','M2','M3','M4','M5','Total'];
-      wsAll.addRow(hdrAll).font={bold:true};
-      T.slice().reverse().forEach(row=>{
-        const tot=row.s!=null?row.s:(row.n?row.n.reduce((a,b)=>a+b,0):'');
-        const nCells=ns5(row.n),mCells=ns5(row.m);
-        const rowObj=wsAll.addRow([row.t,(row.d||'')+'/'+(row.y||''),...nCells,...mCells,tot]);
-        nCells.forEach((v,i)=>{if(v!==''&&hitSet.has(row.t+'|N'+(i+1))){const c=rowObj.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
-        mCells.forEach((v,i)=>{if(v!==''&&hitSet.has(row.t+'|M'+(i+1))){const c=rowObj.getCell(8+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});
-      });
+      addTirageNormalGrid(wsAll,T.slice().reverse(),hitSet,GAMES[res.game].hasM,res.gameName);
       wsAll.columns.forEach(c=>{c.width=11;});
     });
     loadGame(savedKey);

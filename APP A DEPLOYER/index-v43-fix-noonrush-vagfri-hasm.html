@@ -3649,6 +3649,7 @@ let state={
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
   conversionOpen:false, convElements:null, convSelMode:'consecutive',
   convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
+  convMultiGames:false, convGames:null,
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8187,27 +8188,29 @@ function convertDraw(row,elmKey){
 // - Consécutifs : la fenêtre de N tirages est centrée sur le témoin (au lieu de partir d'aujourd'hui).
 // - Parsemé : comptage tous les N tirages dans les 2 sens à partir du témoin (inclus).
 // - Semaine : la semaine du témoin est ajoutée automatiquement à la sélection.
-// Retourne l'index du témoin dans T, ou null si aucun témoin valide n'est renseigné.
-function convWitnessIdx(){
+// Paramétré par IDXX pour pouvoir être évalué sur N'IMPORTE QUEL jeu (mode multi-lotos), pas
+// seulement le jeu courant. Retourne l'index du témoin dans ce jeu, ou null si non trouvé.
+function convWitnessIdxIn(IDXX){
   const witnessT=state.convWitness?parseInt(state.convWitness,10):null;
-  return(witnessT!=null&&Number.isFinite(witnessT)&&IDX&&IDX[witnessT]!=null)?IDX[witnessT]:null;
+  return(witnessT!=null&&Number.isFinite(witnessT)&&IDXX&&IDXX[witnessT]!=null)?IDXX[witnessT]:null;
 }
-// Sélectionne les tirages source selon le mode choisi. T[0] = le plus récent (rang 1).
-function convSelectedDraws(){
-  if(!T||!T.length)return[];
+function convWitnessIdx(){return convWitnessIdxIn(IDX);} // rétrocompatibilité : jeu courant
+// Sélectionne les tirages source selon le mode choisi, sur le jeu représenté par (TT,IDXX).
+// TT[0] = le plus récent (rang 1) pour ce jeu.
+function convSelectedDrawsIn(TT,IDXX){
+  if(!TT||!TT.length)return[];
   const mode=state.convSelMode||'consecutive';
-  const witnessIdx=convWitnessIdx();
+  const witnessIdx=convWitnessIdxIn(IDXX);
   if(mode==='consecutive'){
-    const N=Math.max(1,Math.min(T.length,parseInt(state.convN,10)||5));
+    const N=Math.max(1,Math.min(TT.length,parseInt(state.convN,10)||5));
     if(witnessIdx!=null){
-      // Fenêtre de N tirages consécutifs centrée sur le témoin (2 sens), recalée aux bornes du tableau.
-      let before=Math.floor((N-1)/2),after=N-1-before;
-      let start=witnessIdx-before,end=witnessIdx+after;
-      if(start<0){end=Math.min(T.length-1,end-start);start=0;}
-      if(end>T.length-1){start=Math.max(0,start-(end-(T.length-1)));end=T.length-1;}
-      return T.slice(start,end+1);
+      // Bloc de N tirages consécutifs qui COMMENCE AU témoin (inclus) et descend vers les plus
+      // anciens (rang 0=témoin, rang 1=le suivant plus ancien, etc.), recalé si ça déborde.
+      let start=witnessIdx,end=witnessIdx+N-1;
+      if(end>TT.length-1){start=Math.max(0,TT.length-N);end=TT.length-1;}
+      return TT.slice(start,end+1);
     }
-    return T.slice(0,N);
+    return TT.slice(0,N);
   }
   if(mode==='sparse'){
     const step=Math.max(2,parseInt(state.convStep,10)||3);
@@ -8216,12 +8219,12 @@ function convSelectedDraws(){
       // inclus), tous les N tirages, aussi bien vers le plus récent que vers le plus ancien.
       const idxSet=new Set([witnessIdx]);
       for(let i=witnessIdx-step;i>=0;i-=step)idxSet.add(i); // vers le plus récent
-      for(let i=witnessIdx+step;i<T.length;i+=step)idxSet.add(i); // vers le plus ancien
-      return Array.from(idxSet).sort((a,b)=>a-b).map(i=>T[i]);
+      for(let i=witnessIdx+step;i<TT.length;i+=step)idxSet.add(i); // vers le plus ancien
+      return Array.from(idxSet).sort((a,b)=>a-b).map(i=>TT[i]);
     }
     // Pas de témoin renseigné : comportement par défaut, depuis le tirage le plus récent (rang 1).
     const out=[];
-    for(let i=step-1;i<T.length;i+=step)out.push(T[i]);
+    for(let i=step-1;i<TT.length;i+=step)out.push(TT[i]);
     return out;
   }
   if(mode==='week'){
@@ -8230,17 +8233,45 @@ function convSelectedDraws(){
     let yr=state.convYear?parseInt(state.convYear,10):null;
     if(witnessIdx!=null){
       // La semaine (et l'année) du tirage témoin est ajoutée automatiquement à la sélection.
-      const wT=T[witnessIdx],w=isoWeekOf(wT.d,wT.y);
+      const wT=TT[witnessIdx],w=isoWeekOf(wT.d,wT.y);
       weekSet.add(w.week);
       if(!yr)yr=w.year;
     }
     if(!weekSet.size)return[];
-    return T.filter(r=>{const w=isoWeekOf(r.d,r.y);return weekSet.has(w.week)&&(!yr||w.year===yr);});
+    return TT.filter(r=>{const w=isoWeekOf(r.d,r.y);return weekSet.has(w.week)&&(!yr||w.year===yr);});
   }
   return[];
 }
+function convSelectedDraws(){return convSelectedDrawsIn(T,IDX);} // rétrocompatibilité : jeu courant
+// Liste des jeux à convertir (mode multi-lotos). Par défaut : le jeu courant seul.
+function convGamesList(){
+  if(!state.convGames||!state.convGames.length)state.convGames=[GAME.key];
+  return state.convGames;
+}
+function toggleConvGame(k){
+  const a=convGamesList(),i=a.indexOf(k);
+  if(i>=0)a.splice(i,1);else a.push(k);
+  render();
+}
+// Retourne les tirages sélectionnés, avec le nom (et la clé) du loto d'origine attaché à chacun —
+// sur UN seul jeu (le jeu courant) si state.convMultiGames est désactivé, ou sur TOUS les jeux
+// cochés (chacun avec sa propre sélection/témoin appliqués indépendamment) si activé.
+function convAllSelectedDraws(){
+  if(state.convMultiGames){
+    const keys=convGamesList();
+    let out=[];
+    keys.forEach(gk=>{
+      const g=GAMES[gk];if(!g)return;
+      const gd=gameData(gk);
+      const draws=convSelectedDrawsIn(gd.T,gd.IDX);
+      draws.forEach(d=>out.push(Object.assign({},d,{_gameKey:gk,_gameName:g.name,_gameIcon:g.icon||''})));
+    });
+    return out;
+  }
+  return convSelectedDrawsIn(T,IDX).map(d=>Object.assign({},d,{_gameKey:GAME.key,_gameName:GAME.name,_gameIcon:GAME.icon||''}));
+}
 function convResults(){
-  const draws=convSelectedDraws();
+  const draws=convAllSelectedDraws();
   const elms=convElTypes();
   return{draws,elms};
 }
@@ -8257,13 +8288,13 @@ function conversionGridHTML(){
   if(!elms.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Coche au moins un élément de classification.</div>`;
   const MAXCOL=40;
   const shown=draws.slice(0,MAXCOL);
-  const hasM=!!GAME.hasM;
+  const multi=!!state.convMultiGames;
   const rowsDef=[{key:'_orig',label:'📋 Tirage original'},...ELM_DEF.filter(d=>elms.includes(d.key))];
   let h=`<div style="margin-top:8px;overflow-x:auto;border:1px solid #ddd;border-radius:8px">
     <table style="border-collapse:collapse;font-size:10px;min-width:100%">
       <thead><tr>
         <th style="position:sticky;left:0;background:#16436B;color:#fff;padding:5px 8px;text-align:left;z-index:2;white-space:nowrap">Élément</th>
-        ${shown.map(d=>`<th style="background:#1C5480;color:#fff;padding:5px 8px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,.2)">N°${d.t}<br><span style="font-weight:400;font-size:9px">${d.d}/${d.y}</span></th>`).join('')}
+        ${shown.map(d=>`<th style="background:#1C5480;color:#fff;padding:5px 8px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,.2)">${multi?`<span style="display:block;font-size:9px;font-weight:700;color:#FDE68A">${d._gameIcon||''} ${d._gameName||''}</span>`:''}N°${d.t}<br><span style="font-weight:400;font-size:9px">${d.d}/${d.y}</span></th>`).join('')}
       </tr></thead>
       <tbody>
         ${rowsDef.map((rd,ri)=>{
@@ -8272,6 +8303,7 @@ function conversionGridHTML(){
           return `<tr style="background:${ri%2?'#fafafa':'#fff'}">
             <td style="position:sticky;left:0;background:${bg};color:${fg};padding:5px 8px;font-weight:700;white-space:nowrap;z-index:1">${rd.label||D.label}</td>
             ${shown.map(d=>{
+              const hasM=!!(d.m&&d.m.length);
               const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
               return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #eee;white-space:nowrap">${convCellHTML(conv,hasM)}</td>`;
             }).join('')}
@@ -8286,11 +8318,12 @@ function conversionGridHTML(){
 function conversionHTML(){
   const mode=state.convSelMode||'consecutive';
   const elms=convElTypes();
+  const gamesSel=convGamesList();
   return `<div id="app-content">
-  <div class="header" style="background:#16436B;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-size:14px;font-weight:600">🧩🔁 CONVERSION — ${GAME.name}</div>
-      <button onclick="state.conversionOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+  <div class="header" style="background:#16436B;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-right:150px">
+      <div style="font-size:14px;font-weight:600">🧩🔁 CONVERSION — ${state.convMultiGames?(gamesSel.length+' loto(s)'):GAME.name}</div>
+      <button onclick="state.conversionOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;white-space:nowrap">✕ Fermer</button>
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
@@ -8299,14 +8332,27 @@ function conversionHTML(){
     </div>
 
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;font-weight:700;color:#333">
+        <input type="checkbox" ${state.convMultiGames?'checked':''} onchange="state.convMultiGames=this.checked;render()">
+        🎰 Convertir plusieurs lotos à la fois (nom du loto affiché dans le tableau)
+      </label>
+      ${state.convMultiGames?`<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;padding:6px;background:#F5F3FF;border-radius:6px;max-height:140px;overflow-y:auto">
+        ${Object.entries(GAMES).map(([k,g])=>{const sel=gamesSel.includes(k);return`<button onclick="toggleConvGame('${k}')" style="padding:2px 8px;font-size:9.5px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#7E22CE':'#ccc'};background:${sel?'#7E22CE':'#fff'};color:${sel?'#fff':'#777'}">${g.icon||''} ${g.name}</button>`;}).join('')}
+        <button onclick="state.convGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.convGames=[GAME.key];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>
+      <div style="margin-top:4px;font-size:9px;color:#7E22CE">${gamesSel.length} loto(s) sélectionné(s) — la même sélection de tirages (et le même témoin) est appliquée indépendamment à chacun.</div>`:''}
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
       <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:6px">1️⃣ Tirages source</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
         ${[['consecutive','📏 N tirages consécutifs'],['sparse','🎯 Parsemé (tous les N)'],['week','📅 Par n° de semaine']].map(([k,lbl])=>`<button onclick="state.convSelMode='${k}';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode===k?'2px solid #7E22CE':'1px solid #ddd'};background:${mode===k?'#7E22CE':'#f5f5f5'};color:${mode===k?'#fff':'#777'}">${lbl}</button>`).join('')}
       </div>
-      ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages ${state.convWitness?'consécutifs, centrés sur le témoin (2 sens).':'les plus récents (rang 1 = le plus récent).'}</div>`:''}
+      ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages ${state.convWitness?'consécutifs, à partir du témoin (compris) vers les plus anciens.':'les plus récents (rang 1 = le plus récent).'}</div>`:''}
       ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">1 tirage tous les <input type="number" min="2" max="100" value="${state.convStep||3}" onchange="state.convStep=Math.max(2,parseInt(this.value)||3);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages.</div>`:''}
       ${mode==='week'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">N° de semaine(s) : <input type="text" value="${state.convWeeks||''}" placeholder="Ex: 11 12 13" oninput="state.convWeeks=this.value" onblur="render()" style="width:110px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px"> Année : <input type="number" min="2000" max="2100" value="${state.convYear||new Date().getFullYear()}" onchange="state.convYear=parseInt(this.value)||new Date().getFullYear();render()" style="width:65px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center"></div>`:''}
-      <div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #e5d5f5">🎯 Tirage témoin (N°, optionnel) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">${mode==='consecutive'?'les tirages seront centrés sur lui (2 sens)':mode==='sparse'?'compte dans les 2 sens à partir de lui (inclus)':'sa semaine est ajoutée automatiquement à la sélection'}</span>`:`<span style="font-size:9px;color:#999">vide = ${mode==='week'?'seules les semaines saisies ci-dessus sont utilisées':'compte depuis le tirage le plus récent'}</span>`}</div>
+      <div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #e5d5f5">🎯 Tirage témoin (N°, optionnel) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">${mode==='consecutive'?'le bloc de tirages commence sur lui (inclus), vers les plus anciens':mode==='sparse'?'compte dans les 2 sens à partir de lui (inclus)':'sa semaine est ajoutée automatiquement à la sélection'}</span>`:`<span style="font-size:9px;color:#999">vide = ${mode==='week'?'seules les semaines saisies ci-dessus sont utilisées':'compte depuis le tirage le plus récent'}</span>`}</div>
     </div>
 
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
@@ -8338,27 +8384,30 @@ async function exportConversionExcel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Conversion');
-    const hasM=!!GAME.hasM;
+    const multi=!!state.convMultiGames;
     const witLbl=state.convWitness?(' — témoin N°'+state.convWitness):'';
     const modeLbl=(state.convSelMode==='sparse'?('Parsemé (tous les '+(state.convStep||3)+')'):state.convSelMode==='week'?('Semaine(s) '+(state.convWeeks||'')+' / '+(state.convYear||new Date().getFullYear())):('Les '+(state.convN||5)+' tirages'+(state.convWitness?' consécutifs':' les plus récents')))+witLbl;
-    ws.addRow(['🧩🔁 CONVERSION — '+GAME.name+' — Sélection: '+modeLbl+' — '+draws.length+' tirage(s) × '+elms.length+' élément(s)']).font={bold:true,italic:true};
+    const titreJeu=multi?(convGamesList().length+' loto(s) — '+convGamesList().map(k=>(GAMES[k]?GAMES[k].name:k)).join(', ')):GAME.name;
+    ws.addRow(['🧩🔁 CONVERSION — '+titreJeu+' — Sélection: '+modeLbl+' — '+draws.length+' tirage(s) × '+elms.length+' élément(s)']).font={bold:true,italic:true};
     ws.addRow([]);
-    const header=['Élément',...draws.map(d=>'N°'+d.t+' ('+d.d+'/'+d.y+')')];
+    const header=['Élément',...draws.map(d=>(multi?((d._gameName||'')+' — '):'')+'N°'+d.t+' ('+d.d+'/'+d.y+')')];
     ws.addRow(header).font={bold:true};
     const rowsDef=[{key:'_orig',label:'Tirage original'},...ELM_DEF.filter(d=>elms.includes(d.key))];
-    const fmt=conv=>conv?(conv.n.join(' ')+(hasM&&conv.m?(' | M: '+conv.m.join(' ')):'')+' (Σ'+conv.s+')'):'';
+    const fmt=(conv,hasM)=>conv?(conv.n.join(' ')+(hasM&&conv.m?(' | M: '+conv.m.join(' ')):'')+' (Σ'+conv.s+')'):'';
     rowsDef.forEach(rd=>{
       const D=rd.key==='_orig'?null:ELM_DEF.find(x=>x.key===rd.key);
       const vals=draws.map(d=>{
+        const hasM=!!(d.m&&d.m.length);
         const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
-        return fmt(conv);
+        return fmt(conv,hasM);
       });
       const row=ws.addRow([rd.label||D.label,...vals]);
       row.getCell(1).font={bold:true};
       if(D)row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+D.bg.replace('#','')}};
     });
-    ws.columns.forEach((c,i)=>{c.width=i===0?22:26;});
-    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_conversion.xlsx');
+    ws.columns.forEach((c,i)=>{c.width=i===0?22:(multi?34:26);});
+    const fname=multi?('conversion_multi_lotos'):(GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_conversion');
+    await dlXlsxBlob(wb,fname+'.xlsx');
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{

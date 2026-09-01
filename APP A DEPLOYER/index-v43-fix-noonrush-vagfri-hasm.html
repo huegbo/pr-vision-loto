@@ -3649,7 +3649,7 @@ let state={
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
   conversionOpen:false, convElements:null, convSelMode:'consecutive',
   convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
-  convMultiGames:false, convGames:null, convViewMode:'flat',
+  convMultiGames:false, convGames:null, convViewMode:'flat', convDupOriginal:false,
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8346,23 +8346,36 @@ function conversionGridHTML(){
 // filtrable et exportable directement (mêmes colonnes que Multi-Pays : N°/Date/N1-N5/TOT/M1-M5/TOT.M).
 function convFlatRows(){
   const{draws,elms}=convResults();
-  const defs=[{key:'_orig',label:'Original',bg:'#374151',fg:'#fff'},...ELM_DEF.filter(d=>elms.includes(d.key))];
+  const origDef={key:'_orig',label:'Original',bg:'#374151',fg:'#fff'};
+  const elmDefs=ELM_DEF.filter(d=>elms.includes(d.key));
+  const dup=!!state.convDupOriginal; // true = 1 ligne "Original" juxtaposée devant CHAQUE élément (au lieu d'1 seule par tirage)
   const out=[];
   draws.forEach(d=>{
     const hasM=!!(d.m&&d.m.length);
-    defs.forEach(rd=>{
-      const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
-      out.push({elmKey:rd.key,elmLabel:rd.label,elmBg:rd.bg,elmFg:rd.fg,gameName:d._gameName,gameIcon:d._gameIcon,t:d.t,dd:d.d,y:d.y,n:conv.n,m:conv.m,s:conv.s,hasM});
-    });
+    const origConv={n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))};
+    const pushRow=(rd,conv)=>out.push({elmKey:rd.key,elmLabel:rd.label,elmBg:rd.bg,elmFg:rd.fg,gameName:d._gameName,gameIcon:d._gameIcon,t:d.t,dd:d.d,y:d.y,n:conv.n,m:conv.m,s:conv.s,hasM});
+    if(dup&&elmDefs.length){
+      elmDefs.forEach(rd=>{
+        pushRow(origDef,origConv);
+        pushRow(rd,convertDraw(d,rd.key));
+      });
+    }else{
+      pushRow(origDef,origConv);
+      elmDefs.forEach(rd=>pushRow(rd,convertDraw(d,rd.key)));
+    }
   });
   return out;
 }
 function conversionFlatHTML(){
   const rows=convFlatRows();
   const multi=!!state.convMultiGames;
-  if(!rows.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage/élément ne correspond à cette sélection.</div>`;
+  const dupToggleHTML=`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:10px;font-weight:600;color:#333;margin:8px 0 4px">
+    <input type="checkbox" ${state.convDupOriginal?'checked':''} onchange="state.convDupOriginal=this.checked;render()">
+    🔁 Répéter l'Original devant chaque élément (autant d'Original que d'éléments, juxtaposés)
+  </label>`;
+  if(!rows.length)return dupToggleHTML+`<div style="padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage/élément ne correspond à cette sélection.</div>`;
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.m?r.m.length:0),0);
-  return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} ligne${rows.length>1?'s':''} (tirage × élément)${rows.length>400?` — <b style="color:#B45309">les 400 premières sont affichées</b>, affine la sélection pour voir les autres`:''}</div>
+  return dupToggleHTML+`<div style="font-size:10px;color:#777;margin:4px 0 6px">${rows.length} ligne${rows.length>1?'s':''} (tirage × élément)${rows.length>400?` — <b style="color:#B45309">les 400 premières sont affichées</b>, affine la sélection pour voir les autres`:''}</div>
   <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
     <table class="excel-tbl"><thead><tr>
       ${['Élément',...(multi?['Jeu']:[]),'N°','Date','N1','N2','N3','N4','N5','TOT',...Array.from({length:maxBonus},(_,i)=>'M'+(i+1)),...(maxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#16436B;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}

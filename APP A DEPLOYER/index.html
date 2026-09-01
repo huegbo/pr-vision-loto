@@ -3893,9 +3893,13 @@ function showPopup(n,x,y,overlay){
   }catch(_){}
 }
 function closePopup(){
-  document.getElementById('popup').style.display='none';
-  document.getElementById('nmenu').style.display='none';
-  document.getElementById('popup-overlay').style.display='none';
+  // Défensif : les écrans "module" (Conversion, Multi-Pays, Bénin, etc.) rendent leur propre
+  // innerHTML SANS #popup/#nmenu/#popup-overlay (ils ne sont ajoutés que sur le rendu principal
+  // par onglet). Appeler closePopup() depuis un de ces écrans (ex: setGame() invoqué depuis le
+  // module Conversion) ne doit donc pas planter si ces éléments n'existent pas encore.
+  const p=document.getElementById('popup');if(p)p.style.display='none';
+  const nm=document.getElementById('nmenu');if(nm)nm.style.display='none';
+  const po=document.getElementById('popup-overlay');if(po)po.style.display='none';
 }
 
 // Survol (souris qui stationne, sans clic) → popup classification. Désactivé sur tactile.

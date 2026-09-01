@@ -3646,6 +3646,9 @@ let state={
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
+  // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
+  conversionOpen:false, convElements:null, convSelMode:'consecutive',
+  convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8147,6 +8150,199 @@ async function exportElmExcel(){
   }
 }
 
+// ══════ MODULE CONVERSION ══════
+// Convertit un groupe de tirages en éléments de la classification (ELM_DEF / getCL / MIR) :
+// pour un tirage et un élément donnés, chaque numéro de la ligne (gagnant ET machine) est
+// remplacé par sa valeur pour cet élément (ex: son Counter). Si l'élément n'est pas défini pour
+// un numéro donné, ce numéro est conservé tel quel (pas de trou). 1 tirage × N éléments cochés =
+// N tirages convertis (ex: les 10 éléments cochés → 10 tirages générés à partir d'1 seul tirage).
+function convElTypes(){
+  if(!state.convElements||!state.convElements.length)state.convElements=ELM_DEF.map(c=>c.key);
+  return state.convElements;
+}
+function toggleConvElType(k){
+  const a=convElTypes(),i=a.indexOf(k);
+  if(i>=0)a.splice(i,1);else a.push(k);
+  render();
+}
+function convElAll(all){state.convElements=all?ELM_DEF.map(c=>c.key):[];render();}
+// Valeur convertie d'UN numéro pour un élément donné. Conserve le numéro d'origine si l'élément
+// n'a pas de valeur définie pour ce numéro (règle choisie : jamais de case vide).
+function convNum(n,elmKey){
+  if(n==null||isNaN(n))return n;
+  let v;
+  if(elmKey==='miroir')v=MIR[n];
+  else{const c=getCL(n);v=+c[elmKey];}
+  return (Number.isFinite(v)&&v>=1&&v<=90)?v:n;
+}
+// Convertit UN tirage entier (gagnants + machine, si présents) pour UN élément donné.
+function convertDraw(row,elmKey){
+  const hasM=!!(row.m&&row.m.length);
+  const n2=row.n.map(x=>convNum(x,elmKey));
+  const m2=hasM?row.m.map(x=>convNum(x,elmKey)):null;
+  const s2=n2.reduce((a,b)=>a+(isNaN(b)?0:(+b||0)),0);
+  return{srcT:row.t,srcD:row.d,srcY:row.y,elm:elmKey,n:n2,m:m2,s:s2};
+}
+// Sélectionne les tirages source selon le mode choisi. T[0] = le plus récent (rang 1).
+function convSelectedDraws(){
+  if(!T||!T.length)return[];
+  const mode=state.convSelMode||'consecutive';
+  if(mode==='consecutive'){
+    const N=Math.max(1,Math.min(T.length,parseInt(state.convN,10)||5));
+    return T.slice(0,N);
+  }
+  if(mode==='sparse'){
+    const step=Math.max(2,parseInt(state.convStep,10)||3);
+    const witnessT=state.convWitness?parseInt(state.convWitness,10):null;
+    const witnessIdx=(witnessT!=null&&Number.isFinite(witnessT)&&IDX[witnessT]!=null)?IDX[witnessT]:null;
+    if(witnessIdx!=null){
+      // Tirage témoin choisi : comptage dans les 2 sens à partir de lui (le témoin = rang 0,
+      // inclus), tous les N tirages, aussi bien vers le plus récent que vers le plus ancien.
+      const idxSet=new Set([witnessIdx]);
+      for(let i=witnessIdx-step;i>=0;i-=step)idxSet.add(i); // vers le plus récent
+      for(let i=witnessIdx+step;i<T.length;i+=step)idxSet.add(i); // vers le plus ancien
+      return Array.from(idxSet).sort((a,b)=>a-b).map(i=>T[i]);
+    }
+    // Pas de témoin renseigné : comportement par défaut, depuis le tirage le plus récent (rang 1).
+    const out=[];
+    for(let i=step-1;i<T.length;i+=step)out.push(T[i]);
+    return out;
+  }
+  if(mode==='week'){
+    const weeks=(state.convWeeks||'').split(/[,\s]+/).map(s=>parseInt(s,10)).filter(n=>Number.isFinite(n)&&n>=1&&n<=53);
+    if(!weeks.length)return[];
+    const weekSet=new Set(weeks);
+    const yr=state.convYear?parseInt(state.convYear,10):null;
+    return T.filter(r=>{const w=isoWeekOf(r.d,r.y);return weekSet.has(w.week)&&(!yr||w.year===yr);});
+  }
+  return[];
+}
+function convResults(){
+  const draws=convSelectedDraws();
+  const elms=convElTypes();
+  return{draws,elms};
+}
+function convCellHTML(conv,hasM){
+  if(!conv)return '<span style="color:#bbb">—</span>';
+  let h='<b>'+conv.n.join(' · ')+'</b>';
+  if(hasM&&conv.m)h+='<br><span style="color:#888;font-size:9px">M: '+conv.m.join(' · ')+'</span>';
+  h+='<br><span style="color:#aaa;font-size:8.5px">Σ '+conv.s+'</span>';
+  return h;
+}
+function conversionGridHTML(){
+  const{draws,elms}=convResults();
+  if(!draws.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage ne correspond à cette sélection.</div>`;
+  if(!elms.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Coche au moins un élément de classification.</div>`;
+  const MAXCOL=40;
+  const shown=draws.slice(0,MAXCOL);
+  const hasM=!!GAME.hasM;
+  const rowsDef=[{key:'_orig',label:'📋 Tirage original'},...ELM_DEF.filter(d=>elms.includes(d.key))];
+  let h=`<div style="margin-top:8px;overflow-x:auto;border:1px solid #ddd;border-radius:8px">
+    <table style="border-collapse:collapse;font-size:10px;min-width:100%">
+      <thead><tr>
+        <th style="position:sticky;left:0;background:#16436B;color:#fff;padding:5px 8px;text-align:left;z-index:2;white-space:nowrap">Élément</th>
+        ${shown.map(d=>`<th style="background:#1C5480;color:#fff;padding:5px 8px;text-align:center;white-space:nowrap;border-left:1px solid rgba(255,255,255,.2)">N°${d.t}<br><span style="font-weight:400;font-size:9px">${d.d}/${d.y}</span></th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${rowsDef.map((rd,ri)=>{
+          const D=rd.key==='_orig'?null:ELM_DEF.find(x=>x.key===rd.key);
+          const bg=D?D.bg:'#374151',fg=D?D.fg:'#fff';
+          return `<tr style="background:${ri%2?'#fafafa':'#fff'}">
+            <td style="position:sticky;left:0;background:${bg};color:${fg};padding:5px 8px;font-weight:700;white-space:nowrap;z-index:1">${rd.label||D.label}</td>
+            ${shown.map(d=>{
+              const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
+              return `<td style="padding:5px 8px;text-align:center;border-left:1px solid #eee;white-space:nowrap">${convCellHTML(conv,hasM)}</td>`;
+            }).join('')}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>
+  ${draws.length>MAXCOL?`<div style="margin-top:5px;font-size:9.5px;color:#B45309">⚠️ ${draws.length} tirages sélectionnés — affichage limité aux ${MAXCOL} premiers à l'écran. Utilise l'export Excel pour la liste complète.</div>`:''}`;
+  return h;
+}
+function conversionHTML(){
+  const mode=state.convSelMode||'consecutive';
+  const elms=convElTypes();
+  return `<div id="app-content">
+  <div class="header" style="background:#16436B;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-size:14px;font-weight:600">🧩🔁 CONVERSION — ${GAME.name}</div>
+      <button onclick="state.conversionOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div style="background:#F5F3FF;border:1.5px solid #7E22CE;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:10.5px;color:#4C1D95;line-height:1.5">
+      🧩🔁 Convertit un groupe de tirages en éléments de la classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir). Chaque numéro (gagnant + machine) est remplacé par sa valeur pour l'élément choisi — le numéro d'origine est conservé si l'élément n'est pas défini pour lui. 1 tirage × 10 éléments cochés = 10 tirages générés.
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:6px">1️⃣ Tirages source</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
+        ${[['consecutive','📏 N tirages consécutifs'],['sparse','🎯 Parsemé (tous les N)'],['week','📅 Par n° de semaine']].map(([k,lbl])=>`<button onclick="state.convSelMode='${k}';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode===k?'2px solid #7E22CE':'1px solid #ddd'};background:${mode===k?'#7E22CE':'#f5f5f5'};color:${mode===k?'#fff':'#777'}">${lbl}</button>`).join('')}
+      </div>
+      ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages les plus récents (rang 1 = le plus récent).</div>`:''}
+      ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">1 tirage tous les <input type="number" min="2" max="100" value="${state.convStep||3}" onchange="state.convStep=Math.max(2,parseInt(this.value)||3);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages.</div>`:''}
+      ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">🎯 Tirage témoin (N°) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">compte dans les 2 sens à partir de ce tirage (inclus)</span>`:`<span style="font-size:9px;color:#999">vide = compte depuis le tirage le plus récent</span>`}</div>`:''}
+      ${mode==='week'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">N° de semaine(s) : <input type="text" value="${state.convWeeks||''}" placeholder="Ex: 11 12 13" oninput="state.convWeeks=this.value" onblur="render()" style="width:110px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px"> Année : <input type="number" min="2000" max="2100" value="${state.convYear||new Date().getFullYear()}" onchange="state.convYear=parseInt(this.value)||new Date().getFullYear();render()" style="width:65px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center"></div>`:''}
+    </div>
+
+    <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:11px;font-weight:700;color:#333">2️⃣ Éléments à générer</span>
+        <button onclick="convElAll(true)" style="margin-left:auto;padding:1px 8px;font-size:8.5px;border-radius:8px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:600">Tous</button>
+        <button onclick="convElAll(false)" style="padding:1px 8px;font-size:8.5px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Rien</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px">
+        ${ELM_DEF.map(c=>{const on=elms.includes(c.key);return `<button onclick="toggleConvElType('${c.key}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${on?'2px solid '+c.bg:'1px solid #ddd'};background:${on?c.bg:'#f5f5f5'};color:${on?c.fg:'#777'}">${on?'✓ ':''}${c.label}</button>`;}).join('')}
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;margin-bottom:4px">
+      <button id="export-conv-btn" onclick="exportConversionExcel()" style="padding:6px 14px;background:#7E22CE;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px">📤 Excel</button>
+    </div>
+
+    ${conversionGridHTML()}
+  </div>
+  </div>`;
+}
+async function exportConversionExcel(){
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const{draws,elms}=convResults();
+  if(!draws.length){alert('Aucun tirage sélectionné à exporter');return;}
+  if(!elms.length){alert('Coche au moins un élément de classification');return;}
+  const btn=document.getElementById('export-conv-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Conversion');
+    const hasM=!!GAME.hasM;
+    const modeLbl=state.convSelMode==='sparse'?('Parsemé (tous les '+(state.convStep||3)+(state.convWitness?', témoin N°'+state.convWitness+' - 2 sens':', depuis le plus récent')+')'):state.convSelMode==='week'?('Semaine(s) '+(state.convWeeks||'')+' / '+(state.convYear||new Date().getFullYear())):('Les '+(state.convN||5)+' tirages les plus récents');
+    ws.addRow(['🧩🔁 CONVERSION — '+GAME.name+' — Sélection: '+modeLbl+' — '+draws.length+' tirage(s) × '+elms.length+' élément(s)']).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Élément',...draws.map(d=>'N°'+d.t+' ('+d.d+'/'+d.y+')')];
+    ws.addRow(header).font={bold:true};
+    const rowsDef=[{key:'_orig',label:'Tirage original'},...ELM_DEF.filter(d=>elms.includes(d.key))];
+    const fmt=conv=>conv?(conv.n.join(' ')+(hasM&&conv.m?(' | M: '+conv.m.join(' ')):'')+' (Σ'+conv.s+')'):'';
+    rowsDef.forEach(rd=>{
+      const D=rd.key==='_orig'?null:ELM_DEF.find(x=>x.key===rd.key);
+      const vals=draws.map(d=>{
+        const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
+        return fmt(conv);
+      });
+      const row=ws.addRow([rd.label||D.label,...vals]);
+      row.getCell(1).font={bold:true};
+      if(D)row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+D.bg.replace('#','')}};
+    });
+    ws.columns.forEach((c,i)=>{c.width=i===0?22:26;});
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_conversion.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
+
 // ══════ TOTAL : NUMÉRO + SON ÉLÉMENT DE CLASSIFICATION ══════
 // Ex. le numéro 1 tiré + son Counter (46) = 47. On vérifie si 47 est le total du
 // tirage lui-même (même ligne) ou le total d'un tirage superposé (écart réglable).
@@ -8979,6 +9175,7 @@ function goNav(id){
   else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
+  else if(id==='conversion'){state.conversionOpen=!state.conversionOpen;state.showSearchHub=false;}
   else{state.tab=id;state.showSearchHub=false;}
   render();
 }
@@ -9000,10 +9197,11 @@ function bottomNavHTML(){
     ['italie','🇮🇹','Italie'],
     ['multi','🌍','Multi-Pays'],
     ['pronostic','🍀','Pronostic'],
+    ['conversion','🧩🔁','Conversion'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(state.tab===id&&!state.showSearchHub))))))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(state.tab===id&&!state.showSearchHub)))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -12670,6 +12868,11 @@ function __renderBody(){
   }
   if(state.multiFiltreOpen){
     document.getElementById('app').innerHTML=multiFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.conversionOpen){
+    document.getElementById('app').innerHTML=conversionHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

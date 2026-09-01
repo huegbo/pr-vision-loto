@@ -8183,18 +8183,34 @@ function convertDraw(row,elmKey){
   const s2=n2.reduce((a,b)=>a+(isNaN(b)?0:(+b||0)),0);
   return{srcT:row.t,srcD:row.d,srcY:row.y,elm:elmKey,n:n2,m:m2,s:s2};
 }
+// Le tirage témoin (state.convWitness) sert de point de départ commun aux 3 modes de sélection :
+// - Consécutifs : la fenêtre de N tirages est centrée sur le témoin (au lieu de partir d'aujourd'hui).
+// - Parsemé : comptage tous les N tirages dans les 2 sens à partir du témoin (inclus).
+// - Semaine : la semaine du témoin est ajoutée automatiquement à la sélection.
+// Retourne l'index du témoin dans T, ou null si aucun témoin valide n'est renseigné.
+function convWitnessIdx(){
+  const witnessT=state.convWitness?parseInt(state.convWitness,10):null;
+  return(witnessT!=null&&Number.isFinite(witnessT)&&IDX&&IDX[witnessT]!=null)?IDX[witnessT]:null;
+}
 // Sélectionne les tirages source selon le mode choisi. T[0] = le plus récent (rang 1).
 function convSelectedDraws(){
   if(!T||!T.length)return[];
   const mode=state.convSelMode||'consecutive';
+  const witnessIdx=convWitnessIdx();
   if(mode==='consecutive'){
     const N=Math.max(1,Math.min(T.length,parseInt(state.convN,10)||5));
+    if(witnessIdx!=null){
+      // Fenêtre de N tirages consécutifs centrée sur le témoin (2 sens), recalée aux bornes du tableau.
+      let before=Math.floor((N-1)/2),after=N-1-before;
+      let start=witnessIdx-before,end=witnessIdx+after;
+      if(start<0){end=Math.min(T.length-1,end-start);start=0;}
+      if(end>T.length-1){start=Math.max(0,start-(end-(T.length-1)));end=T.length-1;}
+      return T.slice(start,end+1);
+    }
     return T.slice(0,N);
   }
   if(mode==='sparse'){
     const step=Math.max(2,parseInt(state.convStep,10)||3);
-    const witnessT=state.convWitness?parseInt(state.convWitness,10):null;
-    const witnessIdx=(witnessT!=null&&Number.isFinite(witnessT)&&IDX[witnessT]!=null)?IDX[witnessT]:null;
     if(witnessIdx!=null){
       // Tirage témoin choisi : comptage dans les 2 sens à partir de lui (le témoin = rang 0,
       // inclus), tous les N tirages, aussi bien vers le plus récent que vers le plus ancien.
@@ -8210,9 +8226,15 @@ function convSelectedDraws(){
   }
   if(mode==='week'){
     const weeks=(state.convWeeks||'').split(/[,\s]+/).map(s=>parseInt(s,10)).filter(n=>Number.isFinite(n)&&n>=1&&n<=53);
-    if(!weeks.length)return[];
     const weekSet=new Set(weeks);
-    const yr=state.convYear?parseInt(state.convYear,10):null;
+    let yr=state.convYear?parseInt(state.convYear,10):null;
+    if(witnessIdx!=null){
+      // La semaine (et l'année) du tirage témoin est ajoutée automatiquement à la sélection.
+      const wT=T[witnessIdx],w=isoWeekOf(wT.d,wT.y);
+      weekSet.add(w.week);
+      if(!yr)yr=w.year;
+    }
+    if(!weekSet.size)return[];
     return T.filter(r=>{const w=isoWeekOf(r.d,r.y);return weekSet.has(w.week)&&(!yr||w.year===yr);});
   }
   return[];
@@ -8281,10 +8303,10 @@ function conversionHTML(){
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
         ${[['consecutive','📏 N tirages consécutifs'],['sparse','🎯 Parsemé (tous les N)'],['week','📅 Par n° de semaine']].map(([k,lbl])=>`<button onclick="state.convSelMode='${k}';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode===k?'2px solid #7E22CE':'1px solid #ddd'};background:${mode===k?'#7E22CE':'#f5f5f5'};color:${mode===k?'#fff':'#777'}">${lbl}</button>`).join('')}
       </div>
-      ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages les plus récents (rang 1 = le plus récent).</div>`:''}
+      ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages ${state.convWitness?'consécutifs, centrés sur le témoin (2 sens).':'les plus récents (rang 1 = le plus récent).'}</div>`:''}
       ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">1 tirage tous les <input type="number" min="2" max="100" value="${state.convStep||3}" onchange="state.convStep=Math.max(2,parseInt(this.value)||3);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages.</div>`:''}
-      ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">🎯 Tirage témoin (N°) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">compte dans les 2 sens à partir de ce tirage (inclus)</span>`:`<span style="font-size:9px;color:#999">vide = compte depuis le tirage le plus récent</span>`}</div>`:''}
-      ${mode==='week'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap">N° de semaine(s) : <input type="text" value="${state.convWeeks||''}" placeholder="Ex: 11 12 13" oninput="state.convWeeks=this.value" onblur="render()" style="width:110px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px"> Année : <input type="number" min="2000" max="2100" value="${state.convYear||new Date().getFullYear()}" onchange="state.convYear=parseInt(this.value)||new Date().getFullYear();render()" style="width:65px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center"></div>`:''}
+      ${mode==='week'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">N° de semaine(s) : <input type="text" value="${state.convWeeks||''}" placeholder="Ex: 11 12 13" oninput="state.convWeeks=this.value" onblur="render()" style="width:110px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px"> Année : <input type="number" min="2000" max="2100" value="${state.convYear||new Date().getFullYear()}" onchange="state.convYear=parseInt(this.value)||new Date().getFullYear();render()" style="width:65px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center"></div>`:''}
+      <div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #e5d5f5">🎯 Tirage témoin (N°, optionnel) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">${mode==='consecutive'?'les tirages seront centrés sur lui (2 sens)':mode==='sparse'?'compte dans les 2 sens à partir de lui (inclus)':'sa semaine est ajoutée automatiquement à la sélection'}</span>`:`<span style="font-size:9px;color:#999">vide = ${mode==='week'?'seules les semaines saisies ci-dessus sont utilisées':'compte depuis le tirage le plus récent'}</span>`}</div>
     </div>
 
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
@@ -8317,7 +8339,8 @@ async function exportConversionExcel(){
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Conversion');
     const hasM=!!GAME.hasM;
-    const modeLbl=state.convSelMode==='sparse'?('Parsemé (tous les '+(state.convStep||3)+(state.convWitness?', témoin N°'+state.convWitness+' - 2 sens':', depuis le plus récent')+')'):state.convSelMode==='week'?('Semaine(s) '+(state.convWeeks||'')+' / '+(state.convYear||new Date().getFullYear())):('Les '+(state.convN||5)+' tirages les plus récents');
+    const witLbl=state.convWitness?(' — témoin N°'+state.convWitness):'';
+    const modeLbl=(state.convSelMode==='sparse'?('Parsemé (tous les '+(state.convStep||3)+')'):state.convSelMode==='week'?('Semaine(s) '+(state.convWeeks||'')+' / '+(state.convYear||new Date().getFullYear())):('Les '+(state.convN||5)+' tirages'+(state.convWitness?' consécutifs':' les plus récents')))+witLbl;
     ws.addRow(['🧩🔁 CONVERSION — '+GAME.name+' — Sélection: '+modeLbl+' — '+draws.length+' tirage(s) × '+elms.length+' élément(s)']).font={bold:true,italic:true};
     ws.addRow([]);
     const header=['Élément',...draws.map(d=>'N°'+d.t+' ('+d.d+'/'+d.y+')')];

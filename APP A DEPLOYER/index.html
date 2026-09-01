@@ -3649,7 +3649,7 @@ let state={
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
   conversionOpen:false, convElements:null, convSelMode:'consecutive',
   convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
-  convMultiGames:false, convGames:null,
+  convMultiGames:false, convGames:null, convViewMode:'flat',
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8315,6 +8315,65 @@ function conversionGridHTML(){
   ${draws.length>MAXCOL?`<div style="margin-top:5px;font-size:9.5px;color:#B45309">⚠️ ${draws.length} tirages sélectionnés — affichage limité aux ${MAXCOL} premiers à l'écran. Utilise l'export Excel pour la liste complète.</div>`:''}`;
   return h;
 }
+// ── Vue "tableau à plat" du module Conversion, présentée comme l'onglet Multi-Pays :
+// 1 ligne = 1 tirage × 1 élément (au lieu d'1 ligne = 1 pays), colorée par élément,
+// filtrable et exportable directement (mêmes colonnes que Multi-Pays : N°/Date/N1-N5/TOT/M1-M5/TOT.M).
+function convFlatRows(){
+  const{draws,elms}=convResults();
+  const defs=[{key:'_orig',label:'Original',bg:'#374151',fg:'#fff'},...ELM_DEF.filter(d=>elms.includes(d.key))];
+  const out=[];
+  draws.forEach(d=>{
+    const hasM=!!(d.m&&d.m.length);
+    defs.forEach(rd=>{
+      const conv=rd.key==='_orig'?{n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))}:convertDraw(d,rd.key);
+      out.push({elmKey:rd.key,elmLabel:rd.label,elmBg:rd.bg,elmFg:rd.fg,gameName:d._gameName,gameIcon:d._gameIcon,t:d.t,dd:d.d,y:d.y,n:conv.n,m:conv.m,s:conv.s,hasM});
+    });
+  });
+  return out;
+}
+function conversionFlatHTML(){
+  const rows=convFlatRows();
+  const multi=!!state.convMultiGames;
+  if(!rows.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage/élément ne correspond à cette sélection.</div>`;
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.m?r.m.length:0),0);
+  return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} ligne${rows.length>1?'s':''} (tirage × élément)${rows.length>400?` — <b style="color:#B45309">les 400 premières sont affichées</b>, affine la sélection pour voir les autres`:''}</div>
+  <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    <table class="excel-tbl"><thead><tr>
+      ${['Élément',...(multi?['Jeu']:[]),'N°','Date','N1','N2','N3','N4','N5','TOT',...Array.from({length:maxBonus},(_,i)=>'M'+(i+1)),...(maxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#16436B;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+    </tr></thead><tbody>
+    ${rows.slice(0,400).map((r,ri)=>{
+      const bg=ri%2===0?'#fff':'#F5F7FB';
+      const bTot=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;
+      return `<tr>
+        <td style="background:${r.elmBg};color:${r.elmFg};font-weight:700;font-size:9px;padding:4px;white-space:nowrap">${r.elmLabel}</td>
+        ${multi?`<td style="background:#EEE;font-weight:600;font-size:8.5px;padding:4px;white-space:nowrap">${r.gameIcon||''} ${r.gameName||''}</td>`:''}
+        <td style="background:${bg};font-weight:600;font-size:9.5px;padding:4px">${r.t}</td>
+        <td style="background:${bg};font-size:9.5px;padding:4px;white-space:nowrap">${r.dd}/${r.y}</td>
+        ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
+        <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
+        ${Array.from({length:maxBonus},(_,i)=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.m&&r.m[i]!=null?r.m[i]:'·'}</td>`).join('')}
+        ${maxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}
+      </tr>`;
+    }).join('')}
+    </tbody></table>
+  </div>`;
+}
+async function exportConversionFlatExcel(){
+  const rows=convFlatRows();
+  const multi=!!state.convMultiGames;
+  const maxBonus=rows.reduce((m,r)=>Math.max(m,r.m?r.m.length:0),0);
+  const columns=[
+    {header:'Élément',get:r=>r.elmLabel,bg:r=>r.elmBg,fg:r=>r.elmFg},
+    ...(multi?[{header:'Jeu',get:r=>(r.gameIcon||'')+' '+(r.gameName||''),bg:'#EEEEEE'}]:[]),
+    {header:'N°',get:r=>r.t},
+    {header:'Date',get:r=>r.dd+'/'+r.y},
+    {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
+    {header:'TOT',get:r=>r.s,total:true},
+    ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.m&&r.m[i]!=null?r.m[i]:'',fg:r=>r.m&&r.m[i]!=null?'#6D28D9':null})),
+    ...(maxBonus?[{header:'TOT.M',get:r=>r.m?r.m.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
+  ];
+  await exportCountryFiltre(rows,columns,'conversion_plat','Conversion','export-conv-btn');
+}
 function conversionHTML(){
   const mode=state.convSelMode||'consecutive';
   const elms=convElTypes();
@@ -8366,11 +8425,15 @@ function conversionHTML(){
       </div>
     </div>
 
-    <div style="display:flex;gap:6px;margin-bottom:4px">
-      <button id="export-conv-btn" onclick="exportConversionExcel()" style="padding:6px 14px;background:#7E22CE;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px">📤 Excel</button>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;flex-wrap:wrap">
+      <button id="export-conv-btn" onclick="${state.convViewMode==='flat'?'exportConversionFlatExcel()':'exportConversionExcel()'}" style="padding:6px 14px;background:#7E22CE;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px">📤 Excel</button>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        <button onclick="state.convViewMode='flat';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${state.convViewMode==='flat'?'2px solid #16436B':'1px solid #ddd'};background:${state.convViewMode==='flat'?'#16436B':'#f5f5f5'};color:${state.convViewMode==='flat'?'#fff':'#777'}">📋 Tableau (filtrable)</button>
+        <button onclick="state.convViewMode='grid';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${state.convViewMode==='grid'?'2px solid #16436B':'1px solid #ddd'};background:${state.convViewMode==='grid'?'#16436B':'#f5f5f5'};color:${state.convViewMode==='grid'?'#fff':'#777'}">🔲 Grille croisée</button>
+      </div>
     </div>
 
-    ${conversionGridHTML()}
+    ${state.convViewMode==='flat'?conversionFlatHTML():conversionGridHTML()}
   </div>
   </div>`;
 }
@@ -8406,6 +8469,21 @@ async function exportConversionExcel(){
       if(D)row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+D.bg.replace('#','')}};
     });
     ws.columns.forEach((c,i)=>{c.width=i===0?22:(multi?34:26);});
+    // ── En plus du tableau croisé ci-dessus, on ajoute en dessous les mêmes tirages au
+    // format "vertical" habituel de l'appli (1 ligne = 1 tirage, colonnes N1-N5/Total) :
+    // d'abord les tirages d'origine, puis un bloc par élément converti sélectionné.
+    const hasMAny=draws.some(d=>d.m&&d.m.length);
+    const origRows=draws.map(d=>({t:d.t,d:d.d,y:d.y,n:d.n,m:(d.m&&d.m.length)?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))})).slice().reverse();
+    addTirageNormalGrid(ws,origRows,new Set(),hasMAny,titreJeu+' — Tirages d’origine',false);
+    elms.forEach(elmKey=>{
+      const D=ELM_DEF.find(x=>x.key===elmKey);
+      const convRows=draws.map(d=>{
+        const hasM=!!(d.m&&d.m.length);
+        const conv=convertDraw(d,elmKey);
+        return{t:d.t,d:d.d,y:d.y,n:conv.n,m:hasM?conv.m:null,s:conv.s};
+      }).slice().reverse();
+      addTirageNormalGrid(ws,convRows,new Set(),hasMAny,titreJeu+' — '+(D?D.label:elmKey),false);
+    });
     const fname=multi?('conversion_multi_lotos'):(GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_conversion');
     await dlXlsxBlob(wb,fname+'.xlsx');
   }catch(err){

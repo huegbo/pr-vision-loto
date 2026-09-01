@@ -3650,6 +3650,7 @@ let state={
   conversionOpen:false, convElements:null, convSelMode:'consecutive',
   convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
   convMultiGames:false, convGames:null, convViewMode:'flat', convShowOrig:true,
+  convVirtualGames:null, convReturnGame:null,
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8458,6 +8459,61 @@ async function exportConversionFlatExcel(){
   // inverse donc juste avant l'appel pour garder le même plafond/ordre final que l'écran.
   await exportCountryFiltre(rows.slice().reverse(),columns,'conversion_plat','Conversion','export-conv-btn');
 }
+// ── "Conversion 2" — Comparaison en mode Excel : on reprend EXACTEMENT le jeu courant
+// (toutes ses années, tout son historique) mais avec les numéros convertis selon UN élément
+// choisi, présenté comme un jeu à part entière ("monde vierge" : coloriage/repères propres,
+// aucun lien avec les couleurs du jeu d'origine). Comme c'est un vrai jeu (GAMES[vkey]), on
+// retrouve automatiquement TOUT le système existant à l'identique : grille années côte à côte,
+// mode Excel (Coloriage rapide/par lot, souligner, figer, export avec couleurs), Miroir même
+// ligne/superposé, Mêmes numéros superposés, repérés, etc. — seules les DONNÉES changent.
+const CONV_VIRTUAL_PREFIX='zzconv_';
+function convVirtualKey(baseKey,elmKey){return CONV_VIRTUAL_PREFIX+baseKey+'__'+elmKey;}
+function ensureConvVirtualGame(elmKey){
+  const baseKey=GAME.key;
+  const base=GAMES[baseKey];
+  if(base.n4||base.n6){alert('La Comparaison (mode Excel) n’est disponible que pour les jeux à 5 numéros (1-90).');return null;}
+  const elm=ELM_DEF.find(e=>e.key===elmKey);
+  if(!elm||!T||!T.length)return null;
+  const vkey=convVirtualKey(baseKey,elm.key);
+  const lines=T.slice().reverse().map(r=>{ // ordre peu importe, setGame/loadGame re-trie toujours par n° décroissant
+    const conv=convertDraw(r,elm.key);
+    let line=[r.t,r.d,r.y,...conv.n,conv.s].join('|');
+    const mDefined=(conv.m||[]).filter(v=>v!=null&&!Number.isNaN(v));
+    if(mDefined.length)line+='|'+mDefined.join('|');
+    return line;
+  });
+  GAMES[vkey]={
+    name:'🔀 '+base.name+' — '+elm.label,
+    icon:'🔀',
+    hasM:!!(base.hasM||T.some(r=>r.m&&r.m.length)),
+    sum10:base.sum10,
+    raw:lines.join('\n'),
+    _virtual:true,_baseKey:baseKey,_elmKey:elm.key,
+  };
+  state.convVirtualGames=state.convVirtualGames||[];
+  if(!state.convVirtualGames.includes(vkey))state.convVirtualGames.push(vkey);
+  return vkey;
+}
+function openConvVirtualGame(elmKey){
+  const vkey=ensureConvVirtualGame(elmKey);
+  if(!vkey)return;
+  state.convReturnGame=GAME.key;
+  state.conversionOpen=false;
+  state.tab=0;
+  setGame(vkey);
+}
+function returnFromConvVirtual(){
+  const back=(state.convReturnGame&&GAMES[state.convReturnGame])?state.convReturnGame:defaultGameForToday();
+  state.convReturnGame=null;
+  setGame(back);
+  state.conversionOpen=true;
+  render();
+}
+function clearConvVirtualGames(){
+  (state.convVirtualGames||[]).forEach(k=>{delete GAMES[k];});
+  state.convVirtualGames=[];
+  render();
+}
 function conversionHTML(){
   const mode=state.convSelMode||'consecutive';
   const elms=convElTypes();
@@ -8518,6 +8574,17 @@ function conversionHTML(){
       <div style="display:flex;flex-wrap:wrap;gap:3px">
         <button onclick="state.convShowOrig=!state.convShowOrig;render()" title="Affiche/masque les colonnes O- (numéros d'origine) dans le tableau plat" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${state.convShowOrig!==false?'2px solid #374151':'1px solid #ddd'};background:${state.convShowOrig!==false?'#374151':'#f5f5f5'};color:${state.convShowOrig!==false?'#fff':'#777'}">${state.convShowOrig!==false?'✓ ':''}📋 Original</button>
         ${ELM_DEF.map(c=>{const on=elms.includes(c.key);return `<button onclick="toggleConvElType('${c.key}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${on?'2px solid '+c.bg:'1px solid #ddd'};background:${on?c.bg:'#f5f5f5'};color:${on?c.fg:'#777'}">${on?'✓ ':''}${c.label}</button>`;}).join('')}
+      </div>
+    </div>
+
+    <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="font-size:11px;font-weight:700;color:#5B21B6">3️⃣ 🔀 Comparaison (mode Excel)</span>
+        ${(state.convVirtualGames||[]).length?`<button onclick="clearConvVirtualGames()" title="Retire les jeux virtuels générés (Comparer plusieurs lotos, sélecteur de jeu, etc.)" style="margin-left:auto;padding:1px 8px;font-size:8.5px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">🗑️ Effacer (${state.convVirtualGames.length})</button>`:''}
+      </div>
+      <div style="font-size:9.5px;color:#5B21B6;margin-bottom:6px">Ouvre ${GAME.name} converti selon UN élément comme un jeu à part (tout l'historique, toutes les années) — grille années côte à côte, coloriage rapide/par lot, souligner, figer, Miroir, export avec couleurs... exactement comme un jeu normal, mais avec les numéros convertis. Utilisable ensuite en juxtaposition dans « Comparer plusieurs lotos ».</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${elms.length?ELM_DEF.filter(c=>elms.includes(c.key)).map(c=>`<button onclick="openConvVirtualGame('${c.key}')" style="padding:3px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid ${c.bg};background:${c.bg};color:${c.fg}">🔀 Ouvrir ${c.label}</button>`).join(''):`<span style="font-size:9.5px;color:#999">Coche au moins un élément ci-dessus (2️⃣) pour l'ouvrir ici.</span>`}
       </div>
     </div>
 
@@ -9460,6 +9527,12 @@ function downloadAppButtonHTML(){
 }
 function fabHTML(){
   let h='';
+  if(GAMES[GAME.key]&&GAMES[GAME.key]._virtual){
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+      <span>🔀 Jeu virtuel (Conversion) — numéros convertis, pas les tirages officiels</span>
+      <button onclick="returnFromConvVirtual()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#7E22CE;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">↩ Retour à Conversion</button>
+    </div>`;
+  }
   if(state.showSettings)h+=settingsHTML();
   if(state.showJournal)h+=journalHTML();
   const items=[

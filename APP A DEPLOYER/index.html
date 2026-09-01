@@ -11198,6 +11198,7 @@ const AN_DEF=[
   {key:'decomp',label:'🧩 Décomposition',bg:'#EA580C',fg:'#fff',desc:'Un numéro égal à la somme de deux autres numéros (même colonne ou colonne différente) dans des tirages voisins (écart réglable) — ex: 67=36+31, ou 64=60+4'},
   {key:'decompX',label:'🧩➕ Décomposition croisée',bg:'#059669',fg:'#fff',desc:'Un numéro égal à un numéro d\'une autre colonne (même tirage) + le numéro de cette même colonne dans un tirage voisin (écart réglable) — ex: 67 = 15+52'},
   {key:'sumCounterMir',label:'➕🪞 Somme → Counter → Miroir',bg:'#9D174D',fg:'#fff',desc:'2 numéros de la même ligne dont la somme, ramenée dans 1-90 par ±45 (son "counterpart"), a son miroir (chiffres inversés) présent sur cette même ligne — ex: 53+37=90 → counterpart 45 → miroir 54, présent sur la ligne'},
+  {key:'decompLine',label:'🧩📏 Décomposition même ligne',bg:'#B45309',fg:'#fff',desc:'Un numéro de la ligne (gagnant ou machine) égal à la somme de deux autres numéros de cette même ligne — gagnants et machines confondus — ex: 88=18+70 (70 étant un numéro machine)'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
   {key:'doubles',label:'👯 Doubles',bg:'#BE185D',fg:'#fff',desc:'Numéros doubles: 11, 22, 33, 44, 55, 66, 77, 88'},
@@ -11821,6 +11822,25 @@ function vFill(yr){
 function vScroll(yr){vFill(yr);syncScroll(yr);}
 function vFillAll(){Object.keys(VCOL).forEach(vFill);}
 
+// Décomposition même ligne : pour chaque position (gagnants + machines, si présents), teste si le
+// numéro à cette position = somme de deux autres numéros de la même ligne (gagnant OU machine, positions
+// distinctes). Ex: 88(N3)=18(N4)+70(M1). Retourne un tableau de booléens (longueur = row.n + row.m si hasM).
+function decompLineHits(row){
+  const hasM=!!(row.m&&row.m.length);
+  const all=hasM?[...row.n,...row.m]:[...row.n];
+  const hit=new Array(all.length).fill(false);
+  for(let i=0;i<all.length;i++){
+    if(isNaN(all[i]))continue;
+    for(let j=0;j<all.length;j++){
+      if(j===i||isNaN(all[j]))continue;
+      for(let k=j+1;k<all.length;k++){
+        if(k===i||isNaN(all[k]))continue;
+        if(all[j]+all[k]===all[i]){hit[i]=true;hit[j]=true;hit[k]=true;}
+      }
+    }
+  }
+  return hit;
+}
 function anMark(row,ctx){
   const m=state.anMode,out=[null,null,null,null,null];
   const D=m!=='none'?AN_DEF.find(d=>d.key===m):null;
@@ -11971,6 +11991,10 @@ function anMark(row,ctx){
       if(k>=0){S(i,col);S(j,col);S(k,col);}
     }
   }
+  if(m==='decompLine'){
+    const hits=decompLineHits(row);
+    row.n.forEach((n,i)=>{if(hits[i])S(i,D.bg);});
+  }
   if(m==='arith'||m==='geo'){
     // cherche la plus longue suite (arith ou géo) parmi les 5 numéros
     const idxByVal={};row.n.forEach((n,i)=>{if(!(n in idxByVal))idxByVal[n]=i;});
@@ -12058,6 +12082,11 @@ function anMark(row,ctx){
 function anMarkBonus(row,ctx){
   if(!row.m)return null;
   const out=[null,null,null,null,null];
+  if(state.anMode==='decompLine'){
+    const Dl=AN_DEF.find(d=>d.key==='decompLine');
+    const hits=decompLineHits(row);
+    row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[Dl.bg,Dl.fg];});
+  }
   if(!state.mirLAlways&&!state.mirPAlways)return out;
   const gi=IDX[row.t];
   const mgap=Math.max(1,state.mirPGap||1);

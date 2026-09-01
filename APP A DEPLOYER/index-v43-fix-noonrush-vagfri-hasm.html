@@ -8499,7 +8499,7 @@ function openConvVirtualGame(elmKey){
   if(!vkey)return;
   state.convReturnGame=GAME.key;
   state.conversionOpen=false;
-  state.tab=0;
+  state.tab=2; // onglet Analyses : c'est là que vivent la grille années + le coloriage (mode Excel)
   setGame(vkey);
 }
 function returnFromConvVirtual(){

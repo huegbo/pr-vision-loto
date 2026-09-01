@@ -6829,7 +6829,7 @@ function vseqResultHTML(){
   if(!r.length)return `<div id="vseq-res" style="margin-top:6px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#991B1B">Aucune séquence trouvée avec ces décalages.</div>`;
   const show=r.slice(0,40);
   return `<div id="vseq-res" style="margin-top:6px">
-    <div style="font-size:10px;font-weight:700;color:#B45309;margin-bottom:5px">🪜 ${r.length} séquence(s) trouvée(s)${r.length>40?' — 40 premières affichées':''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:#B45309">🪜 ${r.length} séquence(s) trouvée(s)${r.length>40?' — 40 premières affichées':''}</span><button id="export-vseq-btn" onclick="exportVseqExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     ${show.map(chain=>`<div style="border:1px solid #FCD34D;background:#FFFBEB;border-radius:7px;padding:5px 7px;margin-bottom:5px">
       ${chain.map((c,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:10px;padding:2px 0;${i?'border-top:1px dashed #FDE68A':''}">
         <span style="min-width:34px;font-weight:700;color:#B45309">${i?(state.vseqDir==='down'?'+':'−')+c.gap:'départ'}</span>
@@ -6882,6 +6882,39 @@ function vseqPanelHTML(){
     </div>
     ${vseqResultHTML()}
   </div>`;
+}
+async function exportVseqExcel(){
+  const chains=state.vseqRes;
+  if(!chains||!chains.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vseq-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Sequence libre');
+    ws.addRow(['Filtre : Séquence libre — '+chains.length+' séquence(s), sens '+(state.vseqDir==='down'?'vers le bas':'vers le haut')]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Séquence','Niveau','N°','Date','N1','N2','N3','N4','N5','Total','Décalage'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    chains.forEach((chain,ci)=>{
+      chain.forEach((c,li)=>{
+        const row=ws.addRow([ci+1,li===0?'départ':li+1,c.row.t,c.row.d+'/'+c.row.y,...ns5(c.row.n),c.row.s,li===0?'':(state.vseqDir==='down'?'+':'−')+c.gap]);
+        if(last3Ids.has(c.row.t)){for(let ck=1;ck<=header.length;ck++)row.getCell(ck).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+        c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n){const cell=row.getCell(5+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
+      });
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    chains.forEach(chain=>{chain.forEach(c=>{c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n)hitSet.add(c.row.t+'|N'+(i+1));});});});});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_sequence_libre.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 
 // ══════ DOUBLE MÊME TOTAL — deux paires qui donnent le même total ══════
@@ -7072,6 +7105,85 @@ async function exportDbtExcel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
+// Boilerplate commun de téléchargement, réutilisé par les exports des modules de recherche ci-dessous.
+async function dlXlsxBlob(wb,filename){
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/octet-stream'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+// ══════ Export Excel — Recherche par total (« Somme sur une ligne ») ══════
+async function exportTotalMatchesExcel(){
+  const res=state.totalMatches;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-total-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Somme sur une ligne');
+    ws.addRow(['Filtre : Somme sur une ligne — '+state.totalK+' numéro(s) = '+state.totalSearch]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Numéros utilisés','Total ciblé','Total tirage'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(m=>{
+      const row=ws.addRow([m.row.t,m.row.d+'/'+m.row.y,...ns5(m.row.n),m.nums.join('+'),parseInt(state.totalSearch),m.row.s]);
+      if(last3Ids.has(m.row.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      m.nums.forEach(n=>{
+        const idxs=[];m.row.n.forEach((v,i)=>{if(v===n)idxs.push(i);});
+        idxs.forEach(idx=>{const c=row.getCell(3+idx);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};});
+      });
+      row.getCell(9).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    res.forEach(m=>{m.nums.forEach(n=>{m.row.n.forEach((v,i)=>{if(v===n)hitSet.add(m.row.t+'|N'+(i+1));});});});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_somme_ligne_'+state.totalSearch+'.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
+// ══════ Export Excel — Numéros + Total (recherche combinée) ══════
+async function exportComboExcel(){
+  const cr=state.comboRes;
+  if(!cr||!cr.rows||!cr.rows.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-combo-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Numeros + Total');
+    ws.addRow(['Filtre : Numéros + Total — '+(cr.nums&&cr.nums.length?cr.nums.join(', '):'(aucun numéro)')+(cr.tot!=null?' • Total '+cr.tot:'')]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Total'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    cr.rows.forEach(r=>{
+      const row=ws.addRow([r.t,r.d+'/'+r.y,...ns5(r.n),r.s]);
+      if(last3Ids.has(r.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      (cr.nums||[]).forEach(n=>{r.n.forEach((v,i)=>{if(v===n){const c=row.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});});
+      row.getCell(8).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    cr.rows.forEach(r=>{(cr.nums||[]).forEach(n=>{r.n.forEach((v,i)=>{if(v===n)hitSet.add(r.t+'|N'+(i+1));});});});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numeros_total.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 
 // ══════ MÊME TOTAL SUPERPOSÉ — N numéros aux MÊMES positions (colonnes alignées),
 // comparés entre un tirage et un tirage situé à un écart réglable au-dessus/en-dessous ══════
@@ -7110,7 +7222,7 @@ function vtotResultHTML(){
   if(!res.length)return `<div id="vtot-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
   const show=res.slice(0,MAX);
   return `<div id="vtot-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#9A3412;margin-bottom:4px">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#9A3412">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-vtot-btn" onclick="exportVtotExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${['N°','Date','Tirage','Positions alignées','Voisin (écart)','Total'].map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
@@ -7150,6 +7262,42 @@ function vtotPanelHTML(){
     </div>
     ${vtotResultHTML()}
   </div>`;
+}
+async function exportVtotExcel(){
+  const res=state.vtotRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vtot-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Meme total superpose');
+    ws.addRow(['Filtre : Même total superposé — '+(state.vtotN||2)+' numéro(s) aligné(s), écart '+(state.vtotGap||1)]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Positions','Total','Où','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(x=>{
+      const posLab='N'+x.pos.map(p=>p+1).join(',N');
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,...ns5(x.r.n),posLab,x.total,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n)]);
+      if(last3Ids.has(x.r.t)||last3Ids.has(x.voisin.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      x.pos.forEach(idx=>{
+        const c1=row.getCell(3+idx);c1.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c1.font={bold:true};
+        const c2=row.getCell(13+idx);c2.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c2.font={bold:true};
+      });
+      row.getCell(9).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    res.forEach(x=>{x.pos.forEach(idx=>{hitSet.add(x.r.t+'|N'+(idx+1));hitSet.add(x.voisin.t+'|N'+(idx+1));});});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_meme_total_superpose.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 
 // ══════ TOTAL ↔ DIFFÉRENCE SUPERPOSÉ — 2 numéros aux MÊMES positions (colonnes alignées),
@@ -7659,8 +7807,8 @@ function vttResultHTML(){
   const res=state.vttRes,MAX=300;
   if(!res.length)return `<div style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
   const show=res.slice(0,MAX);
-  return `<div style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#0369A1;margin-bottom:4px">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+  return `<div id="vtt-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0369A1">🎮 ${GAME.icon} ${GAME.name} — ${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-vtt-btn" onclick="exportVttExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${['N°','Date','Total','↔','N° voisin','Date voisin','Total voisin','Écart'].map(h=>`<th style="position:sticky;top:0;background:#0369A1;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
@@ -7711,6 +7859,38 @@ function vttPanelHTML(){
     </div>
     ${vttResultHTML()}
   </div>`;
+}
+async function exportVttExcel(){
+  const res=state.vttRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vtt-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const mode=state.vttMode||'same';
+    const ws=wb.addWorksheet('Meme Total-Difference');
+    ws.addRow(['Filtre : Même Total / Différence entre 2 tirages — '+(mode==='same'?'Même total':'Même différence (cible '+(state.vttTarget||0)+')')+' — pas '+(state.vttGap||1)]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Total','Où','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5','Total voisin','Écart'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(x=>{
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,...ns5(x.r.n),x.rs,x.ou,x.voisin.t,x.voisin.d+'/'+x.voisin.y,...ns5(x.voisin.n),x.vs,x.diff]);
+      if(last3Ids.has(x.r.t)||last3Ids.has(x.voisin.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      row.getCell(8).font={bold:true};row.getCell(16).font={bold:true};row.getCell(17).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    res.forEach(x=>{for(let i=1;i<=5;i++){hitSet.add(x.r.t+'|N'+i);hitSet.add(x.voisin.t+'|N'+i);}});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_meme_total_difference_2tirages.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 
 // ══════ NUMÉRO + UN DE SES ÉLÉMENTS ══════
@@ -7860,7 +8040,7 @@ function elmResultHTML(){
   const show=res.slice(0,MAX);
   const par={};res.forEach(x=>par[x.type]=(par[x.type]||0)+1);
   return `<div id="elm-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:3px">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;font-weight:600;color:#7C2D12">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-elm-btn" onclick="exportElmExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px">${Object.entries(par).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{const c=ELM_DEF.find(e=>e.label===k)||{bg:'#999',fg:'#fff'};return `<span style="background:${c.bg};color:${c.fg};border-radius:9px;padding:1px 8px;font-size:9px;font-weight:600">${k} : ${v}</span>`;}).join('')}</div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
@@ -7916,6 +8096,50 @@ function elmPanelHTML(){
     ${elmResultHTML()}
   </div>`;
 }
+async function exportElmExcel(){
+  const res=state.elmRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-elm-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const mode=state.elmMode||'ligne';
+    const ws=wb.addWorksheet('Numero + element');
+    ws.addRow(['Filtre : Numéro + un de ses éléments — '+(mode==='ligne'?'Même ligne':'Superposés (écart '+(state.elmGap||1)+')')]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Numéro','Élément','Type','Où','N° voisin','Date voisin','V-N1','V-N2','V-N3','V-N4','V-N5'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(x=>{
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,...ns5(x.r.n),x.num,x.elm,x.type,x.ou,
+        x.voisin?x.voisin.t:'',x.voisin?(x.voisin.d+'/'+x.voisin.y):'',...(x.voisin?ns5(x.voisin.n):['','','','',''])]);
+      if(last3Ids.has(x.r.t)||(x.voisin&&last3Ids.has(x.voisin.t))){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      // numéro : toujours en colonne N (position x.pos), sur le tirage r
+      const cNum=row.getCell(2+x.pos);cNum.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cNum.font={bold:true};
+      // élément : sur r si pas de voisin (mode ligne), sur voisin sinon (mode superposé)
+      if(x.voisin){
+        const cElm=row.getCell(13+x.posElm);cElm.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cElm.font={bold:true};
+      }else{
+        const cElm=row.getCell(2+x.posElm);cElm.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cElm.font={bold:true};
+      }
+      row.getCell(8).font={bold:true};row.getCell(9).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    res.forEach(x=>{
+      hitSet.add(x.r.t+'|N'+x.pos);
+      if(x.voisin)hitSet.add(x.voisin.t+'|N'+x.posElm);else hitSet.add(x.r.t+'|N'+x.posElm);
+    });
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numero_element_'+mode+'.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 
 // ══════ TOTAL : NUMÉRO + SON ÉLÉMENT DE CLASSIFICATION ══════
 // Ex. le numéro 1 tiré + son Counter (46) = 47. On vérifie si 47 est le total du
@@ -7952,7 +8176,7 @@ function cetResultHTML(){
   if(!res.length)return `<div id="cet-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
   const show=res.slice(0,MAX);
   return `<div id="cet-res" style="margin-top:7px">
-    <div style="font-size:10px;font-weight:600;color:#0F766E;margin-bottom:4px">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:#0F766E">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-cet-btn" onclick="exportCetExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${['N°','Date','Tirage','Numéro + '+label,'Total obtenu','Tirage cible','Où'].map(h=>`<th style="position:sticky;top:0;background:#0F766E;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
@@ -8004,6 +8228,39 @@ function cetPanelHTML(){
     </div>
     ${cetResultHTML()}
   </div>`;
+}
+async function exportCetExcel(){
+  const res=state.cetRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-cet-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const label=(ELM_DEF.find(d=>d.key===(state.cetType||'counter'))||{}).label||'Élément';
+    const ws=wb.addWorksheet('Total numero+element');
+    ws.addRow(['Filtre : Total numéro + élément — '+label+' — '+(state.cetVs==='superpose'?'tirage superposé (écart '+(state.cetGap||1)+')':'même ligne')]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N°','Date','N1','N2','N3','N4','N5','Numéro','Élément','Total obtenu','Tirage cible N°','Date cible','C-N1','C-N2','C-N3','C-N4','C-N5','Total cible','Où'];
+    ws.addRow(header).font={bold:true};
+    const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    res.forEach(x=>{
+      const row=ws.addRow([x.r.t,x.r.d+'/'+x.r.y,...ns5(x.r.n),x.num,x.elmVal,x.total,x.cible.t,x.cible.d+'/'+x.cible.y,...ns5(x.cible.n),x.cible.s,x.ou]);
+      if(last3Ids.has(x.r.t)||last3Ids.has(x.cible.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
+      const cNum=row.getCell(2+x.pos);cNum.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cNum.font={bold:true};
+      row.getCell(10).font={bold:true};row.getCell(18).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=11;});
+    const hitSet=new Set();
+    res.forEach(x=>{hitSet.add(x.r.t+'|N'+x.pos);});
+    addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_total_numero_element.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 
 function searchHubHTML(){
@@ -8258,7 +8515,7 @@ function searchHubHTML(){
       <span style="font-size:9px;color:#777">numéro(s)</span>
       <button onclick="doTotalSearch()" style="padding:4px 12px;background:#F59E0B;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Trouver</button>
     </div>
-    ${state.totalMatches.length?`<div style="font-size:10px;color:#B45309;font-weight:500;margin-bottom:3px">${state.totalMatches.length} tirage(s) où ${state.totalK} numéros = ${state.totalSearch}</div>
+    ${state.totalMatches.length?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;color:#B45309;font-weight:500">${state.totalMatches.length} tirage(s) où ${state.totalK} numéros = ${state.totalSearch}</span><button id="export-total-btn" onclick="exportTotalMatchesExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
       <div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto">
         ${state.totalMatches.slice(0,30).map(m=>{const tc=tC(m.row.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
           <span style="font-weight:700;color:#B45309">${GAME.name} ${m.t}</span><span style="color:#888;font-size:8px">${m.d}/${m.y}</span>
@@ -8887,7 +9144,7 @@ function settingsHTML(){
 function comboResHTML(){
   const{nums,tot,rows}=state.comboRes;
   if(!rows.length)return`<div style="font-size:10px;color:#999;margin-top:5px">Aucun tirage trouvé</div>`;
-  return`<div style="margin-top:6px"><div style="font-size:10px;font-weight:500;color:#6D28D9;margin-bottom:3px">${rows.length} tirage(s) trouvé(s)</div>
+  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;font-weight:500;color:#6D28D9">${rows.length} tirage(s) trouvé(s)</span><button id="export-combo-btn" onclick="exportComboExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto">
     ${rows.slice(0,30).map(r=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
       <span style="font-weight:700;color:#6D28D9">${GAME.name} ${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>

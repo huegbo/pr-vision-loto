@@ -8240,6 +8240,13 @@ function convSelectedDrawsIn(TT,IDXX){
     if(!weekSet.size)return[];
     return TT.filter(r=>{const w=isoWeekOf(r.d,r.y);return weekSet.has(w.week)&&(!yr||w.year===yr);});
   }
+  if(mode==='years'){
+    // Une ou plusieurs années entières cochées (ex: BENZ 2026 + 1991) → tous les tirages
+    // de ces années, toutes lotos confondues en mode multi-lotos (chaque loto a ses propres années).
+    const yrs=new Set((state.convYearsList||[]).map(String));
+    if(!yrs.size)return[];
+    return TT.filter(r=>yrs.has(String(r.y)));
+  }
   return[];
 }
 function convSelectedDraws(){return convSelectedDrawsIn(T,IDX);} // rétrocompatibilité : jeu courant
@@ -8251,6 +8258,25 @@ function convGamesList(){
 function toggleConvGame(k){
   const a=convGamesList(),i=a.indexOf(k);
   if(i>=0)a.splice(i,1);else a.push(k);
+  render();
+}
+// Années disponibles pour le mode "Par année(s)" : celles du jeu courant, ou l'union des années
+// de tous les lotos cochés en mode multi-lotos (chaque loto peut avoir une plage différente).
+function convAvailableYears(){
+  if(state.convMultiGames){
+    const set=new Set();
+    convGamesList().forEach(k=>{const gd=gameData(k);(gd&&gd.YEARS||[]).forEach(y=>set.add(y));});
+    return Array.from(set).sort((a,b)=>parseInt(b)-parseInt(a));
+  }
+  return YEARS;
+}
+function convYearsListGet(){
+  if(!state.convYearsList||!state.convYearsList.length)state.convYearsList=convAvailableYears().slice(0,3);
+  return state.convYearsList;
+}
+function toggleConvYear(y){
+  const a=convYearsListGet(),i=a.indexOf(y);
+  if(i>=0)a.splice(i,1);else a.push(y);
   render();
 }
 // Retourne les tirages sélectionnés, avec le nom (et la clé) du loto d'origine attaché à chacun —
@@ -8406,12 +8432,23 @@ function conversionHTML(){
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">
       <div style="font-size:11px;font-weight:700;color:#333;margin-bottom:6px">1️⃣ Tirages source</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
-        ${[['consecutive','📏 N tirages consécutifs'],['sparse','🎯 Parsemé (tous les N)'],['week','📅 Par n° de semaine']].map(([k,lbl])=>`<button onclick="state.convSelMode='${k}';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode===k?'2px solid #7E22CE':'1px solid #ddd'};background:${mode===k?'#7E22CE':'#f5f5f5'};color:${mode===k?'#fff':'#777'}">${lbl}</button>`).join('')}
+        ${[['consecutive','📏 N tirages consécutifs'],['sparse','🎯 Parsemé (tous les N)'],['week','📅 Par n° de semaine'],['years','🗓️ Par année(s)']].map(([k,lbl])=>`<button onclick="state.convSelMode='${k}';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode===k?'2px solid #7E22CE':'1px solid #ddd'};background:${mode===k?'#7E22CE':'#f5f5f5'};color:${mode===k?'#fff':'#777'}">${lbl}</button>`).join('')}
       </div>
       ${mode==='consecutive'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">Les <input type="number" min="1" max="500" value="${state.convN||5}" onchange="state.convN=Math.max(1,parseInt(this.value)||5);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages ${state.convWitness?'consécutifs, à partir du témoin (compris) vers les plus anciens.':'les plus récents (rang 1 = le plus récent).'}</div>`:''}
       ${mode==='sparse'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">1 tirage tous les <input type="number" min="2" max="100" value="${state.convStep||3}" onchange="state.convStep=Math.max(2,parseInt(this.value)||3);render()" style="width:55px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> tirages.</div>`:''}
       ${mode==='week'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">N° de semaine(s) : <input type="text" value="${state.convWeeks||''}" placeholder="Ex: 11 12 13" oninput="state.convWeeks=this.value" onblur="render()" style="width:110px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px"> Année : <input type="number" min="2000" max="2100" value="${state.convYear||new Date().getFullYear()}" onchange="state.convYear=parseInt(this.value)||new Date().getFullYear();render()" style="width:65px;padding:2px 5px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center"></div>`:''}
-      <div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #e5d5f5">🎯 Tirage témoin (N°, optionnel) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">${mode==='consecutive'?'le bloc de tirages commence sur lui (inclus), vers les plus anciens':mode==='sparse'?'compte dans les 2 sens à partir de lui (inclus)':'sa semaine est ajoutée automatiquement à la sélection'}</span>`:`<span style="font-size:9px;color:#999">vide = ${mode==='week'?'seules les semaines saisies ci-dessus sont utilisées':'compte depuis le tirage le plus récent'}</span>`}</div>
+      ${mode==='years'?(()=>{const avail=convAvailableYears();const sel=convYearsListGet();return `<div style="margin-bottom:6px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px">
+          ${[3,5,10].map(n=>`<button onclick="state.convYearsList=convAvailableYears().slice(0,${n});render()" style="padding:1px 7px;font-size:9px;border-radius:8px;border:1px solid #7E22CE;background:#F5F3FF;color:#7E22CE;cursor:pointer;font-weight:500">${n}</button>`).join('')}
+          <button onclick="state.convYearsList=[...convAvailableYears()];render()" style="padding:1px 7px;font-size:9px;border-radius:8px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">All</button>
+          <button onclick="state.convYearsList=[];render()" style="padding:1px 7px;font-size:9px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕ Aucun</button>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;max-height:110px;overflow-y:auto">
+          ${avail.map(y=>{const on=sel.includes(y);return `<button onclick="toggleConvYear('${y}')" style="padding:2px 8px;font-size:9.5px;border-radius:10px;cursor:pointer;font-weight:600;border:${on?'2px solid #7E22CE':'1px solid #ddd'};background:${on?'#7E22CE':'#f5f5f5'};color:${on?'#fff':'#777'}">${y}</button>`;}).join('')}
+        </div>
+        <div style="font-size:9px;color:#7E22CE;margin-top:4px">${sel.length} année(s) cochée(s) — tous les tirages de ces années sont inclus (toutes lotos confondues en mode multi-lotos).</div>
+      </div>`;})():''}
+      ${mode!=='years'?`<div style="font-size:10px;color:#555;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:6px;border-top:1px dashed #e5d5f5">🎯 Tirage témoin (N°, optionnel) : <input type="number" min="1" value="${state.convWitness||''}" placeholder="ex: ${T&&T.length?T[0].t:''}" onchange="state.convWitness=this.value;render()" style="width:80px;padding:2px 6px;border:1.5px solid #7E22CE;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#7E22CE"> ${state.convWitness?`<button onclick="state.convWitness='';render()" style="padding:1px 8px;font-size:9px;border-radius:8px;border:1px solid #999;background:#fff;color:#666;cursor:pointer">✕ effacer</button><span style="font-size:9px;color:#7E22CE">${mode==='consecutive'?'le bloc de tirages commence sur lui (inclus), vers les plus anciens':mode==='sparse'?'compte dans les 2 sens à partir de lui (inclus)':'sa semaine est ajoutée automatiquement à la sélection'}</span>`:`<span style="font-size:9px;color:#999">vide = ${mode==='week'?'seules les semaines saisies ci-dessus sont utilisées':'compte depuis le tirage le plus récent'}</span>`}</div>`:''}
     </div>
 
     <div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px 10px;margin-bottom:8px">

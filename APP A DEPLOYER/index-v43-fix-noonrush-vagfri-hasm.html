@@ -3649,7 +3649,7 @@ let state={
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
   conversionOpen:false, convElements:null, convSelMode:'consecutive',
   convN:5, convStep:3, convWeeks:'', convYear:null, convWitness:'',
-  convMultiGames:false, convGames:null, convViewMode:'flat', convDupOriginal:false,
+  convMultiGames:false, convGames:null, convViewMode:'flat', convDupOriginal:false, convShowOrig:true,
   pronosticOpen:false, pronosticSubTab:'pronostic', pronosticGroupe:'togo', pronosticJeu:TOGO_GAMES[0].key,
   pronosticFormat:'numeros', pronosticCount:2, pronosticNums:[], pronosticTitre:'',
   pronosticBallSize:'moyennes', pronosticTextSize:'normal', pronosticBallColor:'def', pronosticTitleFont:'def', pronosticBoulesFilter:'tous',
@@ -8344,50 +8344,49 @@ function conversionGridHTML(){
 // ── Vue "tableau à plat" du module Conversion, présentée comme l'onglet Multi-Pays :
 // 1 ligne = 1 tirage × 1 élément (au lieu d'1 ligne = 1 pays), colorée par élément,
 // filtrable et exportable directement (mêmes colonnes que Multi-Pays : N°/Date/N1-N5/TOT/M1-M5/TOT.M).
+// 1 ligne = 1 tirage × 1 élément, avec l'Original juxtaposé HORIZONTALEMENT (colonnes O-N1..O-N5/O-TOT)
+// juste à côté des colonnes de l'élément converti (N1..N5/TOT) — un Original par élément, mais en
+// colonnes sur la même ligne plutôt qu'en ligne séparée.
 function convFlatRows(){
   const{draws,elms}=convResults();
-  const origDef={key:'_orig',label:'Original',bg:'#374151',fg:'#fff'};
   const elmDefs=ELM_DEF.filter(d=>elms.includes(d.key));
-  const dup=!!state.convDupOriginal; // true = 1 ligne "Original" juxtaposée devant CHAQUE élément (au lieu d'1 seule par tirage)
   const out=[];
   draws.forEach(d=>{
     const hasM=!!(d.m&&d.m.length);
-    const origConv={n:d.n,m:hasM?d.m:null,s:(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0))};
-    const pushRow=(rd,conv)=>out.push({elmKey:rd.key,elmLabel:rd.label,elmBg:rd.bg,elmFg:rd.fg,gameName:d._gameName,gameIcon:d._gameIcon,t:d.t,dd:d.d,y:d.y,n:conv.n,m:conv.m,s:conv.s,hasM});
-    if(dup&&elmDefs.length){
-      elmDefs.forEach(rd=>{
-        pushRow(origDef,origConv);
-        pushRow(rd,convertDraw(d,rd.key));
-      });
-    }else{
-      pushRow(origDef,origConv);
-      elmDefs.forEach(rd=>pushRow(rd,convertDraw(d,rd.key)));
-    }
+    const origS=(d.s!=null?d.s:d.n.reduce((a,b)=>a+b,0));
+    elmDefs.forEach(rd=>{
+      const conv=convertDraw(d,rd.key);
+      out.push({elmKey:rd.key,elmLabel:rd.label,elmBg:rd.bg,elmFg:rd.fg,gameName:d._gameName,gameIcon:d._gameIcon,t:d.t,dd:d.d,y:d.y,hasM,
+        origN:d.n,origM:hasM?d.m:null,origS,n:conv.n,m:conv.m,s:conv.s});
+    });
   });
   return out;
 }
 function conversionFlatHTML(){
   const rows=convFlatRows();
   const multi=!!state.convMultiGames;
-  const dupToggleHTML=`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:10px;font-weight:600;color:#333;margin:8px 0 4px">
-    <input type="checkbox" ${state.convDupOriginal?'checked':''} onchange="state.convDupOriginal=this.checked;render()">
-    🔁 Répéter l'Original devant chaque élément (autant d'Original que d'éléments, juxtaposés)
-  </label>`;
-  if(!rows.length)return dupToggleHTML+`<div style="padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage/élément ne correspond à cette sélection.</div>`;
+  const showOrig=state.convShowOrig!==false;
+  if(!rows.length)return `<div style="margin-top:8px;padding:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10.5px;color:#B91C1C">Aucun tirage/élément ne correspond à cette sélection.</div>`;
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.m?r.m.length:0),0);
-  return dupToggleHTML+`<div style="font-size:10px;color:#777;margin:4px 0 6px">${rows.length} ligne${rows.length>1?'s':''} (tirage × élément)${rows.length>400?` — <b style="color:#B45309">les 400 premières sont affichées</b>, affine la sélection pour voir les autres`:''}</div>
+  return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} ligne${rows.length>1?'s':''} (tirage × élément)${showOrig?' — Original juxtaposé (colonnes O-) devant chaque élément':''}${rows.length>400?` — <b style="color:#B45309">les 400 premières sont affichées</b>, affine la sélection pour voir les autres`:''}</div>
   <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
     <table class="excel-tbl"><thead><tr>
-      ${['Élément',...(multi?['Jeu']:[]),'N°','Date','N1','N2','N3','N4','N5','TOT',...Array.from({length:maxBonus},(_,i)=>'M'+(i+1)),...(maxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#16436B;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
+      ${['Élément',...(multi?['Jeu']:[]),'N°','Date',...(showOrig?['O-N1','O-N2','O-N3','O-N4','O-N5','O-TOT',...Array.from({length:maxBonus},(_,i)=>'O-M'+(i+1)),...(maxBonus?['O-TOT.M']:[])]:[]),'N1','N2','N3','N4','N5','TOT',...Array.from({length:maxBonus},(_,i)=>'M'+(i+1)),...(maxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#16436B;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
     </tr></thead><tbody>
     ${rows.slice(0,400).map((r,ri)=>{
       const bg=ri%2===0?'#fff':'#F5F7FB';
+      const oBg='#F5F7FB';
+      const oTot=r.origM?r.origM.reduce((a,b)=>a+(b||0),0):null;
       const bTot=r.m?r.m.reduce((a,b)=>a+(b||0),0):null;
       return `<tr>
         <td style="background:${r.elmBg};color:${r.elmFg};font-weight:700;font-size:9px;padding:4px;white-space:nowrap">${r.elmLabel}</td>
         ${multi?`<td style="background:#EEE;font-weight:600;font-size:8.5px;padding:4px;white-space:nowrap">${r.gameIcon||''} ${r.gameName||''}</td>`:''}
         <td style="background:${bg};font-weight:600;font-size:9.5px;padding:4px">${r.t}</td>
         <td style="background:${bg};font-size:9.5px;padding:4px;white-space:nowrap">${r.dd}/${r.y}</td>
+        ${showOrig?r.origN.map(n=>`<td style="background:${oBg};color:#555;font-size:9.5px;padding:4px;border-right:${1}px solid #ddd">${n}</td>`).join(''):''}
+        ${showOrig?`<td style="background:#E5E7EB;font-weight:700;font-size:9.5px;padding:4px">${r.origS}</td>`:''}
+        ${showOrig?Array.from({length:maxBonus},(_,i)=>`<td style="background:${oBg};color:#9333EA;font-size:9.5px;padding:4px">${r.origM&&r.origM[i]!=null?r.origM[i]:'·'}</td>`).join(''):''}
+        ${showOrig&&maxBonus?`<td style="background:${oTot!=null?'#EDE9FE':oBg};font-weight:700;font-size:9.5px;padding:4px;border-right:2px solid #16436B">${oTot!=null?oTot:'·'}</td>`:''}
         ${r.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}
         <td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${r.s}</td>
         ${Array.from({length:maxBonus},(_,i)=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${r.m&&r.m[i]!=null?r.m[i]:'·'}</td>`).join('')}
@@ -8400,12 +8399,19 @@ function conversionFlatHTML(){
 async function exportConversionFlatExcel(){
   const rows=convFlatRows();
   const multi=!!state.convMultiGames;
+  const showOrig=state.convShowOrig!==false;
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.m?r.m.length:0),0);
   const columns=[
     {header:'Élément',get:r=>r.elmLabel,bg:r=>r.elmBg,fg:r=>r.elmFg},
     ...(multi?[{header:'Jeu',get:r=>(r.gameIcon||'')+' '+(r.gameName||''),bg:'#EEEEEE'}]:[]),
     {header:'N°',get:r=>r.t},
     {header:'Date',get:r=>r.dd+'/'+r.y},
+    ...(showOrig?[
+      {header:'O-N1',get:r=>r.origN[0],bg:'#F5F7FB'},{header:'O-N2',get:r=>r.origN[1],bg:'#F5F7FB'},{header:'O-N3',get:r=>r.origN[2],bg:'#F5F7FB'},{header:'O-N4',get:r=>r.origN[3],bg:'#F5F7FB'},{header:'O-N5',get:r=>r.origN[4],bg:'#F5F7FB'},
+      {header:'O-TOT',get:r=>r.origS,bg:'#E5E7EB'},
+      ...Array.from({length:maxBonus},(_,i)=>({header:'O-M'+(i+1),get:r=>r.origM&&r.origM[i]!=null?r.origM[i]:'',fg:r=>r.origM&&r.origM[i]!=null?'#9333EA':null})),
+      ...(maxBonus?[{header:'O-TOT.M',get:r=>r.origM?r.origM.reduce((a,b)=>a+(b||0),0):'',bg:'#EDE9FE'}]:[]),
+    ]:[]),
     {header:'N1',get:r=>r.n[0]},{header:'N2',get:r=>r.n[1]},{header:'N3',get:r=>r.n[2]},{header:'N4',get:r=>r.n[3]},{header:'N5',get:r=>r.n[4]},
     {header:'TOT',get:r=>r.s,total:true},
     ...Array.from({length:maxBonus},(_,i)=>({header:'M'+(i+1),get:r=>r.m&&r.m[i]!=null?r.m[i]:'',fg:r=>r.m&&r.m[i]!=null?'#6D28D9':null})),
@@ -8471,6 +8477,7 @@ function conversionHTML(){
         <button onclick="convElAll(false)" style="padding:1px 8px;font-size:8.5px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Rien</button>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px">
+        <button onclick="state.convShowOrig=!state.convShowOrig;render()" title="Affiche/masque les colonnes O- (numéros d'origine) dans le tableau plat" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${state.convShowOrig!==false?'2px solid #374151':'1px solid #ddd'};background:${state.convShowOrig!==false?'#374151':'#f5f5f5'};color:${state.convShowOrig!==false?'#fff':'#777'}">${state.convShowOrig!==false?'✓ ':''}📋 Original</button>
         ${ELM_DEF.map(c=>{const on=elms.includes(c.key);return `<button onclick="toggleConvElType('${c.key}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${on?'2px solid '+c.bg:'1px solid #ddd'};background:${on?c.bg:'#f5f5f5'};color:${on?c.fg:'#777'}">${on?'✓ ':''}${c.label}</button>`;}).join('')}
       </div>
     </div>

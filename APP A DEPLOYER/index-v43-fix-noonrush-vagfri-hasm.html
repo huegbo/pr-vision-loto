@@ -7207,7 +7207,14 @@ async function exportComboExcel(){
       const row=ws.addRow([r.t,r.d+'/'+r.y,...ns5(r.n),r.s]);
       if(last3Ids.has(r.t)){for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
       (cr.nums||[]).forEach(n=>{r.n.forEach((v,i)=>{if(v===n){const c=row.getCell(3+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});});
-      row.getCell(8).font={bold:true};
+      // Coloris "thermomètre" du Total (même code couleur qu'à l'écran, cf. tC()) —
+      // appliqué APRÈS le fond vert "3 derniers tirages" pour que la cellule Total
+      // garde toujours sa propre couleur (verte/jaune/orange/rouge selon la valeur),
+      // même sur les 3 tirages les plus récents.
+      const tCell=row.getCell(8);
+      const tc=tC(r.s);
+      tCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+      tCell.font={bold:true,color:{argb:hexToARGB(tc[1])}};
     });
     ws.columns.forEach(c=>{c.width=11;});
     const hitSet=new Set();

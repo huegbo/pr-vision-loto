@@ -8405,7 +8405,7 @@ function conversionFlatHTML(){
   const frozenLefts=frozenCols.map(c=>{const l=acc;acc+=c.w;return l;});
   const leftCols=(multi?1:0)+2;
   return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} tirage${rows.length>1?'s':''} — 📋 Original figé à gauche, une seule fois par tirage, 🧩 chaque élément coché défile en parallèle — trié n°/année croissants — <b style="color:#5B21B6">🖱️ clique un numéro pour le colorier/repérer/chercher</b>, comme n'importe quel tirage (le coloriage s'exporte aussi en Excel)${rows.length>400?` — <b style="color:#B45309">les 400 tirages les plus récents sont affichés</b> (sur ${rows.length}), affine la sélection pour voir les autres`:''}</div>
-  <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+  <div id="conv-flat-scroll" data-scrollkeep="1" style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
     <table class="excel-tbl" style="border-collapse:separate;border-spacing:0"><thead>
     <tr>
       <th colspan="${leftCols}" style="position:sticky;top:0;left:0;background:#0B2A45;color:#fff;font-size:9px;padding:4px;z-index:6">Tirage</th>
@@ -13154,7 +13154,14 @@ function _doRender(){
   // chaque re-rendu (ex: coloriage d'un numéro, coche d'une case).
   const _scrollSave={};
   try{
-    document.querySelectorAll('.col-body[id]').forEach(el=>{_scrollSave[el.id]=el.scrollTop;});
+    // .col-body[id] : colonnes de navigation (défilement vertical pas-à-pas).
+    // [data-scrollkeep][id] : conteneurs "libres" (défilement normal, souvent aussi
+    // horizontal — ex: tableau plat du module Conversion) qui ont besoin du même
+    // dispositif sans hériter du CSS/JS spécifique à .col-body (overflow-x:hidden,
+    // pas-à-pas à la molette...). Bug signalé : "je coche un numéro, ça m'amène
+    // ailleurs, je dois renaviguer pour revenir" — le scroll (haut ET gauche/droite)
+    // n'était pas mémorisé pour ce tableau, donc il repartait à zéro à chaque re-rendu.
+    document.querySelectorAll('.col-body[id], [data-scrollkeep][id]').forEach(el=>{_scrollSave[el.id]={t:el.scrollTop,l:el.scrollLeft};});
     _scrollSave.__win=window.scrollY||window.pageYOffset||0;
   }catch(_){}
   try{
@@ -13170,7 +13177,7 @@ function _doRender(){
       Object.keys(_scrollSave).forEach(id=>{
         if(id==='__win')return;
         const el=document.getElementById(id);
-        if(el)el.scrollTop=_scrollSave[id];
+        if(el){el.scrollTop=_scrollSave[id].t;el.scrollLeft=_scrollSave[id].l;}
       });
       if(_scrollSave.__win)window.scrollTo(0,_scrollSave.__win);
     }catch(_){}

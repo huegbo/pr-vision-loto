@@ -7967,7 +7967,11 @@ function elmHLPartoutFromMenu(n){
   // Ne force plus l'onglet Navigation (tab=0) : le coloriage "en exergue" s'applique déjà dans
   // Navigation, Analyses ET Comparer plusieurs lotos, donc on reste là où l'utilisateur était
   // (bug signalé : "l'appli bouge et m'amène à un autre endroit, je veux continuer là-bas").
+  // Exception : les écrans "module" (Conversion, Bénin, Ghana...) rendent leur propre innerHTML et
+  // ignorent silencieusement showSearchHub/elmhl-bar (bug signalé : "je clique, rien ne se passe")
+  // — il faut donc en sortir pour que le coloriage devienne visible quelque part.
   state.showSearchHub=false;
+  state.conversionOpen=false;
   elmHLApply();
   setTimeout(()=>{const e=document.getElementById('elmhl-bar');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},80);
 }
@@ -7978,6 +7982,9 @@ function elmSearchFromMenu(n,mode){
   closeMenu&&closeMenu();
   const m=document.getElementById('nmenu');if(m)m.style.display='none';
   const ov=document.getElementById('popup-overlay');if(ov)ov.style.display='none';
+  // Même raison que ci-dessus : searchHubHTML() n'est rendu que sur le pipeline principal, jamais
+  // depuis l'écran "module" Conversion (qui fait un retour anticipé sans en tenir compte).
+  state.conversionOpen=false;
   state.showSearchHub=true;
   runElm();
 }
@@ -8609,7 +8616,6 @@ function conversionHTML(){
         <button onclick="state.convViewMode='grid';render()" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${state.convViewMode==='grid'?'2px solid #16436B':'1px solid #ddd'};background:${state.convViewMode==='grid'?'#16436B':'#f5f5f5'};color:${state.convViewMode==='grid'?'#fff':'#777'}">🔲 Grille croisée</button>
       </div>
     </div>
-
     ${state.convViewMode==='flat'?conversionFlatHTML():conversionGridHTML()}
   </div>
   </div>`;
@@ -9458,6 +9464,11 @@ function batchColorHTML(){
 }
 function fabGo(action){
   state.showFab=false;
+  // Les écrans "module" (Conversion, Bénin, Ghana...) ignorent tab/showSearchHub/showPass et les
+  // panneaux globaux (repérés, export coloriage...) — sauf le menu ⊞ lui-même, réglages et carnet,
+  // maintenant rendus aussi depuis Conversion (voir __renderBody()). Pour toutes les autres actions,
+  // il faut donc en sortir pour que le résultat devienne visible quelque part.
+  if(action!=='settings'&&action!=='journal'&&action!=='undo_color')state.conversionOpen=false;
   if(action==='plans'){state.tab=0;state.showSearchHub=false;}
   else if(action==='color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='color1'){state.tab=2;state.showSearchHub=false;colorLastNDraws(1);}
@@ -13211,7 +13222,16 @@ function __renderBody(){
   if(state.conversionOpen){
     // Le tableau plat de Conversion a des numéros cliquables/coloriables (numSpan) : il faut donc
     // le même dispositif popup/menu que le rendu principal (absent par défaut sur cet écran "module").
+    // fabHTML() (bouton ⊞ « Que voulez-vous faire ? » : colorier les derniers tirages, coloriage par
+    // lot, annuler, réglages...) était lui aussi absent ici (bug signalé : "je clique dans le menu ⊞
+    // depuis Conversion, rien ne se passe") — voir aussi fabGo() qui sort de Conversion quand l'action
+    // choisie doit s'afficher ailleurs (Analyses, Recherche, panneaux globaux...).
     document.getElementById('app').innerHTML=conversionHTML()+bottomNavHTML()+downloadAppButtonHTML()
+      +fabHTML()+zoomFabHTML()
+      +(state.repereGlobalOpen?repereGlobalHTML():'')
+      +(state.repere2GlobalOpen?repere2GlobalHTML():'')
+      +(state.coloringExportOpen?coloringExportHTML():'')
+      +(state.zoomSheetOpen?zoomSheetHTML():'')
       +'<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>'
       +'<div id="popup" class="popup" style="display:none"></div>'
       +'<div id="nmenu" class="nmenu" style="display:none"></div>';

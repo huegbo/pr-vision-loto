@@ -3659,6 +3659,7 @@ let state={
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
   showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  convPickerFor:null, // clé du jeu de base pour lequel le panneau « 🔀 Ajouter une conversion » (Comparer plusieurs lotos) est ouvert, sinon null
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
@@ -8535,6 +8536,68 @@ function clearConvVirtualGames(){
   state.convVirtualGames=[];
   render();
 }
+// ── Ajout rapide d'une conversion directement depuis « Comparer plusieurs lotos » ──
+// Contrairement à ensureConvVirtualGame() (qui suppose qu'on est SUR l'écran du jeu de
+// base, via les globales GAME/T), cette variante prend le jeu de base explicitement en
+// paramètre — utilisable depuis n'importe quel écran (ex: le panneau de comparaison),
+// sans avoir à retourner dans le module Conversion pour cocher/ouvrir l'élément.
+// Bug/demande signalé(e) : "je veux avoir la possibilité d'ajouter ici les autres
+// conversions du loto converti... ex ajouter Benz 2026 Code" (directement dans la
+// comparaison, "ici").
+function ensureConvVirtualGameFor(baseKey,elmKey){
+  const base=GAMES[baseKey];
+  if(!base)return null;
+  if(base.n4||base.n6)return null; // Comparaison (mode Excel) : jeux à 5 numéros (1-90) uniquement
+  const elm=ELM_DEF.find(e=>e.key===elmKey);
+  if(!elm)return null;
+  const TT=gameData(baseKey).T; // toujours les tirages BRUTS du jeu de base (jamais ceux d'une conversion déjà ouverte)
+  if(!TT||!TT.length)return null;
+  const vkey=convVirtualKey(baseKey,elm.key);
+  const lines=TT.slice().reverse().map(r=>{
+    const conv=convertDraw(r,elm.key);
+    let line=[r.t,r.d,r.y,...conv.n,conv.s].join('|');
+    const mDefined=(conv.m||[]).filter(v=>v!=null&&!Number.isNaN(v));
+    if(mDefined.length)line+='|'+mDefined.join('|');
+    return line;
+  });
+  GAMES[vkey]={
+    name:'🔀 '+base.name+' — '+elm.label,
+    icon:'🔀',
+    hasM:!!(base.hasM||TT.some(r=>r.m&&r.m.length)),
+    sum10:base.sum10,
+    raw:lines.join('\n'),
+    _virtual:true,_baseKey:baseKey,_elmKey:elm.key,
+  };
+  state.convVirtualGames=state.convVirtualGames||[];
+  if(!state.convVirtualGames.includes(vkey))state.convVirtualGames.push(vkey);
+  return vkey;
+}
+// Ouvre le panneau « 🔀 Ajouter une conversion » pour le jeu de base représenté par la
+// colonne k (si k est déjà une conversion, on remonte à SON jeu de base pour ne jamais
+// convertir une conversion — sinon "Benz—Counter" + Code donnerait un résultat absurde).
+function convPickerBaseKey(k){
+  const g=GAMES[k];
+  if(!g)return null;
+  const bk=g._baseKey||k;
+  const b=GAMES[bk];
+  return(b&&!b.n4&&!b.n6)?bk:null;
+}
+function openConvPicker(k){
+  const bk=convPickerBaseKey(k);
+  if(!bk){alert('La conversion n\'est disponible que pour les jeux à 5 numéros (1-90).');return;}
+  state.convPickerFor=bk;
+  render();
+}
+function closeConvPicker(){state.convPickerFor=null;render();}
+// Génère (si besoin) la conversion baseKey→elmKey et l'ajoute directement à la
+// comparaison en cours (state.selGames), sans fermer le panneau : on peut ainsi en
+// ajouter plusieurs d'affilée (ex: Code puis Malta puis Turning).
+function addConvColumnFor(baseKey,elmKey){
+  const vkey=ensureConvVirtualGameFor(baseKey,elmKey);
+  if(!vkey)return;
+  if(!state.selGames.includes(vkey))state.selGames=[...state.selGames,vkey];
+  render();
+}
 function conversionHTML(){
   const mode=state.convSelMode||'consecutive';
   const elms=convElTypes();
@@ -12020,6 +12083,31 @@ function mgColLabel(col){
   if(col.mode==='week')return `Sem.${col.week.from}-${col.week.to} (ttes années)`;
   return String(col.year);
 }
+// Panneau (bottom sheet) « 🔀 Ajouter une conversion » : liste les 10 éléments de
+// classification pour le jeu de base state.convPickerFor, avec une pastille par élément —
+// clic = génère (si besoin) le jeu virtuel converti et l'ajoute directement à la
+// comparaison en cours. Reste ouvert après un ajout pour pouvoir en enchaîner plusieurs.
+function convPickerHTML(){
+  const baseKey=state.convPickerFor;
+  const base=GAMES[baseKey];
+  if(!base)return '';
+  return `<div onclick="closeConvPicker()" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998"></div>
+  <div style="position:fixed;left:0;right:0;bottom:0;z-index:999;background:#fff;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -8px 30px rgba(0,0,0,.35);max-height:80vh;overflow-y:auto">
+    <div style="width:36px;height:4px;border-radius:2px;background:#ddd;margin:0 auto 12px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:15px;font-weight:700;color:#1F2D3D">🔀 Ajouter une conversion de ${base.name}</span>
+      <span onclick="closeConvPicker()" style="cursor:pointer;font-size:18px;color:#999;padding:2px 6px">✕</span>
+    </div>
+    <div style="font-size:10.5px;color:#777;margin-bottom:12px">Clique un élément pour l'ajouter comme nouvelle colonne à côté des autres — tu peux en ajouter plusieurs à la suite.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      ${ELM_DEF.map(elm=>{
+        const vkey=convVirtualKey(baseKey,elm.key);
+        const added=state.selGames.includes(vkey);
+        return `<button onclick="addConvColumnFor('${baseKey}','${elm.key}')" style="padding:8px 14px;border-radius:14px;cursor:pointer;font-weight:700;font-size:12px;border:2px solid ${elm.bg};background:${added?elm.bg:'#fff'};color:${added?elm.fg:elm.bg};display:flex;align-items:center;gap:5px">${added?'✅':'🔀'} ${elm.label}</button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
 // Couleur de badge par colonne : reprend la palette par année en mode 'year' (comportement
 // historique), et retombe sur une couleur neutre mais distincte par mode pour 'range'/'week'
 // (qui n'ont pas d'année unique à colorer).
@@ -13438,6 +13526,7 @@ function __renderBody(){
                 <input type="number" min="1" max="53" value="${wk.to}" onchange="setMgWeekRange('${k}','to',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
                 <span style="font-size:8px;color:#888">(ttes années)</span>`:''}
               <button type="button" onclick="event.stopPropagation();addMgSlot('${k}')" title="Ajouter une autre colonne de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#fff;background:#2E7D32;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">➕</button>
+              ${convPickerBaseKey(k)?`<button type="button" onclick="event.stopPropagation();openConvPicker('${k}')" title="Ajouter une conversion (Counter, Bonanza, Code...) de ${GAMES[convPickerBaseKey(k)].name} comme nouvelle colonne" style="cursor:pointer;font-weight:700;color:#fff;background:#5B21B6;border:none;border-radius:11px;padding:2px 8px;font-size:10px;line-height:1.4;display:inline-flex;align-items:center;gap:2px">🔀+</button>`:''}
             </span>`;}).join('')}
           ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{
             const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
@@ -13814,6 +13903,7 @@ function __renderBody(){
   if(state.doublonsPanelOpen)html+=doublonsPanelHTML();
   if(state.coloringExportOpen)html+=coloringExportHTML();
   if(state.zoomSheetOpen)html+=zoomSheetHTML();
+  if(state.convPickerFor)html+=convPickerHTML();
   html+=`</div>`; // fin du wrapper app-content (zoomé) — les popups ci-dessous restent HORS zoom pour garder un positionnement fixe correct
   html+=`<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>
   <div id="popup" class="popup" style="display:none"></div>

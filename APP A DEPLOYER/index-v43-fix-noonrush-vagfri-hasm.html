@@ -8397,7 +8397,7 @@ function conversionFlatHTML(){
   let acc=0;
   const frozenLefts=frozenCols.map(c=>{const l=acc;acc+=c.w;return l;});
   const leftCols=(multi?1:0)+2;
-  return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} tirage${rows.length>1?'s':''} — 📋 Original figé à gauche, une seule fois par tirage, 🧩 chaque élément coché défile en parallèle — trié n°/année croissants${rows.length>400?` — <b style="color:#B45309">les 400 tirages les plus récents sont affichés</b> (sur ${rows.length}), affine la sélection pour voir les autres`:''}</div>
+  return `<div style="font-size:10px;color:#777;margin:8px 0 6px">${rows.length} tirage${rows.length>1?'s':''} — 📋 Original figé à gauche, une seule fois par tirage, 🧩 chaque élément coché défile en parallèle — trié n°/année croissants — <b style="color:#5B21B6">🖱️ clique un numéro pour le colorier/repérer/chercher</b>, comme n'importe quel tirage (le coloriage s'exporte aussi en Excel)${rows.length>400?` — <b style="color:#B45309">les 400 tirages les plus récents sont affichés</b> (sur ${rows.length}), affine la sélection pour voir les autres`:''}</div>
   <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
     <table class="excel-tbl" style="border-collapse:separate;border-spacing:0"><thead>
     <tr>
@@ -8419,14 +8419,14 @@ function conversionFlatHTML(){
       fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${bg};font-weight:600;font-size:9.5px;padding:4px;z-index:1">${r.t}</td>`);fi++;
       fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${bg};font-size:9.5px;padding:4px;white-space:nowrap;z-index:1">${r.dd}/${r.y}</td>`);fi++;
       if(showOrig){
-        r.origN.forEach(n=>{fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${oBg};color:#555;font-size:9.5px;padding:4px;z-index:1">${n}</td>`);fi++;});
+        r.origN.forEach(n=>{fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${oBg};font-size:9.5px;padding:4px;z-index:1">${numSpan(n,{fs:9.5})}</td>`);fi++;});
         fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:#DCE1EA;font-weight:700;font-size:9.5px;padding:4px;z-index:1">${r.origS}</td>`);fi++;
-        for(let i=0;i<maxBonus;i++){fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${oBg};color:#9333EA;font-size:9.5px;padding:4px;z-index:1">${r.origM&&r.origM[i]!=null?r.origM[i]:'·'}</td>`);fi++;}
+        for(let i=0;i<maxBonus;i++){fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${oBg};padding:4px;z-index:1">${r.origM&&r.origM[i]!=null?numSpan(r.origM[i],{fs:9.5,isM:true}):'<span style="color:#9333EA">·</span>'}</td>`);fi++;}
         if(maxBonus){fz.push(`<td style="position:sticky;left:${frozenLefts[fi]}px;width:${frozenCols[fi].w}px;background:${oTot!=null?'#D8CFF7':oBg};font-weight:700;font-size:9.5px;padding:4px;border-right:2px solid #16436B;z-index:1">${oTot!=null?oTot:'·'}</td>`);fi++;}
       }
       const elmCells=r.elmBlocks.map(eb=>{
         const bTot=eb.m?eb.m.reduce((a,b)=>a+(b||0),0):null;
-        return `${eb.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${n}</td>`).join('')}<td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${eb.s}</td>${Array.from({length:maxBonus},(_,i)=>`<td style="background:${bg};color:#6D28D9;font-weight:600;font-size:9.5px;padding:4px">${eb.m&&eb.m[i]!=null?eb.m[i]:'·'}</td>`).join('')}${maxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}`;
+        return `${eb.n.map(n=>`<td style="background:${bg};font-size:9.5px;padding:4px">${numSpan(n,{fs:9.5})}</td>`).join('')}<td style="background:#FFF3CD;font-weight:700;font-size:9.5px;padding:4px">${eb.s}</td>${Array.from({length:maxBonus},(_,i)=>`<td style="background:${bg};padding:4px">${eb.m&&eb.m[i]!=null?numSpan(eb.m[i],{fs:9.5,isM:true}):'<span style="color:#6D28D9">·</span>'}</td>`).join('')}${maxBonus?`<td style="background:${bTot!=null?'#EDE7FF':bg};font-weight:700;font-size:9.5px;padding:4px">${bTot!=null?bTot:'·'}</td>`:''}`;
       }).join('');
       return `<tr>${fz.join('')}${elmCells}</tr>`;
     }).join('')}
@@ -8441,20 +8441,30 @@ async function exportConversionFlatExcel(){
   const elmDefs=ELM_DEF.filter(d=>elms.includes(d.key));
   if(!elmDefs.length){alert('Coche au moins un élément avant d’exporter.');return;}
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.origM?r.origM.length:0),0);
+  // Coloriage manuel (state.colored[n], posé au clic sur un numéro dans le tableau à l'écran) —
+  // même logique que exportColoredExcel() : hlStyle() traduit {bg,fg,style} en fond+texte pour
+  // un remplissage Excel (seul le style "Fond" plein se traduit en remplissage ; les autres
+  // styles — encadré/souligné/texte/symbole — se traduisent au moins par la couleur du texte).
+  const mColor=n=>{
+    if(n==null)return{};
+    const c=state.colored[n];if(!c)return{};
+    const hs=hlStyle(c);if(!hs)return{};
+    return hs.mode==='fill'?{bg:hs.color,fg:hs.text}:{fg:hs.color};
+  };
   const columns=[
     ...(multi?[{header:'Jeu',get:r=>(r.gameIcon||'')+' '+(r.gameName||''),bg:'#EEEEEE'}]:[]),
     {header:'N°',get:r=>r.t},
     {header:'Date',get:r=>r.dd+'/'+r.y},
+    ...(showOrig?[0,1,2,3,4].map(i=>({header:'ORIGINAL N'+(i+1),get:r=>r.origN[i],bg:r=>mColor(r.origN[i]).bg||'#F5F7FB',fg:r=>mColor(r.origN[i]).fg})):[]),
     ...(showOrig?[
-      {header:'ORIGINAL N1',get:r=>r.origN[0],bg:'#F5F7FB'},{header:'ORIGINAL N2',get:r=>r.origN[1],bg:'#F5F7FB'},{header:'ORIGINAL N3',get:r=>r.origN[2],bg:'#F5F7FB'},{header:'ORIGINAL N4',get:r=>r.origN[3],bg:'#F5F7FB'},{header:'ORIGINAL N5',get:r=>r.origN[4],bg:'#F5F7FB'},
       {header:'ORIGINAL TOT',get:r=>r.origS,bg:'#E5E7EB'},
-      ...Array.from({length:maxBonus},(_,i)=>({header:'ORIGINAL M'+(i+1),get:r=>r.origM&&r.origM[i]!=null?r.origM[i]:'',fg:r=>r.origM&&r.origM[i]!=null?'#9333EA':null})),
+      ...Array.from({length:maxBonus},(_,i)=>({header:'ORIGINAL M'+(i+1),get:r=>r.origM&&r.origM[i]!=null?r.origM[i]:'',bg:r=>r.origM&&r.origM[i]!=null?mColor(r.origM[i]).bg:null,fg:r=>r.origM&&r.origM[i]!=null?(mColor(r.origM[i]).fg||'#9333EA'):null})),
       ...(maxBonus?[{header:'ORIGINAL TOT.M',get:r=>r.origM?r.origM.reduce((a,b)=>a+(b||0),0):'',bg:'#EDE9FE'}]:[]),
     ]:[]),
     ...elmDefs.flatMap((rd,idx)=>[
-      {header:rd.label+' N1',get:r=>r.elmBlocks[idx].n[0]},{header:rd.label+' N2',get:r=>r.elmBlocks[idx].n[1]},{header:rd.label+' N3',get:r=>r.elmBlocks[idx].n[2]},{header:rd.label+' N4',get:r=>r.elmBlocks[idx].n[3]},{header:rd.label+' N5',get:r=>r.elmBlocks[idx].n[4]},
+      ...[0,1,2,3,4].map(i=>({header:rd.label+' N'+(i+1),get:r=>r.elmBlocks[idx].n[i],bg:r=>mColor(r.elmBlocks[idx].n[i]).bg,fg:r=>mColor(r.elmBlocks[idx].n[i]).fg})),
       {header:rd.label+' TOT',get:r=>r.elmBlocks[idx].s,total:true},
-      ...Array.from({length:maxBonus},(_,i)=>({header:rd.label+' M'+(i+1),get:r=>r.elmBlocks[idx].m&&r.elmBlocks[idx].m[i]!=null?r.elmBlocks[idx].m[i]:'',fg:r=>r.elmBlocks[idx].m&&r.elmBlocks[idx].m[i]!=null?'#6D28D9':null})),
+      ...Array.from({length:maxBonus},(_,i)=>({header:rd.label+' M'+(i+1),get:r=>r.elmBlocks[idx].m&&r.elmBlocks[idx].m[i]!=null?r.elmBlocks[idx].m[i]:'',bg:r=>r.elmBlocks[idx].m&&r.elmBlocks[idx].m[i]!=null?mColor(r.elmBlocks[idx].m[i]).bg:null,fg:r=>r.elmBlocks[idx].m&&r.elmBlocks[idx].m[i]!=null?(mColor(r.elmBlocks[idx].m[i]).fg||'#6D28D9'):null})),
       ...(maxBonus?[{header:rd.label+' TOT.M',get:r=>r.elmBlocks[idx].m?r.elmBlocks[idx].m.reduce((a,b)=>a+(b||0),0):'',totalM:true}]:[]),
     ]),
   ];
@@ -13199,7 +13209,12 @@ function __renderBody(){
     return;
   }
   if(state.conversionOpen){
-    document.getElementById('app').innerHTML=conversionHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    // Le tableau plat de Conversion a des numéros cliquables/coloriables (numSpan) : il faut donc
+    // le même dispositif popup/menu que le rendu principal (absent par défaut sur cet écran "module").
+    document.getElementById('app').innerHTML=conversionHTML()+bottomNavHTML()+downloadAppButtonHTML()
+      +'<div id="popup-overlay" class="popup-overlay" style="display:none" onclick="closePopup()"></div>'
+      +'<div id="popup" class="popup" style="display:none"></div>'
+      +'<div id="nmenu" class="nmenu" style="display:none"></div>';
     applyTheme();
     return;
   }

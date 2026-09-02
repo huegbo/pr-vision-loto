@@ -8503,7 +8503,7 @@ function openConvVirtualGame(elmKey){
   if(!vkey)return;
   state.convReturnGame=GAME.key;
   state.conversionOpen=false;
-  state.tab=2; // onglet Analyses : c'est là que vivent la grille années + le coloriage (mode Excel)
+  state.tab=0; // onglet Navigation : grille années normale, numéros cliquables/coloriables comme n'importe quel jeu
   setGame(vkey);
 }
 function returnFromConvVirtual(){
@@ -9492,7 +9492,11 @@ function goNav(id){
   else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
-  else if(id==='conversion'){state.conversionOpen=!state.conversionOpen;state.showSearchHub=false;}
+  else if(id==='conversion'){
+    const opening=!state.conversionOpen;
+    state.conversionOpen=opening;state.showSearchHub=false;
+    if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
+  }
   else{state.tab=id;state.showSearchHub=false;}
   render();
 }

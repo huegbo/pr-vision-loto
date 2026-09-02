@@ -5060,7 +5060,7 @@ function exportSugCSV(){
   const modeLbl={equilibre:'Équilibré',chaud:'Chauds',retard:'Retards'}[state.sugMode]||state.sugMode;
   const rows=[['Jeu','Mode','Fenêtre','Numéros suggérés']];
   state.sugMultiRes.forEach(item=>rows.push([item.name,modeLbl,item.res.win,item.res.pick.map(x=>x.n).join(' ')]));
-  downloadCSV('suggestions_multi_jeux.csv',rows);
+  downloadCSVRows('suggestions_multi_jeux.csv',rows);
 }
 function suggestToQP(){
   if(!state.sugResult)return;
@@ -6257,7 +6257,13 @@ function setGameForSearch(key){
   if(state.comboRes){const nums=state.comboRes.nums||[];let rows=T.slice();if(nums.length)rows=rows.filter(r=>nums.every(n=>r.n.includes(n)||(r.m&&r.m.includes(n))));if(state.comboRes.tot!=null)rows=rows.filter(r=>r.s===state.comboRes.tot);state.comboRes={...state.comboRes,rows:rows.sort((a,b)=>b.t-a.t)};}
   render();
 }
-function downloadCSV(filename,rows){
+function downloadCSVRows(filename,rows){
+  // NOTE: nom distinct de downloadCSV(csv,filename) (d\u00e9finie plus bas, qui prend
+  // directement du texte CSV) \u2014 avant, les deux fonctions portaient le m\u00eame nom
+  // "downloadCSV" avec des ordres d'arguments oppos\u00e9s ; en JS, la 2e d\u00e9claration
+  // \u00e9crase silencieusement la 1re, donc les appels ci-dessous (qui passaient un
+  // tableau de lignes) ex\u00e9cutaient en fait l'autre fonction et produisaient un
+  // fichier/nom de fichier cass\u00e9. On les distingue maintenant clairement.
   const csv=rows.map(r=>r.map(c=>{const s=String(c==null?'':c);return /[",;\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(';')).join('\r\n');
   try{
     const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
@@ -6269,7 +6275,7 @@ function downloadCSV(filename,rows){
 function exportAllCSV(){
   const rows=[['Jeu','Tirage','Date','N1','N2','N3','N4','N5','Total']];
   T.forEach(r=>{const ns=r.n.slice(0,5);while(ns.length<5)ns.push('');rows.push([GAME.name,r.t,r.d||'',...ns,r.s!=null?r.s:r.n.reduce((a,b)=>a+b,0)]);});
-  downloadCSV(GAME.name+'_tirages.csv',rows);
+  downloadCSVRows(GAME.name+'_tirages.csv',rows);
 }
 async function exportCQCSV(){
   const res=state.cqRes;
@@ -10626,8 +10632,20 @@ function doColonneSearch(){
 function exportColonneSearch(){
   const rows=state.colMatches;
   if(!rows||!rows.length){alert('Aucun résultat à exporter');return;}
-  let csv=csvHeader()+'\n';
-  rows.forEach(r=>{csv+=rowToCSV(r)+'\n';});
+  const specific=state.colSpecific!==''?parseInt(state.colSpecific):null;
+  let csv=csvHeader()+';Colonne trouvée;Numéros de cette colonne\n';
+  rows.forEach(r=>{
+    const all=r.n.concat(r.m||[]);
+    const counts={};
+    all.forEach(v=>{const c=colonne(v);counts[c]=(counts[c]||0)+1;});
+    let bestC=specific;
+    if(bestC==null){
+      let bestCount=0;
+      Object.entries(counts).forEach(([c,ct])=>{if(ct>=state.colMin&&ct>bestCount){bestCount=ct;bestC=parseInt(c);}});
+    }
+    const hitNums=bestC!=null?all.filter(v=>colonne(v)===bestC):[];
+    csv+=rowToCSV(r)+';'+(bestC!=null?colonneLabel(bestC):'')+';'+hitNums.join(' ')+'\n';
+  });
   csv+='\nCritère;au moins '+state.colMin+' numéro(s) de la '+(state.colSpecific!==''?'colonne '+colonneLabel(parseInt(state.colSpecific)):'même colonne (n\'importe laquelle)')+';Tirages trouvés;'+rows.length+'\n';
   downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_memecolonne.csv');
 }

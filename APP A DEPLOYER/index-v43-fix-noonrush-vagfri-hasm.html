@@ -5817,7 +5817,7 @@ function cqMultiResultHTML(){
   const r=state.multiCqRes;
   if(!r)return'';
   const total=r.results.reduce((a,x)=>a+x.count,0);
-  return`<div style="margin-top:6px"><div style="font-size:10px;font-weight:500;color:#0891B2;margin-bottom:4px">Résultats "${r.query}" sur ${r.results.length} jeu(x) — ${total} au total</div>
+  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:10px;font-weight:500;color:#0891B2">Résultats "${r.query}" sur ${r.results.length} jeu(x) — ${total} au total</span>${total?`<button id="export-cqmulti-btn" onclick="exportCQMultiExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button>`:''}</div>
     <div style="display:flex;flex-direction:column;gap:3px;max-height:280px;overflow-y:auto">
     ${r.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#F0FDFA':'#fafafa'}">
       <div style="display:flex;align-items:center;justify-content:space-between">
@@ -5920,12 +5920,45 @@ function doFormula(){
   saveHist({type:'formula',game:GAME.key,gameName:GAME.name,expr,terms:state.formTerms});
   render();
 }
+async function exportFormExcel(){
+  const r=state.formRes;
+  if(!r||!r.matches||!r.matches.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-form-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Suite par formule');
+    ws.addRow(['Filtre : Suite par formule — f(n)='+r.expr+' — '+r.terms.length+' termes: '+r.terms.map(t=>t.v).join(', ')]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Fenêtre','Terme','Tirage N°'];
+    ws.addRow(header).font={bold:true};
+    r.matches.forEach((m,mi)=>{
+      m.placement.forEach(p=>{
+        ws.addRow(['Tirages '+m.window.join(' → '),p.v,p.tirage]);
+      });
+      ws.addRow([]);
+    });
+    ws.columns.forEach(c=>{c.width=16;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_suite_formule.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 function formResultHTML(){
   const r=state.formRes;if(!r)return'';
   if(r.error)return`<div style="margin-top:6px;color:#C62828;font-size:10px;font-weight:500">⚠️ ${r.error}</div>`;
   let h=`<div style="margin-top:6px"><div style="font-size:10px;color:#7C3AED;margin-bottom:3px"><b>Suite:</b> ${r.terms.map(t=>t.v).join(', ')} <span style="color:#999">(${r.terms.length} termes de ${r.expr})</span></div>`;
   if(!r.matches.length){h+=`<div style="font-size:10px;color:#999">Aucune fenêtre de tirages ne contient toute la suite</div></div>`;return h;}
-  h+=`<div style="font-size:10px;font-weight:500;color:#7C3AED;margin-bottom:3px">${r.matches.length} fenêtre(s) trouvée(s)</div>
+  h+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;font-weight:500;color:#7C3AED">${r.matches.length} fenêtre(s) trouvée(s)</span><button id="export-form-btn" onclick="exportFormExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="display:flex;flex-direction:column;gap:4px;max-height:240px;overflow-y:auto">
     ${r.matches.slice(0,25).map(m=>`<div style="border:1px solid #EDE9FE;border-radius:6px;padding:4px 6px;background:#FaF8FF">
       <div style="font-size:9px;font-weight:500;color:#7C3AED;margin-bottom:2px">Tirages ${m.window.join(' → ')}</div>
@@ -6306,6 +6339,50 @@ async function exportCQCSV(){
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_recherche.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
+async function exportCQMultiExcel(){
+  const r=state.multiCqRes;
+  if(!r||!r.results||!r.results.some(x=>x.count)){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-cqmulti-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Requête (multi-jeux)');
+    ws.addRow(['Filtre : Cybetcast Query — "'+r.query+'" — '+r.results.length+' jeu(x)']).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Jeu','Chaîne','Tirage','Date','Année','N1','N2','N3','N4','N5','Total'];
+    ws.addRow(header).font={bold:true};
+    r.results.forEach(res=>{
+      if(!res.count||!res.rows)return;
+      const gd=gameData(res.game);
+      res.rows.forEach((chain,ci)=>{
+        chain.forEach(idx=>{
+          const rr=gd.T[idx];
+          if(!rr)return;
+          const tot=rr.s!=null?rr.s:rr.n.reduce((a,b)=>a+b,0);
+          const vals=[res.gameName,ci+1,rr.t,rr.d||'',rr.y||'',...rr.n.slice(0,5),tot];
+          const row=ws.addRow(vals);
+          const tc=tC(tot);
+          const totCell=row.getCell(header.length);
+          totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+          totCell.font={color:{argb:hexToARGB(tc[1])},bold:true};
+        });
+      });
+    });
+    ws.columns.forEach(c=>{c.width=10;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='multi_jeux_recherche.xlsx';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
   }catch(err){
@@ -7700,6 +7777,52 @@ function vtotdWeekAutoRows(){
   out.sort((a,b)=>a.gap-b.gap);
   return out;
 }
+async function exportVtotdWeekExcel(){
+  const mode=state.vtotdWeekMode||'last3';
+  const auto=!!state.vtotdWeekAuto;
+  const allRows=auto?vtotdWeekAutoRows():vtotdWeekRows();
+  if(!allRows||!allRows.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-vtotdweek-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Semaine qui matche');
+    const refLab=mode==='last1'?'le dernier tirage':mode==='pick'?('le tirage N°'+state.vtotdWeekPick):'les 3 derniers tirages';
+    const ecartLab=auto?'tous écarts balayés':`écart ${state.vtotdGap||1}`;
+    ws.addRow(['Filtre : Semaine qui matche (même position) — '+refLab+' — '+ecartLab]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=auto?['Tirage réf.','Date','Écart','Colonne','Positions','Voisin','Date voisin','Semaine du voisin','Valeur']:['Tirage réf.','Date','Colonne','Positions','Voisin','Date voisin','Semaine du voisin','Valeur'];
+    ws.addRow(header).font={bold:true};
+    const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    allRows.forEach(x=>{
+      const colLab=x.colKey==='m'?'Machine':x.colKey==='mix'?'Mixte':'Gagnants';
+      const posLab=x.posALab+' ↔ '+x.posBLab;
+      const vals=auto?[x.r.t,x.r.d+'/'+x.r.y,x.gap,colLab,posLab,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.week.label,x.val]:[x.r.t,x.r.d+'/'+x.r.y,colLab,posLab,x.voisin.t,x.voisin.d+'/'+x.voisin.y,x.week.label,x.val];
+      const row=ws.addRow(vals);
+      if(last3Ids.has(x.r.t)||last3Ids.has(x.voisin.t)){
+        for(let ci=1;ci<=header.length;ci++)row.getCell(ci).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};
+        row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};
+      }
+      const weekCell=row.getCell(header.length-1);
+      weekCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};
+      weekCell.font={bold:true};
+      row.getCell(header.length).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=13;});
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_semaine_qui_matche.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 function vtotdWeekHTML(){
   if(!state.vtotdWeekOn)return '';
   const mode=state.vtotdWeekMode||'last3';
@@ -7712,7 +7835,10 @@ function vtotdWeekHTML(){
   const ecartLab=auto?'tous écarts balayés':`écart ${state.vtotdGap||1}`;
   if(!allRows.length)return `<div style="margin-top:6px;padding:6px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune semaine ne matche avec ${refLab} (${ecartLab}, même position).</div>`;
   return `<div style="margin-top:6px">
-    <div style="font-size:10px;font-weight:600;color:#7C2D12;margin-bottom:4px">🗓️ ${allRows.length} match${allRows.length>1?'s':''} de semaine avec ${refLab} (${ecartLab})${allRows.length>MAX?` — les ${MAX} premiers (écart le plus petit d'abord)`:''}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+      <div style="font-size:10px;font-weight:600;color:#7C2D12">🗓️ ${allRows.length} match${allRows.length>1?'s':''} de semaine avec ${refLab} (${ecartLab})${allRows.length>MAX?` — les ${MAX} premiers (écart le plus petit d'abord)`:''}</div>
+      <button id="export-vtotdweek-btn" onclick="exportVtotdWeekExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button>
+    </div>
     <div style="max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:8px">
     <table class="excel-tbl" style="width:100%"><thead><tr>
       ${(auto?['Tirage réf.','Date','Écart','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur']:['Tirage réf.','Date','Colonne','Positions','↔ Voisin','Date voisin','Semaine du voisin','Valeur']).map(h=>`<th style="position:sticky;top:0;background:#9A3412;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}

@@ -13773,11 +13773,12 @@ function __renderBody(){
             html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;
             const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // le temps d'un colonne : bascule T/IDX sur les données du bon jeu pour que miroir/superposition portent sur SES tirages
             const _mk=anMark(row,_mgCtx);
+            const _bmk=row.m?anMarkBonus(row,_mgCtx):null;
             T=_T0;IDX=_IDX0;
             row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
             html+=g.xtra?`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
-              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
+              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
               if(g.xtra){
                 html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
               }else{

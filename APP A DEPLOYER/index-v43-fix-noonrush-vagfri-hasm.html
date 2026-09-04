@@ -12957,9 +12957,9 @@ function anMark(row,ctx){
   }
   return out;
 }
-// Marquage "Miroir même ligne / superposé" pour les numéros complémentaires (bonus, N6-N10).
+// Marquage "Miroir même ligne / superposé / Superposition" pour les numéros complémentaires (bonus, N6-N10).
 // Même principe que les couches "toujours actives" de anMark(), mais pour row.m — comble le
-// trou où un miroir entièrement situé côté bonus (ex: 78/87) n'était jamais comparé.
+// trou où un miroir ou une superposition entièrement situé côté bonus (ex: 78/87) n'était jamais comparé.
 function anMarkBonus(row,ctx){
   if(!row.m)return null;
   const out=[null,null,null,null,null];
@@ -12974,11 +12974,14 @@ function anMarkBonus(row,ctx){
     const hits=decompEchoHits(row);
     row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[col,De.fg];});
   }
-  if(!state.mirLAlways&&!state.mirPAlways)return out;
+  if(!state.mirLAlways&&!state.mirPAlways&&!state.superposAlways)return out;
   const gi=IDX[row.t];
   const mgap=Math.max(1,state.mirPGap||1);
   const prevR=(gi!=null&&gi+mgap<T.length)?T[gi+mgap]:null;
   const nextR=(gi!=null&&gi-mgap>=0)?T[gi-mgap]:null;
+  const sgap=Math.max(1,state.supGap||1);
+  const olderR=(gi!=null&&gi+sgap<T.length)?T[gi+sgap]:null;
+  const newerR=(gi!=null&&gi-sgap>=0)?T[gi-sgap]:null;
   if(state.mirLAlways){
     const _col=state.mirLColor||'#AB47BC';
     row.m.forEach((n,i)=>{
@@ -12993,6 +12996,15 @@ function anMarkBonus(row,ctx){
       const pv=prevR&&prevR.m?prevR.m[i]:null;
       const nv=nextR&&nextR.m?nextR.m[i]:null;
       if(MIR[n]&&((pv===MIR[n])||(nv===MIR[n])))out[i]=[_col,'#fff',state.mirPStyle];
+    });
+  }
+  if(state.superposAlways){
+    const _col=state.superposColor||'#AB47BC';
+    row.m.forEach((n,i)=>{
+      if(out[i]||isNaN(n))return;
+      const ov=olderR&&olderR.m?olderR.m[i]:null;
+      const nv=newerR&&newerR.m?newerR.m[i]:null;
+      if((ov===n)||(nv===n))out[i]=[_col,'#fff',state.superposStyle];
     });
   }
   return out;

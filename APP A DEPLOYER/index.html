@@ -3421,6 +3421,32 @@ function remainingWeeklyDraws(yr){
   }
   return out;
 }
+// Variante « Comparer plusieurs lotos » des prévisions : contrairement à remainingWeeklyDraws()
+// (qui se fie à la propriété statique GAME.day, ex. "Mercredi 13h" — parfois obsolète si le jour
+// de tirage a changé, cf. BENZ passé au samedi), on déduit l'écart réel entre les 2 derniers
+// tirages RÉELS du jeu (jours calendaires), et on prolonge cet écart. Le nombre de lignes à
+// générer n'est PAS deviné (on ne sait pas ce qui se passera après la fin d'année) : il est
+// choisi explicitement par l'utilisateur (state.mgPredCount[colId], réglable dans l'en-tête).
+function remainingWeeklyDrawsFor(gd,count){
+  if(!count||count<1)return [];
+  const rows=gd.T; // tri décroissant : rows[0] = tirage le plus récent
+  if(!rows||rows.length<2)return [];
+  const last=rows[0],prev=rows[1];
+  const [ld,lm]=last.d.split('/').map(Number);
+  const [pd,pm]=prev.d.split('/').map(Number);
+  const lastDate=new Date(+last.y,lm-1,ld);
+  const prevDate=new Date(+prev.y,pm-1,pd);
+  let gapDays=Math.round((lastDate-prevDate)/86400000);
+  if(!gapDays||gapDays<1)gapDays=7; // filet de sécurité si les 2 dernières dates sont identiques/incohérentes
+  const out=[];
+  let cur=new Date(lastDate),t=last.t+1;
+  for(let i=0;i<count;i++){
+    cur=new Date(cur.getTime()+gapDays*86400000);
+    out.push({t,d:String(cur.getDate()).padStart(2,'0')+'/'+String(cur.getMonth()+1).padStart(2,'0')});
+    t++;
+  }
+  return out;
+}
 // Lignes vides du 1er janvier jusqu'au premier tirage réel de l'année
 // (pour un jeu qui a débuté en cours d'année, ex: CASH dont l'historique commence en juillet 2023)
 function precedingWeeklyPlaceholders(yr){
@@ -3601,7 +3627,7 @@ let state={
   multiClassifType:'counter', // classification choisie pour la détection croisée entre jeux (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir)
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
-  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[],
+  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgPredCount:{},
   // nav
   selYears:YEARS.slice(0,4), showAllYears:false,
   searchInput:'', search:[], pin:null, sync:false, freezeCol:false, excelMode:false, excelTextSize:(localStorage.getItem('excelTextSize')||'normal'),
@@ -13802,7 +13828,7 @@ function __renderBody(){
           const colLbl=mgColLabel(col);
           const _T0g=T,_IDX0g=IDX;T=gd.T;IDX=gd.IDX; // bascule T/IDX sur les données de CE jeu pour toute la colonne
           html+=`<div class="col ${g.hasM?'has-m':''}" style="border-color:#${color};${g.hasM?'min-width:385px;max-width:400px;':''}">
-            <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${colLbl} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages</div></div>
+            <div class="col-hdr" style="background:#${color};color:${light?'#000':'#fff'}">${g.icon} ${g.name} ${colLbl} ${g.hasM?'<span style="background:#FF6B35;color:#fff;font-size:7px;padding:1px 4px;border-radius:8px;margin-left:4px">10 N°</span>':''}<span onclick="setAnchorG('${key}')" style="background:${getAnchorG(key)?'#EA580C':'rgba(255,255,255,.25)'};color:#fff;font-size:7px;padding:1px 5px;border-radius:8px;margin-left:4px;cursor:pointer" title="${getAnchorG(key)?'Ancre sur le tirage '+getAnchorG(key):"Poser une ancre d'alignement"}">⚓${getAnchorG(key)?' '+getAnchorG(key):''}</span><div style="font-size:8px;font-weight:normal;opacity:.8">${rows.length} tirages${col.mode==='year'&&String(col.year)===String(new Date().getFullYear())?`<span style="margin-left:6px;opacity:1">🔮<input type="number" min="0" max="30" value="${state.mgPredCount&&state.mgPredCount[colId]||0}" onclick="event.stopPropagation()" onchange="state.mgPredCount=state.mgPredCount||{};state.mgPredCount['${colId}']=Math.max(0,Math.min(30,parseInt(this.value)||0));render()" style="width:28px;padding:0 2px;font-size:8px;border-radius:3px;border:1px solid rgba(255,255,255,.5);background:rgba(255,255,255,.2);color:inherit;margin-left:2px" title="Nombre de lignes de prévisions à ajouter en bas (l'écart entre tirages est déduit des 2 derniers tirages réels, pas deviné au-delà)"></span>`:''}</div></div>
             <div class="${g.hasM?'grid-hdr-m':'grid-hdr'}">${['N°','DATE','N1','N2','N3','N4','N5',(g.xtra?'X1':'TOT'),...(g.hasM?(g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(g.hasM?[g.xtra?'X2':'TOT.M']:[])].map(h=>`<div>${h}</div>`).join('')}</div>
             <div class="col-body" id="col-${colId}" onscroll="syncScroll('${colId}')" onwheel="stepWheel(event,'${colId}')" ontouchstart="touchStepStart(event,'${colId}')" ontouchmove="touchStepMove(event,'${colId}')" ontouchend="touchStepEnd('${colId}')" ontouchcancel="touchStepEnd('${colId}')">
               ${rows.length?rows.map((row,ri)=>{
@@ -13818,6 +13844,21 @@ function __renderBody(){
                   ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
                 </div>`;
               }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${colLbl} pour ce jeu</div>`}
+              ${col.mode==='year'&&String(col.year)===String(new Date().getFullYear())?remainingWeeklyDrawsFor(gd,state.mgPredCount&&state.mgPredCount[colId]||0).map(ph=>{
+                const preds=loadPredictions(key);
+                const pv=preds[ph.t]||{};
+                const vals=[0,1,2,3,4].map(ni=>pv[ni]!=null?pv[ni]:'');
+                const allFilled=vals.every(v=>v!=='');
+                const predTot=allFilled?vals.reduce((a,b)=>a+parseInt(b),0):null;
+                return`<div class="${g.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Numéros prédits — n'affecte pas les statistiques">
+                  <div style="font-weight:500;color:#bbb;font-size:8px">${ph.t}</div>
+                  <div style="font-size:8px;color:#bbb">${ph.d}</div>
+                  ${[0,1,2,3,4].map(ni=>`<input type="number" min="1" max="90" value="${vals[ni]}" onchange="savePredictionCell('${key}',${ph.t},${ni},this.value);render()" style="width:100%;min-width:0;max-width:26px;padding:1px;border:1px dashed #B39DDB;border-radius:3px;font-size:8px;text-align:center;background:#fff;color:#6D28D9">`).join('')}
+                  <div style="font-size:8px;color:${predTot!=null?'#6D28D9':'#ccc'};font-weight:${predTot!=null?'700':'400'}">${predTot!=null?predTot:'·'}</div>
+                  ${g.hasM?[0,1,2,3,4].map(()=>'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
+                  ${g.hasM?'<div style="color:#ccc;font-size:8px">·</div>':''}
+                </div>`;
+              }).join(''):''}
             </div>
           </div>`;
           T=_T0g;IDX=_IDX0g; // restaure T/IDX globaux pour ne pas perturber le reste du rendu

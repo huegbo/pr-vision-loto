@@ -6520,10 +6520,11 @@ function exportMgColumnsPDF(){
     let blocks='';
     cols.forEach(c=>{
       const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
-      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?['M1','M2','M3','M4','M5',(c.g.xtra?'X2':'TOT.M')]:[])];
+      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TOT.M']:[])];
       let rowsHtml='';
       c.rows.forEach(r=>{
         const mk=anMark(r,ctx);
+        const bmk=r.m?anMarkBonus(r,ctx):null;
         rowsHtml+=`<tr><td class="idc">${r.t}</td><td class="idc">${r.d}</td>`;
         r.n.forEach((v,ni)=>{
           const cid=c.key+'_'+r.t+'_'+ni;
@@ -6551,7 +6552,30 @@ function exportMgColumnsPDF(){
         if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[0]:'·'}</td>`;}
         else{const tc=tC(r.s);rowsHtml+=`<td class="tot" style="background:${tc[0]};color:${tc[1]}">${r.s}</td>`;}
         if(c.g.hasM){
-          (r.m||[]).forEach(v=>{rowsHtml+=`<td>${isNaN(v)?'·':v}</td>`;});
+          (r.m||[]).forEach((v,mi)=>{
+            if(isNaN(v)){rowsHtml+=`<td>·</td>`;return;}
+            const cid=c.key+'_'+r.t+'_m'+mi;
+            const manual=state.coloredCells[cid]||state.colored[v];
+            const repC=ctx.repereMarks&&ctx.repereMarks[v]?ctx.repereMarks[v]:null;
+            const rep2C=!repC&&ctx.repere2Marks&&ctx.repere2Marks[v]?ctx.repere2Marks[v]:null;
+            let hs=null;
+            if(manual)hs=hlStyle(manual);
+            else if(repC)hs=hlStyle(repC);
+            else if(rep2C)hs=hlStyle(rep2C);
+            else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
+            let sty='',symHtml='';
+            if(hs){
+              if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
+              else if(hs.mode==='box')sty=`border:${_pdfBw}px solid ${hs.color};color:${hs.text};background:#fff`;
+              else if(hs.mode==='underline')sty=`border-bottom:${_pdfBw}px solid ${hs.color};color:${hs.color};background:transparent`;
+              else if(hs.mode==='text')sty=`color:${hs.color};background:transparent`;
+              else if(hs.mode==='sym'){sty=`color:${hs.text};background:transparent`;symHtml=`<span style="color:${hs.color};font-weight:700;margin-left:1px">${hs.sym}</span>`;}
+            }
+            const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
+            const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
+            const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
+            rowsHtml+=`<td><span class="num" style="${sty}">${v}${clLbl?`<sub style="font-size:6px;font-weight:700;margin-left:2px;display:inline-block;vertical-align:middle;writing-mode:vertical-rl;text-orientation:upright;line-height:1;letter-spacing:-1.5px">${clLbl}</sub>`:''}${symHtml}</span></td>`;
+          });
           if(c.g.xtra){rowsHtml+=`<td class="tot">${r.x?r.x[1]:'·'}</td>`;}
           else{const validM=(r.m||[]).filter(v=>!isNaN(v));const ms=validM.length?validM.reduce((a,b)=>a+b,0):null;const mc=ms!=null?tC(ms):null;rowsHtml+=`<td class="tot" style="${mc?`background:${mc[0]};color:${mc[1]}`:''}">${ms!=null?ms:'·'}</td>`;}
         }
@@ -6645,7 +6669,7 @@ async function exportMgColumnsExcel(){
       tCell.value=c.g.icon+' '+c.g.name+' '+c.label;
       tCell.font={bold:true};
       ws.mergeCells(titleRow.number,startCol,titleRow.number,startCol+blockCols-1);
-      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?['M1','M2','M3','M4','M5',(c.g.xtra?'X2':'TOT.M')]:[])];
+      const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TOT.M']:[])];
       heads.forEach((h,hi)=>{const hc=headerRow.getCell(startCol+hi);hc.value=h;hc.font={bold:true};});
     });
 
@@ -6657,6 +6681,7 @@ async function exportMgColumnsExcel(){
         if(!r)return;
         const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // mode par défaut calculé sur les données DE CE jeu
         const mk=anMark(r,ctx);
+        const bmk=r.m?anMarkBonus(r,ctx):null;
         T=_T0;IDX=_IDX0;
         row.getCell(startCol).value=r.t;
         row.getCell(startCol+1).value=r.d;
@@ -6705,7 +6730,40 @@ async function exportMgColumnsExcel(){
         if(c.g.hasM&&r.m){
           r.m.forEach((v,mi)=>{
             if(isNaN(v))return;
-            const cell=row.getCell(startCol+8+mi);cell.value=v;
+            const cell=row.getCell(startCol+8+mi);
+            const cid=c.key+'_'+r.t+'_m'+mi;
+            const manual=state.coloredCells[cid]||state.colored[v];
+            const repC=ctx.repereMarks&&ctx.repereMarks[v]?ctx.repereMarks[v]:null;
+            const rep2C=!repC&&ctx.repere2Marks&&ctx.repere2Marks[v]?ctx.repere2Marks[v]:null;
+            let hs=null;
+            if(manual)hs=hlStyle(manual);
+            else if(repC)hs=hlStyle(repC);
+            else if(rep2C)hs=hlStyle(rep2C);
+            else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
+            const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
+            const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
+            const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
+            const txtColor=hs?hs.text:'#1a1a1a';
+            const runs=[{text:String(v),font:{bold:true,color:{argb:hexToARGB(txtColor)}}}];
+            if(clLbl)runs.push({text:' '+clLbl,font:{size:7,color:{argb:hexToARGB(txtColor)},vertAlign:'subscript'}});
+            if(hs&&hs.mode==='sym')runs.push({text:' '+hs.sym,font:{bold:true,color:{argb:hexToARGB(hs.color)}}});
+            cell.value=(clLbl||(hs&&hs.mode==='sym'))?{richText:runs}:v;
+            if(hs){
+              const bStyle={style:state.mgBorderStyle||'medium',color:{argb:hexToARGB(hs.color)}};
+              if(hs.mode==='fill'){
+                cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(hs.color)}};
+                if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+              }else if(hs.mode==='box'){
+                if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+                cell.border={top:bStyle,bottom:bStyle,left:bStyle,right:bStyle};
+              }else if(hs.mode==='underline'){
+                if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true,underline:true};
+                else cell.font={underline:true};
+                cell.border={bottom:bStyle};
+              }else if(hs.mode==='text'||hs.mode==='sym'){
+                if(!clLbl)cell.font={color:{argb:hexToARGB(hs.text)},bold:true};
+              }
+            }
           });
           const lastCell=row.getCell(startCol+13);
           if(c.g.xtra){lastCell.value=r.x?r.x[1]:null;}

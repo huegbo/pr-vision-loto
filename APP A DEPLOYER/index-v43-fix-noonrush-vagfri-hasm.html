@@ -3889,6 +3889,9 @@ function clearAllColorsEverywhere(){
   state.mirLAlways=true;  // rétablit le mode par défaut : Miroir même ligne actif
   state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
   state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
+  state.repMultAlways=true; // rétablit le mode par défaut : Répétés (2+) après X tirages actif
+  state.elmDupAlways=true; // rétablit le mode par défaut : Même élément (2+) actif
+  state.alignAlways=true; // rétablit le mode par défaut : Alignement (même écart) actif
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
 }
 // ══════ Mode vierge — état totalement vide, SANS repère, aucun numéro coloré, MÊME les
@@ -3900,6 +3903,9 @@ function clearAllColorsBlank(){
   state.mirLAlways=false;  // éteint Miroir même ligne
   state.mirPAlways=false;  // éteint Miroir superposé
   state.superposAlways=false; // éteint Mêmes numéros superposés
+  state.repMultAlways=false; // éteint Répétés (2+) après X tirages
+  state.elmDupAlways=false; // éteint Même élément (2+)
+  state.alignAlways=false; // éteint Alignement (même écart)
 }
 // ══════ Réinitialiser à l'état par défaut — remise à zéro complète, différent de "Tout annuler" ══════
 // "Tout annuler" (clearAllColorsEverywhere) n'efface que couleurs/repères/blocs + remet Miroir/Superposition par défaut.
@@ -9812,13 +9818,13 @@ function fabGo(action){
   else if(action==='repere2_global'){openRepere2Global();return;}
   else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
-    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition restent actifs (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
+    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé, Superposition, Répétés (2+), Même élément (2+) et Alignement restent actifs (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
       clearAllColorsEverywhere();
     }
     render();return;
   }
   else if(action==='clear_all_blank'){
-    if(confirm("Mode vierge : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition sont aussi ÉTEINTS (état totalement vide, aucun numéro coloré).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
+    if(confirm("Mode vierge : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé, Superposition, Répétés (2+), Même élément (2+) et Alignement sont aussi ÉTEINTS (état totalement vide, aucun numéro coloré).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
       clearAllColorsBlank();
     }
     render();return;

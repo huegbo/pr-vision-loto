@@ -12215,16 +12215,27 @@ function resetMgYears(){state.mgYears={};render();}
 function mgModeOf(k){return (state.mgModes||{})[k]||'year';}
 function setMgMode(k,v){state.mgModes=state.mgModes||{};state.mgModes[k]=v;render();}
 function mgRangeOf(k){
-  const r=(state.mgRanges||{})[k];
-  if(r)return r;
   const T=gameData(k).T; // T[0]=le plus récent (t max), T[T.length-1]=le plus ancien (t min)
   const hi=T[0]?T[0].t:1,lo=T[T.length-1]?T[T.length-1].t:1;
-  return {from:lo,to:hi};
+  const r=(state.mgRanges||{})[k];
+  if(!r)return {from:lo,to:hi};
+  // Reclampe aussi une valeur déjà enregistrée (ex: session précédente avec une frappe
+  // accidentelle du type "200223") pour ne pas rester bloqué avec une plage géante.
+  const clamp=n=>Math.max(lo,Math.min(hi,n));
+  return {from:clamp(r.from),to:clamp(r.to)};
 }
 function setMgRange(k,field,v){
   state.mgRanges=state.mgRanges||{};
   const cur=mgRangeOf(k);
-  const n=parseInt(v);
+  let n=parseInt(v);
+  // Plafonne à l'étendue réelle des tirages existants du jeu : une frappe accidentelle
+  // (ex: "200223" au lieu de "200") produisait sinon une plage géante et donc un
+  // affichage qui semblait partir de la fin au lieu du début choisi (bug signalé).
+  if(!isNaN(n)){
+    const T=gameData(k).T;
+    const hiReal=T[0]?T[0].t:n,loReal=T[T.length-1]?T[T.length-1].t:n;
+    n=Math.max(loReal,Math.min(hiReal,n));
+  }
   state.mgRanges[k]={...cur,[field]:isNaN(n)?cur[field]:n};
   render();
 }
@@ -13727,9 +13738,9 @@ function __renderBody(){
               ${mode==='year'?`<select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
                 ${ys.length?ys.map(o=>`<option value="${o}" ${o===y?'selected':''}>${o}</option>`).join(''):`<option>${y}</option>`}
               </select>`:''}
-              ${mode==='range'?`<input type="number" value="${rg.from}" onchange="setMgRange('${k}','from',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
+              ${mode==='range'?`<input type="number" value="${rg.from}" onchange="setMgRange('${k}','from',this.value)" title="${rg.from}" style="width:60px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
                 <span style="font-size:9px;color:#888">à</span>
-                <input type="number" value="${rg.to}" onchange="setMgRange('${k}','to',this.value)" style="width:44px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">`:''}
+                <input type="number" value="${rg.to}" onchange="setMgRange('${k}','to',this.value)" title="${rg.to}" style="width:60px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">`:''}
               ${mode==='week'?`<input type="number" min="1" max="53" value="${wk.from}" onchange="setMgWeekRange('${k}','from',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
                 <span style="font-size:9px;color:#888">à</span>
                 <input type="number" min="1" max="53" value="${wk.to}" onchange="setMgWeekRange('${k}','to',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">

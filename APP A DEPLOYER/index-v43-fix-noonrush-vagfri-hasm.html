@@ -3738,6 +3738,23 @@ let state={
   mirLStyle:localStorage.getItem('mirLStyle')||'',
   mirPStyle:localStorage.getItem('mirPStyle')||'',
   superposStyle:localStorage.getItem('superposStyle')||'',
+  // ── 3 nouvelles couches "toujours actives" (même principe que Miroir/Superposition) ──
+  // repMult : 2 numéros ou plus communs entre ce tirage et celui situé à repMultGap tirages
+  // d'écart (avant OU après, réglable — 1 = tirage suivant/précédent, comme dans l'exemple
+  // 85/52 répétés entre 2 tirages consécutifs ; augmenter le réglage pour "après X tirages").
+  repMultAlways:true, repMultGap:1,
+  repMultColor:localStorage.getItem('repMultColor')||'#D32F2F',
+  repMultStyle:localStorage.getItem('repMultStyle')||'',
+  // elmDup : 2 numéros ou plus du MÊME tirage qui partagent la même étiquette de classification
+  // /repère (ex: deux numéros tous deux "C:17") — cf. repereClassLabel().
+  elmDupAlways:true,
+  elmDupColor:localStorage.getItem('elmDupColor')||'#2E7D32',
+  elmDupStyle:localStorage.getItem('elmDupStyle')||'',
+  // align : 2 numéros ou plus du MÊME tirage impliqués dans au moins 2 paires ayant le même
+  // écart (différence absolue) — ex: 12-17 et 45-50 ont tous deux un écart de 5 ("alignement").
+  alignAlways:true,
+  alignColor:localStorage.getItem('alignColor')||'#F57C00',
+  alignStyle:localStorage.getItem('alignStyle')||'',
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
   // saisie de tirages
@@ -6589,6 +6606,9 @@ function exportMgColumnsPDF(){
     if(state.mirLAlways&&(!D||D.key!=='mirL'))label+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))label+=' + Miroir superposé';
     if(state.superposAlways&&(!D||D.key!=='superpos'))label+=' + Mêmes numéros superposés';
+    if(state.repMultAlways)label+=' + Répétés (2+)';
+    if(state.elmDupAlways)label+=' + Même élément (2+)';
+    if(state.alignAlways)label+=' + Alignement';
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comparaison lotos</title><style>
       @page{size:landscape;margin:10mm}
       body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px}
@@ -6650,6 +6670,9 @@ async function exportMgColumnsExcel(){
     if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';
     if(state.superposAlways&&(!D||D.key!=='superpos'))exportLabel+=' + Mêmes numéros superposés';
+    if(state.repMultAlways)exportLabel+=' + Répétés (2+)';
+    if(state.elmDupAlways)exportLabel+=' + Même élément (2+)';
+    if(state.alignAlways)exportLabel+=' + Alignement';
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
 
     const wb=new ExcelJS.Workbook();
@@ -6827,6 +6850,9 @@ async function exportColoredExcel(){
     if(state.mirLAlways&&(!D||D.key!=='mirL'))exportLabel+=' + Miroir même ligne';
     if(state.mirPAlways&&(!D||D.key!=='mirP'))exportLabel+=' + Miroir superposé';
     if(state.superposAlways&&(!D||D.key!=='superpos'))exportLabel+=' + Mêmes numéros superposés';
+    if(state.repMultAlways)exportLabel+=' + Répétés (2+)';
+    if(state.elmDupAlways)exportLabel+=' + Même élément (2+)';
+    if(state.alignAlways)exportLabel+=' + Alignement';
     if(state.elmHL&&state.elmHL.length)exportLabel+=' + Éléments ('+state.elmHL.map(k=>{const c=ELM_DEF.find(x=>x.key===k);return c?c.label:k;}).join(', ')+(state.elmHLMode==='superpose'?' superposés':' même ligne')+')';
     const sanitizeSheet=s=>s.replace(/[*?:\\/\[\]]/g,'-').slice(0,31);
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
@@ -13050,6 +13076,61 @@ function anMark(row,ctx){
       });
     });
   }
+  // Filtre "répétition multiple" : marque les numéros que CE tirage partage avec le tirage
+  // situé à repMultGap tirages d'écart (avant OU après), uniquement si 2 numéros ou plus sont
+  // communs aux deux tirages (repère les couples/trios qui reviennent, pas un numéro isolé).
+  if(state.repMultAlways){
+    const gi2=IDX[row.t];
+    const rgap=Math.max(1,state.repMultGap||1);
+    const rPrev=(gi2!=null&&gi2+rgap<T.length)?T[gi2+rgap]:null;
+    const rNext=(gi2!=null&&gi2-rgap>=0)?T[gi2-rgap]:null;
+    const _colR=state.repMultColor||'#D32F2F';
+    [rPrev,rNext].forEach(other=>{
+      if(!other)return;
+      const shared=row.n.filter(n=>other.n.includes(n));
+      if(shared.length>=2){
+        row.n.forEach((n,i)=>{
+          if(out[i])return;
+          if(shared.includes(n))out[i]=[_colR,'#fff',state.repMultStyle];
+        });
+      }
+    });
+  }
+  // Filtre "éléments identiques" : marque 2 numéros ou plus du MÊME tirage qui partagent la
+  // même étiquette de classification (ex: deux numéros tous deux "C:17") — cf. repereClassLabel().
+  if(state.elmDupAlways){
+    const _colE=state.elmDupColor||'#2E7D32';
+    const byLabel={};
+    row.n.forEach((n,i)=>{
+      const lbl=repereClassLabel(n);
+      if(!lbl)return;
+      (byLabel[lbl]=byLabel[lbl]||[]).push(i);
+    });
+    Object.values(byLabel).forEach(idxs=>{
+      if(idxs.length>=2)idxs.forEach(i=>{if(!out[i])out[i]=[_colE,'#fff',state.elmDupStyle];});
+    });
+  }
+  // Filtre "alignement / écart" : dans le MÊME tirage, marque les numéros impliqués dans au
+  // moins 2 paires ayant le même écart (différence absolue) — ex: 12-17 et 45-50 (écart 5).
+  if(state.alignAlways){
+    const _colA=state.alignColor||'#F57C00';
+    const byGap={};
+    for(let a=0;a<row.n.length;a++){
+      for(let b=a+1;b<row.n.length;b++){
+        const na=row.n[a],nb=row.n[b];
+        if(isNaN(na)||isNaN(nb))continue;
+        const g=Math.abs(na-nb);
+        if(!g)continue;
+        (byGap[g]=byGap[g]||[]).push([a,b]);
+      }
+    }
+    Object.values(byGap).forEach(pairs=>{
+      if(pairs.length<2)return;
+      const idxSet=new Set();
+      pairs.forEach(([a,b])=>{idxSet.add(a);idxSet.add(b);});
+      idxSet.forEach(i=>{if(!out[i])out[i]=[_colA,'#fff',state.alignStyle];});
+    });
+  }
   return out;
 }
 // Marquage "Miroir même ligne / superposé / Superposition" pour les numéros complémentaires (bonus, N6-N10).
@@ -13069,7 +13150,7 @@ function anMarkBonus(row,ctx){
     const hits=decompEchoHits(row);
     row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[col,De.fg];});
   }
-  if(!state.mirLAlways&&!state.mirPAlways&&!state.superposAlways)return out;
+  if(!state.mirLAlways&&!state.mirPAlways&&!state.superposAlways&&!state.repMultAlways&&!state.elmDupAlways&&!state.alignAlways)return out;
   const gi=IDX[row.t];
   const mgap=Math.max(1,state.mirPGap||1);
   const prevR=(gi!=null&&gi+mgap<T.length)?T[gi+mgap]:null;
@@ -13100,6 +13181,54 @@ function anMarkBonus(row,ctx){
       const ov=olderR&&olderR.m?olderR.m[i]:null;
       const nv=newerR&&newerR.m?newerR.m[i]:null;
       if((ov===n)||(nv===n))out[i]=[_col,'#fff',state.superposStyle];
+    });
+  }
+  if(state.repMultAlways){
+    const rgap=Math.max(1,state.repMultGap||1);
+    const rPrev=(gi!=null&&gi+rgap<T.length)?T[gi+rgap]:null;
+    const rNext=(gi!=null&&gi-rgap>=0)?T[gi-rgap]:null;
+    const _colR=state.repMultColor||'#D32F2F';
+    [rPrev,rNext].forEach(other=>{
+      if(!other||!other.m)return;
+      const shared=row.m.filter(n=>!isNaN(n)&&other.m.includes(n));
+      if(shared.length>=2){
+        row.m.forEach((n,i)=>{
+          if(out[i]||isNaN(n))return;
+          if(shared.includes(n))out[i]=[_colR,'#fff',state.repMultStyle];
+        });
+      }
+    });
+  }
+  if(state.elmDupAlways){
+    const _colE=state.elmDupColor||'#2E7D32';
+    const byLabel={};
+    row.m.forEach((n,i)=>{
+      if(isNaN(n))return;
+      const lbl=repereClassLabel(n);
+      if(!lbl)return;
+      (byLabel[lbl]=byLabel[lbl]||[]).push(i);
+    });
+    Object.values(byLabel).forEach(idxs=>{
+      if(idxs.length>=2)idxs.forEach(i=>{if(!out[i])out[i]=[_colE,'#fff',state.elmDupStyle];});
+    });
+  }
+  if(state.alignAlways){
+    const _colA=state.alignColor||'#F57C00';
+    const byGap={};
+    for(let a=0;a<row.m.length;a++){
+      for(let b=a+1;b<row.m.length;b++){
+        const na=row.m[a],nb=row.m[b];
+        if(isNaN(na)||isNaN(nb))continue;
+        const g=Math.abs(na-nb);
+        if(!g)continue;
+        (byGap[g]=byGap[g]||[]).push([a,b]);
+      }
+    }
+    Object.values(byGap).forEach(pairs=>{
+      if(pairs.length<2)return;
+      const idxSet=new Set();
+      pairs.forEach(([a,b])=>{idxSet.add(a);idxSet.add(b);});
+      idxSet.forEach(i=>{if(!out[i])out[i]=[_colA,'#fff',state.alignStyle];});
     });
   }
   return out;
@@ -13245,6 +13374,25 @@ function anRender(){
       </label>
       ${alwaysStyleBtns('superposStyle',state.superposColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#0891B2;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.supGap||1)}" onchange="state.supGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #0891B2;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#0891B2"></span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.repMultColor};cursor:pointer" title="2 numéros ou plus communs entre ce tirage et celui situé à X tirages d'écart (avant ou après) — écart 1 = tirage suivant/précédent">
+        <input type="checkbox" ${state.repMultAlways?'checked':''} onchange="state.repMultAlways=this.checked;render()">
+        🔁 Répétés (2+) après X tirages
+        <input type="color" value="${state.repMultColor}" title="Couleur des numéros répétés" onchange="state.repMultColor=this.value;lsSet('repMultColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+      </label>
+      ${alwaysStyleBtns('repMultStyle',state.repMultColor)}
+      <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.repMultColor};font-weight:500">écart:<input type="number" min="1" max="50" value="${Math.max(1,state.repMultGap||1)}" onchange="state.repMultGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid ${state.repMultColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.repMultColor}"></span>
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.elmDupColor};cursor:pointer" title="2 numéros ou plus du même tirage partageant la même étiquette de classification (ex: deux numéros tous deux C:17)">
+        <input type="checkbox" ${state.elmDupAlways?'checked':''} onchange="state.elmDupAlways=this.checked;render()">
+        🧩 Même élément (2+)
+        <input type="color" value="${state.elmDupColor}" title="Couleur des numéros liés au même élément" onchange="state.elmDupColor=this.value;lsSet('elmDupColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+      </label>
+      ${alwaysStyleBtns('elmDupStyle',state.elmDupColor)}
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.alignColor};cursor:pointer" title="2 numéros ou plus du même tirage impliqués dans au moins 2 paires ayant le même écart (ex: 12-17 et 45-50, écart 5)">
+        <input type="checkbox" ${state.alignAlways?'checked':''} onchange="state.alignAlways=this.checked;render()">
+        📐 Alignement (même écart)
+        <input type="color" value="${state.alignColor}" title="Couleur des numéros alignés" onchange="state.alignColor=this.value;lsSet('alignColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+      </label>
+      ${alwaysStyleBtns('alignStyle',state.alignColor)}
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
         <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
         🎯 Mes repérés

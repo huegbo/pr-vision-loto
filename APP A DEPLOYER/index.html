@@ -3576,6 +3576,60 @@ function getDerivsByType(n){
   return res;
 }
 
+// ── Helpers partagés pour les 3 filtres "toujours actifs" (Répétés 2+/Même élément/Alignement) ──
+// Utilisés à la fois par anMark()/anMarkBonus() (onglet Analyses) et par la grille Navigation
+// (vRowHTML) + le mode Excel, pour que le même calcul serve partout sans le dupliquer 3 fois.
+// Retourne l'ensemble des NUMÉROS (pas des index) de `rowNums` partagés avec le tirage situé à
+// repMultGap tirages d'écart (avant OU après), uniquement si 2 numéros ou plus sont communs.
+function repMultHitNums(row, rowNums){
+  const gi=IDX[row.t];
+  const gap=Math.max(1,state.repMultGap||1);
+  const prevR=(gi!=null&&gi+gap<T.length)?T[gi+gap]:null;
+  const nextR=(gi!=null&&gi-gap>=0)?T[gi-gap]:null;
+  const hits=new Set();
+  [prevR,nextR].forEach(other=>{
+    if(!other)return;
+    const otherNums=rowNums===row.m?other.m:other.n;
+    if(!otherNums)return;
+    const shared=rowNums.filter(n=>!isNaN(n)&&otherNums.includes(n));
+    if(shared.length>=2)shared.forEach(n=>hits.add(n));
+  });
+  return hits;
+}
+// Retourne l'ensemble des INDEX de `rowNums` impliqués dans un groupe de 2+ numéros partageant
+// la même étiquette de classification (ex: deux numéros tous deux "C:17").
+function elmDupHitIdx(rowNums){
+  const byLabel={};
+  rowNums.forEach((n,i)=>{
+    if(isNaN(n))return;
+    const lbl=repereClassLabel(n);
+    if(!lbl)return;
+    (byLabel[lbl]=byLabel[lbl]||[]).push(i);
+  });
+  const hits=new Set();
+  Object.values(byLabel).forEach(idxs=>{if(idxs.length>=2)idxs.forEach(i=>hits.add(i));});
+  return hits;
+}
+// Retourne l'ensemble des INDEX de `rowNums` impliqués dans au moins 2 paires ayant le même
+// écart (différence absolue) — ex: 12-17 et 45-50 (écart 5).
+function alignHitIdx(rowNums){
+  const byGap={};
+  for(let a=0;a<rowNums.length;a++){
+    for(let b=a+1;b<rowNums.length;b++){
+      const na=rowNums[a],nb=rowNums[b];
+      if(isNaN(na)||isNaN(nb))continue;
+      const g=Math.abs(na-nb);
+      if(!g)continue;
+      (byGap[g]=byGap[g]||[]).push([a,b]);
+    }
+  }
+  const hits=new Set();
+  Object.values(byGap).forEach(pairs=>{
+    if(pairs.length<2)return;
+    pairs.forEach(([a,b])=>{hits.add(a);hits.add(b);});
+  });
+  return hits;
+}
 // Ordre choisi pour que 2-3 couleurs PRISES À LA SUITE (ex: colorier les 3 derniers tirages) soient
 // toujours bien distinctes à l'oeil — on alterne teintes chaudes/froides au lieu de les regrouper.
 const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#fff'],['#22C55E','#fff'],['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff'],['#6366F1','#fff'],['#F59E0B','#000']];
@@ -4573,9 +4627,16 @@ function numSpan(n, extra, cid){
   // miroir soient TOUJOURS mis en évidence ensemble (ex: 67 et 76).
   if(extra&&extra.isSrc){bg='#059669';fg='#fff';}
   else if(extra&&extra.an){bg='#fff';fg=extra.an[0];fs='13px';sh='0 1px 3px rgba(0,0,0,.15)';rad='50%';bd='2px solid '+extra.an[0];}
-  else if(extra&&extra.isMirNav)applyHl({bg:state.mirLColor||'#1565C0',fg:'#fff',style:state.mirLStyle});
-  else if(extra&&extra.mirP)applyHl({bg:state.mirPColor||'#6A1B9A',fg:'#fff',style:state.mirPStyle});
-  else if(extra&&extra.superpos)applyHl({bg:state.superposColor||'#0891B2',fg:'#fff',style:state.superposStyle});
+  // NB: isMirNav/mirP/superpos/repMult/elmDup/align sont calculés par l'appelant SANS regarder
+  // les cases à cocher (pour rester simples) — c'est ICI, au moment d'appliquer réellement la
+  // couleur, qu'on vérifie l'état "toujours actif" correspondant. Ainsi une seule case à cocher
+  // (Analyses ou Navigation, même state) suffit à tout éteindre partout, y compris "Mode vierge".
+  else if(extra&&extra.isMirNav&&state.mirLAlways)applyHl({bg:state.mirLColor||'#1565C0',fg:'#fff',style:state.mirLStyle});
+  else if(extra&&extra.mirP&&state.mirPAlways)applyHl({bg:state.mirPColor||'#6A1B9A',fg:'#fff',style:state.mirPStyle});
+  else if(extra&&extra.superpos&&state.superposAlways)applyHl({bg:state.superposColor||'#0891B2',fg:'#fff',style:state.superposStyle});
+  else if(extra&&extra.repMult&&state.repMultAlways)applyHl({bg:state.repMultColor||'#D32F2F',fg:'#fff',style:state.repMultStyle});
+  else if(extra&&extra.elmDup&&state.elmDupAlways)applyHl({bg:state.elmDupColor||'#2E7D32',fg:'#fff',style:state.elmDupStyle});
+  else if(extra&&extra.align&&state.alignAlways)applyHl({bg:state.alignColor||'#F57C00',fg:'#fff',style:state.alignStyle});
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
   // Le style de repereMark/repere2Mark est maintenant tenu à jour par setRepereDisplayStyle()
@@ -12704,10 +12765,13 @@ function vRowHTML(it,ri,C){
               const _sgap=Math.max(1,state.supGap||1);
               const _olderR=(_gi!=null&&_gi+_sgap<T.length)?T[_gi+_sgap]:null;
               const _newerR=(_gi!=null&&_gi-_sgap>=0)?T[_gi-_sgap]:null;
+              const _rmHits=repMultHitNums(row,row.n);
+              const _edHits=elmDupHitIdx(row.n);
+              const _alHits=alignHitIdx(row.n);
               return row.n.map((n,ni)=>{
                 const _mirP=!!(MIR[n]&&((_prevR&&_prevR.n[ni]===MIR[n])||(_nextR&&_nextR.n[ni]===MIR[n])));
                 const _superpos=!!((_olderR&&_olderR.n[ni]===n)||(_newerR&&_newerR.n[ni]===n));
-                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,fs:fN,pane2:_pane2},row.t+'_'+ni);
+                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,repMult:_rmHits.has(n),elmDup:_edHits.has(ni),align:_alHits.has(ni),fs:fN,pane2:_pane2},row.t+'_'+ni);
               }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),pane2:_pane2},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
@@ -14149,10 +14213,13 @@ function __renderBody(){
           const _olderR2=(_gi2!=null&&_gi2+_sgap2<T.length)?T[_gi2+_sgap2]:null;
           const _newerR2=(_gi2!=null&&_gi2-_sgap2>=0)?T[_gi2-_sgap2]:null;
           const _ns2=new Set(row.n);
+          const _rmHits2=repMultHitNums(row,row.n);
+          const _edHits2=elmDupHitIdx(row.n);
+          const _alHits2=alignHitIdx(row.n);
           row.n.forEach((n,ni)=>{
             const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
             const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
-            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,fs:fNum},row.t+'_'+ni)}</td>`;
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
           });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;

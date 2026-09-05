@@ -14064,7 +14064,7 @@ function __renderBody(){
         const _mgW0=cols[0]?mgWidthsOf(cols[0].g):[];
         const _mgLefts0=[];{let acc=0;_mgW0.forEach(w=>{_mgLefts0.push(acc);acc+=w;});}
         const mgFz=(ci,idx)=>ci===0?`left:${_mgLefts0[idx]}px;width:${_mgW0[idx]}px;min-width:${_mgW0[idx]}px;`:'';
-        html+=`<div id="col-exmg" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
+        html+=`<div id="col-exmg" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.g.hasM?14:8;const light=isLightBg(c.color);
@@ -14184,7 +14184,7 @@ function __renderBody(){
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
-      html+=`<div id="col-exnav" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
+      html+=`<div id="col-exnav" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=isLightBg(c.color);

@@ -13819,6 +13819,7 @@ function anRender(){
       <button onclick="state.selYears=[...YEARS];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">All</button>
       <button onclick="state.selYears=[];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕</button>
       <label style="margin-left:auto;font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.excelMode?'#2E7D32':'#aaa'}"><input type="checkbox" ${state.excelMode?'checked':''} onchange="state.excelMode=this.checked;render()">📊 Excel</label>
+      ${state.excelMode?`<button onclick="scrollExcelBottom('col-exan')" title="Va directement au dernier tirage (en bas du tableau)" style="padding:2px 8px;font-size:9px;border-radius:5px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600">⬇ Dernier tirage</button>`:''}
       ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 9px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:9px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 8px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">🎨 Exporter avec couleurs</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 8px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">⚡ Export rapide</button>
@@ -13846,7 +13847,7 @@ function anRender(){
     else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
     const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
-    html+=`<div id="col-exan" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exan')"><table class="excel-tbl"><thead><tr>`;
+    html+=`<div id="col-exan" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exan')"><table class="excel-tbl"><thead><tr>`;
     cols.forEach((c,ci)=>{const light=isLightBg(c.color);html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
@@ -13935,6 +13936,15 @@ function render(){
   // micro-debounce : regroupe les clics rapides de navigation
   _renderTimer=setTimeout(_doRender,0);
 }
+// Bouton manuel "⬇ Dernier tirage" (Mode Excel) : scrolle directement en bas du tableau
+// concerné (les lignes y vont de la plus ancienne en haut à la plus récente en bas), pour
+// y revenir en un clic après être remonté consulter l'historique — demandé explicitement.
+function scrollExcelBottom(...ids){
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.scrollTop=el.scrollHeight;
+  });
+}
 function _doRender(){
   _renderTimer=null;
   if(_renderBusy){_renderQueued=true;return;}
@@ -13978,6 +13988,23 @@ function _doRender(){
       if(!window._lastEnvAutosave||_n-window._lastEnvAutosave>800){
         window._lastEnvAutosave=_n;
         if(typeof autoSaveCurrentEnv==='function')autoSaveCurrentEnv();
+      }
+    }catch(_){}
+    // Mode Excel (années côte à côte, tableaux #col-exnav/#col-exan/#col-exmg) : les lignes y
+    // sont listées de la plus ANCIENNE à la plus RÉCENTE (contrairement à la grille Navigation
+    // normale), donc à l'ouverture le tableau démarrait tout en haut = janvier, pas le dernier
+    // tirage. Demandé explicitement : "à défaut que l'appli pointe sur le dernier tirage de
+    // l'année récente" — on scrolle donc tout en bas UNE SEULE FOIS à chaque changement réel de
+    // contenu (jeu ou années sélectionnées), sans gêner ensuite le data-scrollkeep habituel
+    // (coloriage d'un numéro, etc. ne doivent pas re-sauter en bas à chaque fois).
+    try{
+      const _sig=(typeof GAME!=='undefined'&&GAME?GAME.key:'')+'|'+(state.selYears||[]).join(',');
+      if(state._exnavAutoScrollSig!==_sig){
+        state._exnavAutoScrollSig=_sig;
+        ['col-exnav','col-exan','col-exmg'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el)el.scrollTop=el.scrollHeight;
+        });
       }
     }catch(_){}
     _renderBusy=false;
@@ -14142,6 +14169,7 @@ function __renderBody(){
         <button onclick="setSearchPosMode('same')" style="padding:3px 8px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.searchPosMode==='same'?'#1F2D3D':'#fff'};color:${state.searchPosMode==='same'?'#fff':'#1F2D3D'}">Même position</button>
       </div>`:''};
       <label style="margin-left:auto;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.excelMode?'#2E7D32':'#aaa'}"><input type="checkbox" ${state.excelMode?'checked':''} onchange="state.excelMode=this.checked;render()">📊 Excel</label>
+      ${state.excelMode?`<button onclick="scrollExcelBottom('col-exnav','col-exmg')" title="Va directement au dernier tirage (en bas du tableau)" style="padding:3px 9px;font-size:10px;border-radius:6px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600">⬇ Dernier tirage</button>`:''}
       ${state.excelMode?`<div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid #1F2D3D">
         ${[['compact','Compact',9.5,3],['normal','Normal',12,5],['large','Grand',16,8]].map(([k,lbl,fs,pad])=>`<button onclick="state.excelTextSize='${k}';state.excelFontSize=${fs};state.excelRowPad=${pad};localStorage.setItem('excelTextSize','${k}');localStorage.setItem('excelFontSize','${fs}');localStorage.setItem('excelRowPad','${pad}');render()" style="padding:3px 7px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.excelTextSize===k?'#1F2D3D':'#fff'};color:${state.excelTextSize===k?'#fff':'#1F2D3D'}">${lbl}</button>`).join('')}
       </div>`:''}

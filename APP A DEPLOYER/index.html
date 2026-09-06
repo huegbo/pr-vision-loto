@@ -691,6 +691,42 @@ function beninResetFiltres(){
   state.beninJours=[...BENIN_JOUR_ORDER];state.beninJeux=[...BENIN_JEU_ORDER];
   state.beninHeures=[...BENIN_HEURE_ORDER];state.beninFamilles=[...BENIN_FAMILLE_ORDER];render();
 }
+// Ouvre la sélection filtrée actuelle (Jour/Jeu/Heure/Famille) comme un jeu NORMAL dans
+// Navigation — coloriage, Miroir/Superposition, Mode Excel, export complet, exactement comme
+// n'importe quel autre loto — au lieu du panneau de filtre/export dédié, limité et en lecture
+// seule. Demandé explicitement : "je veux ouvrir dans l'appli ça [comme une loto normale]".
+function openBeninFiltreAsGame(){
+  const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+  if(!rows.length){alert('Aucun tirage ne correspond à ces filtres — élargis la sélection avant d\'ouvrir.');return;}
+  const ordered=rows.slice().reverse(); // parseBeninAll() est le plus récent en premier ; on veut l'inverse pour numéroter les IDs du plus ancien (1) au plus récent, comme tous les autres jeux de l'appli.
+  const lines=ordered.map((r,i)=>{
+    const s=r.s!=null?r.s:r.n.reduce((a,b)=>a+b,0);
+    const parts=[i+1,r.d,r.y,...r.n,s];
+    if(r.m)parts.push(...r.m.map(v=>(v==null||isNaN(v))?'':v));
+    return parts.join('|');
+  });
+  GAMES['benin_custom']={name:'BÉNIN (filtré : '+rows.length+' tirages)',icon:'🇧🇯',raw:lines.join('\n'),hasM:rows.some(r=>r.m),sum10:true};
+  // Reproduit setGame('benin_custom') sans son garde-fou GAME.key===key : ce dernier bloquerait
+  // le rechargement si l'utilisateur rouvre avec un filtre différent alors qu'il est déjà sur
+  // 'benin_custom' (le raw a changé mais la clé, elle, non).
+  loadGame('benin_custom');
+  state.game='benin_custom';
+  state.showAdd=false;
+  state.planNums=[];state.planInput='';state.showPass=false;
+  state.genResult=[];
+  state.selYears=YEARS.slice(0,4);
+  state.showAllYears=false;
+  state.search=[];state.searchInput='';state.pin=null;
+  loadColorState('benin_custom');loadPlansState('benin_custom');state.colorIdx=0;state.rowMultiNums=new Set();
+  if(typeof applyRepereAutoDefault==='function'){applyRepereAutoDefault();saveColorState();}
+  state.plages=[{t:MAX_T,nb:40},{t:Math.max(MIN_T,MAX_T-52),nb:40},{t:Math.max(MIN_T,MAX_T-104),nb:40},{t:Math.max(MIN_T,MAX_T-520),nb:40}];
+  state.compRes=null;
+  closePopup();
+  state.beninFiltreOpen=false;
+  state.tab=0;state.navMode='years';state.excelMode=false;
+  render();
+}
 function beninFiltreHTML(){
   if(!state.beninHeures)state.beninHeures=[...BENIN_HEURE_ORDER];
   if(!state.beninFamilles)state.beninFamilles=[...BENIN_FAMILLE_ORDER];
@@ -700,7 +736,8 @@ function beninFiltreHTML(){
   <div class="header" style="background:#111F33;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇧🇯 BENIN — Filtre Jour / Jeu</div>
-      <button id="export-benin-btn" onclick="exportBeninFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openBeninFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-benin-btn" onclick="exportBeninFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.beninFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>

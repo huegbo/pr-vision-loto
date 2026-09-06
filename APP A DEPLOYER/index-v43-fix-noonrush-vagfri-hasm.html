@@ -3592,7 +3592,7 @@ function repMultHitNums(row, rowNums){
     const otherNums=rowNums===row.m?other.m:other.n;
     if(!otherNums)return;
     const shared=rowNums.filter(n=>!isNaN(n)&&otherNums.includes(n));
-    if(shared.length>=2)shared.forEach(n=>hits.add(n));
+    if(shared.length>=Math.max(2,state.repMultMin||2))shared.forEach(n=>hits.add(n));
   });
   return hits;
 }
@@ -3796,17 +3796,20 @@ let state={
   // repMult : 2 numéros ou plus communs entre ce tirage et celui situé à repMultGap tirages
   // d'écart (avant OU après, réglable — 1 = tirage suivant/précédent, comme dans l'exemple
   // 85/52 répétés entre 2 tirages consécutifs ; augmenter le réglage pour "après X tirages").
-  repMultAlways:true, repMultGap:1,
+  // Ces 3 filtres, contrairement aux 3 historiques ci-dessus (Miroir/Superposition), sont
+  // décochés par défaut — demandé explicitement car "les 3 boutons par défaut ne dérangent
+  // pas mais le truc est que d'autres viennent [en plus, sans l'avoir demandé]".
+  repMultAlways:false, repMultGap:1, repMultMin:2, // repMultMin = seuil réglable (2, 3, 4, 5) de numéros communs minimum entre les 2 tirages
   repMultColor:localStorage.getItem('repMultColor')||'#D32F2F',
   repMultStyle:localStorage.getItem('repMultStyle')||'',
   // elmDup : 2 numéros ou plus du MÊME tirage qui partagent la même étiquette de classification
   // /repère (ex: deux numéros tous deux "C:17") — cf. repereClassLabel().
-  elmDupAlways:true,
+  elmDupAlways:false,
   elmDupColor:localStorage.getItem('elmDupColor')||'#2E7D32',
   elmDupStyle:localStorage.getItem('elmDupStyle')||'',
   // align : 2 numéros ou plus du MÊME tirage impliqués dans au moins 2 paires ayant le même
   // écart (différence absolue) — ex: 12-17 et 45-50 ont tous deux un écart de 5 ("alignement").
-  alignAlways:true,
+  alignAlways:false,
   alignColor:localStorage.getItem('alignColor')||'#F57C00',
   alignStyle:localStorage.getItem('alignStyle')||'',
   // Backtest de stratégies (porté depuis Oracle du Loto)
@@ -3943,9 +3946,9 @@ function clearAllColorsEverywhere(){
   state.mirLAlways=true;  // rétablit le mode par défaut : Miroir même ligne actif
   state.mirPAlways=true;  // rétablit le mode par défaut : Miroir superposé actif
   state.superposAlways=true; // rétablit le mode par défaut : Mêmes numéros superposés actif
-  state.repMultAlways=true; // rétablit le mode par défaut : Répétés (2+) après X tirages actif
-  state.elmDupAlways=true; // rétablit le mode par défaut : Même élément (2+) actif
-  state.alignAlways=true; // rétablit le mode par défaut : Alignement (même écart) actif
+  state.repMultAlways=false; // rétablit le mode par défaut : Répétés (2+) après X tirages ÉTEINT
+  state.elmDupAlways=false; // rétablit le mode par défaut : Même élément (2+) ÉTEINT
+  state.alignAlways=false; // rétablit le mode par défaut : Alignement (même écart) ÉTEINT
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
 }
 // ══════ Mode vierge — état totalement vide, SANS repère, aucun numéro coloré, MÊME les
@@ -9879,7 +9882,7 @@ function fabGo(action){
   else if(action==='repere2_global'){openRepere2Global();return;}
   else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
-    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé, Superposition, Répétés (2+), Même élément (2+) et Alignement restent actifs (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
+    if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition restent actifs (mode par défaut) ; Répétés (2+), Même élément (2+) et Alignement sont éteints (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
       clearAllColorsEverywhere();
     }
     render();return;
@@ -12774,7 +12777,7 @@ function vRowHTML(it,ri,C){
                 return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,repMult:_rmHits.has(n),elmDup:_edHits.has(ni),align:_alHits.has(ni),fs:fN,pane2:_pane2},row.t+'_'+ni);
               }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
-            ${GAME.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),pane2:_pane2},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join(''):''}
+            ${GAME.hasM?(()=>{const _bmkNav=row.m?anMarkBonus(row,{}):null;return [0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),an:_bmkNav&&_bmkNav[mi],pane2:_pane2},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join('');})():''}
             ${GAME.hasM?(GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:(row.m&&row.m.some(v=>!isNaN(v))?(()=>{const valid=row.m.filter(v=>!isNaN(v));const ms=valid.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:${fS}px">${ms}</div>`;})():`<div style="color:#ddd;font-size:${fS}px">·</div>`)):''}
           </div>`;
 
@@ -13158,7 +13161,7 @@ function anMark(row,ctx){
     [rPrev,rNext].forEach(other=>{
       if(!other)return;
       const shared=row.n.filter(n=>other.n.includes(n));
-      if(shared.length>=2){
+      if(shared.length>=Math.max(2,state.repMultMin||2)){
         row.n.forEach((n,i)=>{
           if(out[i])return;
           if(shared.includes(n))out[i]=[_colR,'#fff',state.repMultStyle];
@@ -13261,7 +13264,7 @@ function anMarkBonus(row,ctx){
     [rPrev,rNext].forEach(other=>{
       if(!other||!other.m)return;
       const shared=row.m.filter(n=>!isNaN(n)&&other.m.includes(n));
-      if(shared.length>=2){
+      if(shared.length>=Math.max(2,state.repMultMin||2)){
         row.m.forEach((n,i)=>{
           if(out[i]||isNaN(n))return;
           if(shared.includes(n))out[i]=[_colR,'#fff',state.repMultStyle];
@@ -13451,6 +13454,7 @@ function anRender(){
       </label>
       ${alwaysStyleBtns('repMultStyle',state.repMultColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.repMultColor};font-weight:500">écart:<input type="number" min="1" max="50" value="${Math.max(1,state.repMultGap||1)}" onchange="state.repMultGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid ${state.repMultColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.repMultColor}"></span>
+      <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.repMultColor};font-weight:500" title="Nombre minimum de numéros communs entre les 2 tirages pour déclencher le marquage">seuil:<input type="number" min="2" max="5" value="${Math.max(2,state.repMultMin||2)}" onchange="state.repMultMin=Math.max(2,Math.min(5,parseInt(this.value)||2));render()" style="width:32px;padding:1px 3px;border:1.5px solid ${state.repMultColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.repMultColor}"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.elmDupColor};cursor:pointer" title="2 numéros ou plus du même tirage partageant la même étiquette de classification (ex: deux numéros tous deux C:17)">
         <input type="checkbox" ${state.elmDupAlways?'checked':''} onchange="state.elmDupAlways=this.checked;render()">
         🧩 Même élément (2+)
@@ -14127,7 +14131,7 @@ function __renderBody(){
                   <div style="font-size:8px;color:#555">${row.d}</div>
                   ${(()=>{const _mk=anMark(row,_mgCtx2);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
                   ${g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>`}
-                  ${g.hasM?[0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi)},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
+                  ${g.hasM?(()=>{const _bmk4=row.m?anMarkBonus(row,_mgCtx2):null;return [0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),an:_bmk4&&_bmk4[mi]},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join('');})():''}
                   ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
                 </div>`;
               }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${colLbl} pour ce jeu</div>`}
@@ -14184,6 +14188,7 @@ function __renderBody(){
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
+      const _ctx2=anCalc(); // couches "toujours actives" (miroir, superposition, répétés, élément, alignement, repérés) — utilisé aussi pour colorer les numéros machine (M1-M5), sinon ils restaient sans aucune couleur en Mode Excel
       html+=`<div id="col-exnav" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
@@ -14228,7 +14233,8 @@ function __renderBody(){
           }else{
           html+=GAME.xtra?`<td style="${fz(ci,7)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`:`<td style="${fz(ci,7)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
           if(GAME.hasM){
-            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true},row.t+'_m'+mi):'·'}</td>`;});
+            const _bmk2=row.m?anMarkBonus(row,_ctx2):null;
+            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
             if(GAME.xtra){
               html+=`<td style="background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
             }else{

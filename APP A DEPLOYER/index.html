@@ -691,41 +691,64 @@ function beninResetFiltres(){
   state.beninJours=[...BENIN_JOUR_ORDER];state.beninJeux=[...BENIN_JEU_ORDER];
   state.beninHeures=[...BENIN_HEURE_ORDER];state.beninFamilles=[...BENIN_FAMILLE_ORDER];render();
 }
-// Ouvre la sélection filtrée actuelle (Jour/Jeu/Heure/Famille) comme un jeu NORMAL dans
-// Navigation — coloriage, Miroir/Superposition, Mode Excel, export complet, exactement comme
-// n'importe quel autre loto — au lieu du panneau de filtre/export dédié, limité et en lecture
-// seule. Demandé explicitement : "je veux ouvrir dans l'appli ça [comme une loto normale]".
-function openBeninFiltreAsGame(){
-  const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
-    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+// ══════ Ouvrir une sélection FILTRÉE (Bénin/Ghana/GH Alpha/Cameroun/Togo/Côte d'Ivoire/Italie/
+// Multi-Pays) comme un jeu NORMAL dans Navigation — coloriage, Miroir/Superposition, Répétés,
+// Mode Excel, export complet, exactement comme n'importe quel autre loto — au lieu du panneau de
+// filtre/export dédié, limité et en lecture seule. Demandé explicitement : "je veux ouvrir dans
+// l'appli ça [comme une loto normale]", puis "faire la même chose pour togo et les autres".
+// Fonction commune : chaque panneau construit sa propre liste `rows` déjà filtrée (même forme que
+// les parse*All() : {d,y,n,s?,m? ou bonus?}, triée du plus récent au plus ancien) et l'ouvre via
+// cette fonction plutôt que de dupliquer la conversion/chargement pour chaque pays.
+function openFiltreAsGame(rows,opts){
+  const bonusField=opts.bonusField||'m';
   if(!rows.length){alert('Aucun tirage ne correspond à ces filtres — élargis la sélection avant d\'ouvrir.');return;}
-  const ordered=rows.slice().reverse(); // parseBeninAll() est le plus récent en premier ; on veut l'inverse pour numéroter les IDs du plus ancien (1) au plus récent, comme tous les autres jeux de l'appli.
+  // Un seul format de tirage possible par jeu dans l'appli (5 ou 6 numéros) : si la sélection
+  // mélange les deux (ex: Italie Lotto 5 numéros + SuperEnalotto 6 numéros), on garde le format
+  // majoritaire et on prévient des tirages exclus plutôt que de fabriquer un jeu incohérent.
+  const counts={};
+  rows.forEach(r=>{counts[r.n.length]=(counts[r.n.length]||0)+1;});
+  const lens=Object.keys(counts).map(Number);
+  let mainLen=lens[0],filtered=rows;
+  if(lens.length>1){
+    mainLen=lens.reduce((a,b)=>counts[b]>counts[a]?b:a);
+    filtered=rows.filter(r=>r.n.length===mainLen);
+    if(!filtered.length){alert('Sélection incompatible : formats de tirage mélangés (5 et 6 numéros), aucun format majoritaire exploitable.');return;}
+    alert(`⚠ ${rows.length-filtered.length} tirage(s) à un autre nombre de numéros ont été exclus — l'appli ne peut ouvrir qu'un seul format à la fois (ici : ${mainLen} numéros, le plus fréquent dans ta sélection).`);
+  }
+  const ordered=filtered.slice().reverse(); // parse*All() est le plus récent en premier ; on veut l'inverse pour numéroter les IDs du plus ancien (1) au plus récent, comme tous les autres jeux de l'appli.
   const lines=ordered.map((r,i)=>{
     const s=r.s!=null?r.s:r.n.reduce((a,b)=>a+b,0);
+    const bonus=r[bonusField];
     const parts=[i+1,r.d,r.y,...r.n,s];
-    if(r.m)parts.push(...r.m.map(v=>(v==null||isNaN(v))?'':v));
+    if(bonus)parts.push(...bonus.map(v=>(v==null||isNaN(v))?'':v));
     return parts.join('|');
   });
-  GAMES['benin_custom']={name:'BÉNIN (filtré : '+rows.length+' tirages)',icon:'🇧🇯',raw:lines.join('\n'),hasM:rows.some(r=>r.m),sum10:true};
-  // Reproduit setGame('benin_custom') sans son garde-fou GAME.key===key : ce dernier bloquerait
-  // le rechargement si l'utilisateur rouvre avec un filtre différent alors qu'il est déjà sur
-  // 'benin_custom' (le raw a changé mais la clé, elle, non).
-  loadGame('benin_custom');
-  state.game='benin_custom';
+  const key=opts.key;
+  GAMES[key]={name:opts.name+' ('+filtered.length+' tirages)',icon:opts.icon,raw:lines.join('\n'),hasM:filtered.some(r=>r[bonusField]),sum10:true,n6:mainLen===6};
+  // Reproduit setGame(key) sans son garde-fou GAME.key===key : ce dernier bloquerait le
+  // rechargement si l'utilisateur rouvre avec un filtre différent alors qu'il est déjà sur ce
+  // même jeu virtuel (la clé ne change pas, mais le raw en dessous, si).
+  loadGame(key);
+  state.game=key;
   state.showAdd=false;
   state.planNums=[];state.planInput='';state.showPass=false;
   state.genResult=[];
   state.selYears=YEARS.slice(0,4);
   state.showAllYears=false;
   state.search=[];state.searchInput='';state.pin=null;
-  loadColorState('benin_custom');loadPlansState('benin_custom');state.colorIdx=0;state.rowMultiNums=new Set();
+  loadColorState(key);loadPlansState(key);state.colorIdx=0;state.rowMultiNums=new Set();
   if(typeof applyRepereAutoDefault==='function'){applyRepereAutoDefault();saveColorState();}
   state.plages=[{t:MAX_T,nb:40},{t:Math.max(MIN_T,MAX_T-52),nb:40},{t:Math.max(MIN_T,MAX_T-104),nb:40},{t:Math.max(MIN_T,MAX_T-520),nb:40}];
   state.compRes=null;
   closePopup();
-  state.beninFiltreOpen=false;
+  if(opts.closeFlag)state[opts.closeFlag]=false;
   state.tab=0;state.navMode='years';state.excelMode=false;
   render();
+}
+function openBeninFiltreAsGame(){
+  const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+  openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m'});
 }
 function beninFiltreHTML(){
   if(!state.beninHeures)state.beninHeures=[...BENIN_HEURE_ORDER];
@@ -886,13 +909,18 @@ function toggleGhAlphaJeu(code){
   if(i>=0)state.ghAlphaJeux.splice(i,1);else state.ghAlphaJeux.push(code);
   render();
 }
+function openGhAlphaFiltreAsGame(){
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m'});
+}
 function ghAlphaFiltreHTML(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
   let html=`<div id="app-content">
   <div class="header" style="background:#4C1D95;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇬🇭 GH ALPHALOTTO FAMILY — Filtre Jour / Jeu</div>
-      <button id="export-ghalpha-btn" onclick="exportGhAlphaFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openGhAlphaFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-ghalpha-btn" onclick="exportGhAlphaFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.ghAlphaFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -965,13 +993,18 @@ function toggleGhanaJeu(code){
   if(i>=0)state.ghanaJeux.splice(i,1);else state.ghanaJeux.push(code);
   render();
 }
+function openGhanaFiltreAsGame(){
+  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m'});
+}
 function ghanaFiltreHTML(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
   let html=`<div id="app-content">
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇬🇭 GHANA — Filtre Jour / Jeu</div>
-      <button id="export-ghana-btn" onclick="exportGhanaFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openGhanaFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-ghana-btn" onclick="exportGhanaFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.ghanaFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -1056,13 +1089,18 @@ function toggleCamerounJeu(code){
   if(i>=0)state.camerounJeux.splice(i,1);else state.camerounJeux.push(code);
   render();
 }
+function openCamerounFiltreAsGame(){
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m'});
+}
 function camerounFiltreHTML(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
   let html=`<div id="app-content">
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇨🇲 CAMEROUN — Filtre Jour / Jeu</div>
-      <button id="export-cameroun-btn" onclick="exportCamerounFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openCamerounFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-cameroun-btn" onclick="exportCamerounFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.camerounFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -1167,6 +1205,10 @@ function toggleTogoJeu(code){
   const i=state.togoJeux.indexOf(code);
   if(i>=0)state.togoJeux.splice(i,1);else state.togoJeux.push(code);
   render();
+}
+function openTogoFiltreAsGame(){
+  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus'});
 }
 // ══════ TOUT TOGO — jeu combiné (12 jeux hebdo fusionnés chronologiquement) ══════
 let TOGO_TOUT_RAW=null;
@@ -1332,7 +1374,8 @@ function togoFiltreHTML(){
   <div class="header" style="background:#4A2E1A;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇹🇬 TOGO (LONATO) — Filtre Jour / Jeu</div>
-      <button id="export-togo-btn" onclick="exportTogoFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openTogoFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-togo-btn" onclick="exportTogoFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.togoFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -1558,6 +1601,10 @@ function toggleCIJeu(code){
   if(i>=0)state.ciJeux.splice(i,1);else state.ciJeux.push(code);
   render();
 }
+function openCIFiltreAsGame(){
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus'});
+}
 function ciFiltreHTML(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
   const ciMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
@@ -1565,7 +1612,8 @@ function ciFiltreHTML(){
   <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇨🇮 CÔTE D'IVOIRE (LONACI) — Filtre Jour / Jeu</div>
-      <button id="export-ci-btn" onclick="exportCIFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openCIFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-ci-btn" onclick="exportCIFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.ciFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -1675,6 +1723,10 @@ function toggleITJeu(code){
   if(i>=0)state.itJeux.splice(i,1);else state.itJeux.push(code);
   render();
 }
+function openITFiltreAsGame(){
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus'});
+}
 function itFiltreHTML(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
   const itMaxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
@@ -1683,7 +1735,8 @@ function itFiltreHTML(){
   <div class="header" style="background:#006341;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇮🇹 ITALIE (Lotto / SuperEnalotto) — Filtre Jour / Roue</div>
-      <button id="export-it-btn" onclick="exportITFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openITFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-it-btn" onclick="exportITFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.itFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>
@@ -2527,6 +2580,10 @@ function toggleMultiJeu(code){
   if(i>=0)state.multiJeux.splice(i,1);else state.multiJeux.push(code);
   render();
 }
+function openMultiFiltreAsGame(){
+  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  openFiltreAsGame(rows,{name:'MULTI-PAYS (filtré)',icon:'🌍',key:'multi_custom',closeFlag:'multiFiltreOpen',bonusField:'bonus'});
+}
 function multiFiltreHTML(){
   const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
   const multiMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
@@ -2534,7 +2591,8 @@ function multiFiltreHTML(){
   <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🌍 MULTI-PAYS — Bénin + Togo + Cameroun + Côte d'Ivoire</div>
-      <button id="export-multi-btn" onclick="exportMultiFiltre()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openMultiFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-multi-btn" onclick="exportMultiFiltre()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.multiFiltreOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
   </div>

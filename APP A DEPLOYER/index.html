@@ -3587,12 +3587,21 @@ function repMultHitNums(row, rowNums){
   const prevR=(gi!=null&&gi+gap<T.length)?T[gi+gap]:null;
   const nextR=(gi!=null&&gi-gap>=0)?T[gi-gap]:null;
   const hits=new Set();
+  const minShared=Math.max(2,state.repMultMin||2);
+  const isM=rowNums===row.m;
   [prevR,nextR].forEach(other=>{
     if(!other)return;
-    const otherNums=rowNums===row.m?other.m:other.n;
-    if(!otherNums)return;
-    const shared=rowNums.filter(n=>!isNaN(n)&&otherNums.includes(n));
-    if(shared.length>=Math.max(2,state.repMultMin||2))shared.forEach(n=>hits.add(n));
+    // Comparaison "normale" : même groupe des deux côtés (gagnant↔gagnant ou machine↔machine).
+    const groups=[isM?other.m:other.n];
+    // Si activé : compare AUSSI avec le groupe opposé de l'autre tirage (gagnant↔machine) —
+    // demandé explicitement : une valeur qui revient, PAS forcément son miroir, même si elle
+    // change de colonne (ex: sortie en gagnant, puis en machine 2 tirages plus tard).
+    if(state.repMultCross){const crossNums=isM?other.n:other.m; if(crossNums)groups.push(crossNums);}
+    groups.forEach(otherNums=>{
+      if(!otherNums)return;
+      const shared=rowNums.filter(n=>!isNaN(n)&&otherNums.includes(n));
+      if(shared.length>=minShared)shared.forEach(n=>hits.add(n));
+    });
   });
   return hits;
 }
@@ -3800,6 +3809,7 @@ let state={
   // décochés par défaut — demandé explicitement car "les 3 boutons par défaut ne dérangent
   // pas mais le truc est que d'autres viennent [en plus, sans l'avoir demandé]".
   repMultAlways:false, repMultGap:1, repMultMin:2, // repMultMin = seuil réglable (2, 3, 4, 5) de numéros communs minimum entre les 2 tirages
+  repMultCross:false, // si true : compare aussi gagnant↔machine (pas seulement gagnant↔gagnant / machine↔machine) — un numéro qui revient en machine 2 tirages après être sorti en gagnant, PAS forcément son miroir, juste la même valeur
   repMultColor:localStorage.getItem('repMultColor')||'#D32F2F',
   repMultStyle:localStorage.getItem('repMultStyle')||'',
   // elmDup : 2 numéros ou plus du MÊME tirage qui partagent la même étiquette de classification
@@ -12541,7 +12551,7 @@ function currentEnvSnapshot(){
       mirLAlways:state.mirLAlways,mirLColor:state.mirLColor,mirLStyle:state.mirLStyle,
       mirPAlways:state.mirPAlways,mirPColor:state.mirPColor,mirPStyle:state.mirPStyle,mirPGap:state.mirPGap,
       superposAlways:state.superposAlways,superposColor:state.superposColor,superposStyle:state.superposStyle,supGap:state.supGap,
-      repMultAlways:state.repMultAlways,repMultColor:state.repMultColor,repMultStyle:state.repMultStyle,repMultGap:state.repMultGap,repMultMin:state.repMultMin,
+      repMultAlways:state.repMultAlways,repMultColor:state.repMultColor,repMultStyle:state.repMultStyle,repMultGap:state.repMultGap,repMultMin:state.repMultMin,repMultCross:state.repMultCross,
       elmDupAlways:state.elmDupAlways,elmDupColor:state.elmDupColor,elmDupStyle:state.elmDupStyle,
       alignAlways:state.alignAlways,alignColor:state.alignColor,alignStyle:state.alignStyle
     }
@@ -13643,6 +13653,10 @@ function anRender(){
       ${alwaysStyleBtns('repMultStyle',state.repMultColor)}
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.repMultColor};font-weight:500">écart:<input type="number" min="1" max="50" value="${Math.max(1,state.repMultGap||1)}" onchange="state.repMultGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid ${state.repMultColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.repMultColor}"></span>
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:${state.repMultColor};font-weight:500" title="Nombre minimum de numéros communs entre les 2 tirages pour déclencher le marquage">seuil:<input type="number" min="2" max="5" value="${Math.max(2,state.repMultMin||2)}" onchange="state.repMultMin=Math.max(2,Math.min(5,parseInt(this.value)||2));render()" style="width:32px;padding:1px 3px;border:1.5px solid ${state.repMultColor};border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:${state.repMultColor}"></span>
+      <label style="display:flex;align-items:center;gap:3px;font-size:9px;font-weight:500;color:${state.repMultColor};cursor:pointer" title="Compare aussi gagnant↔machine (pas seulement gagnant↔gagnant ou machine↔machine) : une valeur qui revient sans être forcément son miroir, même si elle change de colonne">
+        <input type="checkbox" ${state.repMultCross?'checked':''} onchange="state.repMultCross=this.checked;render()">
+        🔀 Gagnant↔Machine
+      </label>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.elmDupColor};cursor:pointer" title="2 numéros ou plus du même tirage partageant la même étiquette de classification (ex: deux numéros tous deux C:17)">
         <input type="checkbox" ${state.elmDupAlways?'checked':''} onchange="state.elmDupAlways=this.checked;render()">
         🧩 Même élément (2+)

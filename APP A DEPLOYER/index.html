@@ -13449,7 +13449,7 @@ function anRender(){
       <span style="display:flex;align-items:center;gap:2px;font-size:9px;color:#0891B2;font-weight:500">écart:<input type="number" min="1" max="20" value="${Math.max(1,state.supGap||1)}" onchange="state.supGap=Math.max(1,parseInt(this.value)||1);render()" style="width:36px;padding:1px 3px;border:1.5px solid #0891B2;border-radius:4px;font-size:10px;text-align:center;font-weight:600;color:#0891B2"></span>
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.repMultColor};cursor:pointer" title="2 numéros ou plus communs entre ce tirage et celui situé à X tirages d'écart (avant ou après) — écart 1 = tirage suivant/précédent">
         <input type="checkbox" ${state.repMultAlways?'checked':''} onchange="state.repMultAlways=this.checked;render()">
-        🔁 Répétés (2+) après X tirages
+        🔁 Répétés (${Math.max(2,state.repMultMin||2)}+) après X tirages
         <input type="color" value="${state.repMultColor}" title="Couleur des numéros répétés" onchange="state.repMultColor=this.value;lsSet('repMultColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
       ${alwaysStyleBtns('repMultStyle',state.repMultColor)}

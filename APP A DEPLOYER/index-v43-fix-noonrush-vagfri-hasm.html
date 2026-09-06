@@ -6407,7 +6407,10 @@ function multiJeuBarHTML(){
 function rowsForYear(yr){
   const rows=rowsForYearFull(yr);
   const mx=state.maxRows|0;
-  return (mx>0&&rows.length>mx)?rows.slice(0,mx):rows;   // T[0] = le plus récent
+  // Le tableau de l'année est croissant (janvier en premier, le plus récent tirage à la fin) —
+  // slice(-mx) garde donc bien les mx tirages LES PLUS RÉCENTS. Avant ce correctif, slice(0,mx)
+  // gardait au contraire les mx PLUS ANCIENS de l'année, contraire à l'attente ("les plus récentes").
+  return (mx>0&&rows.length>mx)?rows.slice(-mx):rows;
 }
 function rowsTruncated(){
   try{return state.selYears.some(y=>{const m=state.maxRows|0;return m>0&&rowsForYearFull(y).length>m;});}catch(_){return false;}

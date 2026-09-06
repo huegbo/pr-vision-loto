@@ -12497,10 +12497,132 @@ function addMgSlot(key){
   state.mgSlots.push({id:'s'+Date.now()+Math.floor(Math.random()*1000),key,mode:'year',year:y,from:r.from,to:r.to,weekFrom:w.from,weekTo:w.to});
   render();
 }
+// Ajoute EN UNE FOIS une colonne pour CHAQUE année disponible de `key` (sauf celles déjà
+// présentes — ligne de base + éventuelles colonnes déjà ajoutées), pour éviter de cliquer ➕
+// manuellement une fois par année (demandé explicitement : "ajouter tout pour toutes les
+// années de benz par ex pour ne pas avoir a le faire manuellemt un a un").
+function addAllMgYearSlots(key){
+  if(!GAMES[key])return;
+  const years=Object.keys(gameData(key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
+  const used=new Set([mgYearOf(key),...((state.mgSlots||[]).filter(s=>s.key===key).map(s=>s.year))]);
+  const r=mgRangeOf(key),w=mgWeekRangeOf(key);
+  state.mgSlots=state.mgSlots||[];
+  let n=0;
+  years.forEach(y=>{
+    if(used.has(y))return;
+    n++;
+    state.mgSlots.push({id:'s'+Date.now()+'_'+n+'_'+Math.floor(Math.random()*1000),key,mode:'year',year:y,from:r.from,to:r.to,weekFrom:w.from,weekTo:w.to});
+    used.add(y);
+  });
+  render();
+}
 function removeMgSlot(id){
   state.mgSlots=(state.mgSlots||[]).filter(s=>s.id!==id);
   render();
 }
+// ══════ États enregistrés (« environnements ») — sauvegarde la CONFIGURATION de comparaison
+// (jeux sélectionnés, années/plages/colonnes) + l'état des filtres "toujours actifs" (Miroir,
+// Répétés, Même élément, Alignement, couleurs et écarts). Ne sauvegarde AUCUN numéro/résultat :
+// cliquer sur un état rejoue juste la même sélection sur les données ACTUELLES, donc si de
+// nouveaux tirages ont été ajoutés depuis, ils apparaissent automatiquement — "à jour" comme
+// demandé, contrairement à un instantané figé.
+function currentEnvSnapshot(){
+  return {
+    navMode:state.navMode,
+    excelMode:!!state.excelMode,
+    selGames:(state.selGames||[]).slice(),
+    mgYear:state.mgYear,
+    mgYears:JSON.parse(JSON.stringify(state.mgYears||{})),
+    mgModes:JSON.parse(JSON.stringify(state.mgModes||{})),
+    mgRanges:JSON.parse(JSON.stringify(state.mgRanges||{})),
+    mgWeekRanges:JSON.parse(JSON.stringify(state.mgWeekRanges||{})),
+    mgSlots:JSON.parse(JSON.stringify(state.mgSlots||[])),
+    always:{
+      mirLAlways:state.mirLAlways,mirLColor:state.mirLColor,mirLStyle:state.mirLStyle,
+      mirPAlways:state.mirPAlways,mirPColor:state.mirPColor,mirPStyle:state.mirPStyle,mirPGap:state.mirPGap,
+      superposAlways:state.superposAlways,superposColor:state.superposColor,superposStyle:state.superposStyle,supGap:state.supGap,
+      repMultAlways:state.repMultAlways,repMultColor:state.repMultColor,repMultStyle:state.repMultStyle,repMultGap:state.repMultGap,repMultMin:state.repMultMin,
+      elmDupAlways:state.elmDupAlways,elmDupColor:state.elmDupColor,elmDupStyle:state.elmDupStyle,
+      alignAlways:state.alignAlways,alignColor:state.alignColor,alignStyle:state.alignStyle
+    }
+  };
+}
+function applyEnvSnapshot(snap){
+  if(!snap)return;
+  state.navMode=snap.navMode||'years';
+  state.excelMode=!!snap.excelMode;
+  state.selGames=(snap.selGames||[]).filter(k=>GAMES[k]);
+  state.mgYear=snap.mgYear||state.mgYear;
+  state.mgYears=JSON.parse(JSON.stringify(snap.mgYears||{}));
+  state.mgModes=JSON.parse(JSON.stringify(snap.mgModes||{}));
+  state.mgRanges=JSON.parse(JSON.stringify(snap.mgRanges||{}));
+  state.mgWeekRanges=JSON.parse(JSON.stringify(snap.mgWeekRanges||{}));
+  state.mgSlots=JSON.parse(JSON.stringify(snap.mgSlots||[]));
+  if(snap.always)Object.keys(snap.always).forEach(k=>{state[k]=snap.always[k];});
+}
+function loadEnvStatesState(){
+  try{state.savedEnvStates=JSON.parse(lsGetOr('loto_envstates','[]'))||[];}catch(_){state.savedEnvStates=[];}
+}
+function saveEnvStatesState(){lsSet('loto_envstates',JSON.stringify(state.savedEnvStates));}
+function saveEnvState(){
+  if(!(state.selGames||[]).length){alert('Sélectionne au moins un jeu à comparer avant d\'enregistrer un état.');return;}
+  const nextNum=(state.savedEnvStates||[]).length+1;
+  const name=prompt('Nom de cet état (ex: "État '+nextNum+'") :','État '+nextNum);
+  if(name==null)return;
+  const nm=name.trim()||('État '+nextNum);
+  state.savedEnvStates=state.savedEnvStates||[];
+  state.savedEnvStates.unshift({
+    id:'env'+Date.now()+Math.floor(Math.random()*1000),
+    name:nm,
+    date:new Date().toLocaleDateString('fr-FR')+' '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+    snap:currentEnvSnapshot()
+  });
+  saveEnvStatesState();
+  render();
+}
+function applyEnvState(id){
+  const e=(state.savedEnvStates||[]).find(x=>x.id===id);
+  if(!e)return;
+  applyEnvSnapshot(e.snap);
+  render();
+}
+function renameEnvState(id){
+  const e=(state.savedEnvStates||[]).find(x=>x.id===id);
+  if(!e)return;
+  const name=prompt('Nouveau nom :',e.name);
+  if(name==null)return;
+  const nm=name.trim();
+  if(!nm)return;
+  e.name=nm;
+  saveEnvStatesState();
+  render();
+}
+function deleteEnvState(id){
+  const e=(state.savedEnvStates||[]).find(x=>x.id===id);
+  if(!e)return;
+  if(!confirm('Supprimer l\'état "'+e.name+'" ?'))return;
+  state.savedEnvStates=(state.savedEnvStates||[]).filter(x=>x.id!==id);
+  saveEnvStatesState();
+  render();
+}
+function envStatesHTML(){
+  const list=state.savedEnvStates||[];
+  return`<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+      <span style="font-size:9px;font-weight:700;color:#0F766E">💾 États enregistrés${list.length?' ('+list.length+')':''}</span>
+      <button onclick="saveEnvState()" title="Enregistre la sélection actuelle (jeux comparés + années/plages + filtres toujours actifs) comme nouvel état, rappelable en un clic" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#0F766E;color:#fff;cursor:pointer;font-weight:600">💾 Enregistrer l'état actuel</button>
+      <span style="font-size:8.5px;color:#888">Cliquer sur un état recharge la même sélection avec les données à jour (pas un instantané figé)</span>
+    </div>
+    ${list.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">
+      ${list.map(e=>`<span style="display:inline-flex;align-items:center;gap:3px;border:1.5px solid #0F766E;border-radius:11px;padding:2px 3px 2px 9px;background:#F0FDFA">
+        <button onclick="applyEnvState('${e.id}')" title="Recharge cette sélection (${(e.snap.selGames||[]).length} jeu(x)) avec les données à jour" style="cursor:pointer;font-weight:600;color:#0F766E;background:none;border:none;font-size:10px;padding:0">${e.name} <span style="font-weight:400;color:#5EA8A0;font-size:8.5px">· ${e.date}</span></button>
+        <button onclick="renameEnvState('${e.id}')" title="Renommer" style="cursor:pointer;font-weight:700;color:#0F766E;background:none;border:none;font-size:10px;padding:0 2px">✎</button>
+        <button onclick="deleteEnvState('${e.id}')" title="Supprimer" style="cursor:pointer;font-weight:700;color:#fff;background:#C62828;border:none;border-radius:50%;width:16px;height:16px;min-width:16px;font-size:10px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">✕</button>
+      </span>`).join('')}
+    </div>`:''}
+  </div>`;
+}
+loadEnvStatesState();
 function setMgSlotYear(id,v){
   const s=(state.mgSlots||[]).find(x=>x.id===id);
   if(s)s.year=v;
@@ -14026,6 +14148,7 @@ function __renderBody(){
                 <input type="number" min="1" max="53" value="${wk.to}" onchange="setMgWeekRange('${k}','to',this.value)" style="width:36px;font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 3px;text-align:center">
                 <span style="font-size:8px;color:#888">(ttes années)</span>`:''}
               <button type="button" onclick="event.stopPropagation();addMgSlot('${k}')" title="Ajouter une autre colonne de ${GAMES[k].name} à comparer (en plus de celle-ci)" style="cursor:pointer;font-weight:700;color:#fff;background:#2E7D32;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">➕</button>
+              <button type="button" onclick="event.stopPropagation();addAllMgYearSlots('${k}')" title="Ajoute d'un coup une colonne pour CHAQUE année disponible de ${GAMES[k].name} (sans doublon avec celles déjà présentes)" style="cursor:pointer;font-weight:700;color:#fff;background:#0891B2;border:none;border-radius:11px;padding:2px 8px;font-size:9px;line-height:1.4;display:inline-flex;align-items:center;gap:2px;white-space:nowrap">📅+ Toutes années</button>
               ${convPickerBaseKey(k)?`<button type="button" onclick="event.stopPropagation();openConvPicker('${k}')" title="Ajouter une conversion (Counter, Bonanza, Code...) de ${GAMES[convPickerBaseKey(k)].name} comme nouvelle colonne" style="cursor:pointer;font-weight:700;color:#fff;background:#5B21B6;border:none;border-radius:11px;padding:2px 8px;font-size:10px;line-height:1.4;display:inline-flex;align-items:center;gap:2px">🔀+</button>`:''}
             </span>`;}).join('')}
           ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{
@@ -14046,7 +14169,7 @@ function __renderBody(){
                 <span style="font-size:8px;color:#888">(ttes années)</span>`:''}
               <button type="button" onclick="event.stopPropagation();removeMgSlot('${s.id}')" title="Retirer cette colonne supplémentaire" style="cursor:pointer;font-weight:700;color:#fff;background:#C62828;border:none;border-radius:50%;width:20px;height:20px;min-width:20px;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">✕</button>
             </span>`;}).join('')}
-        </div></div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}`}
+        </div></div>`:'<div style="font-size:9px;color:#C62828;margin-top:4px">Choisis au moins deux jeux à comparer.</div>'}${envStatesHTML()}`}
     </div>`;
     if(state.navMode==='games'){
       const sg=state.selGames.filter(k=>GAMES[k]);

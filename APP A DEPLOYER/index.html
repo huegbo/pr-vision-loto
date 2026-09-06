@@ -12564,6 +12564,23 @@ function loadEnvStatesState(){
   try{state.savedEnvStates=JSON.parse(lsGetOr('loto_envstates','[]'))||[];}catch(_){state.savedEnvStates=[];}
 }
 function saveEnvStatesState(){lsSet('loto_envstates',JSON.stringify(state.savedEnvStates));}
+// ── Sauvegarde AUTOMATIQUE et silencieuse de la comparaison en cours (indépendante des états
+// nommés ci-dessus, qu'on enregistre soi-même à la demande) : comme quand le Mac reprend tout
+// seul les fenêtres ouvertes après une coupure de courant, la dernière comparaison en cours
+// (jeux, années/plages, filtres toujours actifs) est réappliquée automatiquement à la
+// prochaine ouverture, sans rien avoir à cliquer. Écrite via _doRender() (limitée à 1x/800ms),
+// relue une seule fois juste avant le tout premier rendu (voir loadAutoSavedEnv() plus bas).
+function autoSaveCurrentEnv(){
+  try{ lsSet('loto_autosave_env', JSON.stringify(currentEnvSnapshot())); }catch(_){}
+}
+function loadAutoSavedEnv(){
+  try{
+    const raw=lsGetOr('loto_autosave_env','');
+    if(!raw)return;
+    const snap=JSON.parse(raw);
+    applyEnvSnapshot(snap);
+  }catch(_){}
+}
 function saveEnvState(){
   if(!(state.selGames||[]).length){alert('Sélectionne au moins un jeu à comparer avant d\'enregistrer un état.');return;}
   const nextNum=(state.savedEnvStates||[]).length+1;
@@ -12605,12 +12622,61 @@ function deleteEnvState(id){
   saveEnvStatesState();
   render();
 }
+// ── Export/Import en fichier .json sur le Mac (demandé explicitement : les états ne restent
+// pas coincés dans le navigateur — on peut les enregistrer dans un dossier, les déplacer, les
+// sauvegarder, les rouvrir plus tard ou sur un autre appareil, comme n'importe quel fichier).
+function exportEnvStatesFile(){
+  const list=state.savedEnvStates||[];
+  if(!list.length){alert('Aucun état enregistré à exporter pour le moment. Clique d\'abord sur "💾 Enregistrer l\'état actuel".');return;}
+  try{
+    const payload={app:'forecast-loto-90',type:'etats-enregistres',exportedAt:new Date().toISOString(),states:list};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='forecast-loto-90-etats-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+  }catch(e){alert('Export impossible sur ce navigateur');}
+}
+function importEnvStatesFile(inputEl){
+  const file=inputEl&&inputEl.files&&inputEl.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{
+      const data=JSON.parse(reader.result);
+      const incoming=Array.isArray(data)?data:(Array.isArray(data.states)?data.states:null);
+      if(!incoming){alert('Fichier invalide : aucun état trouvé dedans.');return;}
+      state.savedEnvStates=state.savedEnvStates||[];
+      const existingIds=new Set(state.savedEnvStates.map(s=>s.id));
+      let added=0;
+      incoming.forEach(s=>{
+        if(!s||!s.snap)return;
+        let id=s.id;
+        if(!id||existingIds.has(id))id='env'+Date.now()+Math.floor(Math.random()*100000);
+        existingIds.add(id);
+        state.savedEnvStates.push({id,name:s.name||'État importé',date:s.date||new Date().toLocaleDateString('fr-FR'),snap:s.snap});
+        added++;
+      });
+      saveEnvStatesState();
+      inputEl.value='';
+      render();
+      alert(added+' état(s) importé(s) avec succès.');
+    }catch(e){alert('Impossible de lire ce fichier (JSON invalide).');}
+  };
+  reader.readAsText(file);
+}
 function envStatesHTML(){
   const list=state.savedEnvStates||[];
   return`<div style="margin-top:5px;border-top:1px solid #eee;padding-top:5px">
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
       <span style="font-size:9px;font-weight:700;color:#0F766E">💾 États enregistrés${list.length?' ('+list.length+')':''}</span>
       <button onclick="saveEnvState()" title="Enregistre la sélection actuelle (jeux comparés + années/plages + filtres toujours actifs) comme nouvel état, rappelable en un clic" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#0F766E;color:#fff;cursor:pointer;font-weight:600">💾 Enregistrer l'état actuel</button>
+      <button onclick="exportEnvStatesFile()" title="Enregistre tous tes états dans un fichier .json que tu peux ranger où tu veux sur le Mac (Bureau, dossier, sauvegarde...) et rouvrir plus tard, même sur un autre appareil" style="padding:2px 9px;font-size:9px;border-radius:8px;border:1px solid #0F766E;background:#fff;color:#0F766E;cursor:pointer;font-weight:600">⬇ Enregistrer dans un fichier</button>
+      <label style="padding:2px 9px;font-size:9px;border-radius:8px;border:1px solid #0F766E;background:#fff;color:#0F766E;cursor:pointer;font-weight:600" title="Recharge des états depuis un fichier .json enregistré précédemment">⬆ Ouvrir un fichier
+        <input type="file" accept=".json,application/json" onchange="importEnvStatesFile(this)" style="display:none">
+      </label>
       <span style="font-size:8.5px;color:#888">Cliquer sur un état recharge la même sélection avec les données à jour (pas un instantané figé)</span>
     </div>
     ${list.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">
@@ -13891,6 +13957,15 @@ function _doRender(){
       });
       if(_scrollSave.__win)window.scrollTo(0,_scrollSave.__win);
     }catch(_){}
+    // Sauvegarde auto de l'environnement en cours (comparaison + filtres), limitée à une
+    // fois toutes les 800ms pour ne pas écrire dans localStorage à chaque frappe/coloriage.
+    try{
+      const _n=Date.now();
+      if(!window._lastEnvAutosave||_n-window._lastEnvAutosave>800){
+        window._lastEnvAutosave=_n;
+        if(typeof autoSaveCurrentEnv==='function')autoSaveCurrentEnv();
+      }
+    }catch(_){}
     _renderBusy=false;
     if(_renderQueued){ _renderQueued=false; render(); }
   }
@@ -14656,6 +14731,9 @@ const Comp = {
 loadListsVisiblePref();
 loadListStylePref();
 loadDualViewPref();
+// Reprend automatiquement la dernière comparaison en cours (jeux/années/filtres), comme le
+// Mac qui rouvre tout seul les fenêtres après une coupure de courant — voir autoSaveCurrentEnv().
+try{loadAutoSavedEnv();}catch(_){}
 // ── Démarrage sécurisé + splash (logo ~1,6s) ──
 (function(){
   var sp=null;

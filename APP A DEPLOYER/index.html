@@ -3871,6 +3871,7 @@ let state={
   termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
   digCount:1, digSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], digMatches:null,
   pickA:'', pickB:'', pickTirageRef:'', pickLines:2, pickDir:'after', pickResult:null,
+  cmp2A:'', cmp2B:'', cmp2Line1:'', cmp2Line2:'', cmp2Lines:40, cmp2Inversee:false, cmp2Colorier:true, cmp2RespectPos:false, cmp2Result:null,
   posPivot:'', posPivotPos:'', posTargetPos:'0', posOffset:1, posResult:null,
   cptN:5, cptRef:'', cptResult:null,
   collesCount:2, collesSlots:['','',''], collesOrder:'any', collesMatches:null,
@@ -9543,6 +9544,7 @@ function searchHubHTML(){
     ${digResHTML()}
   </div>`;
   h+=pickinObliqueCardHTML();
+  h+=cmp2CardHTML();
   h+=posPickingCardHTML();
   h+=compteurCardHTML();
   h+=collesCardHTML();
@@ -10657,6 +10659,120 @@ function pickinObliqueCardHTML(){
     <button onclick="doPickinOblique()" style="padding:4px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Aligne chaque tirage du Jeu A avec le tirage du Jeu B tombé à la même date, et surligne les numéros identiques à la même position (D1..D5).</div>
     ${pickinOResHTML()}
+  </div>`;
+}
+// ══════ Comparer 2 Plages de Tirages — deux jeux (éventuellement différents), alignés par N° de tirage ══════
+// Contrairement à Pickin|Oblique (aligné par DATE), ici on choisit un N° de tirage de départ dans
+// chaque jeu ("Ligne 1"/"Ligne 2") et on avance en parallèle du même nombre de crans dans les deux —
+// utile pour chercher des correspondances entre deux jeux qui n'ont ni le même calendrier ni la même
+// numérotation (ex: Boom Togo vs Venezia).
+function setCmp2A(v){state.cmp2A=v;render();}
+function setCmp2B(v){state.cmp2B=v;render();}
+function doCmp2(){
+  const keyA=state.cmp2A||GAME.key, keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
+  const dA=gameData(keyA),dB=gameData(keyB);
+  const t1=parseInt(state.cmp2Line1), t2=parseInt(state.cmp2Line2);
+  const idxA0=dA.T.findIndex(r=>r.t===t1);
+  const idxB0=dB.T.findIndex(r=>r.t===t2);
+  if(isNaN(t1)||idxA0<0){alert('Ligne 1 introuvable dans '+GAMES[keyA].name+' (N° de tirage inconnu).');return;}
+  if(isNaN(t2)||idxB0<0){alert('Ligne 2 introuvable dans '+GAMES[keyB].name+' (N° de tirage inconnu).');return;}
+  const n=Math.max(1,parseInt(state.cmp2Lines)||1);
+  // dA.T / dB.T sont triés du plus récent (index 0) au plus ancien : pour avancer vers les tirages
+  // PLUS RÉCENTS on DIMINUE l'index ; "Inversée" avance au contraire vers les plus anciens (index croissant).
+  const dir=state.cmp2Inversee?1:-1;
+  const rowsA=[],rowsB=[];
+  for(let k=0;k<n;k++){
+    const ia=idxA0+dir*k, ib=idxB0+dir*k;
+    if(ia<0||ia>=dA.T.length||ib<0||ib>=dB.T.length)break;
+    rowsA.push(dA.T[ia]);rowsB.push(dB.T[ib]);
+  }
+  const respectPos=!!state.cmp2RespectPos;
+  const matchA=rowsA.map(()=>new Set()), matchB=rowsB.map(()=>new Set());
+  for(let i=0;i<rowsA.length;i++){
+    const rA=rowsA[i],rB=rowsB[i];
+    if(respectPos){
+      for(let p=0;p<Math.min(rA.n.length,rB.n.length);p++){
+        if(rA.n[p]===rB.n[p]){matchA[i].add(p);matchB[i].add(p);}
+      }
+    }else{
+      rA.n.forEach((numA,pa)=>{
+        rB.n.forEach((numB,pb)=>{if(numA===numB){matchA[i].add(pa);matchB[i].add(pb);}});
+      });
+    }
+  }
+  let count=0;matchA.forEach(s=>count+=s.size);
+  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count};
+  saveHist({type:'cmp2',keyA,keyB,line1:t1,line2:t2,lines:n,inversee:state.cmp2Inversee,respectPos});
+  render();
+}
+function exportCmp2(){
+  const res=state.cmp2Result;
+  if(!res||!res.rowsA.length){alert('Aucun résultat à exporter');return;}
+  let csv='Jeu;N° tirage;Date;Année;N1;N2;N3;N4;N5;TOTAL;Correspondances\n';
+  for(let i=0;i<res.rowsA.length;i++){
+    const rA=res.rowsA[i],rB=res.rowsB[i];
+    csv+=GAMES[res.keyA].name+';'+rA.t+';'+rA.d+';'+rA.y+';'+rA.n.join(';')+';'+rA.s+';'+res.matchA[i].size+'\n';
+    csv+=GAMES[res.keyB].name+';'+rB.t+';'+rB.d+';'+rB.y+';'+rB.n.join(';')+';'+rB.s+';'+res.matchB[i].size+'\n';
+  }
+  downloadCSV(csv,'comparer_2_plages_'+res.keyA+'_'+res.keyB+'.csv');
+}
+function cmp2ResHTML(){
+  const res=state.cmp2Result;
+  if(!res)return'';
+  if(!res.rowsA.length)return`<div style="font-size:10px;color:#999;margin-top:6px">Aucun résultat (plage vide — vérifie les N° de tirage et le nombre de lignes)</div>`;
+  const colorier=state.cmp2Colorier!==false;
+  const rowHtml=(r,mset,label,color)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
+    <span style="font-weight:700;color:${color};width:70px">${label} ${r.t}</span><span style="color:#888;font-size:8px;width:50px">${r.d}/${r.y}</span>
+    ${r.n.map((num,ni)=>numSpan(num,(colorier&&mset.has(ni))?{an:['#D97706']}:{})).join('')}
+    <span style="font-size:9px;color:#888;margin-left:4px">${r.s}</span>
+  </div>`;
+  return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+    <span style="font-size:10px;font-weight:500;color:#D97706">Résultat (${res.count})</span>
+    <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto">
+    ${res.rowsA.map((rA,i)=>{
+      const rB=res.rowsB[i];
+      return`<div style="border:1px solid #FDE4B8;background:#FFFBEB;border-radius:6px;padding:5px 8px">
+        ${rowHtml(rA,res.matchA[i],GAMES[res.keyA].name,'#B45309')}
+        ${rowHtml(rB,res.matchB[i],GAMES[res.keyB].name,'#0891B2')}
+      </div>`;
+    }).join('')}
+  </div></div>`;
+}
+function cmp2CardHTML(){
+  const keyA=state.cmp2A||GAME.key;
+  const keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
+  return`<div style="background:#fff;border:1.5px solid #D97706;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ Comparer 2 Plages de Tirages — deux jeux, alignés par N° de tirage</div>
+    <div class="row" style="margin-top:0">
+      <span style="font-size:9px;color:#777">Jeu A :</span>
+      <select onchange="setCmp2A(this.value)">${Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${keyA===k?'selected':''}>${g.icon} ${g.name}</option>`).join('')}</select>
+    </div>
+    <div class="row">
+      <span style="font-size:9px;color:#777">Jeu B :</span>
+      <select onchange="setCmp2B(this.value)">${Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${keyB===k?'selected':''}>${g.icon} ${g.name}</option>`).join('')}</select>
+    </div>
+    <div class="row">
+      <span style="font-size:9px;color:#777">Ligne 1 (N° tirage, Jeu A) :</span>
+      <input type="number" placeholder="Ex: 167" value="${state.cmp2Line1}" oninput="state.cmp2Line1=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+    </div>
+    <div class="row">
+      <span style="font-size:9px;color:#777">Ligne 2 (N° tirage, Jeu B) :</span>
+      <input type="number" placeholder="Ex: 2531" value="${state.cmp2Line2}" oninput="state.cmp2Line2=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+    </div>
+    <div class="row">
+      <span style="font-size:9px;color:#777">Nombre de lignes :</span>
+      <input type="number" min="1" value="${state.cmp2Lines}" oninput="state.cmp2Lines=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+    </div>
+    <div class="row" style="gap:10px">
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Inversee?'checked':''} onchange="state.cmp2Inversee=this.checked;render()">Inversée</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Colorier!==false?'checked':''} onchange="state.cmp2Colorier=this.checked;render()">🏷️ Colorier</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2RespectPos?'checked':''} onchange="state.cmp2RespectPos=this.checked;render()">Respecter les positions</label>
+    </div>
+    <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
+    <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). Un numéro est surligné dès qu'il apparaît dans les deux tirages comparés — n'importe où par défaut, ou seulement à la même position (D1↔D1, D2↔D2...) si "Respecter les positions" est coché.</div>
+    ${cmp2ResHTML()}
   </div>`;
 }
 // ══════ Picking par Position — après l'apparition d'un numéro pivot, que sort-il à telle position ? ══════

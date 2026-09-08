@@ -3871,7 +3871,8 @@ let state={
   termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
   digCount:1, digSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], digMatches:null,
   pickA:'', pickB:'', pickTirageRef:'', pickLines:2, pickDir:'after', pickResult:null,
-  cmp2A:'', cmp2B:'', cmp2Line1:'', cmp2Line2:'', cmp2Lines:40, cmp2Inversee:false, cmp2Colorier:true, cmp2RespectPos:false, cmp2Result:null,
+  cmp2A:'', cmp2B:'', cmp2Line1:'', cmp2Line2:'', cmp2Lines:40, cmp2Inversee:false, cmp2Colorier:true, cmp2RespectPos:false, cmp2Mirror:true, cmp2Result:null,
+  cmp2ClActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true},
   posPivot:'', posPivotPos:'', posTargetPos:'0', posOffset:1, posResult:null,
   cptN:5, cptRef:'', cptResult:null,
   collesCount:2, collesSlots:['','',''], collesOrder:'any', collesMatches:null,
@@ -10687,32 +10688,73 @@ function doCmp2(){
     rowsA.push(dA.T[ia]);rowsB.push(dB.T[ib]);
   }
   const respectPos=!!state.cmp2RespectPos;
-  const matchA=rowsA.map(()=>new Set()), matchB=rowsB.map(()=>new Set());
+  const withMirror=state.cmp2Mirror!==false;
+  const clActive=state.cmp2ClActive||{};
+  // Liste des types de correspondance testés, dans l'ordre de priorité : 'exact' (numéro identique)
+  // > 'mirror' (miroir, ex 13↔31) > chaque élément de classification actif (counter, bonanza, malta,
+  // key, turning, partner, shadow, equiv — cases à cocher, comme dans le reste de l'appli).
+  const relType=(numA,numB)=>{
+    if(numA===numB)return'exact';
+    if(withMirror&&(MIR[numA]===numB||MIR[numB]===numA))return'mirror';
+    for(const cl of CL_DEF){
+      if(cl.key==='miroir')continue;
+      if(!clActive[cl.key])continue;
+      const dA=getDerivsByType(numA)[cl.key], dB=getDerivsByType(numB)[cl.key];
+      if(dA===numB||dB===numA)return cl.key;
+    }
+    return null;
+  };
+  // matchA[i]/matchB[i] : { position -> type }. Une case déjà marquée 'exact' n'est jamais dégradée
+  // par un type moins prioritaire trouvé ensuite.
+  const PRIO=['exact','mirror',...CL_DEF.filter(c=>c.key!=='miroir').map(c=>c.key)];
+  const better=(oldT,newT)=>!oldT||PRIO.indexOf(newT)<PRIO.indexOf(oldT);
+  const matchA=rowsA.map(()=>({})), matchB=rowsB.map(()=>({}));
   for(let i=0;i<rowsA.length;i++){
-    const rA=rowsA[i],rB=rowsB[i];
+    const rA=rowsA[i],rB=rowsB[i],mA=matchA[i],mB=matchB[i];
     if(respectPos){
       for(let p=0;p<Math.min(rA.n.length,rB.n.length);p++){
-        if(rA.n[p]===rB.n[p]){matchA[i].add(p);matchB[i].add(p);}
+        const t=relType(rA.n[p],rB.n[p]);
+        if(t){if(better(mA[p],t))mA[p]=t;if(better(mB[p],t))mB[p]=t;}
       }
     }else{
       rA.n.forEach((numA,pa)=>{
-        rB.n.forEach((numB,pb)=>{if(numA===numB){matchA[i].add(pa);matchB[i].add(pb);}});
+        rB.n.forEach((numB,pb)=>{
+          const t=relType(numA,numB);
+          if(t){if(better(mA[pa],t))mA[pa]=t;if(better(mB[pb],t))mB[pb]=t;}
+        });
       });
     }
   }
-  let count=0;matchA.forEach(s=>count+=s.size);
-  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count};
+  const counts={};PRIO.forEach(t=>counts[t]=0);
+  matchA.forEach(m=>Object.values(m).forEach(t=>counts[t]++));
+  const count=Object.values(counts).reduce((a,b)=>a+b,0);
+  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts};
   saveHist({type:'cmp2',keyA,keyB,line1:t1,line2:t2,lines:n,inversee:state.cmp2Inversee,respectPos});
   render();
+}
+function toggleCmp2CL(key){state.cmp2ClActive[key]=!state.cmp2ClActive[key];render();}
+function cmp2ClLabel(t){
+  if(t==='exact')return'même numéro';
+  if(t==='mirror')return'miroir';
+  const cl=CL_DEF.find(c=>c.key===t);
+  return cl?cl.label:t;
+}
+function cmp2Color(t){
+  if(t==='exact')return'#EAB308';
+  if(t==='mirror')return'#16A34A';
+  const cl=CL_DEF.find(c=>c.key===t);
+  return cl?cl.bg:'#999';
 }
 function exportCmp2(){
   const res=state.cmp2Result;
   if(!res||!res.rowsA.length){alert('Aucun résultat à exporter');return;}
-  let csv='Jeu;N° tirage;Date;Année;N1;N2;N3;N4;N5;TOTAL;Correspondances\n';
+  const types=Object.keys(res.counts);
+  let csv='Jeu;N° tirage;Date;Année;N1;N2;N3;N4;N5;TOTAL;'+types.map(t=>cmp2ClLabel(t)).join(';')+'\n';
+  const cnt=m=>{const c={};types.forEach(t=>c[t]=0);Object.values(m).forEach(t=>c[t]++);return types.map(t=>c[t]);};
   for(let i=0;i<res.rowsA.length;i++){
     const rA=res.rowsA[i],rB=res.rowsB[i];
-    csv+=GAMES[res.keyA].name+';'+rA.t+';'+rA.d+';'+rA.y+';'+rA.n.join(';')+';'+rA.s+';'+res.matchA[i].size+'\n';
-    csv+=GAMES[res.keyB].name+';'+rB.t+';'+rB.d+';'+rB.y+';'+rB.n.join(';')+';'+rB.s+';'+res.matchB[i].size+'\n';
+    csv+=GAMES[res.keyA].name+';'+rA.t+';'+rA.d+';'+rA.y+';'+rA.n.join(';')+';'+rA.s+';'+cnt(res.matchA[i]).join(';')+'\n';
+    csv+=GAMES[res.keyB].name+';'+rB.t+';'+rB.d+';'+rB.y+';'+rB.n.join(';')+';'+rB.s+';'+cnt(res.matchB[i]).join(';')+'\n';
   }
   downloadCSV(csv,'comparer_2_plages_'+res.keyA+'_'+res.keyB+'.csv');
 }
@@ -10721,13 +10763,16 @@ function cmp2ResHTML(){
   if(!res)return'';
   if(!res.rowsA.length)return`<div style="font-size:10px;color:#999;margin-top:6px">Aucun résultat (plage vide — vérifie les N° de tirage et le nombre de lignes)</div>`;
   const colorier=state.cmp2Colorier!==false;
-  const rowHtml=(r,mset,label,color)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
+  const rowHtml=(r,mmap,label,color)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
     <span style="font-weight:700;color:${color};width:70px">${label} ${r.t}</span><span style="color:#888;font-size:8px;width:50px">${r.d}/${r.y}</span>
-    ${r.n.map((num,ni)=>numSpan(num,(colorier&&mset.has(ni))?{an:['#D97706']}:{})).join('')}
+    ${r.n.map((num,ni)=>numSpan(num,(colorier&&mmap[ni])?{an:[cmp2Color(mmap[ni])]}:{})).join('')}
     <span style="font-size:9px;color:#888;margin-left:4px">${r.s}</span>
   </div>`;
-  return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+  const badges=Object.entries(res.counts).filter(([t,c])=>c>0).map(([t,c])=>
+    `<span style="font-size:9px;color:${cmp2Color(t)};font-weight:600">■ ${c} ${cmp2ClLabel(t)}</span>`).join('');
+  return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:500;color:#D97706">Résultat (${res.count})</span>
+    ${badges}
     <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
   <div style="display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto">
@@ -10769,9 +10814,20 @@ function cmp2CardHTML(){
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Inversee?'checked':''} onchange="state.cmp2Inversee=this.checked;render()">Inversée</label>
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Colorier!==false?'checked':''} onchange="state.cmp2Colorier=this.checked;render()">🏷️ Colorier</label>
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2RespectPos?'checked':''} onchange="state.cmp2RespectPos=this.checked;render()">Respecter les positions</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Mirror!==false?'checked':''} onchange="state.cmp2Mirror=this.checked;render()">🪞 Miroir</label>
+    </div>
+    <div style="font-size:8.5px;color:#777;margin-top:4px;margin-bottom:2px">Éléments de classification à colorier :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">
+      ${CL_DEF.filter(cl=>cl.key!=='miroir').map(cl=>`
+        <div class="cl-chip ${state.cmp2ClActive[cl.key]?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
+          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]?'1':'.45'}">
+          ${state.cmp2ClActive[cl.key]?'✓':'○'} ${cl.label}
+        </div>`).join('')}
+      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=true});render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tout ✓</button>
+      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=false});render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Tout ○</button>
     </div>
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
-    <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). Un numéro est surligné dès qu'il apparaît dans les deux tirages comparés — n'importe où par défaut, ou seulement à la même position (D1↔D1, D2↔D2...) si "Respecter les positions" est coché.</div>
+    <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
   </div>`;
 }

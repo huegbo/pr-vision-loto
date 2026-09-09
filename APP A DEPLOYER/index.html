@@ -12448,6 +12448,7 @@ const AN_DEF=[
   {key:'decompX',label:'🧩➕ Décomposition croisée',bg:'#059669',fg:'#fff',desc:'Un numéro égal à un numéro d\'une autre colonne (même tirage) + le numéro de cette même colonne dans un tirage voisin (écart réglable) — ex: 67 = 15+52'},
   {key:'sumCounterMir',label:'➕🪞 Somme → Counter → Miroir',bg:'#9D174D',fg:'#fff',desc:'2 numéros de la même ligne dont la somme, ramenée dans 1-90 par ±45 (son "counterpart"), a son miroir (chiffres inversés) présent sur cette même ligne — ex: 53+37=90 → counterpart 45 → miroir 54, présent sur la ligne'},
   {key:'decompLine',label:'🧩📏 Décomposition même ligne',bg:'#B45309',fg:'#fff',desc:'Un numéro de la ligne (gagnant ou machine) égal à la somme de deux autres numéros de cette même ligne — gagnants et machines confondus — ex: 88=18+70 (70 étant un numéro machine)'},
+  {key:'empile',label:'🗼 Loto Empilé',bg:'#BE123C',fg:'#fff',desc:'5 premières boules empilées sur les 5 dernières (même colonne) : le numéro du haut + le numéro du bas à la même colonne = un autre numéro présent ailleurs sur la ligne — ex: colonne 3 = 50 (haut) et 22 (bas), 50+22=72, et 72 est présent ailleurs sur la ligne'},
   {key:'decompEcho',label:'🧩🔁 Total encadré (même total des 2 côtés)',bg:'#7E22CE',fg:'#fff',desc:'2 numéros de la même ligne (gagnants et machine confondus) dont la somme (le "total") est retrouvée telle quelle — la MÊME valeur — comme numéro réellement tiré sur le tirage voisin plus ancien ET sur le tirage voisin plus récent (écart réglable) — ex: 13+67=80, et 80 est tiré sur les 2 tirages encadrants ; si les 2 côtés donnaient des valeurs différentes, ce n\'est pas retenu'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
@@ -13318,6 +13319,31 @@ function decompLineHits(row){
   }
   return hit;
 }
+// Loto Empilé : 5 premières boules (gagnants, N1-N5) empilées sur les 5 dernières (machine, N6-N10),
+// colonne par colonne (N1↔N6, N2↔N7, N3↔N8, N4↔N9, N5↔N10) — comme sur les affiches Lonato/Loto Matinal.
+// Pour chaque colonne, teste si numéro du haut + numéro du bas = un AUTRE numéro présent ailleurs sur
+// la même ligne (gagnant ou machine, n'importe quelle position sauf la paire elle-même).
+// Ex: colonne 3 → 50 (haut) + 22 (bas) = 72, et 72 est présent ailleurs sur la ligne (machine N7).
+// Retourne un tableau de booléens (longueur = row.n + row.m). Si pas de numéros machine, aucun hit.
+function empileHits(row){
+  const hasM=!!(row.m&&row.m.length);
+  const all=hasM?[...row.n,...row.m]:[...row.n];
+  const hit=new Array(all.length).fill(false);
+  if(!hasM)return hit;
+  const nLen=row.n.length;
+  const cols=Math.min(nLen,row.m.length);
+  for(let c=0;c<cols;c++){
+    const top=row.n[c],bot=row.m[c];
+    if(isNaN(top)||isNaN(bot))continue;
+    const sum=top+bot;
+    for(let k=0;k<all.length;k++){
+      if(k===c||k===nLen+c)continue;
+      if(isNaN(all[k]))continue;
+      if(all[k]===sum){hit[c]=true;hit[nLen+c]=true;hit[k]=true;}
+    }
+  }
+  return hit;
+}
 // Total encadré (même total des 2 côtés) : pour la ligne "milieu", 2 numéros (gagnant OU machine)
 // dont la somme X est retrouvée EXACTEMENT (la même valeur) comme numéro réellement tiré sur le
 // tirage voisin plus ancien ET sur le tirage voisin plus récent (écart réglable). Fonctionne aussi
@@ -13537,6 +13563,10 @@ function anMark(row,ctx){
     const hits=decompLineHits(row);
     row.n.forEach((n,i)=>{if(hits[i])S(i,D.bg);});
   }
+  if(m==='empile'){
+    const hits=empileHits(row);
+    row.n.forEach((n,i)=>{if(hits[i])S(i,D.bg);});
+  }
   if(m==='decompEcho'){
     const hits=decompEchoHits(row);
     row.n.forEach((n,i)=>{if(hits[i])S(i,state.decompEchoColor||D.bg);});
@@ -13687,6 +13717,11 @@ function anMarkBonus(row,ctx){
     const Dl=AN_DEF.find(d=>d.key==='decompLine');
     const hits=decompLineHits(row);
     row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[Dl.bg,Dl.fg];});
+  }
+  if(state.anMode==='empile'){
+    const De2=AN_DEF.find(d=>d.key==='empile');
+    const hits=empileHits(row);
+    row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[De2.bg,De2.fg];});
   }
   if(state.anMode==='decompEcho'){
     const De=AN_DEF.find(d=>d.key==='decompEcho');

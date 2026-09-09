@@ -12448,6 +12448,7 @@ const AN_DEF=[
   {key:'sumCounterMir',label:'➕🪞 Somme → Counter → Miroir',bg:'#9D174D',fg:'#fff',desc:'2 numéros de la même ligne dont la somme, ramenée dans 1-90 par ±45 (son "counterpart"), a son miroir (chiffres inversés) présent sur cette même ligne — ex: 53+37=90 → counterpart 45 → miroir 54, présent sur la ligne'},
   {key:'decompLine',label:'🧩📏 Décomposition même ligne',bg:'#B45309',fg:'#fff',desc:'Un numéro de la ligne (gagnant ou machine) égal à la somme de deux autres numéros de cette même ligne — gagnants et machines confondus — ex: 88=18+70 (70 étant un numéro machine)'},
   {key:'empile',label:'🗼 Loto Empilé',bg:'#BE123C',fg:'#fff',desc:'5 premières boules empilées sur les 5 dernières (même colonne) : le numéro du haut + le numéro du bas à la même colonne = un autre numéro présent ailleurs sur la ligne — ex: colonne 3 = 50 (haut) et 22 (bas), 50+22=72, et 72 est présent ailleurs sur la ligne'},
+  {key:'totalSplit',label:'🔢 Numéro dans Total',bg:'#0D9488',fg:'#fff',desc:'Découpe le total (la somme) de la ligne en sous-nombres de 2 chiffres consécutifs — ex: total=244 → 24, 44 ; total=253 → 25, 53 ; total=220 → 22, 20. Si un de ces sous-nombres correspond à un numéro tiré sur la même ligne (gagnant ou machine), il est colorié'},
   {key:'decompEcho',label:'🧩🔁 Total encadré (même total des 2 côtés)',bg:'#7E22CE',fg:'#fff',desc:'2 numéros de la même ligne (gagnants et machine confondus) dont la somme (le "total") est retrouvée telle quelle — la MÊME valeur — comme numéro réellement tiré sur le tirage voisin plus ancien ET sur le tirage voisin plus récent (écart réglable) — ex: 13+67=80, et 80 est tiré sur les 2 tirages encadrants ; si les 2 côtés donnaient des valeurs différentes, ce n\'est pas retenu'},
   {key:'contient',label:'🔢 Contient le chiffre',bg:'#0369A1',fg:'#fff',desc:'Numéros contenant un chiffre donné (réglable)'},
   {key:'finit',label:'🔚 Se termine par',bg:'#0E7490',fg:'#fff',desc:'Numéros se terminant par un chiffre donné (réglable)'},
@@ -13343,6 +13344,26 @@ function empileHits(row){
   }
   return hit;
 }
+// Numéro dans Total : découpe le total (row.s, la somme) en sous-nombres de 2 chiffres consécutifs
+// (fenêtre glissante sur les chiffres du total) et teste si l'un de ces sous-nombres est présent
+// parmi les numéros de la ligne (gagnant ou machine). Ex: total=244 → 24,44. total=253 → 25,53.
+// total=220 → 22,20. Retourne un tableau de booléens (longueur = row.n + row.m si hasM).
+function totalSplitHits(row){
+  const hasM=!!(row.m&&row.m.length);
+  const all=hasM?[...row.n,...row.m]:[...row.n];
+  const hit=new Array(all.length).fill(false);
+  const total=row.s;
+  if(total==null||isNaN(total))return hit;
+  const digits=String(total);
+  const subs=new Set();
+  for(let i=0;i<digits.length-1;i++){
+    subs.add(parseInt(digits.slice(i,i+2),10));
+  }
+  for(let k=0;k<all.length;k++){
+    if(!isNaN(all[k])&&subs.has(all[k]))hit[k]=true;
+  }
+  return hit;
+}
 // Total encadré (même total des 2 côtés) : pour la ligne "milieu", 2 numéros (gagnant OU machine)
 // dont la somme X est retrouvée EXACTEMENT (la même valeur) comme numéro réellement tiré sur le
 // tirage voisin plus ancien ET sur le tirage voisin plus récent (écart réglable). Fonctionne aussi
@@ -13566,6 +13587,10 @@ function anMark(row,ctx){
     const hits=empileHits(row);
     row.n.forEach((n,i)=>{if(hits[i])S(i,D.bg);});
   }
+  if(m==='totalSplit'){
+    const hits=totalSplitHits(row);
+    row.n.forEach((n,i)=>{if(hits[i])S(i,D.bg);});
+  }
   if(m==='decompEcho'){
     const hits=decompEchoHits(row);
     row.n.forEach((n,i)=>{if(hits[i])S(i,state.decompEchoColor||D.bg);});
@@ -13721,6 +13746,11 @@ function anMarkBonus(row,ctx){
     const De2=AN_DEF.find(d=>d.key==='empile');
     const hits=empileHits(row);
     row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[De2.bg,De2.fg];});
+  }
+  if(state.anMode==='totalSplit'){
+    const Dts=AN_DEF.find(d=>d.key==='totalSplit');
+    const hits=totalSplitHits(row);
+    row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[Dts.bg,Dts.fg];});
   }
   if(state.anMode==='decompEcho'){
     const De=AN_DEF.find(d=>d.key==='decompEcho');

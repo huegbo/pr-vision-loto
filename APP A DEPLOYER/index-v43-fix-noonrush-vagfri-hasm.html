@@ -13347,6 +13347,28 @@ function empileHits(row){
   }
   return hit;
 }
+// Découpe un total en sous-nombres de 2 chiffres consécutifs (fenêtre glissante qui se chevauche) —
+// ex: 244 → [24,44]. 253 → [25,53]. 220 → [22,20]. Utilisé par le filtre "Numéro dans Total" et par
+// la recherche de numéro (détecte aussi un numéro caché dans le total, même s'il n'est pas tiré).
+function totalSubNumbers(s){
+  if(s==null||isNaN(s))return[];
+  const digits=String(s);
+  const subs=new Set();
+  for(let i=0;i<digits.length-1;i++)subs.add(parseInt(digits.slice(i,i+2),10));
+  return[...subs];
+}
+// Recherche de numéro étendue au Total : renvoie tous les tirages (toutes années) où CHAQUE numéro
+// cherché (state.search) est un sous-nombre du total de la ligne — même si ce numéro n'a pas été
+// tiré parmi les boules. Ex: recherche "50" → détecte les tirages dont le total contient 50 (ex: 350, 501...).
+function searchTotalMatches(){
+  if(!state.search.length)return[];
+  const out=[];
+  YEARS.forEach(yr=>{(BY_YEAR[yr]||[]).forEach(row=>{
+    const subs=totalSubNumbers(row.s);
+    if(state.search.every(n=>subs.includes(n)))out.push(row);
+  });});
+  return out;
+}
 // Numéro dans Total : découpe le total (row.s, la somme) en sous-nombres de 2 chiffres consécutifs
 // (fenêtre glissante sur les chiffres du total, ex: total=244 → 24,44. total=253 → 25,53) et teste
 // si l'un de ces sous-nombres est EN RELATION avec un numéro de la ligne (gagnant ou machine) :
@@ -13359,11 +13381,7 @@ function totalSplitHits(row){
   const hit=new Array(all.length).fill(false);
   const total=row.s;
   if(total==null||isNaN(total))return hit;
-  const digits=String(total);
-  const subs=new Set();
-  for(let i=0;i<digits.length-1;i++){
-    subs.add(parseInt(digits.slice(i,i+2),10));
-  }
+  const subs=new Set(totalSubNumbers(total));
   const withMirror=state.totalSplitMirror!==false;
   const clActive=state.totalSplitClActive||{};
   for(let k=0;k<all.length;k++){
@@ -14565,6 +14583,15 @@ function __renderBody(){
             ${state.showPass?`<span style="font-size:9px;font-weight:500;color:#555">tirages suivants:</span>${[1,3,5].map(n=>`<button onclick="state.passN=${n};render()" style="padding:1px 7px;font-size:9px;border-radius:10px;border:1.5px solid ${state.passN===n?'#F59E0B':'#ddd'};background:${state.passN===n?'#FEF3C7':'#fff'};color:${state.passN===n?'#92400E':'#888'};cursor:pointer;font-weight:500">${n}</button>`).join('')}`:''}
           </div>
           ${state.showPass?`<div style="margin-top:6px;max-height:280px;overflow-y:auto">${passRender()}</div>`:''}
+        </div>`;
+      }
+      const tres=searchTotalMatches();
+      if(tres.length){
+        html+=`<div style="background:#F0FDFA;border:1px solid #0D9488;border-radius:8px;padding:6px 10px;margin-bottom:7px">
+          <div style="font-size:10px;font-weight:500;color:#0D9488;margin-bottom:3px">🔢 [${state.search.join('+')}] trouvé dans le TOTAL (même si pas parmi les boules) — ${tres.length} tirages</div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;max-height:65px;overflow-y:auto">
+            ${tres.map(r=>{return`<div style="background:#fff;border:1px solid #0D9488;border-radius:5px;padding:2px 5px;font-size:9px;display:flex;gap:2px;align-items:center"><span style="font-weight:500;color:#0D9488">${r.y}</span><span style="color:#555">${r.d}</span>${r.n.map(n=>numSpan(n)).join('')}<span style="font-weight:700;color:#fff;background:#0D9488;border-radius:2px;padding:0 3px;font-size:8px">${r.s}</span></div>`;}).join('')}
+          </div>
         </div>`;
       }
     }

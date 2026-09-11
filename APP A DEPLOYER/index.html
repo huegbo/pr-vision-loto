@@ -775,7 +775,7 @@ function beninFiltreHTML(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
     &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
   let html=`<div id="app-content">
-  <div class="header" style="background:#111F33;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#111F33;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇧🇯 BENIN — Filtre Jour / Jeu</div>
       <button onclick="openBeninFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -935,7 +935,7 @@ function openGhAlphaFiltreAsGame(){
 function ghAlphaFiltreHTML(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
   let html=`<div id="app-content">
-  <div class="header" style="background:#4C1D95;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#4C1D95;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇬🇭 GH ALPHALOTTO FAMILY — Filtre Jour / Jeu</div>
       <button onclick="openGhAlphaFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -1019,7 +1019,7 @@ function openGhanaFiltreAsGame(){
 function ghanaFiltreHTML(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
   let html=`<div id="app-content">
-  <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇬🇭 GHANA — Filtre Jour / Jeu</div>
       <button onclick="openGhanaFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -1115,7 +1115,7 @@ function openCamerounFiltreAsGame(){
 function camerounFiltreHTML(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
   let html=`<div id="app-content">
-  <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇨🇲 CAMEROUN — Filtre Jour / Jeu</div>
       <button onclick="openCamerounFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -1390,7 +1390,7 @@ function togoFiltreHTML(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
   const togoMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
-  <div class="header" style="background:#4A2E1A;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#4A2E1A;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇹🇬 TOGO (LONATO) — Filtre Jour / Jeu</div>
       <button onclick="openTogoFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -1628,7 +1628,7 @@ function ciFiltreHTML(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
   const ciMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
-  <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇨🇮 CÔTE D'IVOIRE (LONACI) — Filtre Jour / Jeu</div>
       <button onclick="openCIFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -1751,7 +1751,7 @@ function itFiltreHTML(){
   const itMaxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
   const itMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
-  <div class="header" style="background:#006341;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#006341;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🇮🇹 ITALIE (Lotto / SuperEnalotto) — Filtre Jour / Roue</div>
       <button onclick="openITFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
@@ -2607,7 +2607,7 @@ function multiFiltreHTML(){
   const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
   const multiMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
-  <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+  <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">🌍 MULTI-PAYS — Bénin + Togo + Cameroun + Côte d'Ivoire</div>
       <button onclick="openMultiFiltreAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>

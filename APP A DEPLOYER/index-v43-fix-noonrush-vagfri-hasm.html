@@ -1488,7 +1488,7 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
     a.href=URL.createObjectURL(blob);
     a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -2000,7 +2000,7 @@ async function exportMultiRepeats(results,filenamePrefix,sheetName,btnId){
     a.href=URL.createObjectURL(blob);
     a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -2121,7 +2121,7 @@ async function exportMultiMirrors(results,filenamePrefix,btnId){
     a.href=URL.createObjectURL(blob);
     a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -2249,7 +2249,7 @@ async function exportMultiClassif(results,filenamePrefix,btnId,typeLabel){
     a.href=URL.createObjectURL(blob);
     a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -3059,7 +3059,7 @@ function downloadPronosticPoster(){
     a.href=URL.createObjectURL(blob);
     a.download='pronostic_'+currentPronosticGame().key+'_'+Date.now()+'.png';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   },'image/png');
 }
 function pronosticSubTabHTML(){
@@ -4944,7 +4944,7 @@ async function exportSearch(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_recherche_'+state.search.join('-')+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -5051,7 +5051,7 @@ async function exportPassLookup(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_pass_'+(state.passMode==='year'?state.passYearInput:'T'+state.passTirageInput)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -5145,7 +5145,7 @@ async function exportDiagonals(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_diagonales.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -6190,7 +6190,7 @@ async function exportFormExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_suite_formule.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -6549,7 +6549,7 @@ function downloadCSVRows(filename,rows){
     const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(blob);
     const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},4000);
   }catch(e){alert('Export impossible sur ce navigateur');}
 }
 function exportAllCSV(){
@@ -6587,7 +6587,7 @@ async function exportCQCSV(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_recherche.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -6631,7 +6631,7 @@ async function exportCQMultiExcel(){
     a.href=URL.createObjectURL(blob);
     a.download='multi_jeux_recherche.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -7007,7 +7007,7 @@ async function exportMgColumnsExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=sanitizeFile('Comparaison_lotos_'+cols.map(c=>c.key).join('-').slice(0,60))+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -7185,7 +7185,7 @@ async function exportColoredExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=sanitizeFile(GAME.name+'_'+exportLabel)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -7525,7 +7525,7 @@ async function exportDbtExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_double_meme_'+(qty==='diff'?'difference':'total')+'_'+mode+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -7540,7 +7540,7 @@ async function dlXlsxBlob(wb,filename){
   a.href=URL.createObjectURL(blob);
   a.download=filename;
   document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
 }
 // ══════ Export Excel — Recherche par total (« Somme sur une ligne ») ══════
 async function exportTotalMatchesExcel(){
@@ -7959,7 +7959,7 @@ async function exportVtotDExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_total_difference_superpose_'+(state.vtotdSamePos?'meme_position':'toute_position')+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -8026,7 +8026,7 @@ async function exportVtotDMultiExcel(){
     a.href=URL.createObjectURL(blob);
     a.download='multi_jeux_total_difference_superpose_'+(r.samePos?'meme_position':'toute_position')+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -8130,7 +8130,7 @@ async function exportVtotdWeekExcel(){
     a.href=URL.createObjectURL(blob);
     a.download=GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_semaine_qui_matche.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -10145,7 +10145,7 @@ function exportAllData(){
   a.href=URL.createObjectURL(blob);
   a.download='forecast_loto90_sauvegarde_'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();
-  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
 }
 function triggerImportAllData(){
   const inp=document.getElementById('import-all-input');
@@ -10249,7 +10249,7 @@ function downloadCSV(csv,filename){
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download=filename;
-  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
 }
 function rowToCSV(r){
   return GAME.name+';'+r.t+';'+r.d+';'+r.y+';'+r.n.join(';')+';'+r.s+(GAME.hasM?';'+(r.m?r.m.join(';'):';;;;'):'');
@@ -11980,7 +11980,7 @@ async function exportAiNums(proposals,filenamePrefix,btnId){
     a.href=URL.createObjectURL(blob);
     a.download=filenamePrefix+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -12946,7 +12946,7 @@ function exportEnvStatesFile(){
     a.href=url;
     a.download='forecast-loto-90-etats-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();
-    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);
+    setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},4000);
   }catch(e){alert('Export impossible sur ce navigateur');}
 }
 function importEnvStatesFile(inputEl){

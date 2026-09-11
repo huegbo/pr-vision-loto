@@ -4427,6 +4427,9 @@ function setGame(key){
   state.compRes=null;
   closePopup();
   render();
+  // Le dernier tirage est en bas de la vue par année (ordre chronologique croissant) :
+  // on scrolle automatiquement tout en bas pour que le tirage le plus récent soit visible sans action.
+  setTimeout(()=>window.scrollTo({top:document.body.scrollHeight,behavior:'auto'}),60);
 }
 
 // ══════ SAISIE DE NOUVEAUX TIRAGES ══════

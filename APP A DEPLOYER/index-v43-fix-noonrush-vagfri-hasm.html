@@ -193,6 +193,26 @@ const RAW_SUPER=window.LOTO_DATA.RAW_SUPER;
 const RAW_KADOO=window.LOTO_DATA.RAW_KADOO;
 const RAW_SAM=window.LOTO_DATA.RAW_SAM;
 const RAW_MATINAL=window.LOTO_DATA.RAW_MATINAL;
+// Transforme RAW_MATINAL en 2 lignes par tirage (normal en haut, machine en bas — comme sur l'affiche
+// officielle) pour MATINAL EMPILÉ : chaque tirage d'origine (5 gagnants + 5 machine) devient 2 lignes
+// distinctes de 5 numéros chacune, avec des N° de tirage synthétiques (2×t-1 pour le haut, 2×t pour le
+// bas) qui préservent l'ordre chronologique dans la vue "par année" (normal juste au-dessus de machine).
+function buildMatinalEmpileRaw(raw){
+  const out=[];
+  raw.trim().split('\n').forEach(line=>{
+    const p=line.split('|');
+    if(p.length<14)return;
+    const t=+p[0],d=p[1],y=p[2];
+    const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+    const s=+p[8];
+    const m=[+p[9],+p[10],+p[11],+p[12],+p[13]];
+    const sM=m.reduce((a,b)=>a+b,0);
+    out.push((t*2-1)+'|'+d+'|'+y+'|'+n.join('|')+'|'+s);
+    out.push((t*2)+'|'+d+'|'+y+'|'+m.join('|')+'|'+sM);
+  });
+  return out.join('\n');
+}
+const RAW_MATINAL_EMPILE=buildMatinalEmpileRaw(RAW_MATINAL);
 const RAW_MATINAL_LUNDI=window.LOTO_DATA.RAW_MATINAL_LUNDI;
 const RAW_MATINAL_MARDI=window.LOTO_DATA.RAW_MATINAL_MARDI;
 const RAW_MATINAL_MERCREDI=window.LOTO_DATA.RAW_MATINAL_MERCREDI;
@@ -425,7 +445,7 @@ const GAMES={
   bingo:{name:'BINGO',icon:'🇹🇬',raw:RAW_BINGO,day:'Samedi 18h'},
   detente:{name:'DETENTE',icon:'🇹🇬',raw:RAW_DETENTE,day:'Dimanche 16h',hasM:true},
   matinal:{name:'MATINAL',icon:'🇹🇬',raw:RAW_MATINAL,hasM:true,sum10:true},
-  matinal_empile:{name:'MATINAL EMPILÉ',icon:'🗼',raw:RAW_MATINAL,hasM:true,sum10:true},
+  matinal_empile:{name:'MATINAL EMPILÉ',icon:'🗼',raw:RAW_MATINAL_EMPILE},
   matinal_lundi:{name:'MATINAL LUNDI',icon:'🇹🇬',raw:RAW_MATINAL_LUNDI,hasM:true,sum10:true},
   matinal_mardi:{name:'MATINAL MARDI',icon:'🇹🇬',raw:RAW_MATINAL_MARDI,hasM:true,sum10:true},
   matinal_mercredi:{name:'MATINAL MERCREDI',icon:'🇹🇬',raw:RAW_MATINAL_MERCREDI,hasM:true,sum10:true},

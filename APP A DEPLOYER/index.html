@@ -3883,7 +3883,7 @@ let state={
   pronosticOrdre:'saisi', pronosticAuto:0,   // ordre des numeros a l'export : 'saisi' ou 'croissant'        // contour des boules : absent par défaut
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
-  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, comboMulti:false, comboMultiGames:[], comboMultiRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, comboMulti:false, comboMultiGames:[], comboMultiRes:null, searchModuleOpen:null, searchModuleQuery:'', totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
   convPickerFor:null, // clé du jeu de base pour lequel le panneau « 🔀 Ajouter une conversion » (Comparer plusieurs lotos) est ouvert, sinon null
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
@@ -7245,9 +7245,50 @@ function vseqMatch(row,level){
   const pos=level.pos||'any';
   if(pos==='any')return level.nums.every(n=>row.n.includes(n));
   if(pos==='anyAll')return level.nums.every(n=>row.n.includes(n)||(row.m&&row.m.includes(n)));
+  if(pos==='colle'){
+    // "Collés" : les numéros du niveau doivent occuper des positions ADJACENTES dans le
+    // tirage (D1-D2, D2-D3... en comptant gagnants puis machine à la suite), peu importe
+    // l'ordre exact — même logique que le module "Numéros collés" existant (ordre "any").
+    const all=row.n.concat(row.m||[]);
+    const n=level.nums.length;
+    const want=level.nums.slice().sort((a,b)=>a-b).join(',');
+    for(let i=0;i<=all.length-n;i++){
+      if(all.slice(i,i+n).slice().sort((a,b)=>a-b).join(',')===want)return true;
+    }
+    return false;
+  }
   if(pos[0]==='n'){const idx=parseInt(pos.slice(1))-1;return idx>=0&&idx<row.n.length&&level.nums.includes(row.n[idx]);}
   if(pos[0]==='m'){const idx=parseInt(pos.slice(1))-1;return !!row.m&&idx>=0&&idx<row.m.length&&level.nums.includes(row.m[idx]);}
   return true;
+}
+// Indices (dans row.n / row.m) à surligner à l'affichage/export pour un niveau déjà validé par vseqMatch.
+function vseqHitIdx(row,level){
+  const pos=level.pos||'any';
+  const nums=level.nums||[];
+  const res={n:new Set(),m:new Set()};
+  if(!nums.length)return res;
+  if(pos==='any'){
+    row.n.forEach((v,i)=>{if(nums.includes(v))res.n.add(i);});
+  }else if(pos==='anyAll'){
+    row.n.forEach((v,i)=>{if(nums.includes(v))res.n.add(i);});
+    if(row.m)row.m.forEach((v,i)=>{if(nums.includes(v))res.m.add(i);});
+  }else if(pos==='colle'){
+    const all=row.n.concat(row.m||[]);
+    const want=nums.slice().sort((a,b)=>a-b).join(',');
+    const n=nums.length;
+    for(let i=0;i<=all.length-n;i++){
+      if(all.slice(i,i+n).slice().sort((a,b)=>a-b).join(',')===want){
+        for(let k=0;k<n;k++){const idx=i+k;if(idx<row.n.length)res.n.add(idx);else res.m.add(idx-row.n.length);}
+      }
+    }
+  }else if(pos[0]==='n'){
+    const idx=parseInt(pos.slice(1))-1;
+    if(idx>=0&&idx<row.n.length&&nums.includes(row.n[idx]))res.n.add(idx);
+  }else if(pos[0]==='m'){
+    const idx=parseInt(pos.slice(1))-1;
+    if(row.m&&idx>=0&&idx<row.m.length&&nums.includes(row.m[idx]))res.m.add(idx);
+  }
+  return res;
 }
 function runVseq(){
   const levels=vseqFromDOM();
@@ -7293,6 +7334,7 @@ function vseqClear(){state.vseqLevels=[];state.vseqRes=null;render();}
 function vseqPosLabel(pos){
   if(!pos||pos==='any')return'toute place (gagnant)';
   if(pos==='anyAll')return'toute place (gagnant+machine)';
+  if(pos==='colle')return'collés (positions adjacentes)';
   if(pos[0]==='n')return'place N'+pos.slice(1);
   if(pos[0]==='m')return'place M'+pos.slice(1);
   return pos;
@@ -7307,14 +7349,14 @@ function vseqResultHTML(){
     ${show.map(chain=>`<div style="border:1px solid #FCD34D;background:#FFFBEB;border-radius:7px;padding:5px 7px;margin-bottom:5px">
       ${chain.map((c,i)=>{
         const pos=c.pos||'any';
-        const isM=pos[0]==='m';
+        const hitIdx=vseqHitIdx(c.row,c);
         return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;padding:2px 0;flex-wrap:wrap;${i?'border-top:1px dashed #FDE68A':''}">
         <span style="min-width:34px;font-weight:700;color:#B45309">${i?(state.vseqDir==='down'?'+':'−')+c.gap:'départ'}</span>
         <span style="min-width:44px;font-weight:600;color:#1F2D3D">N°${c.row.t}</span>
         <span style="min-width:38px;color:#666">${c.row.d}</span>
         <span style="min-width:30px;color:#999">${c.row.y}</span>
-        <span style="display:flex;gap:2px">${c.row.n.map((n,ni)=>{const hit=isM?false:(pos[0]==='n'?(ni===parseInt(pos.slice(1))-1&&c.nums.includes(n)):c.nums.includes(n));return `<span style="min-width:19px;text-align:center;padding:1px 3px;border-radius:3px;font-weight:${hit?'800':'400'};background:${hit?'#F59E0B':'#F3F4F6'};color:${hit?'#fff':'#444'}">${n}</span>`;}).join('')}</span>
-        ${GAME.hasM&&c.row.m?`<span style="display:flex;gap:2px;padding-left:4px;border-left:1px dashed #FDE68A">${c.row.m.map((n,mi)=>{const hit=isM?(mi===parseInt(pos.slice(1))-1&&c.nums.includes(n)):(pos==='anyAll'&&c.nums.includes(n));return `<span style="min-width:17px;text-align:center;padding:1px 3px;border-radius:3px;font-size:9px;font-weight:${hit?'800':'400'};background:${hit?'#D97706':'#EEF0F3'};color:${hit?'#fff':'#999'}">${n}</span>`;}).join('')}</span>`:''}
+        <span style="display:flex;gap:2px">${c.row.n.map((n,ni)=>{const hit=hitIdx.n.has(ni);return `<span style="min-width:19px;text-align:center;padding:1px 3px;border-radius:3px;font-weight:${hit?'800':'400'};background:${hit?'#F59E0B':'#F3F4F6'};color:${hit?'#fff':'#444'}">${n}</span>`;}).join('')}</span>
+        ${GAME.hasM&&c.row.m?`<span style="display:flex;gap:2px;padding-left:4px;border-left:1px dashed #FDE68A">${c.row.m.map((n,mi)=>{const hit=hitIdx.m.has(mi);return `<span style="min-width:17px;text-align:center;padding:1px 3px;border-radius:3px;font-size:9px;font-weight:${hit?'800':'400'};background:${hit?'#D97706':'#EEF0F3'};color:${hit?'#fff':'#999'}">${n}</span>`;}).join('')}</span>`:''}
         <span style="font-size:8px;color:#B45309;background:#FEF3C7;border-radius:6px;padding:0 5px">${vseqPosLabel(pos)}</span>
         <span style="margin-left:auto;font-weight:600;color:#B45309">${c.row.s}</span>
       </div>`;}).join('')}
@@ -7323,7 +7365,7 @@ function vseqResultHTML(){
 }
 // Options du sélecteur "place imposée" pour un niveau de la séquence libre.
 function vseqPosOptionsHTML(sel){
-  const opts=[['any','Toute place (gagnant)'],['anyAll','Toute place (gagnant+machine)']];
+  const opts=[['any','Toute place (gagnant)'],['anyAll','Toute place (gagnant+machine)'],['colle','Collés (positions adjacentes)']];
   for(let i=1;i<=5;i++)opts.push(['n'+i,'Place N'+i]);
   if(GAME.hasM)for(let i=1;i<=5;i++)opts.push(['m'+i,'Place M'+i]);
   return opts.map(([v,l])=>`<option value="${v}" ${sel===v?'selected':''}>${l}</option>`).join('');
@@ -7346,7 +7388,7 @@ function vseqPanelHTML(){
   return `<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">🪜 Séquence de numéros — motif vertical sur plusieurs tirages</div>
     <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#92400E">
-      Ex: niveau 1 = 01 02 (départ), niveau 2 = 10 20 avec un rang (décalage) de 2 tirages plus loin → "01-02 suit 10-20, 2 tirages après". Pour chaque niveau, tu peux imposer la <b>place</b> exacte du/des numéro(s) (N1..N5, M1..M5) au lieu de "toute place".
+      Ex: niveau 1 = 01 02 (départ), niveau 2 = 10 20 avec un rang (décalage) de 2 tirages plus loin → "01-02 suit 10-20, 2 tirages après". Pour chaque niveau, tu peux imposer la <b>place</b> exacte du/des numéro(s) (N1..N5, M1..M5), ou choisir <b>Collés</b> pour exiger que les numéros du niveau soient à des positions voisines dans le tirage (ex: 65 et 61 l'un à côté de l'autre) — au lieu de "toute place".
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#92400E;font-weight:600">${GAME.icon||''} ${GAME.name}</span>
@@ -7398,21 +7440,14 @@ async function exportVseqExcel(){
         const row=ws.addRow(vals);
         if(last3Ids.has(c.row.t)){for(let ck=1;ck<=header.length;ck++)row.getCell(ck).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
         const mStartCol=nStartCol+6; // colonne M1 (après N1-N5 + Total)
-        if(pos[0]==='m'){
-          const idx=parseInt(pos.slice(1))-1;
-          if(c.row.m&&c.nums.includes(c.row.m[idx])){const cell=row.getCell(mStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}
-        }else if(pos[0]==='n'){
-          const idx=parseInt(pos.slice(1))-1;
-          if(c.nums.includes(c.row.n[idx])){const cell=row.getCell(nStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}
-        }else{
-          c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n){const cell=row.getCell(nStartCol+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
-          if(pos==='anyAll'&&GAME.hasM&&c.row.m)c.nums.forEach(n=>{c.row.m.forEach((v,i)=>{if(v===n){const cell=row.getCell(mStartCol+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
-        }
+        const hitIdx=vseqHitIdx(c.row,c);
+        hitIdx.n.forEach(idx=>{const cell=row.getCell(nStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};});
+        if(GAME.hasM)hitIdx.m.forEach(idx=>{const cell=row.getCell(mStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};});
       });
     });
     ws.columns.forEach(c=>{c.width=11;});
     const hitSet=new Set();
-    chains.forEach(chain=>{chain.forEach(c=>{const pos=c.pos||'any';if(pos[0]!=='m')c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n)hitSet.add(c.row.t+'|N'+(i+1));});});});});
+    chains.forEach(chain=>{chain.forEach(c=>{vseqHitIdx(c.row,c).n.forEach(idx=>hitSet.add(c.row.t+'|N'+(idx+1)));});});
     addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
     await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_sequence_libre.xlsx');
   }catch(err){
@@ -9590,49 +9625,8 @@ async function exportCetExcel(){
   }
 }
 
-function searchHubHTML(){
-  const modules=[
-    ['🔢','Recherche numéros','Trouve les tirages contenant des numéros','num'],
-    ['🎯','Recherche par total','Tous les tirages ayant un total donné','total'],
-    ['🔗','Numéros + Total','Numéros ET total sur la même ligne','combo'],
-    ['🔁','Voir les Pass','Ce qui sort après chaque apparition','pass'],
-    ['📐','Tracer Plan','Combien de fois une combinaison est sortie','plan'],
-    ['🪜','Séquence libre','Motif vertical, numéros à toute position','vseq'],
-    ['➕','Double même total','Deux paires qui donnent le même total','dbt'],
-    ['🔁','Paires qui reviennent','Une paire ressort ensemble après un écart réglable de tirages','prp'],
-    ['🧱','Même total superposé','N numéros aux mêmes positions, écart réglable','vtot'],
-    ['⚖️','Total ↔ Différence superposé','Total d\'un côté = différence de l\'autre, toute position, écart réglable','vtotd'],
-    ['🧩','Numéro + son élément','Un numéro et un de ses dérivés de classification','elm'],
-    ['🧮','Total numéro + élément','Numéro + son dérivé (Counter, Code, Miroir…) = un total','cet'],
-  ];
-  let h=`<div class="card" style="border:2px solid #6D28D9;background:#FaF8FF">
-    <div style="font-size:13px;font-weight:500;color:#6D28D9;margin-bottom:6px">🔎 Modules de recherche</div>
-    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;padding:5px 7px;background:#EDE9FE;border-radius:8px">
-      <span style="font-size:9px;font-weight:500;color:#6D28D9">Jeu:</span>
-      <select onchange="setGameForSearch(this.value)" style="padding:3px 6px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;font-weight:500;color:#6D28D9;background:#fff;cursor:pointer">
-        ${Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${GAME.key===k?'selected':''}>${g.icon} ${g.name}${g.day?' — '+g.day:''}</option>`).join('')}
-      </select>
-      <span style="font-size:9px;color:#888">${T.length} tirages</span>
-      <button onclick="exportAllCSV()" style="margin-left:auto;padding:3px 9px;font-size:9px;border-radius:10px;border:1.5px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600" title="Exporter tous les tirages en CSV">📤 Export CSV</button>
-    </div>`;
-  // ── Cartes de raccourci colorées (style Loterie Nationale) ──
-  const cards=[
-    ['🔢','Recherche numéros','Tirages contenant vos numéros','#155B8A','scrollCQ'],
-    ['🎯','Recherche par total','Tous les tirages d’un total donné','#B35A0C','scrollTotal'],
-    ['🔥','Chauds & froids','Numéros les plus et moins sortis','#0E6272','goHotCold'],
-  ];
-  h+=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
-    ${cards.map(([ic,tit,desc,bg,fn])=>`<div onclick="${fn}()" style="background:${bg};border-radius:14px;padding:12px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px">
-      <span style="font-size:26px;flex:0 0 auto">${ic}</span>
-      <div style="flex:1;min-width:0">
-        <div style="color:#fff;font-size:14px;font-weight:700;margin-bottom:1px">${tit}</div>
-        <div style="color:rgba(255,255,255,.85);font-size:10px">${desc}</div>
-      </div>
-      <span style="color:#fff;font-size:18px;opacity:.7">›</span>
-    </div>`).join('')}
-  </div>`;
-  // ── CYBETCAST QUERY ──
-  h+=`<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
+function cqSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#0891B2;margin-bottom:5px">⚡ Cybetcast Query — requête avancée</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <input id="cq-input" type="text" value="${(state.cqInput||'').replace(/"/g,'&quot;')}" placeholder="Ex: 33P3 2L *P5" onkeydown="if(event.key==='Enter')doCQ()" style="padding:4px 8px;border:1.5px solid #0891B2;border-radius:5px;font-size:12px;flex:1;min-width:150px;outline:none;font-family:monospace">
@@ -9655,16 +9649,10 @@ function searchHubHTML(){
     ${cqMultiResultHTML()}
     ${cqResultHTML()}
   </div>`;
-  h+=vseqPanelHTML();
-  h+=dbtPanelHTML();
-  h+=prpPanelHTML();
-  h+=vtotPanelHTML();
-  h+=vtotdPanelHTML();
-  h+=vttPanelHTML();
-  h+=elmPanelHTML();
-  h+=cetPanelHTML();
-  // Recherche par formule (suite étalée sur plusieurs tirages)
-  h+=`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function formuleSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#7C3AED;margin-bottom:5px">🧮 Suite par formule (étalée sur plusieurs tirages)</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#777">f(n) =</span>
@@ -9697,8 +9685,10 @@ function searchHubHTML(){
     </div>
     ${formResultHTML()}
   </div>`;
-  // Recherche combinée numéros + total (mise en avant)
-  h+=`<div style="background:#fff;border:1.5px solid #6D28D9;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function comboSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #6D28D9;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#6D28D9;margin-bottom:5px">🔗 Recherche numéros + total (même ligne)</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <input id="cs-nums" type="text" placeholder="Numéros: 13 31" style="padding:4px 8px;border:1.5px solid #6D28D9;border-radius:5px;font-size:12px;width:130px;outline:none">
@@ -9716,8 +9706,10 @@ function searchHubHTML(){
     ${state.comboRes?comboResHTML():''}
     ${comboMultiResultHTML()}
   </div>`;
-  // Recherche par mois ou date donnée
-  h+=`<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function dateSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#0891B2;margin-bottom:5px">📅 Tirages à un mois ou une date donnée</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <input id="dsi" type="text" value="${state.dateInput||''}" placeholder="jj/mm ou jj/mm/aaaa" onkeydown="if(event.key==='Enter')doDateSearch()" style="padding:4px 8px;border:1.5px solid #0891B2;border-radius:5px;font-size:12px;width:150px;outline:none">
@@ -9726,8 +9718,10 @@ function searchHubHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: <b>25/12</b> = tous les 25 décembre, toutes années · <b>/6</b> = tout le mois de juin · <b>25/12/2024</b> = date exacte</div>
     ${dateResHTML()}
   </div>`;
-  // Bankers verticalement alignés
-  h+=`<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function bankersSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">📍 Bankers alignés — numéros stables d'une ligne à l'autre</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#777">Au moins</span>
@@ -9742,8 +9736,10 @@ function searchHubHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Écart 1 = tirages consécutifs (points 9-11). Écart plus grand = compare des lignes plus espacées (points 12-14), même colonne D1..D10.</div>
     ${bankerResHTML()}
   </div>`;
-  // Total précédé / succédé d'un numéro
-  h+=`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function totalNearSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#7C3AED;margin-bottom:5px">🔢➡️ Total précédé/succédé d'un numéro</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#777">Total:</span>
@@ -9768,8 +9764,10 @@ function searchHubHTML(){
     </div>
     ${totalNearResHTML()}
   </div>`;
-  // Séquence de numéros (plusieurs niveaux + décalage)
-  h+=`<div style="background:#fff;border:1.5px solid #059669;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function seqOldSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #059669;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#059669;margin-bottom:5px">🧬 Séquence de numéros (niveaux chaînés + décalage)</div>
     ${state.seqLevels.map((lvl,i)=>`
       <div style="border:1px solid #ddd;border-radius:6px;padding:5px;margin-bottom:4px">
@@ -9790,8 +9788,10 @@ function searchHubHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: Niveau 1 → N5=59 · Niveau 2 (décalage 1) → N1=24 · Niveau 3 (décalage 1) → N5=57</div>
     ${seqResHTML()}
   </div>`;
-  // Terminaison — recherche par dernier chiffre (1 à 3 collées, avec ou sans position)
-  h+=`<div style="background:#fff;border:1.5px solid #DB2777;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function termSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #DB2777;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#DB2777;margin-bottom:5px">🔟 Terminaison — dernier chiffre (avec ou sans position)</div>
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#777">Nombre de terminaisons :</span>
@@ -9812,8 +9812,10 @@ function searchHubHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaison 7 = tout numéro finissant par 7 (7, 17, 27, 37...). 2 ou 3 terminaisons = elles doivent apparaître ensemble sur la même ligne.</div>
     ${termResHTML()}
   </div>`;
-  // Chiffre contenu — le chiffre apparaît n'importe où dans le nombre (dizaine ou unité)
-  h+=`<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function digSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#0891B2;margin-bottom:5px">🔢 Chiffre contenu — n'importe où dans le nombre</div>
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#777">Nombre de chiffres :</span>
@@ -9834,16 +9836,10 @@ function searchHubHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: chiffre 4 = 4, 14, 24, 34, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 54, 64, 74, 84 (dizaine OU unité). Différent de "Terminaison" qui ne regarde que le dernier chiffre.</div>
     ${digResHTML()}
   </div>`;
-  h+=pickinObliqueCardHTML();
-  h+=cmp2CardHTML();
-  h+=posPickingCardHTML();
-  h+=compteurCardHTML();
-  h+=collesCardHTML();
-  h+=termCollesCardHTML();
-  h+=group9CardHTML();
-  h+=colonneCardHTML();
-  // Recherche par somme avec nombre de numéros
-  h+=`<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
+}
+
+function sommeligneSectionHTML(){
+  return `<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">🎯 Somme sur une ligne — combien de numéros font ce total</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#777">Somme:</span>
@@ -9863,39 +9859,92 @@ function searchHubHTML(){
         </div>`;}).join('')}
       </div>${state.totalMatches.length>30?`<div style="font-size:8px;color:#999">… et ${state.totalMatches.length-30} autres</div>`:''}`:state.totalSearch?`<span style="font-size:10px;color:#999">aucun tirage trouvé</span>`:''}
   </div>`;
-  // Historique
-  h+=`<div style="background:#fff;border:1px solid #ddd;border-radius:8px;padding:8px">
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-      <span style="font-size:11px;font-weight:500;color:#555">🕘 Recherches récentes</span>
-      ${state.searchHist.length?`<button onclick="clearHist()" style="padding:1px 7px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Effacer</button>`:''}
-    </div>
-    ${state.searchHist.length?`<div style="display:flex;flex-direction:column;gap:3px;max-height:180px;overflow-y:auto">
-      ${state.searchHist.map((e,i)=>{
-        let label='',icon='';
-        if(e.type==='num'){icon='🔢';label=e.val.join(', ');}
-        else if(e.type==='total'){icon='🎯';label='Somme '+e.val+(e.k?' ('+e.k+' n°)':'');}
-        else if(e.type==='combo'){icon='🔗';label=(e.nums&&e.nums.length?e.nums.join(', '):'')+(e.tot!=null?' • Total '+e.tot:'');}
-        else if(e.type==='cq'){icon='⚡';label=e.query;}
-        else if(e.type==='formula'){icon='🧮';label='f(n)='+e.expr;}
-        else if(e.type==='date'){icon='📅';label=e.val;}
-        else if(e.type==='bankers'){icon='📍';label=e.k+'+ alignés (écart '+e.gap+')';}
-        else if(e.type==='totalNear'){icon='🔢➡️';label='Total '+e.tot+' '+(e.dir==='before'?'précédé':'succédé')+' par '+e.num;}
-        else if(e.type==='seq'){icon='🧬';label=e.levels.length+' niveau(x)';}
-        else if(e.type==='term'){icon='🔟';label=e.slots.map(s=>'term.'+s.digit+(s.pos!==''?'@D'+(parseInt(s.pos)+1):'')).join(' + ');}
-        else if(e.type==='dig'){icon='🔢';label=e.slots.map(s=>'chiffre '+s.digit+(s.pos!==''?'@D'+(parseInt(s.pos)+1):'')).join(' + ');}
-        else if(e.type==='pick'){icon='🔀';label=(GAMES[e.keyA]?GAMES[e.keyA].name:e.keyA)+' ↔ '+(GAMES[e.keyB]?GAMES[e.keyB].name:e.keyB)+' — T'+e.ref;}
-        else if(e.type==='pos'){icon='📍';label='pivot '+e.pivot+' → D'+(parseInt(e.targetPos)+1)+' (+'+e.offset+')';}
-        else if(e.type==='cpt'){icon='➕';label=e.n+' tirages'+(e.ref?' depuis T'+e.ref:'');}
-        else if(e.type==='colles'){icon='🔗';label=e.vals.join(' + ')+' collés';}
-        else if(e.type==='termcolles'){icon='🔗';label='term. '+e.digs.join(' + ')+' collées';}
-        else if(e.type==='g9'){icon='🔢';label='groupe9 ≥'+e.min+(e.specific?' (grp '+e.specific+')':'');}
-        else if(e.type==='colonne'){icon='🔟';label='colonne ≥'+e.min+(e.specific!==''?' ('+colonneLabel(parseInt(e.specific))+')':'');}
-        return`<div onclick='runHistIdx(${i})' style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:5px;background:#f7f7f7;font-size:10px" onmouseover="this.style.background='#EDE9FE'" onmouseout="this.style.background='#f7f7f7'">
-          <span>${icon}</span><span style="font-weight:500;color:#6D28D9">${e.gameName}</span><span style="color:#555">${label}</span>
-        </div>`;
-      }).join('')}
-    </div>`:`<div style="font-size:10px;color:#aaa">Aucune recherche pour le moment</div>`}
+}
+
+const SEARCH_SECTIONS=[
+  {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
+  {key:'vseq',icon:'🪜',title:'Séquence de numéros (avec position)',desc:'Motif vertical sur plusieurs tirages — place exacte ou collés, écart réglable',color:'#B45309',html:vseqPanelHTML},
+  {key:'seqOld',icon:'🧬',title:'Séquence de numéros (niveaux + décalage)',desc:'Ancien module : niveaux chaînés, décalage entre chaque niveau',color:'#059669',html:seqOldSectionHTML},
+  {key:'dbt',icon:'➕',title:'Double même total',desc:'Deux paires qui donnent le même total',color:'#DB2777',html:dbtPanelHTML},
+  {key:'prp',icon:'🔁',title:'Paires qui reviennent',desc:'Une paire ressort ensemble après un écart réglable de tirages',color:'#0E7490',html:prpPanelHTML},
+  {key:'vtot',icon:'🧱',title:'Même total superposé',desc:'N numéros aux mêmes positions, écart réglable',color:'#7C3AED',html:vtotPanelHTML},
+  {key:'vtotd',icon:'⚖️',title:'Total ↔ Différence superposé',desc:"Total d'un côté = différence de l'autre, toute position, écart réglable",color:'#7C3AED',html:vtotdPanelHTML},
+  {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},
+  {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
+  {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
+  {key:'formule',icon:'🧮',title:'Suite par formule',desc:'Suite étalée sur plusieurs tirages (formule libre ou suite célèbre)',color:'#7C3AED',html:formuleSectionHTML},
+  {key:'combo',icon:'🔗',title:'Numéros + Total (même ligne)',desc:'Numéros ET total sur la même ligne, multi-jeu possible',color:'#6D28D9',html:comboSectionHTML},
+  {key:'date',icon:'📅',title:'Tirages à une date donnée',desc:'Un jour/mois précis, ou toutes les années pour une date',color:'#0891B2',html:dateSectionHTML},
+  {key:'bankers',icon:'📍',title:'Bankers alignés',desc:"Numéros stables d'une ligne à l'autre, écart réglable",color:'#B45309',html:bankersSectionHTML},
+  {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
+  {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
+  {key:'dig',icon:'🔢',title:'Chiffre contenu',desc:"Le chiffre apparaît n'importe où dans le nombre (dizaine ou unité)",color:'#0891B2',html:digSectionHTML},
+  {key:'oblique',icon:'🔀',title:'Pickin | Oblique',desc:'Comparer deux jeux, alignés par date',color:'#7C3AED',html:pickinObliqueCardHTML},
+  {key:'cmp2',icon:'⚖️',title:'Comparer 2 plages de tirages',desc:'Deux jeux, alignés par N° de tirage',color:'#D97706',html:cmp2CardHTML},
+  {key:'posPicking',icon:'📍',title:'Picking par Position',desc:'Après un numéro pivot, que sort-il à telle position ?',color:'#EA580C',html:posPickingCardHTML},
+  {key:'compteur',icon:'➕',title:'Compteur',desc:'Additions sur plusieurs tirages (numéros chauds)',color:'#059669',html:compteurCardHTML},
+  {key:'colles',icon:'🔗',title:'Numéros collés',desc:'Positions adjacentes (D1-D2, D2-D3...)',color:'#4338CA',html:collesCardHTML},
+  {key:'termColles',icon:'🔗',title:'Terminaisons collées',desc:'Derniers chiffres adjacents',color:'#BE185D',html:termCollesCardHTML},
+  {key:'group9',icon:'🔢',title:'Même groupe (preuve par 9)',desc:'Plusieurs numéros du même groupe sur une ligne',color:'#0D9488',html:group9CardHTML},
+  {key:'colonne',icon:'🔟',title:'Même colonne (dizaine)',desc:'Plusieurs numéros de la même dizaine sur une ligne',color:'#B45309',html:colonneCardHTML},
+  {key:'sommeligne',icon:'🎯',title:'Somme sur une ligne',desc:'Combien de numéros font ce total',color:'#F59E0B',html:sommeligneSectionHTML}
+];
+
+function openSearchModule(key){state.searchModuleOpen=key;render();setTimeout(()=>{window.scrollTo({top:0,behavior:'smooth'});const focusMap={cq:'cq-input',combo:'cs-nums',formule:'form-input',date:'dsi',totalNear:'tns-tot',term:'',dig:'',sommeligne:'tsi'};const fid=focusMap[key];if(fid){const el=document.getElementById(fid);if(el)el.focus();}},60);}
+function closeSearchModule(){state.searchModuleOpen=null;render();setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),30);}
+function setSearchModuleQuery(v){state.searchModuleQuery=v;render();}
+function searchHubHTML(){
+  let h=`<div class="card" style="border:2px solid #6D28D9;background:#FaF8FF">
+    <div style="font-size:13px;font-weight:500;color:#6D28D9;margin-bottom:6px">🔎 Modules de recherche</div>
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;padding:5px 7px;background:#EDE9FE;border-radius:8px">
+      <span style="font-size:9px;font-weight:500;color:#6D28D9">Jeu:</span>
+      <select onchange="setGameForSearch(this.value)" style="padding:3px 6px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;font-weight:500;color:#6D28D9;background:#fff;cursor:pointer">
+        ${Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${GAME.key===k?'selected':''}>${g.icon} ${g.name}${g.day?' — '+g.day:''}</option>`).join('')}
+      </select>
+      <span style="font-size:9px;color:#888">${T.length} tirages</span>
+      <button onclick="exportAllCSV()" style="margin-left:auto;padding:3px 9px;font-size:9px;border-radius:10px;border:1.5px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600" title="Exporter tous les tirages en CSV">📤 Export CSV</button>
+    </div>`;
+  const openKey=state.searchModuleOpen;
+  if(openKey){
+    const sec=SEARCH_SECTIONS.find(s=>s.key===openKey);
+    h+=`<button onclick="closeSearchModule()" style="padding:5px 12px;background:#fff;border:1.5px solid #6D28D9;color:#6D28D9;border-radius:20px;cursor:pointer;font-weight:600;font-size:11px;margin-bottom:8px">◀ Retour aux modules</button>`;
+    h+= sec ? `<div style="font-size:12px;font-weight:700;color:#1F2D3D;margin-bottom:6px">${sec.icon} ${sec.title}</div>` + sec.html() : `<div style="font-size:11px;color:#C62828">Module introuvable.</div>`;
+    h+=`</div>`;
+    return h;
+  }
+  // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
+  const cards=[
+    ['🔢','Recherche numéros','Tirages contenant vos numéros','#155B8A',"openSearchModule('combo')"],
+    ['🎯','Recherche par total','Tous les tirages d’un total donné','#B35A0C',"openSearchModule('sommeligne')"],
+    ['🔥','Chauds & froids','Numéros les plus et moins sortis','#0E6272','goHotCold()'],
+  ];
+  h+=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+    ${cards.map(([ic,tit,desc,bg,fn])=>`<div onclick="${fn}" style="background:${bg};border-radius:14px;padding:12px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px">
+      <span style="font-size:26px;flex:0 0 auto">${ic}</span>
+      <div style="flex:1;min-width:0">
+        <div style="color:#fff;font-size:14px;font-weight:700;margin-bottom:1px">${tit}</div>
+        <div style="color:rgba(255,255,255,.85);font-size:10px">${desc}</div>
+      </div>
+      <span style="color:#fff;font-size:18px;opacity:.7">›</span>
+    </div>`).join('')}
   </div>`;
+  const q=(state.searchModuleQuery||'').toLowerCase().trim();
+  const filtered=SEARCH_SECTIONS.filter(s=>!q||s.title.toLowerCase().includes(q)||s.desc.toLowerCase().includes(q));
+  h+=`<div style="margin-bottom:8px;position:relative">
+    <input type="text" value="${(state.searchModuleQuery||'').replace(/"/g,'&quot;')}" oninput="setSearchModuleQuery(this.value)" placeholder="🔍 Rechercher un module de recherche…" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #6D28D9;border-radius:8px;font-size:12px;outline:none">
+  </div>`;
+  h+=`<div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden;margin-bottom:8px">
+    ${filtered.map(s=>`<div onclick="openSearchModule('${s.key}')" style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #F0EEF9;background:#fff" onmouseover="this.style.background='#F5F3FF'" onmouseout="this.style.background='#fff'">
+      <span style="width:30px;height:30px;border-radius:50%;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto">${s.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:#1F2D3D">${s.title}</div>
+        <div style="font-size:9.5px;color:#888">${s.desc}</div>
+      </div>
+      <span style="color:#bbb;font-size:16px;flex:0 0 auto">›</span>
+    </div>`).join('')}
+    ${!filtered.length?`<div style="padding:14px;text-align:center;font-size:11px;color:#999">Aucun module ne correspond à "${state.searchModuleQuery}"</div>`:''}
+  </div>`;
+  h+=historySectionHTML();
   h+=`</div>`;
   return h;
 }

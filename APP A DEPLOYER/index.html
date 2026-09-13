@@ -3785,6 +3785,7 @@ let state={
   colorUndoStack:[],
   // Coloriage par lot (dernier(s) tirage(s) / tirage précis / intervalle) + choix de la position (tous / N1..N5 / M1..M5)
   batchColorMode:'last', batchColorN:3, batchColorTirage:'', batchColorStep:2, batchColorRange:20, batchColorPos:'all',
+  batchColorNthYear:20, // N pour le mode 'nthYear' : colore le N-ème, 2N-ème, 3N-ème... tirage de CHAQUE année
   batchColorScope:'global', // 'global' = colore la valeur partout (peu importe la position) ; 'position' = colore uniquement quand la même position a la même valeur
   batchColorFixed:lsGetOr('lmj_batchDefaultColor',''), // '' = couleur automatique (palette qui tourne) ; sinon un hex fixe utilisé pour tout le lot
   batchColorFixed2:lsGetOr('lmj_batchDefaultColor2',''), // 2e couleur fixe, utilisée pour les numéros Machine quand batchColorPos==='dual'
@@ -9854,6 +9855,15 @@ function colorBatch(){
     const range=Math.max(step,parseInt(state.batchColorRange)||step);
     const windowRows=T.slice(0,Math.min(range,T.length));
     rows=windowRows.filter((_,i)=>i%step===0);
+  }else if(mode==='nthYear'){
+    // Colore le N-ème, 2N-ème, 3N-ème... tirage de CHAQUE année (ex: N=20 → tirages n°20, 40, 60...
+    // de l'année, comptés depuis le 1er tirage de janvier). BY_YEAR[yr] est trié du plus ancien
+    // au plus récent, donc l'index (i+1) correspond bien au rang du tirage dans l'année.
+    const n=Math.max(1,parseInt(state.batchColorNthYear)||1);
+    YEARS.forEach(yr=>{
+      const yrows=BY_YEAR[yr]||[];
+      for(let i=n-1;i<yrows.length;i+=n)rows.push(yrows[i]);
+    });
   }
   if(!rows.length){alert('Aucun tirage trouvé pour ces réglages');return;}
   pushColorUndo();
@@ -10012,11 +10022,13 @@ function batchColorHTML(){
       <button onclick="state.batchColorMode='last';render()" style="padding:3px 9px;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;border:1.5px solid ${mode==='last'?'#6D28D9':'#ccc'};background:${mode==='last'?'#6D28D9':'#fff'};color:${mode==='last'?'#fff':'#666'}">Dernier(s) tirage(s)</button>
       <button onclick="state.batchColorMode='tirage';render()" style="padding:3px 9px;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;border:1.5px solid ${mode==='tirage'?'#6D28D9':'#ccc'};background:${mode==='tirage'?'#6D28D9':'#fff'};color:${mode==='tirage'?'#fff':'#666'}">Tirage N°</button>
       <button onclick="state.batchColorMode='interval';render()" style="padding:3px 9px;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;border:1.5px solid ${mode==='interval'?'#6D28D9':'#ccc'};background:${mode==='interval'?'#6D28D9':'#fff'};color:${mode==='interval'?'#fff':'#666'}">Intervalle</button>
+      <button onclick="state.batchColorMode='nthYear';render()" title="Colore le N-ème tirage de chaque année, puis le 2N-ème, le 3N-ème... (ex: N=20 → tirages n°20, 40, 60... de l'année)" style="padding:3px 9px;border-radius:10px;font-size:10px;font-weight:500;cursor:pointer;border:1.5px solid ${mode==='nthYear'?'#6D28D9':'#ccc'};background:${mode==='nthYear'?'#6D28D9':'#fff'};color:${mode==='nthYear'?'#fff':'#666'}">Chaque N-ème de l'année</button>
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       ${mode==='last'?`<span style="font-size:10px;color:#5B21B6">Colorier les</span><input type="number" min="1" max="${T.length}" step="1" value="${state.batchColorN}" oninput="state.batchColorN=this.value" style="width:50px;padding:3px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;text-align:center"><span style="font-size:10px;color:#5B21B6">dernier(s) tirage(s)</span>`:''}
       ${mode==='tirage'?`<span style="font-size:10px;color:#5B21B6">Tirage N°</span><input type="number" min="1" value="${state.batchColorTirage}" oninput="state.batchColorTirage=this.value" placeholder="ex: 620" style="width:70px;padding:3px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;text-align:center">`:''}
       ${mode==='interval'?`<span style="font-size:10px;color:#5B21B6">1 tirage sur</span><input type="number" min="1" value="${state.batchColorStep}" oninput="state.batchColorStep=this.value" style="width:44px;padding:3px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;text-align:center"><span style="font-size:10px;color:#5B21B6">parmi les</span><input type="number" min="1" max="${T.length}" value="${state.batchColorRange}" oninput="state.batchColorRange=this.value" style="width:54px;padding:3px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;text-align:center"><span style="font-size:10px;color:#5B21B6">derniers tirages</span>`:''}
+      ${mode==='nthYear'?`<span style="font-size:10px;color:#5B21B6">Colorier chaque</span><input type="number" min="1" value="${state.batchColorNthYear}" oninput="state.batchColorNthYear=this.value" style="width:50px;padding:3px;border:1.5px solid #6D28D9;border-radius:5px;font-size:11px;text-align:center"><span style="font-size:10px;color:#5B21B6">-ème tirage de l'année (n°N, 2N, 3N…)</span>`:''}
     </div>
     <div style="display:flex;gap:3px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#5B21B6;font-weight:500">Numéro à colorier :</span>

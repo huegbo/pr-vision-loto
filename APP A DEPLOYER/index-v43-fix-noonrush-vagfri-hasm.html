@@ -3851,6 +3851,7 @@ let state={
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
   vseqCount:5, vseqLevels:[], vseqDir:'down', vseqRes:null,
   dbtMode:'ligne', dbtMin:2, dbtRes:null,
+  prpGapMin:1, prpGapMax:3, prpRes:null, prpMulti:false, prpMultiGames:[], prpMultiRes:null,
   elmMode:'ligne', elmGap:1, elmTypes:null, elmRes:null, elmFocus:null,
   elmHL:[], elmHLMode:'ligne', elmHLGap:1, elmHLNum:null, elmHLDraft:null, elmHLCount:null,
   anchors:{}, anchorLocks:{}, freezeOn:false, freezeOffsets:null,
@@ -3882,7 +3883,7 @@ let state={
   pronosticOrdre:'saisi', pronosticAuto:0,   // ordre des numeros a l'export : 'saisi' ou 'croissant'        // contour des boules : absent par défaut
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
-  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, comboMulti:false, comboMultiGames:[], comboMultiRes:null, totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
   convPickerFor:null, // clé du jeu de base pour lequel le panneau « 🔀 Ajouter une conversion » (Comparer plusieurs lotos) est ouvert, sinon null
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
@@ -5935,11 +5936,35 @@ function doComboSearch(){
   const nv=document.getElementById('cs-nums'), tv=document.getElementById('cs-tot');
   const nums=nv?nv.value.split(/[\s,;]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=1&&n<=90):[];
   const tot=tv&&tv.value.trim()!==''?parseInt(tv.value):null;
-  let rows=T.slice();
-  if(nums.length)rows=rows.filter(r=>nums.every(n=>r.n.includes(n)||(r.m&&r.m.includes(n))));
-  if(tot!=null&&!isNaN(tot))rows=rows.filter(r=>r.s===tot);
-  state.comboRes={nums,tot,rows:rows.sort((a,b)=>b.t-a.t)};
-  if(nums.length||tot!=null)saveHist({type:'combo',game:GAME.key,gameName:GAME.name,nums,tot});
+  if(state.comboMulti&&state.comboMultiGames&&state.comboMultiGames.length){
+    const savedKey=GAME.key, results=[];
+    for(const gk of state.comboMultiGames){
+      loadGame(gk);
+      let rows=T.slice();
+      if(nums.length)rows=rows.filter(r=>nums.every(n=>r.n.includes(n)||(r.m&&r.m.includes(n))));
+      if(tot!=null&&!isNaN(tot))rows=rows.filter(r=>r.s===tot);
+      rows=rows.sort((a,b)=>b.t-a.t);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:rows.length,rows});
+    }
+    loadGame(savedKey);
+    state.comboMultiRes={nums,tot,results};
+    state.comboRes=null;
+    if(nums.length||tot!=null)saveHist({type:'combo',game:'multi',gameName:'Multi',nums,tot});
+  }else{
+    let rows=T.slice();
+    if(nums.length)rows=rows.filter(r=>nums.every(n=>r.n.includes(n)||(r.m&&r.m.includes(n))));
+    if(tot!=null&&!isNaN(tot))rows=rows.filter(r=>r.s===tot);
+    state.comboRes={nums,tot,rows:rows.sort((a,b)=>b.t-a.t)};
+    state.comboMultiRes=null;
+    if(nums.length||tot!=null)saveHist({type:'combo',game:GAME.key,gameName:GAME.name,nums,tot});
+  }
+  render();
+}
+function comboSearchClear(){state.comboRes=null;state.comboMultiRes=null;render();}
+function toggleComboMultiGame(k){
+  if(!state.comboMultiGames)state.comboMultiGames=[];
+  const i=state.comboMultiGames.indexOf(k);
+  if(i>=0)state.comboMultiGames.splice(i,1);else state.comboMultiGames.push(k);
   render();
 }
 
@@ -7533,6 +7558,151 @@ async function exportDbtExcel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
+// ══════ PAIRES QUI REVIENNENT — 2 numéros sortis ensemble (gagnant OU machine, peu importe le
+// rôle) qui ressortent ensemble Y tirages plus tard, écart réglable, dans un ou plusieurs jeux ══════
+// Ex: 54 et 45 sortis ensemble au tirage n°4, puis de nouveau au tirage n°6 (en machine cette
+// fois) → écart de 2 tirages.
+function pairRepeatRun(gapMin,gapMax){
+  const asc=T.slice().reverse(); // ordre chronologique croissant
+  const occ={}; // "a-b" -> liste des index (chronologiques) où la paire est sortie ensemble
+  asc.forEach((row,i)=>{
+    const nums=Array.from(new Set((row.n||[]).concat(row.m||[])));
+    for(let a=0;a<nums.length;a++)for(let b=a+1;b<nums.length;b++){
+      const x=Math.min(nums[a],nums[b]),y=Math.max(nums[a],nums[b]);
+      const k=x+'-'+y;
+      (occ[k]=occ[k]||[]).push(i);
+    }
+  });
+  const res=[];
+  Object.keys(occ).forEach(k=>{
+    const idxs=occ[k];
+    for(let j=0;j<idxs.length-1;j++){
+      const gap=idxs[j+1]-idxs[j];
+      if(gap>=gapMin&&gap<=gapMax){
+        const [a,b]=k.split('-').map(Number);
+        res.push({a,b,r1:asc[idxs[j]],r2:asc[idxs[j+1]],gap});
+      }
+    }
+  });
+  res.sort((x,y)=>y.r2.t-x.r2.t); // le plus récent d'abord
+  return res;
+}
+function pairRepeatFind(){
+  const gapMin=Math.max(1,parseInt(state.prpGapMin)||1);
+  const gapMax=Math.max(gapMin,parseInt(state.prpGapMax)||gapMin);
+  if(state.prpMulti&&state.prpMultiGames&&state.prpMultiGames.length){
+    const savedKey=GAME.key, results=[];
+    for(const gk of state.prpMultiGames){
+      loadGame(gk);
+      const r=pairRepeatRun(gapMin,gapMax);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:r.length,rows:r});
+    }
+    loadGame(savedKey);
+    state.prpMultiRes={gapMin,gapMax,results};
+    state.prpRes=null;
+  }else{
+    if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+    state.prpRes=pairRepeatRun(gapMin,gapMax);
+    state.prpMultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('prp-res')||document.getElementById('prp-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function prpClear(){state.prpRes=null;state.prpMultiRes=null;render();}
+function togglePrpMultiGame(k){
+  if(!state.prpMultiGames)state.prpMultiGames=[];
+  const i=state.prpMultiGames.indexOf(k);
+  if(i>=0)state.prpMultiGames.splice(i,1);else state.prpMultiGames.push(k);
+}
+function prpRowsTableHTML(rows,max){
+  const show=rows.slice(0,max);
+  return `<table class="excel-tbl" style="width:100%"><thead><tr>
+    ${['Paire','1er tirage','Date','2e tirage','Date','Écart'].map(h=>`<th style="position:sticky;top:0;background:#0E7490;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+  </tr></thead><tbody>
+  ${show.map((x,k)=>{const bg=k%2?'#ECFEFF':'#fff';return `<tr>
+    <td style="background:#CFFAFE;font-weight:700;font-size:10px;padding:3px 4px;text-align:center;color:#155E75">${x.a} ⟷ ${x.b}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r1.t}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r1.d}/${x.r1.y}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${x.r2.t}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${x.r2.d}/${x.r2.y}</td>
+    <td style="background:#FEF3C7;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${x.gap}</td>
+  </tr>`;}).join('')}
+  </tbody></table>`;
+}
+function prpResultHTML(){
+  if(!state.prpRes)return '';
+  const res=state.prpRes,MAX=300;
+  if(!res.length)return `<div id="prp-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune paire trouvée pour cet écart.</div>`;
+  return `<div id="prp-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0E7490">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-prp-btn" onclick="exportPrpExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
+    <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${prpRowsTableHTML(res,MAX)}</div></div>`;
+}
+function prpMultiResultHTML(){
+  const mr=state.prpMultiRes;
+  if(!mr)return '';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return `<div id="prp-multi-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#0E7490;margin-bottom:6px">${total} résultat${total>1?'s':''} au total sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
+    ${mr.results.filter(r=>r.count>0).map(r=>`<div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;color:#0E7490;margin-bottom:3px">${r.icon} ${r.gameName} — ${r.count} résultat${r.count>1?'s':''}</div>
+      <div style="max-height:30vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${prpRowsTableHTML(r.rows,100)}</div>
+    </div>`).join('')}
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune paire trouvée pour cet écart, dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
+}
+function prpPanelHTML(){
+  return `<div style="background:#fff;border:1.5px solid #0E7490;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0E7490;margin-bottom:5px">🔁 Paires qui reviennent — une paire de numéros réapparaît Y tirages plus tard</div>
+    <div style="background:#ECFEFF;border:1px solid #A5F3FC;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#155E75">
+      Cherche 2 numéros sortis ensemble dans un tirage (gagnant OU machine, peu importe), qui ressortent ensemble dans un tirage ultérieur, à un écart de tirages réglable. Ex: 54 et 45 sortis ensemble au tirage n°4, puis de nouveau au tirage n°6 → écart de 2.
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#0E7490;font-weight:600">Écart entre</span>
+      <input type="number" min="1" value="${state.prpGapMin}" onchange="state.prpGapMin=this.value;render()" style="width:46px;padding:2px 4px;border:1.5px solid #0E7490;border-radius:4px;font-size:10px;text-align:center;font-weight:600">
+      <span style="font-size:9px;color:#0E7490;font-weight:600">et</span>
+      <input type="number" min="1" value="${state.prpGapMax}" onchange="state.prpGapMax=this.value;render()" style="width:46px;padding:2px 4px;border:1.5px solid #0E7490;border-radius:4px;font-size:10px;text-align:center;font-weight:600">
+      <span style="font-size:9px;color:#0E7490">tirages</span>
+    </div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#0E7490;margin-bottom:5px"><input type="checkbox" ${state.prpMulti?'checked':''} onchange="state.prpMulti=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois (tout loto)</label>
+    ${state.prpMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#ECFEFF;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.prpMultiGames||[]).includes(k);return`<button onclick="togglePrpMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#0E7490':'#ccc'};background:${sel?'#0E7490':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.prpMultiGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.prpMultiGames=[];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:`<div style="font-size:9px;color:#888;margin-bottom:6px">${GAME.icon||''} ${GAME.name} — ${T.length} tirages</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button onclick="pairRepeatFind()" style="padding:4px 14px;background:#0E7490;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="prpClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+    </div>
+    ${prpResultHTML()}
+    ${prpMultiResultHTML()}
+  </div>`;
+}
+async function exportPrpExcel(){
+  const res=state.prpRes;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-prp-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Paires qui reviennent');
+    ws.addRow(['Filtre : Paires qui reviennent — écart entre '+state.prpGapMin+' et '+state.prpGapMax+' tirages']).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Paire','N° 1er tirage','Date 1er tirage','N° 2e tirage','Date 2e tirage','Écart (tirages)'];
+    ws.addRow(header).font={bold:true};
+    res.forEach(x=>{
+      const row=ws.addRow([x.a+' - '+x.b,x.r1.t,x.r1.d+'/'+x.r1.y,x.r2.t,x.r2.d+'/'+x.r2.y,x.gap]);
+      row.getCell(1).font={bold:true};
+      row.getCell(6).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=16;});
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_paires_reviennent.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 // Boilerplate commun de téléchargement, réutilisé par les exports des modules de recherche ci-dessous.
 async function dlXlsxBlob(wb,filename){
   const buf=await wb.xlsx.writeBuffer();
@@ -7613,6 +7783,39 @@ async function exportComboExcel(){
     cr.rows.forEach(r=>{(cr.nums||[]).forEach(n=>{r.n.forEach((v,i)=>{if(v===n)hitSet.add(r.t+'|N'+(i+1));});});});
     addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
     await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numeros_total.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
+async function exportComboMultiExcel(){
+  const mr=state.comboMultiRes;
+  if(!mr||!mr.results||!mr.results.some(x=>x.count)){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-combomulti-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Numeros (multi-jeux)');
+    ws.addRow(['Filtre : Numéros + Total (tout loto) — '+((mr.nums||[]).length?mr.nums.join(', '):'(aucun numéro)')+(mr.tot!=null?' • Total '+mr.tot:'')+' — '+mr.results.length+' jeu(x)']).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Jeu','Tirage','Date','Année','N1','N2','N3','N4','N5','Total'];
+    ws.addRow(header).font={bold:true};
+    mr.results.forEach(res=>{
+      if(!res.count||!res.rows)return;
+      res.rows.forEach(r=>{
+        const ns5=(r.n||[]).slice(0,5);while(ns5.length<5)ns5.push('');
+        const row=ws.addRow([res.gameName,r.t,r.d||'',r.y||'',...ns5,r.s]);
+        (mr.nums||[]).forEach(n=>{(r.n||[]).forEach((v,i)=>{if(v===n){const c=row.getCell(5+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});});
+        const tc=tC(r.s);
+        const totCell=row.getCell(header.length);
+        totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+        totCell.font={bold:true,color:{argb:hexToARGB(tc[1])}};
+      });
+    });
+    ws.columns.forEach(c=>{c.width=10;});
+    await dlXlsxBlob(wb,'multi_jeux_numeros.xlsx');
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{
@@ -9344,6 +9547,7 @@ function searchHubHTML(){
     ['📐','Tracer Plan','Combien de fois une combinaison est sortie','plan'],
     ['🪜','Séquence libre','Motif vertical, numéros à toute position','vseq'],
     ['➕','Double même total','Deux paires qui donnent le même total','dbt'],
+    ['🔁','Paires qui reviennent','Une paire ressort ensemble après un écart réglable de tirages','prp'],
     ['🧱','Même total superposé','N numéros aux mêmes positions, écart réglable','vtot'],
     ['⚖️','Total ↔ Différence superposé','Total d\'un côté = différence de l\'autre, toute position, écart réglable','vtotd'],
     ['🧩','Numéro + son élément','Un numéro et un de ses dérivés de classification','elm'],
@@ -9401,6 +9605,7 @@ function searchHubHTML(){
   </div>`;
   h+=vseqPanelHTML();
   h+=dbtPanelHTML();
+  h+=prpPanelHTML();
   h+=vtotPanelHTML();
   h+=vtotdPanelHTML();
   h+=vttPanelHTML();
@@ -9447,9 +9652,17 @@ function searchHubHTML(){
       <input id="cs-nums" type="text" placeholder="Numéros: 13 31" style="padding:4px 8px;border:1.5px solid #6D28D9;border-radius:5px;font-size:12px;width:130px;outline:none">
       <input id="cs-tot" type="number" placeholder="Total: 219" style="padding:4px 8px;border:1.5px solid #6D28D9;border-radius:5px;font-size:12px;width:100px;outline:none">
       <button onclick="doComboSearch()" style="padding:4px 12px;background:#6D28D9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
+      ${(state.comboRes||state.comboMultiRes)?`<button onclick="comboSearchClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>`:''}
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Laisse un champ vide pour ne chercher que l'autre critère</div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#6D28D9;margin-top:6px"><input type="checkbox" ${state.comboMulti?'checked':''} onchange="state.comboMulti=this.checked;render()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
+    ${state.comboMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;padding:5px;background:#F5F3FF;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.comboMultiGames||[]).includes(k);return`<button onclick="toggleComboMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#6D28D9':'#ccc'};background:${sel?'#6D28D9':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.comboMultiGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.comboMultiGames=[];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:''}
     ${state.comboRes?comboResHTML():''}
+    ${comboMultiResultHTML()}
   </div>`;
   // Recherche par mois ou date donnée
   h+=`<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
@@ -10312,6 +10525,31 @@ function comboResHTML(){
       <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
     </div>`;}).join('')}
     </div>${rows.length>30?`<div style="font-size:8px;color:#999">… et ${rows.length-30} autres</div>`:''}</div>`;
+}
+function comboMultiResultHTML(){
+  const mr=state.comboMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return`<div id="combo-multi-res" style="margin-top:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:#6D28D9">${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} au total sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</span>${total?`<button id="export-combomulti-btn" onclick="exportComboMultiExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button>`:''}</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#F5F3FF':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#6D28D9">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#6D28D9':'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+        ${res.rows.slice(0,10).map(r=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+          <span style="font-weight:700;color:#6D28D9">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+          ${r.n.map(n=>`<span style="font-weight:500;background:${(mr.nums||[]).includes(n)?'#6D28D9':'transparent'};color:${(mr.nums||[]).includes(n)?'#fff':'#333'};border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+          <span style="font-weight:600;color:#666">${r.s}</span>
+        </div>`).join('')}
+        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
+      </div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 function togglePin(d){state.pin=state.pin===d?null:d;render();}
 // Utilitaire générique : déclenche le téléchargement d'un CSV (s'ouvre nativement dans Excel)

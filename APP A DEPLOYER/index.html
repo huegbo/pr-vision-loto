@@ -3889,7 +3889,7 @@ let state={
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
   seqLevels:[{decalage:0,vals:['','','','','']}], seqMatches:null,
-  termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
+  termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
   digCount:1, digSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], digMatches:null,
   pickA:'', pickB:'', pickTirageRef:'', pickLines:2, pickDir:'after', pickResult:null,
   cmp2A:'', cmp2B:'', cmp2Line1:'', cmp2Line2:'', cmp2Lines:40, cmp2Inversee:false, cmp2Colorier:true, cmp2RespectPos:false, cmp2Mirror:true, cmp2Result:null,
@@ -5886,7 +5886,7 @@ function runHist(e){
   else if(e.type==='term'){
     state.termCount=e.count;
     state.termSlots=JSON.parse(JSON.stringify(e.slots));
-    while(state.termSlots.length<3)state.termSlots.push({digit:'',pos:''});
+    while(state.termSlots.length<4)state.termSlots.push({digit:'',pos:''});
     render();doTermSearch();
   }
   else if(e.type==='dig'){
@@ -9806,7 +9806,7 @@ function termSectionHTML(){
     <div style="font-size:11px;font-weight:500;color:#DB2777;margin-bottom:5px">🔟 Terminaison — dernier chiffre (avec ou sans position)</div>
     <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#777">Nombre de terminaisons :</span>
-      ${[1,2,3].map(k=>`<button onclick="setTermCount(${k})" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${state.termCount===k?'#DB2777':'#ddd'};background:${state.termCount===k?'#FCE7F3':'#fff'};color:${state.termCount===k?'#9D174D':'#888'}">${k}</button>`).join('')}
+      ${[1,2,3,4].map(k=>`<button onclick="setTermCount(${k})" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${state.termCount===k?'#DB2777':'#ddd'};background:${state.termCount===k?'#FCE7F3':'#fff'};color:${state.termCount===k?'#9D174D':'#888'}">${k}</button>`).join('')}
     </div>
     ${state.termSlots.slice(0,state.termCount).map((s,i)=>`
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
@@ -9820,7 +9820,7 @@ function termSectionHTML(){
         </select>
       </div>`).join('')}
     <button onclick="doTermSearch()" style="padding:4px 12px;background:#DB2777;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
-    <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaison 7 = tout numéro finissant par 7 (7, 17, 27, 37...). 2 ou 3 terminaisons = elles doivent apparaître ensemble sur la même ligne.</div>
+    <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaison 7 = tout numéro finissant par 7 (7, 17, 27, 37...). 2, 3 ou 4 terminaisons = elles doivent toutes apparaître sur la même ligne (place "Toutes" = n'importe où, ou une place D1..D5 précise pour chacune).</div>
     ${termResHTML()}
   </div>`;
 }

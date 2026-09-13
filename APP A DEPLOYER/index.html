@@ -9650,6 +9650,46 @@ function colorLastNDraws(n){
   saveColorState();
   render();
 }
+// Couples de couleurs proches (tirage = teinte foncée, machine = même teinte mais claire) pour
+// le filtre "3 derniers tirages (tirage/machine distincts)" — réservé aux jeux à double chance
+// (hasM). Un couple par tirage parmi les 3, pour garder les tirages distinguables entre eux tout
+// en gardant tirage/machine reconnaissables comme appartenant au même tirage (même famille de
+// couleur, juste plus clair côté machine).
+const SPLIT_TM_PALETTE=[
+  ['#1D4ED8','#BFDBFE'], // bleu foncé / bleu clair
+  ['#B91C1C','#FECACA'], // rouge foncé / rouge clair
+  ['#15803D','#BBF7D0'], // vert foncé / vert clair
+  ['#B45309','#FDE68A'], // ambre foncé / ambre clair
+  ['#6D28D9','#DDD6FE'], // violet foncé / violet clair
+  ['#0F766E','#99F6E4'], // sarcelle foncé / sarcelle clair
+  ['#9D174D','#FBCFE8'], // rose foncé / rose clair
+  ['#334155','#CBD5E1'], // ardoise foncé / ardoise clair
+];
+// Colorie les N derniers tirages du jeu actif, MAIS en distinguant numéros "tirage" (teinte
+// foncée) et numéros "machine" (même teinte, claire) au lieu de tout mélanger sous une seule
+// couleur comme colorLastNDraws(). Coloriage CASE PAR CASE (coloredCells, pas colored par
+// valeur) pour que la distinction tienne même si un même numéro apparaît ailleurs en tirage OU
+// en machine sur un autre tirage récent.
+function colorLastNDrawsSplit(n){
+  if(!GAME.hasM){alert('Ce filtre est réservé aux jeux à double chance (avec numéros machine).');return;}
+  if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+  pushColorUndo();
+  const nb=Math.min(n,T.length);
+  for(let i=0;i<nb;i++){
+    const row=T[i];
+    const[dark,light]=SPLIT_TM_PALETTE[i%SPLIT_TM_PALETTE.length];
+    (row.n||[]).forEach((v,pos)=>{
+      if(v==null||isNaN(v))return;
+      state.coloredCells[row.t+'_'+pos]={bg:dark,fg:lumFg(dark),style:state.hlStyle};
+    });
+    (row.m||[]).forEach((v,pos)=>{
+      if(v==null||isNaN(v))return;
+      state.coloredCells[row.t+'_m'+pos]={bg:light,fg:lumFg(light),style:state.hlStyle};
+    });
+  }
+  saveColorState();
+  render();
+}
 // Colorie le dernier tirage en utilisant les éléments de la classification en exergue
 // (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) —
 // chaque numéro prend la couleur de l'élément dont il relève. Active tous les éléments
@@ -9928,6 +9968,17 @@ function colorSpecificTirage(posType){
   if(isNaN(tn)||IDX[tn]===undefined){alert('N° de tirage introuvable pour ce jeu');return;}
   colorSingleDraw(T[IDX[tn]],posType);
 }
+// Raccourcis menu ⊞ : colorie directement les N derniers tirages (N = state.batchColorN,
+// paramétrable dans le panneau "Coloriage par lot") en ne gardant QUE les numéros machine
+// ('mAll') ou QUE les numéros tirage/direct ('nAll') — réutilise colorBatch() en mode 'last'
+// pour bénéficier du même réglage de N et de la même logique déjà testée (couleur automatique
+// qui tourne par tirage, ou couleur fixe choisie dans le panneau).
+function quickColorLastNPos(posType){
+  if(posType==='mAll'&&!GAME.hasM){alert('Ce filtre est réservé aux jeux à double chance (avec numéros machine).');return;}
+  state.batchColorMode='last';
+  state.batchColorPos=posType;
+  colorBatch();
+}
 // Panneau compact : pour Normal seul / Machine seule / Normal+Machine (2 couleurs),
 // deux boutons chacun — "Dernier tirage" (direct) et "Tirage N°" (demande le numéro).
 function quickColorPosHTML(){
@@ -10011,6 +10062,9 @@ function fabGo(action){
   else if(action==='color1'){state.tab=2;state.showSearchHub=false;colorLastNDraws(1);}
   else if(action==='color1_elm'){state.tab=2;state.showSearchHub=false;colorLastDrawElements();}
   else if(action==='color3'){state.tab=2;state.showSearchHub=false;colorLastNDraws(3);}
+  else if(action==='color3_split'){state.tab=2;state.showSearchHub=false;colorLastNDrawsSplit(3);}
+  else if(action==='color_last_machine'){state.tab=2;state.showSearchHub=false;quickColorLastNPos('mAll');}
+  else if(action==='color_last_direct'){state.tab=2;state.showSearchHub=false;quickColorLastNPos('nAll');}
   else if(action==='batch_color'){state.tab=2;state.showSearchHub=false;}
   else if(action==='undo_color'){undoColorAction();return;}
   else if(action==='repere_global'){openRepereGlobal();return;}
@@ -10107,6 +10161,11 @@ function fabHTML(){
     ['color1','🎨1️⃣','Colorier le dernier tirage','#EF5350','#fff'],
     ['color1_elm','🧩','Dernier tirage + éléments de la classification','#AB47BC','#fff'],
     ['color3','🎨3️⃣','Colorier les 3 derniers tirages','#E53935','#fff'],
+    ...(GAME.hasM?[
+      ['color3_split','🎨3️⃣🎰','3 derniers tirages — tirage/machine distincts (double chance)','#1D4ED8','#fff'],
+      ['color_last_machine','🎰','Numéros machine seuls — N derniers tirages (N paramétrable ⤵ Coloriage par lot)','#EAB308','#000'],
+      ['color_last_direct','🎯','Numéros tirage seuls — N derniers tirages (N paramétrable ⤵ Coloriage par lot)','#3B82F6','#fff'],
+    ]:[]),
     ['batch_color','🎨🔢','Coloriage par lot (nombre, tirage n°, intervalle, position...)','#6D28D9','#fff'],
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],

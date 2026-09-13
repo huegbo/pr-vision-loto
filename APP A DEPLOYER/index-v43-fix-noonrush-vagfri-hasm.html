@@ -9901,6 +9901,13 @@ const SEARCH_SECTIONS=[
   {key:'sommeligne',icon:'🎯',title:'Somme sur une ligne',desc:'Combien de numéros font ce total',color:'#F59E0B',html:sommeligneSectionHTML}
 ];
 
+// Section "historique de recherche" du hub — actuellement pas de journal de recherches persisté
+// (state.searchHist n'existe pas), donc rien à afficher ici. Fonction conservée (plutôt que de
+// retirer l'appel) pour pouvoir y brancher un vrai historique plus tard sans retoucher searchHubHTML().
+function historySectionHTML(){
+  if(!state.searchHist||!state.searchHist.length)return '';
+  return `<div style="font-size:9.5px;color:#888;margin-top:6px">Historique de recherche non disponible.</div>`;
+}
 function openSearchModule(key){state.searchModuleOpen=key;render();setTimeout(()=>{window.scrollTo({top:0,behavior:'smooth'});const focusMap={cq:'cq-input',combo:'cs-nums',formule:'form-input',date:'dsi',totalNear:'tns-tot',term:'',dig:'',sommeligne:'tsi'};const fid=focusMap[key];if(fid){const el=document.getElementById(fid);if(el)el.focus();}},60);}
 function closeSearchModule(){state.searchModuleOpen=null;render();setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),30);}
 function setSearchModuleQuery(v){state.searchModuleQuery=v;render();}

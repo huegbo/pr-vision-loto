@@ -7230,10 +7230,24 @@ function vseqFromDOM(){
   for(let i=0;i<state.vseqCount;i++){
     const g=document.getElementById('vseq-gap-'+i);
     const n=document.getElementById('vseq-nums-'+i);
+    const p=document.getElementById('vseq-pos-'+i);
     const nums=((n&&n.value)||'').split(/[^0-9]+/).filter(Boolean).map(Number).filter(v=>v>=1&&v<=90);
-    lv.push({gap:i===0?0:Math.max(0,parseInt((g&&g.value)||'0')||0), nums});
+    lv.push({gap:i===0?0:Math.max(0,parseInt((g&&g.value)||'0')||0), nums, pos:(p&&p.value)||'any'});
   }
   return lv;
+}
+// Teste si un tirage respecte un niveau donné (numéros + place imposée éventuelle).
+// pos==='any'    -> les numéros doivent être présents (ET) n'importe où parmi les gagnants.
+// pos==='anyAll' -> pareil mais gagnants OU machine.
+// pos==='n3'/'m2' etc. -> la place exacte doit contenir L'UN des numéros donnés (OU, comme dans Cybetcast Query).
+function vseqMatch(row,level){
+  if(!level.nums.length)return true;
+  const pos=level.pos||'any';
+  if(pos==='any')return level.nums.every(n=>row.n.includes(n));
+  if(pos==='anyAll')return level.nums.every(n=>row.n.includes(n)||(row.m&&row.m.includes(n)));
+  if(pos[0]==='n'){const idx=parseInt(pos.slice(1))-1;return idx>=0&&idx<row.n.length&&level.nums.includes(row.n[idx]);}
+  if(pos[0]==='m'){const idx=parseInt(pos.slice(1))-1;return !!row.m&&idx>=0&&idx<row.m.length&&level.nums.includes(row.m[idx]);}
+  return true;
 }
 function runVseq(){
   const levels=vseqFromDOM();
@@ -7248,21 +7262,20 @@ function runVseq(){
   // Tirages triés du plus ancien au plus récent : le décalage se compte en POSITIONS
   const TA=[...T].sort((a,b)=>a.t-b.t);
   const step=state.vseqDir==='down'?1:-1;
-  const has=(row,nums)=>nums.every(n=>row.n.includes(n));
   const res=[];
   for(let s=0;s<TA.length;s++){
     const start=TA[s];
     if(lo&&(+start.y<lo||+start.y>hi))continue;
-    if(!has(start,levels[0].nums))continue;
-    let pos=s;const chain=[{row:start,gap:0,nums:levels[0].nums}];let ok=true;
+    if(!vseqMatch(start,levels[0]))continue;
+    let pos=s;const chain=[{row:start,gap:0,nums:levels[0].nums,pos:levels[0].pos}];let ok=true;
     for(let i=1;i<levels.length;i++){
       const L=levels[i];
       if(!L.nums.length)continue;          // niveau laissé vide = ignoré
       pos=pos+step*L.gap;
       if(pos<0||pos>=TA.length){ok=false;break;}
       const row=TA[pos];
-      if(!has(row,L.nums)){ok=false;break;}
-      chain.push({row,gap:L.gap,nums:L.nums});
+      if(!vseqMatch(row,L)){ok=false;break;}
+      chain.push({row,gap:L.gap,nums:L.nums,pos:L.pos});
     }
     if(ok&&chain.length>1)res.push(chain);
   }
@@ -7276,6 +7289,14 @@ function vseqSetCount(v){
   state.vseqCount=n;render();
 }
 function vseqClear(){state.vseqLevels=[];state.vseqRes=null;render();}
+// Libellé court pour la place imposée d'un niveau (affichage + export)
+function vseqPosLabel(pos){
+  if(!pos||pos==='any')return'toute place (gagnant)';
+  if(pos==='anyAll')return'toute place (gagnant+machine)';
+  if(pos[0]==='n')return'place N'+pos.slice(1);
+  if(pos[0]==='m')return'place M'+pos.slice(1);
+  return pos;
+}
 function vseqResultHTML(){
   if(!state.vseqRes)return '';
   const r=state.vseqRes;
@@ -7284,33 +7305,49 @@ function vseqResultHTML(){
   return `<div id="vseq-res" style="margin-top:6px">
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:10px;font-weight:700;color:#B45309">🪜 ${r.length} séquence(s) trouvée(s)${r.length>40?' — 40 premières affichées':''}</span><button id="export-vseq-btn" onclick="exportVseqExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     ${show.map(chain=>`<div style="border:1px solid #FCD34D;background:#FFFBEB;border-radius:7px;padding:5px 7px;margin-bottom:5px">
-      ${chain.map((c,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:10px;padding:2px 0;${i?'border-top:1px dashed #FDE68A':''}">
+      ${chain.map((c,i)=>{
+        const pos=c.pos||'any';
+        const isM=pos[0]==='m';
+        return `<div style="display:flex;align-items:center;gap:5px;font-size:10px;padding:2px 0;flex-wrap:wrap;${i?'border-top:1px dashed #FDE68A':''}">
         <span style="min-width:34px;font-weight:700;color:#B45309">${i?(state.vseqDir==='down'?'+':'−')+c.gap:'départ'}</span>
         <span style="min-width:44px;font-weight:600;color:#1F2D3D">N°${c.row.t}</span>
         <span style="min-width:38px;color:#666">${c.row.d}</span>
         <span style="min-width:30px;color:#999">${c.row.y}</span>
-        <span style="display:flex;gap:2px">${c.row.n.map(n=>`<span style="min-width:19px;text-align:center;padding:1px 3px;border-radius:3px;font-weight:${c.nums.includes(n)?'800':'400'};background:${c.nums.includes(n)?'#F59E0B':'#F3F4F6'};color:${c.nums.includes(n)?'#fff':'#444'}">${n}</span>`).join('')}</span>
+        <span style="display:flex;gap:2px">${c.row.n.map((n,ni)=>{const hit=isM?false:(pos[0]==='n'?(ni===parseInt(pos.slice(1))-1&&c.nums.includes(n)):c.nums.includes(n));return `<span style="min-width:19px;text-align:center;padding:1px 3px;border-radius:3px;font-weight:${hit?'800':'400'};background:${hit?'#F59E0B':'#F3F4F6'};color:${hit?'#fff':'#444'}">${n}</span>`;}).join('')}</span>
+        ${GAME.hasM&&c.row.m?`<span style="display:flex;gap:2px;padding-left:4px;border-left:1px dashed #FDE68A">${c.row.m.map((n,mi)=>{const hit=isM?(mi===parseInt(pos.slice(1))-1&&c.nums.includes(n)):(pos==='anyAll'&&c.nums.includes(n));return `<span style="min-width:17px;text-align:center;padding:1px 3px;border-radius:3px;font-size:9px;font-weight:${hit?'800':'400'};background:${hit?'#D97706':'#EEF0F3'};color:${hit?'#fff':'#999'}">${n}</span>`;}).join('')}</span>`:''}
+        <span style="font-size:8px;color:#B45309;background:#FEF3C7;border-radius:6px;padding:0 5px">${vseqPosLabel(pos)}</span>
         <span style="margin-left:auto;font-weight:600;color:#B45309">${c.row.s}</span>
-      </div>`).join('')}
+      </div>`;}).join('')}
     </div>`).join('')}
   </div>`;
+}
+// Options du sélecteur "place imposée" pour un niveau de la séquence libre.
+function vseqPosOptionsHTML(sel){
+  const opts=[['any','Toute place (gagnant)'],['anyAll','Toute place (gagnant+machine)']];
+  for(let i=1;i<=5;i++)opts.push(['n'+i,'Place N'+i]);
+  if(GAME.hasM)for(let i=1;i<=5;i++)opts.push(['m'+i,'Place M'+i]);
+  return opts.map(([v,l])=>`<option value="${v}" ${sel===v?'selected':''}>${l}</option>`).join('');
 }
 function vseqPanelHTML(){
   const saved=state.vseqLevels||[];
   const rows=[];
   for(let i=0;i<state.vseqCount;i++){
-    const sv=saved[i]||{gap:'',nums:[]};
+    const sv=saved[i]||{gap:'',nums:[],pos:'any'};
     const gapVal=(i===0)?'':(sv.gap||'');
     const numsVal=(sv.nums&&sv.nums.length)?sv.nums.join(' '):'';
-    rows.push(`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;${i?'border-top:1px solid #FDE68A':''}">
+    rows.push(`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;flex-wrap:wrap;${i?'border-top:1px solid #FDE68A':''}">
       <span style="width:52px;font-size:9px;font-weight:600;color:#92400E">Niveau ${i+1}</span>
-      ${i?`<input id="vseq-gap-${i}" type="number" min="0" max="500" value="${gapVal}" placeholder="déc." title="Nombre de tirages à sauter depuis le niveau précédent" style="width:52px;padding:3px;border:1.5px solid #F59E0B;border-radius:5px;font-size:11px;text-align:center;font-weight:600">`
+      ${i?`<input id="vseq-gap-${i}" type="number" min="0" max="500" value="${gapVal}" placeholder="déc." title="Nombre de tirages à sauter depuis le niveau précédent (le rang)" style="width:52px;padding:3px;border:1.5px solid #F59E0B;border-radius:5px;font-size:11px;text-align:center;font-weight:600">`
           :`<span style="width:52px;font-size:8px;color:#B45309;text-align:center">point de<br>départ</span>`}
       <input id="vseq-nums-${i}" type="text" inputmode="numeric" value="${numsVal}" placeholder="numéros (ex: 12 13)" style="flex:1;min-width:90px;padding:3px 6px;border:1.5px solid #F59E0B;border-radius:5px;font-size:11px;font-weight:600">
+      <select id="vseq-pos-${i}" title="Place imposée pour les numéros de ce niveau" style="padding:3px 4px;border:1.5px solid #F59E0B;border-radius:5px;font-size:10px;font-weight:600;color:#92400E;background:#FFFBEB">${vseqPosOptionsHTML(sv.pos||'any')}</select>
     </div>`);
   }
   return `<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">🪜 Séquence de numéros — motif vertical sur plusieurs tirages</div>
+    <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#92400E">
+      Ex: niveau 1 = 01 02 (départ), niveau 2 = 10 20 avec un rang (décalage) de 2 tirages plus loin → "01-02 suit 10-20, 2 tirages après". Pour chaque niveau, tu peux imposer la <b>place</b> exacte du/des numéro(s) (N1..N5, M1..M5) au lieu de "toute place".
+    </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <span style="font-size:9px;color:#92400E;font-weight:600">${GAME.icon||''} ${GAME.name}</span>
       <span style="font-size:9px;color:#92400E">années</span>
@@ -7323,7 +7360,7 @@ function vseqPanelHTML(){
     </div>
     <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;padding:4px 7px;margin-bottom:6px">
       <div style="display:flex;gap:6px;font-size:8px;font-weight:700;color:#B45309;padding-bottom:2px">
-        <span style="width:52px">&nbsp;</span><span style="width:52px;text-align:center">Décalage</span><span style="flex:1">Numéros</span>
+        <span style="width:52px">&nbsp;</span><span style="width:52px;text-align:center">Rang</span><span style="flex:1">Numéros</span><span style="width:150px">Place imposée</span>
       </div>
       ${rows.join('')}
     </div>
@@ -7331,7 +7368,7 @@ function vseqPanelHTML(){
       <button onclick="runVseq()" style="padding:4px 14px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
       <button onclick="vseqClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <button onclick="document.getElementById('vseq-nums-0').value='12 13';${[1,2,3,4].map((i,k)=>`(document.getElementById('vseq-gap-${i}')||{}).value='${[3,5,9,1][k]}';(document.getElementById('vseq-nums-${i}')||{}).value='${['34','3','6','12 13'][k]}';`).join('')}runVseq()" style="padding:4px 10px;font-size:9px;border-radius:5px;border:1px solid #B45309;background:#FEF3C7;color:#92400E;cursor:pointer;font-weight:500" title="Remplit l'exemple 12,13 → +3 34 → +5 3 → +9 6 → +1 12,13">Exemple</button>
-      <span style="font-size:8px;color:#92400E">Le décalage se compte en tirages. Les numéros peuvent être à n'importe quelle position. Recherche sur les numéros gagnants.</span>
+      <span style="font-size:8px;color:#92400E">Le rang (décalage) se compte en tirages. Choisis "toute place" pour chercher n'importe où, ou une place exacte (N1..N5, M1..M5) par niveau.</span>
     </div>
     ${vseqResultHTML()}
   </div>`;
@@ -7347,20 +7384,35 @@ async function exportVseqExcel(){
     const ws=wb.addWorksheet('Sequence libre');
     ws.addRow(['Filtre : Séquence libre — '+chains.length+' séquence(s), sens '+(state.vseqDir==='down'?'vers le bas':'vers le haut')]).font={bold:true,italic:true};
     ws.addRow([]);
-    const header=['Séquence','Niveau','N°','Date','N1','N2','N3','N4','N5','Total','Décalage'];
+    const header=['Séquence','Niveau','Place imposée','N°','Date','N1','N2','N3','N4','N5','Total'].concat(GAME.hasM?['M1','M2','M3','M4','M5']:[]).concat(['Rang (décalage)']);
     ws.addRow(header).font={bold:true};
     const ns5=arr=>{const a=(arr||[]).slice(0,5);while(a.length<5)a.push('');return a;};
     const last3Ids=new Set(T.slice(0,3).map(r=>r.t));
+    const nStartCol=6; // colonne N1
     chains.forEach((chain,ci)=>{
       chain.forEach((c,li)=>{
-        const row=ws.addRow([ci+1,li===0?'départ':li+1,c.row.t,c.row.d+'/'+c.row.y,...ns5(c.row.n),c.row.s,li===0?'':(state.vseqDir==='down'?'+':'−')+c.gap]);
+        const pos=c.pos||'any';
+        const vals=[ci+1,li===0?'départ':li+1,vseqPosLabel(pos),c.row.t,c.row.d+'/'+c.row.y,...ns5(c.row.n),c.row.s];
+        if(GAME.hasM)vals.push(...ns5(c.row.m));
+        vals.push(li===0?'':(state.vseqDir==='down'?'+':'−')+c.gap);
+        const row=ws.addRow(vals);
         if(last3Ids.has(c.row.t)){for(let ck=1;ck<=header.length;ck++)row.getCell(ck).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD1FAE5'}};row.getCell(1).font={bold:true,color:{argb:'FF065F46'}};}
-        c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n){const cell=row.getCell(5+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
+        const mStartCol=nStartCol+6; // colonne M1 (après N1-N5 + Total)
+        if(pos[0]==='m'){
+          const idx=parseInt(pos.slice(1))-1;
+          if(c.row.m&&c.nums.includes(c.row.m[idx])){const cell=row.getCell(mStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}
+        }else if(pos[0]==='n'){
+          const idx=parseInt(pos.slice(1))-1;
+          if(c.nums.includes(c.row.n[idx])){const cell=row.getCell(nStartCol+idx);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}
+        }else{
+          c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n){const cell=row.getCell(nStartCol+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
+          if(pos==='anyAll'&&GAME.hasM&&c.row.m)c.nums.forEach(n=>{c.row.m.forEach((v,i)=>{if(v===n){const cell=row.getCell(mStartCol+i);cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};cell.font={bold:true};}});});
+        }
       });
     });
     ws.columns.forEach(c=>{c.width=11;});
     const hitSet=new Set();
-    chains.forEach(chain=>{chain.forEach(c=>{c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n)hitSet.add(c.row.t+'|N'+(i+1));});});});});
+    chains.forEach(chain=>{chain.forEach(c=>{const pos=c.pos||'any';if(pos[0]!=='m')c.nums.forEach(n=>{c.row.n.forEach((v,i)=>{if(v===n)hitSet.add(c.row.t+'|N'+(i+1));});});});});
     addTirageNormalGrid(ws,T.slice().reverse(),hitSet,GAME.hasM,GAME.name,false);
     await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_sequence_libre.xlsx');
   }catch(err){

@@ -3915,6 +3915,7 @@ let state={
   convPickerFor:null, // clé du jeu de base pour lequel le panneau « 🔀 Ajouter une conversion » (Comparer plusieurs lotos) est ouvert, sinon null
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
+  calMode:'occ', calJours:[], calOcc:[], calMatches:null, calNth:2, calNthMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
   seqLevels:[{decalage:0,vals:['','','','','']}], seqMatches:null,
   termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
@@ -9759,6 +9760,149 @@ function dateSectionHTML(){
   </div>`;
 }
 
+// ══════ Calendrier — jour de semaine + N-ième occurrence dans le mois, ou N-ième tirage du mois ══════
+// Mode 'occ' : ex "tous les 1ers lundis du mois" (Lundi + occurrence 1), ou "tous les derniers vendredis"
+// (Vendredi + Dernier). L'occurrence est calculée avec Math.ceil(jour/7) — formule standard du "n-ième
+// jour de semaine du mois" (jours 1-7 = 1ère occurrence, 8-14 = 2e, etc.), sans dépendre du jour de la
+// semaine du 1er du mois.
+// Mode 'nth' : ex "le 2e tirage de chaque mois" — indépendant du jour de semaine, juste la position
+// chronologique du tirage au sein de son mois (1er tirage du mois, 2e, 3e...).
+const CAL_JOUR_ORDER=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+const CAL_OCC_ORDER=['1','2','3','4','5','last'];
+const CAL_OCC_LABELS={'1':'1er','2':'2e','3':'3e','4':'4e','5':'5e',last:'Dernier'};
+function daysInMonthCal(mm,yy){return new Date(yy,mm,0).getDate();}
+function calOccOfDay(dd,mm,yy){
+  const occ=Math.ceil(dd/7);
+  const isLast=(dd+7)>daysInMonthCal(mm,yy);
+  return{occ:String(occ),isLast};
+}
+function setCalMode(m){state.calMode=m;render();}
+function toggleCalJour(j){
+  const i=state.calJours.indexOf(j);
+  if(i>=0)state.calJours.splice(i,1);else state.calJours.push(j);
+  render();
+}
+function toggleCalOcc(o){
+  const i=state.calOcc.indexOf(o);
+  if(i>=0)state.calOcc.splice(i,1);else state.calOcc.push(o);
+  render();
+}
+function doCalSearch(){
+  if(!state.calJours.length||!state.calOcc.length){alert('Coche au moins un jour de semaine et une occurrence avant de chercher.');return;}
+  state.calMatches=T.filter(r=>{
+    const[dd,mm]=r.d.split('/').map(Number);
+    const yy=+r.y;
+    const jour=CI_DAY_NAMES[new Date(yy,mm-1,dd).getDay()];
+    if(!state.calJours.includes(jour))return false;
+    const{occ,isLast}=calOccOfDay(dd,mm,yy);
+    return state.calOcc.includes(occ)||(isLast&&state.calOcc.includes('last'));
+  });
+  saveHist({type:'cal',game:GAME.key,gameName:GAME.name,jours:state.calJours.slice(),occ:state.calOcc.slice()});
+  render();
+}
+function calSearchClear(){state.calMatches=null;render();}
+function exportCalSearch(){
+  const rows=state.calMatches;
+  if(!rows||!rows.length){alert('Aucun résultat à exporter');return;}
+  let csv=csvHeader()+'\n';
+  rows.forEach(r=>{csv+=rowToCSV(r)+'\n';});
+  csv+='\nRecherche;Jours;'+state.calJours.join(' ')+';Occurrence(s);'+state.calOcc.map(o=>CAL_OCC_LABELS[o]).join(' ')+';Tirages trouvés;'+rows.length+'\n';
+  downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_calendrier.csv');
+}
+function calResHTML(){
+  const rows=state.calMatches;
+  if(!rows)return'';
+  if(!rows.length)return`<div style="font-size:10px;color:#999;margin-top:5px">Aucun tirage trouvé pour cette combinaison jour/occurrence</div>`;
+  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:10px;font-weight:500;color:#0891B2">${rows.length} tirage(s) trouvé(s)</div><button onclick="exportCalSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
+    <div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto">
+    ${rows.map(r=>{const tc=tC(r.s);const[dd,mm]=r.d.split('/').map(Number);const jour=CI_DAY_NAMES[new Date(+r.y,mm-1,dd).getDay()];const{occ,isLast}=calOccOfDay(dd,mm,+r.y);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
+      <span style="font-weight:700;color:#0891B2">${GAME.name} ${r.t}</span><span style="color:#888;font-size:8px">${jour} ${r.d}/${r.y}</span>
+      <span style="font-size:8px;color:#0E7490;background:#E0F2FE;border-radius:3px;padding:0 4px">${CAL_OCC_LABELS[occ]}${isLast?' · dernier':''}</span>
+      ${r.n.map(n=>numSpan(n)).join('')}
+      ${r.m?r.m.map(n=>numSpan(n,{isM:true})).join(''):''}
+      <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
+    </div>`;}).join('')}
+    </div></div>`;
+}
+function setCalNth(v){state.calNth=Math.max(1,parseInt(v)||1);render();}
+function doCalNthSearch(){
+  const n=state.calNth|0;
+  if(n<1){alert('Indique un rang valide (1, 2, 3...).');return;}
+  const byMonth={};
+  T.forEach(r=>{
+    const[dd,mm]=r.d.split('/').map(Number);
+    const k=r.y+'-'+String(mm).padStart(2,'0');
+    if(!byMonth[k])byMonth[k]=[];
+    byMonth[k].push(r);
+  });
+  const out=[];
+  Object.keys(byMonth).sort().forEach(k=>{
+    const list=byMonth[k].slice().sort((a,b)=>a.t-b.t); // ordre chronologique croissant au sein du mois
+    if(list[n-1])out.push(list[n-1]);
+  });
+  out.sort((a,b)=>b.t-a.t); // affichage le plus récent en premier, comme les autres modules
+  state.calNthMatches=out;
+  saveHist({type:'calNth',game:GAME.key,gameName:GAME.name,n});
+  render();
+}
+function calNthSearchClear(){state.calNthMatches=null;render();}
+function exportCalNthSearch(){
+  const rows=state.calNthMatches;
+  if(!rows||!rows.length){alert('Aucun résultat à exporter');return;}
+  let csv=csvHeader()+'\n';
+  rows.forEach(r=>{csv+=rowToCSV(r)+'\n';});
+  csv+='\nRecherche;'+state.calNth+'-ième tirage du mois;Tirages trouvés;'+rows.length+'\n';
+  downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_nieme_tirage_mois.csv');
+}
+function calNthResHTML(){
+  const rows=state.calNthMatches;
+  if(!rows)return'';
+  if(!rows.length)return`<div style="font-size:10px;color:#999;margin-top:5px">Aucun mois n'a autant de tirages</div>`;
+  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:10px;font-weight:500;color:#0891B2">${rows.length} tirage(s) trouvé(s)</div><button onclick="exportCalNthSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
+    <div style="display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto">
+    ${rows.map(r=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
+      <span style="font-weight:700;color:#0891B2">${GAME.name} ${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+      ${r.n.map(n=>numSpan(n)).join('')}
+      ${r.m?r.m.map(n=>numSpan(n,{isM:true})).join(''):''}
+      <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
+    </div>`;}).join('')}
+    </div></div>`;
+}
+function calSectionHTML(){
+  const mode=state.calMode||'occ';
+  return `<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0891B2;margin-bottom:5px">📅 Calendrier — jour de semaine / position dans le mois</div>
+    <div style="display:flex;gap:5px;margin-bottom:7px">
+      <button onclick="setCalMode('occ')" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode==='occ'?'2px solid #0891B2':'1px solid #ddd'};background:${mode==='occ'?'#0891B2':'#f5f5f5'};color:${mode==='occ'?'#fff':'#777'}">Jour + N-ième occurrence</button>
+      <button onclick="setCalMode('nth')" style="padding:4px 10px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${mode==='nth'?'2px solid #0891B2':'1px solid #ddd'};background:${mode==='nth'?'#0891B2':'#f5f5f5'};color:${mode==='nth'?'#fff':'#777'}">N-ième tirage du mois</button>
+    </div>
+    ${mode==='occ'?`
+    <div style="font-size:9px;color:#777;margin-bottom:3px">Jour de semaine :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">
+      ${CAL_JOUR_ORDER.map(j=>{const sel=state.calJours.includes(j);return `<button onclick="toggleCalJour('${j}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #0891B2':'1px solid #ddd'};background:${sel?'#0891B2':'#f5f5f5'};color:${sel?'#fff':'#777'}">${j}</button>`;}).join('')}
+    </div>
+    <div style="font-size:9px;color:#777;margin-bottom:3px">Occurrence dans le mois (ex: Lundi + 1er = tous les 1ers lundis du mois) :</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">
+      ${CAL_OCC_ORDER.map(o=>{const sel=state.calOcc.includes(o);return `<button onclick="toggleCalOcc('${o}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:500;border:${sel?'2px solid #0891B2':'1px solid #ddd'};background:${sel?'#0891B2':'#f5f5f5'};color:${sel?'#fff':'#777'}">${CAL_OCC_LABELS[o]}</button>`;}).join('')}
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="doCalSearch()" style="padding:4px 12px;background:#0891B2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
+      ${state.calMatches?`<button onclick="calSearchClear()" style="padding:4px 12px;background:#f5f5f5;color:#777;border:1px solid #ddd;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Effacer</button>`:''}
+    </div>
+    <div style="font-size:8px;color:#888;margin-top:3px">Ex: « début de mois » = coche 1er (et 2e si besoin) · « tous les lundis » = coche les 5 occurrences avec Lundi.</div>
+    ${calResHTML()}`:`
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
+      <span style="font-size:9px;color:#777">Rang du tirage dans le mois :</span>
+      <input type="number" min="1" value="${state.calNth}" oninput="setCalNth(this.value)" style="width:60px;padding:4px;border:1.5px solid #0891B2;border-radius:5px;font-size:12px;text-align:center">
+    </div>
+    <div style="display:flex;gap:6px">
+      <button onclick="doCalNthSearch()" style="padding:4px 12px;background:#0891B2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
+      ${state.calNthMatches?`<button onclick="calNthSearchClear()" style="padding:4px 12px;background:#f5f5f5;color:#777;border:1px solid #ddd;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Effacer</button>`:''}
+    </div>
+    <div style="font-size:8px;color:#888;margin-top:3px">Ex: 2 = le 2e tirage de chaque mois (dans l'ordre chronologique), peu importe le jour de semaine.</div>
+    ${calNthResHTML()}`}
+  </div>`;
+}
 function bankersSectionHTML(){
   return `<div style="background:#fff;border:1.5px solid #F59E0B;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">📍 Bankers alignés — numéros stables d'une ligne à l'autre</div>
@@ -9901,6 +10045,7 @@ function sommeligneSectionHTML(){
 }
 
 const SEARCH_SECTIONS=[
+  {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
   {key:'vseq',icon:'🪜',title:'Séquence de numéros (avec position)',desc:'Motif vertical sur plusieurs tirages — place exacte ou collés, écart réglable',color:'#B45309',html:vseqPanelHTML},
   {key:'seqOld',icon:'🧬',title:'Séquence de numéros (niveaux + décalage)',desc:'Ancien module : niveaux chaînés, décalage entre chaque niveau',color:'#059669',html:seqOldSectionHTML},

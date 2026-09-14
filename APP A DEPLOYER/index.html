@@ -718,6 +718,11 @@ function beninResetFiltres(){
 // Fonction commune : chaque panneau construit sa propre liste `rows` déjà filtrée (même forme que
 // les parse*All() : {d,y,n,s?,m? ou bonus?}, triée du plus récent au plus ancien) et l'ouvre via
 // cette fonction plutôt que de dupliquer la conversion/chargement pour chaque pays.
+// Badge "jeu d'origine" par tirage pour les jeux virtuels créés ici (ex: BÉNIN (filtré), MULTI-PAYS
+// (filtré)...) — même principe que multiBadgeHTML() pour cm_tout/togo_tout, mais générique : la clé
+// est directement l'id du tirage (1..N, attribué juste en dessous) plutôt qu'une clé date+numéros,
+// donc aucune ambiguïté possible en cas de doublon date+numéros entre deux jeux différents.
+let CUSTOM_BADGE_MAP={};
 function openFiltreAsGame(rows,opts){
   const bonusField=opts.bonusField||'m';
   if(!rows.length){alert('Aucun tirage ne correspond à ces filtres — élargis la sélection avant d\'ouvrir.');return;}
@@ -744,6 +749,19 @@ function openFiltreAsGame(rows,opts){
   });
   const key=opts.key;
   GAMES[key]={name:opts.name+' ('+filtered.length+' tirages)',icon:opts.icon,raw:lines.join('\n'),hasM:filtered.some(r=>r[bonusField]),sum10:true,n6:mainLen===6};
+  // Badge "jeu d'origine" par tirage : row.jeuLabel/jeuColor (déjà présent sur les lignes Multi-Pays)
+  // sinon on retombe sur opts.labelMap/opts.colorMap + row.jeu (fourni par chaque panneau pays), et
+  // à défaut sur row.jeuKey (format "pays:jeu") pour en extraire un code court.
+  {
+    const badgeMap={};
+    ordered.forEach((r,i)=>{
+      const rawCode=r.jeu||(r.jeuKey&&r.jeuKey.includes(':')?r.jeuKey.split(':')[1]:r.jeuKey)||'';
+      const label=r.jeuLabel||(opts.labelMap&&rawCode?opts.labelMap[rawCode]:null)||rawCode;
+      const color=r.jeuColor||(opts.colorMap&&rawCode?opts.colorMap[rawCode]:null);
+      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888'};
+    });
+    CUSTOM_BADGE_MAP[key]=badgeMap;
+  }
   // Reproduit setGame(key) sans son garde-fou GAME.key===key : ce dernier bloquerait le
   // rechargement si l'utilisateur rouvre avec un filtre différent alors qu'il est déjà sur ce
   // même jeu virtuel (la clé ne change pas, mais le raw en dessous, si).
@@ -767,7 +785,7 @@ function openFiltreAsGame(rows,opts){
 function openBeninFiltreAsGame(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
     &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
-  openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m'});
+  openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m',labelMap:BENIN_JEU_LABELS,colorMap:BENIN_JEU_COLORS});
 }
 function beninFiltreHTML(){
   if(!state.beninHeures)state.beninHeures=[...BENIN_HEURE_ORDER];
@@ -930,7 +948,7 @@ function toggleGhAlphaJeu(code){
 }
 function openGhAlphaFiltreAsGame(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m'});
+  openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
 }
 function ghAlphaFiltreHTML(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
@@ -1014,7 +1032,7 @@ function toggleGhanaJeu(code){
 }
 function openGhanaFiltreAsGame(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m'});
+  openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
 }
 function ghanaFiltreHTML(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
@@ -1110,7 +1128,7 @@ function toggleCamerounJeu(code){
 }
 function openCamerounFiltreAsGame(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m'});
+  openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m',labelMap:CAMEROUN_JEU_LABELS,colorMap:CAMEROUN_JEU_COLORS});
 }
 function camerounFiltreHTML(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
@@ -1227,7 +1245,7 @@ function toggleTogoJeu(code){
 }
 function openTogoFiltreAsGame(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus'});
+  openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus',labelMap:TOGO_JEU_LABELS,colorMap:TOGO_JEU_COLORS});
 }
 // ══════ TOUT TOGO — jeu combiné (12 jeux hebdo fusionnés chronologiquement) ══════
 let TOGO_TOUT_RAW=null;
@@ -1348,6 +1366,16 @@ function multiBadgeHTML(row,fS){
     if(!c)return '';
     const col=TOGO_JEU_COLORS[c]||'888888';
     return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+  }
+  // Jeux virtuels créés par "📂 Ouvrir comme un jeu" (BÉNIN/TOGO/CAMEROUN/CI/GHANA/GH ALPHA/ITALIE/
+  // MULTI-PAYS (filtré)) — même badge coloré que les vues filtre/export dédiées, demandé
+  // explicitement pour que "ouvrir comme un jeu" n'affiche pas moins d'info que la vue filtrée.
+  if(CUSTOM_BADGE_MAP[GAME.key]){
+    const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
+    if(!info)return '';
+    const col=info.color||'888888';
+    const code=(info.code||info.label||'').replace(/[^\p{L}\p{N}]/gu,'').toUpperCase().slice(0,3)||'?';
+    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${info.label}">${code}</span>`;
   }
   return '';
 }
@@ -1622,7 +1650,7 @@ function toggleCIJeu(code){
 }
 function openCIFiltreAsGame(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus'});
+  openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus',labelMap:CI_JEU_LABELS,colorMap:CI_JEU_COLORS});
 }
 function ciFiltreHTML(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
@@ -1744,7 +1772,7 @@ function toggleITJeu(code){
 }
 function openITFiltreAsGame(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
-  openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus'});
+  openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus',labelMap:IT_JEU_LABELS,colorMap:IT_JEU_COLORS});
 }
 function itFiltreHTML(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));

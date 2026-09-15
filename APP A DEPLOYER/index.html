@@ -1470,8 +1470,12 @@ function exportTirageJour(){
 // alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
 // sélecteur state.tirageJourView plutôt qu'à la remplacer.
 function tirageJourChronoHTML(entries,roundBall){
-  const withHour=entries.filter(e=>e.hour).sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
-  const noHour=entries.filter(e=>!e.hour).sort((a,b)=>a.label.localeCompare(b.label));
+  // SUPER 4 CAGNOTTE (veille) sert de repère ("boussole") pour l'utilisateur — toujours épinglé en
+  // tout premier dans la vue chronologique, peu importe son heure, plutôt que noyé dans le tri horaire.
+  const pinned=entries.find(e=>e.key==='cm_super4'&&e.label.includes('veille'));
+  const rest=pinned?entries.filter(e=>e!==pinned):entries;
+  const withHour=rest.filter(e=>e.hour).sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const noHour=rest.filter(e=>!e.hour).sort((a,b)=>a.label.localeCompare(b.label));
   // Puce compacte (19px, plus petite que roundBall des autres vues) pour tenir sur UNE seule ligne
   // avec l'heure + le nom du jeu, façon "résultat du jour" resserré.
   const miniBall=(n,c1,c2)=>`<span style="width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${n}</span>`;
@@ -1491,7 +1495,14 @@ function tirageJourChronoHTML(entries,roundBall){
       ${resultBody}
     </div>`;
   };
+  const pinnedRow=pinned?`<div style="display:flex;align-items:center;gap:7px;padding:7px 8px;background:#FEF3C7;border-bottom:2px solid #F59E0B">
+      <span style="font-size:13px;flex-shrink:0">🧭</span>
+      <span style="font-size:9.5px;font-weight:800;color:#92400E;width:34px;flex-shrink:0">${pinned.hour?hourLabel(pinned.hour):'?'}</span>
+      <span style="font-size:10px;font-weight:800;color:#78350F;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${pinned.label}">${pinned.label}</span>
+      ${pinned.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${pinned.row.n.map(n=>`<span style="width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FBBF24,#B45309);color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${n}</span>`).join('')}</div>`:`<div style="font-size:10px;color:#92400E;font-style:italic;flex:1">en attente</div>`}
+    </div>`:'';
   return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
+    ${pinnedRow}
     ${withHour.map(row).join('')}
     ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:5px 8px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
   </div>`;

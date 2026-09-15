@@ -1357,6 +1357,81 @@ function tirageJourEntries(){
   }
   return{baseDate,wd,entries};
 }
+function toggleTirageJourAnalyse(){state.tirageJourShowAnalyse=!state.tirageJourShowAnalyse;render();}
+// Fréquence historique globale (tous les jeux du programme confondus, ~15 derniers tirages de
+// chacun) — calculée une seule fois et mise en cache (indépendante de la date affichée, donc pas
+// besoin de la refaire à chaque changement de jour), pour classer chaud/froid/neutre sans recalculer
+// à chaque rendu si le panneau reste ouvert.
+let _tirageJourFreqCache=null;
+function tirageJourGlobalFreq(){
+  if(_tirageJourFreqCache)return _tirageJourFreqCache;
+  const freq={};
+  for(let n=1;n<=90;n++)freq[n]=0;
+  GAME_SCHEDULE.forEach(g=>{
+    const gdef=GAMES[g.k];
+    if(!gdef||!gdef.raw)return;
+    const lines=gdef.raw.trim().split('\n').filter(Boolean).slice(0,15);
+    parseLinesFor(lines,gdef).forEach(r=>{
+      (r.n||[]).forEach(n=>{if(n>=1&&n<=90)freq[n]=(freq[n]||0)+1;});
+    });
+  });
+  _tirageJourFreqCache=freq;
+  return freq;
+}
+function tirageJourClassify(n,freq){
+  const vals=Object.values(freq).slice().sort((a,b)=>b-a);
+  const hotCut=vals[Math.floor(vals.length*0.33)];
+  const coldCut=vals[Math.floor(vals.length*0.67)];
+  const f=freq[n]||0;
+  if(f>=hotCut)return{tag:'🔥 Chaud',color:'#DC2626'};
+  if(f<=coldCut)return{tag:'❄️ Froid',color:'#2563EB'};
+  return{tag:'➖ Neutre',color:'#6B7280'};
+}
+// Numéros sortis dans AU MOINS 2 jeux différents parmi les tirages déjà connus du jour — c'est le
+// cœur de la demande "analyse des éléments communs". Uniquement les numéros gagnants (pas les
+// numéros machine, pour rester sur la définition la plus naturelle d'un "numéro commun").
+function tirageJourCommonNumbers(entries){
+  const byNum={};
+  entries.filter(e=>e.done&&e.row).forEach(e=>{
+    (e.row.n||[]).forEach(n=>{
+      if(n==null||isNaN(n))return;
+      if(!byNum[n])byNum[n]=[];
+      byNum[n].push(e);
+    });
+  });
+  return Object.keys(byNum).map(Number).filter(n=>byNum[n].length>=2)
+    .sort((a,b)=>byNum[b].length-byNum[a].length||a-b)
+    .map(n=>({n,games:byNum[n]}));
+}
+function tirageJourAnalyseHTML(entries){
+  const commons=tirageJourCommonNumbers(entries);
+  if(!commons.length){
+    return`<div style="background:#fff;border:1px dashed #ddd;border-radius:12px;padding:14px;text-align:center;font-size:11px;color:#999;margin-bottom:16px">🧠 Aucun numéro commun entre les tirages déjà sortis aujourd'hui pour l'instant.</div>`;
+  }
+  const freq=tirageJourGlobalFreq();
+  return`<div style="background:linear-gradient(160deg,#FEF3C7,#FDE68A);border-radius:14px;padding:12px;margin-bottom:16px;border:1px solid #FCD34D">
+    <div style="font-size:12px;font-weight:800;color:#78350F;margin-bottom:2px">🧠 Analyse — numéros communs</div>
+    <div style="font-size:9.5px;color:#92400E;margin-bottom:8px">Numéros sortis dans au moins 2 jeux différents aujourd'hui, classés selon leur fréquence historique (~15 derniers tirages de chaque jeu du programme).</div>
+    ${commons.map(c=>{
+      const cls=tirageJourClassify(c.n,freq);
+      const pair=c.n%2===0?'Pair':'Impair';
+      const diz=Math.floor(c.n/10)*10;
+      const dizLabel=c.n===90?'80-90':`${diz}-${diz+9}`;
+      return`<div style="display:flex;gap:10px;background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:6px;align-items:center">
+        <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FBBF24,#B45309);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${c.n}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:3px">
+            <span style="font-size:9px;font-weight:700;color:#78350F;background:#FEF3C7;border-radius:8px;padding:1px 7px">×${c.games.length} jeux</span>
+            <span style="font-size:9px;font-weight:700;color:#374151;background:#F3F4F6;border-radius:8px;padding:1px 7px">${pair}</span>
+            <span style="font-size:9px;font-weight:700;color:#374151;background:#F3F4F6;border-radius:8px;padding:1px 7px">Dizaine ${dizLabel}</span>
+            <span style="font-size:9px;font-weight:700;color:#fff;background:${cls.color};border-radius:8px;padding:1px 7px">${cls.tag}</span>
+          </div>
+          <div style="font-size:9.5px;color:#666">${c.games.map(e=>e.label).join(' · ')}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 function openTirageJourAsGame(){
   const{entries,baseDate}=tirageJourEntries();
   const rows=entries.filter(e=>e.done&&e.row).map(e=>({
@@ -1424,11 +1499,13 @@ function tirageJourHTML(){
     <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
       <input type="date" value="${isoVal}" onchange="setTirageJourDate(this.value)" style="padding:4px 7px;border-radius:8px;border:none;font-size:11px">
       ${state.tirageJourDate?`<button onclick="setTirageJourDate('')" style="padding:4px 10px;font-size:10px;border-radius:14px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;font-weight:600">↺ Aujourd'hui</button>`:''}
+      <button onclick="toggleTirageJourAnalyse()" style="padding:5px 10px;background:${state.tirageJourShowAnalyse?'#fff':'rgba(255,255,255,.18)'};color:${state.tirageJourShowAnalyse?'#78350F':'#fff'};border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">🧠 Analyse</button>
       <button onclick="openTirageJourAsGame()" style="margin-left:auto;padding:5px 10px;background:#fff;color:#78350F;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">📂 Ouvrir comme un jeu</button>
       <button id="export-tirage-btn" onclick="exportTirageJour()" style="padding:5px 10px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">⬇ Excel</button>
     </div>
   </div>
   <div style="padding:12px 10px 90px">
+  ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
   TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
@@ -4227,7 +4304,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  tirageJourOpen:false, tirageJourDate:'',
+  tirageJourOpen:false, tirageJourDate:'', tirageJourShowAnalyse:false,
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──

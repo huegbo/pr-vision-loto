@@ -1250,17 +1250,31 @@ const GAME_SCHEDULE=[
 {k:"ng_gold",w:[2,5],h:null},{k:"ng_international",w:[1,4],h:null},{k:"ng_jackpot",w:[2,5],h:null},
 {k:"ng_king",w:[6],h:null},{k:"ng_mark_ii",w:[0,3],h:null},{k:"ng_metro",w:[1,5],h:null},
 {k:"ng_peoples",w:[1,4],h:null},{k:"ng_royal",w:[0,5],h:null},{k:"ng_super",w:[2,6],h:null},
-{k:"ng_tota",w:[0,3],h:null},{k:"ng_vag",w:[3,5],h:null},{k:"cm_continent",w:[1,2,3,4,5,6],h:null},
-{k:"cm_super4",w:[0,1,2,3,4,5,6],h:null},{k:"cm_lions",w:[1,2,3,4,5,6],h:null},
-{k:"cm_logone",w:[0,1,2,3,4,5,6],h:null},{k:"cm_mboa",w:[1,2,3,4,5,6],h:null},
-{k:"cm_mfoundi",w:[1,2,3,4,5,6],h:null},{k:"cm_mont_cameroun",w:[1,2,3,4,5,6],h:null},
-{k:"cm_moungo",w:[1,2,3,4,5,6],h:null},{k:"cm_noun",w:[1,2,3,4,5,6],h:null},
-{k:"cm_sanaga",w:[1,2,3,4,5,6],h:null},{k:"cm_wouri",w:[1,2,3,4,5,6],h:null},{k:"cm_digital",w:[3],h:null}
+{k:"ng_tota",w:[0,3],h:null},{k:"ng_vag",w:[3,5],h:null},{k:"cm_continent",w:[1,2,3,4,5,6],h:"21:00"},
+{k:"cm_super4",w:[0,1,2,3,4,5,6],h:null},{k:"cm_lions",w:[1,2,3,4,5,6],h:"18:30"},
+{k:"cm_logone",w:[0,1,2,3,4,5,6],h:"12:30"},{k:"cm_mboa",w:[1,2,3,4,5,6],h:"20:00"},
+{k:"cm_mfoundi",w:[1,2,3,4,5,6],h:"11:00"},{k:"cm_mont_cameroun",w:[1,2,3,4,5,6],h:"14:00"},
+{k:"cm_moungo",w:[1,2,3,4,5,6],h:"08:00"},{k:"cm_noun",w:[1,2,3,4,5,6],h:"15:30"},
+{k:"cm_sanaga",w:[1,2,3,4,5,6],h:"17:00"},{k:"cm_wouri",w:[1,2,3,4,5,6],h:"09:30"},{k:"cm_digital",w:[3],h:null}
 ];
+// Horaires officiels Cameroun 5/90 confirmés par capture le 15/09/2026 (certains à la demi-heure,
+// d'où le format "HH:MM" au lieu de "HH" comme les autres jeux) — voir hourSortKey()/hourLabel().
 const GH_ALPHA_KEYS=new Set(['precise','alpha','delta','omega','excel','prime','kenstar',
   'alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri',
   'alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu',
   'alpha_one_fri','alpha_one_sat','alpha_one_sun']);
+// Heure d'un jeu au format "HH" (la plupart) ou "HH:MM" (Cameroun, demi-heures) → minutes depuis
+// minuit pour trier correctement, et libellé compact "8H"/"9H30" pour l'affichage.
+function hourSortKey(h){
+  if(!h)return 9999;
+  const[hh,mm]=String(h).split(':').map(Number);
+  return hh*60+(mm||0);
+}
+function hourLabel(h){
+  if(!h)return null;
+  const[hh,mm]=String(h).split(':');
+  return mm?`${hh}H${mm}`:`${hh}H`;
+}
 function tirageJourCountry(key,icon){
   if(icon==='🇬🇭')return GH_ALPHA_KEYS.has(key)?'GH Alpha':'Ghana';
   const M={'🇹🇬':'Togo','🇧🇯':'Bénin','🇨🇮':"Côte d'Ivoire",'🇨🇲':'Cameroun','🇮🇹':'Italie','🇳🇬':'Nigeria','🇧🇫':'Burkina Faso','🇲🇹':'Malte'};
@@ -1296,6 +1310,21 @@ function latestRowFor(key){
   for(const r of rows)if(r.t>best.t)best=r;
   return best;
 }
+// Ligne correspondant EXACTEMENT à une date donnée (clé ymdKey) — contrairement à latestRowFor()
+// (toujours le tout dernier tirage connu, utile ailleurs), celle-ci sert à savoir si TEL jour précis
+// (pas forcément aujourd'hui — l'utilisateur peut naviguer vers une date passée dans l'onglet
+// Tirage du jour) a bien un résultat enregistré pour ce jeu.
+function rowForDate(key,targetK){
+  const gdef=GAMES[key];
+  if(!gdef||!gdef.raw)return null;
+  const lines=gdef.raw.trim().split('\n').filter(Boolean);
+  for(const line of lines){
+    const p=line.split('|');
+    const [dd,mm]=String(p[1]).split('/').map(Number);
+    if((+p[2])*10000+mm*100+dd===targetK)return parseLinesFor([line],gdef)[0];
+  }
+  return null;
+}
 function setTirageJourDate(v){state.tirageJourDate=v;render();}
 // Construit la liste des jeux prévus pour une date donnée (par défaut : celle sélectionnée dans
 // l'onglet, ou aujourd'hui) — factorisé pour être identique entre l'affichage écran et l'export Excel.
@@ -1306,18 +1335,27 @@ function tirageJourEntries(){
   const entries=GAME_SCHEDULE.filter(g=>g.w.includes(wd)).map(g=>{
     const gdef=GAMES[g.k];
     if(!gdef)return null;
-    const row=latestRowFor(g.k);
-    const done=!!(row&&rowYmdKey(row)===todayK);
+    const row=rowForDate(g.k,todayK); // le résultat de CE jour précis (pas juste "le plus récent connu") — marche aussi en naviguant vers une date passée
+    const done=!!row;
     return{key:g.k,gdef,hour:g.h,row,done,country:tirageJourCountry(g.k,gdef.icon)};
   }).filter(Boolean);
   return{baseDate,wd,entries};
+}
+function openTirageJourAsGame(){
+  const{entries,baseDate}=tirageJourEntries();
+  const rows=entries.filter(e=>e.done&&e.row).map(e=>({
+    d:e.row.d,y:e.row.y,n:e.row.n,s:e.row.s,m:e.row.m,
+    jeu:e.key,jeuLabel:e.gdef.name,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
+  }));
+  const dateTag=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
+  openFiltreAsGame(rows,{name:'TIRAGE DU JOUR '+dateTag,icon:'📆',key:'tirage_jour_custom',closeFlag:'tirageJourOpen',bonusField:'m'});
 }
 function exportTirageJour(){
   const{entries,baseDate}=tirageJourEntries();
   if(!entries.length){alert('Aucun jeu prévu ce jour-là à exporter.');return;}
   const sorted=entries.slice().sort((a,b)=>{
     if(a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country);
-    const ah=a.hour?parseInt(a.hour):99,bh=b.hour?parseInt(b.hour):99;
+    const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
     if(ah!==bh)return ah-bh;
     return a.gdef.name.localeCompare(b.gdef.name);
   });
@@ -1325,7 +1363,7 @@ function exportTirageJour(){
   const maxM=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
   const columns=[
     {header:'Pays',get:r=>r.country,bg:r=>TIRAGE_JOUR_COUNTRY_COLOR[r.country],fg:'#FFFFFF'},
-    {header:'Heure',get:r=>r.hour?r.hour+'H':'?'},
+    {header:'Heure',get:r=>r.hour?hourLabel(r.hour):'?'},
     {header:'Jeu',get:r=>r.gdef.name},
     {header:'Statut',get:r=>r.done?'Tiré':'À venir',bg:r=>r.done?'#DCFCE7':'#FEF3C7',fg:r=>r.done?'#166534':'#92400E'},
     {header:'Date',get:r=>r.done&&r.row?r.row.d+'/'+r.row.y:''},
@@ -1348,7 +1386,8 @@ function tirageJourHTML(){
   <div class="header" style="background:#92400E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">📆 TIRAGE DU JOUR — ${dayLabel} ${dateLabel}</div>
-      <button id="export-tirage-btn" onclick="exportTirageJour()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="openTirageJourAsGame()" style="margin-left:auto;padding:4px 10px;background:#6D28D9;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">📂 Ouvrir comme un jeu</button>
+      <button id="export-tirage-btn" onclick="exportTirageJour()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
       <button onclick="state.tirageJourOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
     <div style="font-size:10.5px;margin-top:4px;opacity:.9">${entries.length} jeu(x) prévu(s) · ${doneCount} déjà tiré(s), ${entries.length-doneCount} à venir</div>
@@ -1362,14 +1401,14 @@ function tirageJourHTML(){
   TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
     const list=byCountry[c].slice().sort((a,b)=>{
-      const ah=a.hour?parseInt(a.hour):99,bh=b.hour?parseInt(b.hour):99;
+      const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
       if(ah!==bh)return ah-bh;
       return a.gdef.name.localeCompare(b.gdef.name);
     });
     return`<div style="margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:${col};border-bottom:2px solid ${col};padding-bottom:3px;margin-bottom:5px">${c} (${list.length})</div>
       ${list.map(e=>{
-        const hourTag=e.hour?`<span style="font-size:9.5px;font-weight:700;color:#fff;background:${col};padding:1px 6px;border-radius:10px">${e.hour}H</span>`:`<span style="font-size:9px;color:#aaa">heure ?</span>`;
+        const hourTag=e.hour?`<span style="font-size:9.5px;font-weight:700;color:#fff;background:${col};padding:1px 6px;border-radius:10px">${hourLabel(e.hour)}</span>`:`<span style="font-size:9px;color:#aaa">heure ?</span>`;
         const body=e.done?`${e.row.n.map(n=>numSpan(n)).join('')}${e.row.m?e.row.m.map(n=>numSpan(n,{isM:true})).join(''):''}`:`<span style="font-size:10.5px;color:#c58a00;font-weight:600">⏳ à venir</span>`;
         return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 2px;border-bottom:1px solid #f2f2f2">
           <span style="width:52px;flex-shrink:0">${hourTag}</span>

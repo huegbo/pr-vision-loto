@@ -1358,6 +1358,7 @@ function tirageJourEntries(){
   return{baseDate,wd,entries};
 }
 function toggleTirageJourAnalyse(){state.tirageJourShowAnalyse=!state.tirageJourShowAnalyse;render();}
+function setTirageJourView(v){state.tirageJourView=v;render();}
 // Fréquence historique globale (tous les jeux du programme confondus, ~15 derniers tirages de
 // chacun) — calculée une seule fois et mise en cache (indépendante de la date affichée, donc pas
 // besoin de la refaire à chaque changement de jour), pour classer chaud/froid/neutre sans recalculer
@@ -1465,6 +1466,36 @@ function exportTirageJour(){
   const dateTag=`${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,'0')}-${String(baseDate.getDate()).padStart(2,'0')}`;
   exportCountryFiltre(sorted,columns,'Tirage_du_jour_'+dateTag,'TirageDuJour','export-tirage-btn');
 }
+// Vue "Chronologique" : liste plate triée par heure (toutes pays confondus), lignes resserrées —
+// alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
+// sélecteur state.tirageJourView plutôt qu'à la remplacer.
+function tirageJourChronoHTML(entries,roundBall){
+  const withHour=entries.filter(e=>e.hour).sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const noHour=entries.filter(e=>!e.hour).sort((a,b)=>a.label.localeCompare(b.label));
+  // Puce compacte (19px, plus petite que roundBall des autres vues) pour tenir sur UNE seule ligne
+  // avec l'heure + le nom du jeu, façon "résultat du jour" resserré.
+  const miniBall=(n,c1,c2)=>`<span style="width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${n}</span>`;
+  const row=(e)=>{
+    const col=TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151';
+    const darkCol=darken(col,0.32);
+    const flag=e.gdef.icon||'🌍';
+    const hourTxt=e.hour?hourLabel(e.hour):'?';
+    const resultBody=e.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">
+        ${e.row.n.map(n=>miniBall(n,col,darkCol)).join('')}
+        ${e.row.m?e.row.m.filter(n=>n!=null&&!isNaN(n)).map(n=>miniBall(n,'#C4B5FD','#7C3AED')).join(''):''}
+      </div>`:`<div style="font-size:10px;color:#aaa;font-style:italic;flex:1">en attente</div>`;
+    return`<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #f2f2f2">
+      <span style="font-size:13px;flex-shrink:0">${flag}</span>
+      <span style="font-size:9.5px;font-weight:800;color:${col};width:34px;flex-shrink:0">${hourTxt}</span>
+      <span style="font-size:10px;font-weight:700;color:#222;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.label}">${e.label}</span>
+      ${resultBody}
+    </div>`;
+  };
+  return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
+    ${withHour.map(row).join('')}
+    ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:5px 8px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
+  </div>`;
+}
 function tirageJourHTML(){
   const{baseDate,wd,entries}=tirageJourEntries();
   const byCountry={};
@@ -1503,10 +1534,15 @@ function tirageJourHTML(){
       <button onclick="openTirageJourAsGame()" style="margin-left:auto;padding:5px 10px;background:#fff;color:#78350F;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">📂 Ouvrir comme un jeu</button>
       <button id="export-tirage-btn" onclick="exportTirageJour()" style="padding:5px 10px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">⬇ Excel</button>
     </div>
+    <div style="display:flex;gap:4px;margin-top:8px;background:rgba(255,255,255,.14);border-radius:9px;padding:3px">
+      <button onclick="setTirageJourView('pays')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='pays'?'#fff':'transparent'};color:${state.tirageJourView==='pays'?'#78350F':'#fff'}">🗂 Par pays</button>
+      <button onclick="setTirageJourView('chrono')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='chrono'?'#fff':'transparent'};color:${state.tirageJourView==='chrono'?'#78350F':'#fff'}">⏱ Chronologique</button>
+    </div>
   </div>
   <div style="padding:12px 10px 90px">
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
+  state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall):
   TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
     const flag=byCountry[c][0].gdef.icon||'🌍';
@@ -4304,7 +4340,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  tirageJourOpen:false, tirageJourDate:'', tirageJourShowAnalyse:false,
+  tirageJourOpen:false, tirageJourDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──

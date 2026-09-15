@@ -1407,6 +1407,33 @@ function tirageJourCommonNumbers(entries){
     .sort((a,b)=>byNum[b].length-byNum[a].length||a-b)
     .map(n=>({n,games:byNum[n]}));
 }
+// "Doubles correspondances" : quand DEUX tirages du jour partagent AU MOINS 2 numéros entre eux —
+// plus rare et plus notable qu'un simple numéro isolé qui revient (tirageJourCommonNumbers), donc
+// mis en évidence séparément avec une couleur plus forte (rouge) sur demande explicite.
+function tirageJourStrongPairs(entries){
+  const done=entries.filter(e=>e.done&&e.row&&e.row.n&&e.row.n.length);
+  const pairs=[];
+  for(let i=0;i<done.length;i++){
+    const setA=new Set(done[i].row.n.filter(n=>n!=null&&!isNaN(n)));
+    for(let j=i+1;j<done.length;j++){
+      const shared=[...new Set(done[j].row.n.filter(n=>n!=null&&!isNaN(n)&&setA.has(n)))];
+      if(shared.length>=2)pairs.push({a:done[i],b:done[j],shared:shared.sort((x,y)=>x-y)});
+    }
+  }
+  return pairs.sort((x,y)=>y.shared.length-x.shared.length);
+}
+function tirageJourPairsHTML(pairs){
+  if(!pairs.length)return'';
+  return`<div style="background:linear-gradient(160deg,#FEE2E2,#FECACA);border:1px solid #FCA5A5;border-radius:12px;padding:10px;margin-bottom:12px">
+    <div style="font-size:11.5px;font-weight:800;color:#991B1B;margin-bottom:6px">🎯 Doubles correspondances entre 2 tirages</div>
+    ${pairs.map(p=>`<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#fff;border-radius:9px;padding:6px 9px;margin-bottom:5px">
+      <span style="font-size:9.5px;font-weight:700;color:#333">${p.a.label} ↔ ${p.b.label}</span>
+      <div style="display:flex;gap:3px">
+        ${p.shared.map(n=>`<span style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FCA5A5,#B91C1C);color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff">${n}</span>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
 // Bandeau TOUJOURS visible (contrairement à la carte 🧠 Analyse, repliée derrière le bouton) —
 // juste la liste compacte des numéros qui reviennent aujourd'hui, pour qu'on la voie sans avoir à
 // cliquer sur "Analyse".
@@ -1483,8 +1510,9 @@ function exportTirageJour(){
 // Vue "Chronologique" : liste plate triée par heure (toutes pays confondus), lignes resserrées —
 // alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
 // sélecteur state.tirageJourView plutôt qu'à la remplacer.
-function tirageJourChronoHTML(entries,roundBall,commonSet){
+function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
   commonSet=commonSet||new Set();
+  strongSet=strongSet||new Set();
   // SUPER 4 CAGNOTTE (veille) sert de repère ("boussole") pour l'utilisateur — toujours épinglé en
   // tout premier dans la vue chronologique, peu importe son heure, plutôt que noyé dans le tri horaire.
   const pinned=entries.find(e=>e.key==='cm_super4'&&e.label.includes('veille'));
@@ -1497,9 +1525,13 @@ function tirageJourChronoHTML(entries,roundBall,commonSet){
   // directement dans la liste, sans devoir se référer à la carte d'analyse séparée.
   // Numéro commun : remplace carrément la couleur du jeu par un dégradé doré + anneau — beaucoup
   // plus visible qu'un simple liseré autour de la couleur d'origine.
-  const miniBall=(n,c1,c2,common)=>{
-    if(common){c1='#FDE047';c2='#B45309';}
-    return`<span style="width:${common?21:19}px;height:${common?21:19}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${common?'box-shadow:0 0 0 2px #92400E;border:1px solid #fff':''}">${n}</span>`;
+  // strong=true (numéro faisant partie d'une "double correspondance" entre 2 tirages précis) prend
+  // le pas sur common=true (simple numéro qui revient quelque part) — rouge plus fort que doré.
+  const miniBall=(n,c1,c2,common,strong)=>{
+    if(strong){c1='#FCA5A5';c2='#B91C1C';}
+    else if(common){c1='#FDE047';c2='#B45309';}
+    const on=common||strong;
+    return`<span style="width:${on?21:19}px;height:${on?21:19}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${on?`box-shadow:0 0 0 2px ${strong?'#7F1D1D':'#92400E'};border:1px solid #fff`:''}">${n}</span>`;
   };
   const row=(e)=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151';
@@ -1507,7 +1539,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet){
     const flag=e.gdef.icon||'🌍';
     const hourTxt=e.hour?hourLabel(e.hour):'?';
     const resultBody=e.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">
-        ${e.row.n.map(n=>miniBall(n,col,darkCol,commonSet.has(n))).join('')}
+        ${e.row.n.map(n=>miniBall(n,col,darkCol,commonSet.has(n),strongSet.has(n))).join('')}
         ${e.row.m?e.row.m.filter(n=>n!=null&&!isNaN(n)).map(n=>miniBall(n,'#C4B5FD','#7C3AED',false)).join(''):''}
       </div>`:`<div style="font-size:10px;color:#aaa;font-style:italic;flex:1">en attente</div>`;
     return`<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #f2f2f2">
@@ -1521,7 +1553,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet){
       <span style="font-size:13px;flex-shrink:0">🧭</span>
       <span style="font-size:9.5px;font-weight:800;color:#92400E;width:34px;flex-shrink:0">${pinned.hour?hourLabel(pinned.hour):'?'}</span>
       <span style="font-size:10px;font-weight:800;color:#78350F;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${pinned.label}">${pinned.label}</span>
-      ${pinned.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${pinned.row.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n))).join('')}</div>`:`<div style="font-size:10px;color:#92400E;font-style:italic;flex:1">en attente</div>`}
+      ${pinned.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${pinned.row.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>`:`<div style="font-size:10px;color:#92400E;font-style:italic;flex:1">en attente</div>`}
     </div>`:'';
   return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
     ${pinnedRow}
@@ -1548,11 +1580,15 @@ function tirageJourHTML(){
   // dans la liste, pas seulement dans la carte d'analyse séparée.
   // Idem : un numéro commun devient une boule dorée à part entière (pas juste un liseré), pour
   // qu'il saute vraiment aux yeux dans la liste, même en scrollant vite.
-  const roundBall=(n,c1,c2,common)=>{
-    if(common){c1='#FDE047';c2='#B45309';}
-    return`<span style="width:${common?29:25}px;height:${common?29:25}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:${common?'12.5px':'11px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${common?',0 0 0 3px #92400E':''};border:${common?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
+  const roundBall=(n,c1,c2,common,strong)=>{
+    if(strong){c1='#FCA5A5';c2='#B91C1C';}
+    else if(common){c1='#FDE047';c2='#B45309';}
+    const on=common||strong;
+    return`<span style="width:${on?29:25}px;height:${on?29:25}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:${on?'12.5px':'11px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${on?`,0 0 0 3px ${strong?'#7F1D1D':'#92400E'}`:''};border:${on?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
   };
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
+  const strongPairs=tirageJourStrongPairs(entries);
+  const strongSet=new Set(strongPairs.flatMap(p=>p.shared));
   let html=`<div id="app-content">
   <div class="header" style="background:linear-gradient(160deg,#B45309,#78350F);color:#fff;padding:12px 14px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901;border-radius:0 0 16px 16px;box-shadow:0 4px 14px rgba(120,53,15,.35)">
     <div style="display:flex;align-items:center;gap:8px">
@@ -1581,10 +1617,11 @@ function tirageJourHTML(){
     </div>
   </div>
   <div style="padding:12px 10px 90px">
+  ${tirageJourPairsHTML(strongPairs)}
   ${tirageJourCommonStripHTML(entries)}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
-  state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet):
+  state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet,strongSet):
   TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
     const flag=byCountry[c][0].gdef.icon||'🌍';
@@ -1604,7 +1641,7 @@ function tirageJourHTML(){
             :`<div style="width:38px;height:38px;border-radius:50%;background:#eee;color:#aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px">?</div>`;
           const statusIcon=e.done?`<span style="color:#16A34A;font-size:12px">✅</span>`:`<span style="color:#D97706;font-size:12px">⏳</span>`;
           const resultBody=e.done?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">
-              ${e.row.n.map(n=>roundBall(n,col,darkCol,commonSet.has(n))).join('')}
+              ${e.row.n.map(n=>roundBall(n,col,darkCol,commonSet.has(n),strongSet.has(n))).join('')}
               ${e.row.m?e.row.m.filter(n=>n!=null&&!isNaN(n)).map(n=>roundBall(n,'#C4B5FD','#7C3AED',false)).join(''):''}
             </div>`
             :`<div style="font-size:10.5px;color:#B45309;font-weight:600;margin-top:3px">En attente du tirage</div>`;

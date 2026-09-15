@@ -1187,6 +1187,171 @@ function camerounFiltreHTML(){
   </div>`;
   return html;
 }
+// ══════ "TIRAGE DU JOUR" — programme + résultats, tous pays confondus ══════
+// GAME_SCHEDULE : jour(s) de semaine (0=Dimanche..6=Samedi, comme Date.getDay()) + heure connue
+// ("HH" ou null) pour chaque jeu INDIVIDUEL. Calculé le 15/09/2026 à partir de l'historique réel
+// de chaque table RAW_* (fréquence des jours de semaine sur tout l'historique du jeu), sauf Italie
+// où l'heure/jours viennent de la source officielle Lotto (mar/jeu/ven/sam, 20h) plutôt que de la
+// déduction historique (incomplète pour Cagliari dans nos données). Les tables composites
+// ("TOUT X", agrégats de plusieurs jeux/heures) sont volontairement exclues : elles feraient
+// doublon avec leurs jeux individuels déjà listés. Un jeu sans heure connue est quand même listé
+// (juste sans tri par heure, en bas de sa section pays) — à compléter au fur et à mesure.
+const GAME_SCHEDULE=[
+{k:"diamant",w:[1],h:"13"},{k:"gold",w:[1],h:"18"},{k:"cash",w:[2],h:"13"},{k:"boom",w:[2],h:"18"},
+{k:"benz",w:[3],h:"13"},{k:"prestige",w:[3],h:"18"},{k:"million",w:[4],h:"13"},{k:"super",w:[4],h:"18"},
+{k:"kadoo",w:[5],h:"13"},{k:"king",w:[5],h:"18"},{k:"sam",w:[6],h:"13"},{k:"bingo",w:[6],h:"18"},
+{k:"detente",w:[0],h:"16"},{k:"matinal_lundi",w:[1],h:null},{k:"matinal_mardi",w:[2],h:null},
+{k:"matinal_mercredi",w:[3],h:null},{k:"matinal_jeudi",w:[4],h:null},{k:"matinal_vendredi",w:[5],h:null},
+{k:"matinal_samedi",w:[6],h:null},{k:"midweek",w:[3],h:null},{k:"aseda",w:[0],h:null},
+{k:"digital_08h",w:[0,1,2,3,4,5,6],h:"08"},{k:"digital_00h",w:[0,1,2,3,4,5,6],h:"00"},
+{k:"digital_20h",w:[0,1,2,3,4,5,6],h:"20"},{k:"bj_f11",w:[1,2,4,5],h:"11"},{k:"bj_f14",w:[1,2,4,5],h:"14"},
+{k:"bj_f18",w:[1,2,4,5],h:"18"},{k:"bj_s11",w:[0,3,6],h:"11"},{k:"bj_s14",w:[0,3,6],h:"14"},
+{k:"bj_s18",w:[0,3,6],h:"18"},{k:"bj_f_lun",w:[1],h:null},{k:"bj_f_mar",w:[2],h:null},
+{k:"bj_s_mer",w:[3],h:null},{k:"bj_f_jeu",w:[4],h:null},{k:"bj_f_ven",w:[5],h:null},
+{k:"bj_s_sam",w:[6],h:null},{k:"bj_s_dim",w:[0],h:null},{k:"cagliari",w:[2,4,5,6],h:"20"},
+{k:"malta",w:[6],h:null},{k:"national",w:[6],h:null},{k:"gh_g1",w:[5],h:null},{k:"gh_g2",w:[1],h:null},
+{k:"gh_g3",w:[6],h:null},{k:"gh_g4",w:[4],h:null},{k:"gh_g5",w:[2],h:null},{k:"gh_g6",w:[3],h:null},
+{k:"gh_g7",w:[1,2,3,4,5,6],h:null},{k:"gh_g8",w:[1,4],h:null},{k:"gh_g9",w:[5],h:null},
+{k:"gh_g10",w:[5],h:null},{k:"gh_g11",w:[2,3],h:null},{k:"gh_g12",w:[2],h:null},
+{k:"gh_international",w:[0,1,2],h:null},{k:"gh_g13",w:[3],h:null},{k:"gh_g14",w:[1],h:null},
+{k:"gh_g15",w:[1],h:null},{k:"gh_g16",w:[5],h:null},{k:"gh_g17",w:[6],h:null},{k:"gh_g18",w:[1],h:null},
+{k:"gh_g19",w:[0],h:null},{k:"gh_g20",w:[6],h:null},{k:"gh_g21",w:[0,1,2],h:null},
+{k:"gh_home_lucky",w:[2,3],h:null},{k:"gh_g22",w:[0],h:null},{k:"gh_g23",w:[1,2,3,4,5,6],h:null},
+{k:"gh_g24",w:[4],h:null},{k:"gh_g25",w:[2],h:null},{k:"gh_g26",w:[1,2,3,4,5,6],h:null},
+{k:"gh_g27",w:[5],h:null},{k:"gh_g28",w:[1],h:null},{k:"gh_g29",w:[6],h:null},{k:"gh_g30",w:[4],h:null},
+{k:"gh_g31",w:[2],h:null},{k:"gh_g32",w:[3],h:null},{k:"gh_g33",w:[2],h:null},{k:"gh_g34",w:[3],h:null},
+{k:"gh_g35",w:[3],h:null},{k:"precise",w:[0,6],h:null},{k:"alpha",w:[0,1,2],h:null},{k:"delta",w:[2],h:null},
+{k:"omega",w:[3],h:null},{k:"excel",w:[4],h:null},{k:"prime",w:[5],h:null},{k:"kenstar",w:[6],h:null},
+{k:"alpha_express_mon",w:[1],h:null},{k:"alpha_express_tue",w:[2],h:null},{k:"alpha_express_wed",w:[3],h:null},
+{k:"alpha_express_thu",w:[4],h:null},{k:"alpha_express_fri",w:[5],h:null},{k:"alpha_express_sat",w:[6],h:null},
+{k:"alpha_express_sun",w:[0],h:null},{k:"alpha_one_mon",w:[1],h:null},{k:"alpha_one_tue",w:[2],h:null},
+{k:"alpha_one_wed",w:[3],h:null},{k:"alpha_one_thu",w:[4],h:null},{k:"alpha_one_fri",w:[5],h:null},
+{k:"alpha_one_sat",w:[6],h:null},{k:"alpha_one_sun",w:[0],h:null},{k:"it_bari",w:[2,4,5,6],h:"20"},
+{k:"it_firenze",w:[2,4,5,6],h:"20"},{k:"it_genova",w:[2,4,5,6],h:"20"},{k:"it_milano",w:[2,4,5,6],h:"20"},
+{k:"it_napoli",w:[2,4,5,6],h:"20"},{k:"it_superenalotto",w:[2,4,5,6],h:"20"},
+{k:"ci_reveil_07h",w:[0,1,2,3,4,5,6],h:"07"},{k:"ci_reveil_08h",w:[0,1,2,3,4,5,6],h:"08"},
+{k:"ci_sw1h",w:[0,6],h:"01"},{k:"ci_sw3h",w:[0,6],h:"03"},{k:"ci_soutra",w:[6],h:null},
+{k:"ci_diamant",w:[6],h:null},{k:"ci_moaye",w:[6],h:null},{k:"ci_afterwork",w:[0,1,2,3,4,5,6],h:null},
+{k:"ci_digital21h",w:[0,1,2,3,4,5,6],h:"21"},{k:"ci_digital22h",w:[0,1,2,3,4,5,6],h:"22"},
+{k:"ci_digital23h",w:[0,1,2,3,4,5,6],h:"23"},{k:"ci_benediction",w:[0],h:null},{k:"ci_prestige",w:[0],h:null},
+{k:"ci_awale",w:[0],h:null},{k:"ci_espoir",w:[0],h:null},{k:"ci_reveil",w:[1],h:null},
+{k:"ci_etoile",w:[1],h:null},{k:"ci_akwaba",w:[1],h:null},{k:"ci_matinale",w:[2],h:null},
+{k:"ci_emergence",w:[2],h:null},{k:"ci_sika",w:[2],h:null},{k:"ci_premiere_heure",w:[3],h:null},
+{k:"ci_fortune",w:[3],h:null},{k:"ci_baraka",w:[3],h:null},{k:"ci_kado",w:[4],h:null},
+{k:"ci_privilege",w:[4],h:null},{k:"ci_monni",w:[4],h:null},{k:"ci_cash",w:[5],h:null},
+{k:"ci_solution",w:[5],h:null},{k:"ci_wari",w:[5],h:null},{k:"ci_monday_special",w:[1],h:null},
+{k:"ci_lucky_tuesday",w:[2],h:null},{k:"ci_midweek",w:[3],h:null},{k:"ci_fortune_thursday",w:[4],h:null},
+{k:"ci_friday_bonanza",w:[5],h:null},{k:"ci_national",w:[6],h:null},{k:"ci_dayoff",w:[1,4,5],h:null},
+{k:"ci_nuit_etoilee",w:[0,2,3],h:null},{k:"bf_nekre",w:[1],h:null},{k:"bf_kounandia",w:[3],h:null},
+{k:"bf_welhy",w:[5],h:null},{k:"it_palermo",w:[2,4,5,6],h:"20"},{k:"it_roma",w:[2,4,5,6],h:"20"},
+{k:"it_torino",w:[2,4,5,6],h:"20"},{k:"it_venezia",w:[2,4,5,6],h:"20"},{k:"it_nazionale",w:[2,4,5,6],h:"20"},
+{k:"ng_enugu",w:[0,3],h:null},{k:"ng_06",w:[2,6],h:null},{k:"ng_bingo",w:[1,4],h:null},
+{k:"ng_club_master",w:[2,6],h:null},{k:"ng_diamond",w:[1,4],h:null},{k:"ng_fairchance",w:[4,6],h:null},
+{k:"ng_gold",w:[2,5],h:null},{k:"ng_international",w:[1,4],h:null},{k:"ng_jackpot",w:[2,5],h:null},
+{k:"ng_king",w:[6],h:null},{k:"ng_mark_ii",w:[0,3],h:null},{k:"ng_metro",w:[1,5],h:null},
+{k:"ng_peoples",w:[1,4],h:null},{k:"ng_royal",w:[0,5],h:null},{k:"ng_super",w:[2,6],h:null},
+{k:"ng_tota",w:[0,3],h:null},{k:"ng_vag",w:[3,5],h:null},{k:"cm_continent",w:[1,2,3,4,5,6],h:null},
+{k:"cm_super4",w:[0,1,2,3,4,5,6],h:null},{k:"cm_lions",w:[1,2,3,4,5,6],h:null},
+{k:"cm_logone",w:[0,1,2,3,4,5,6],h:null},{k:"cm_mboa",w:[1,2,3,4,5,6],h:null},
+{k:"cm_mfoundi",w:[1,2,3,4,5,6],h:null},{k:"cm_mont_cameroun",w:[1,2,3,4,5,6],h:null},
+{k:"cm_moungo",w:[1,2,3,4,5,6],h:null},{k:"cm_noun",w:[1,2,3,4,5,6],h:null},
+{k:"cm_sanaga",w:[1,2,3,4,5,6],h:null},{k:"cm_wouri",w:[1,2,3,4,5,6],h:null},{k:"cm_digital",w:[3],h:null}
+];
+const GH_ALPHA_KEYS=new Set(['precise','alpha','delta','omega','excel','prime','kenstar',
+  'alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri',
+  'alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu',
+  'alpha_one_fri','alpha_one_sat','alpha_one_sun']);
+function tirageJourCountry(key,icon){
+  if(icon==='🇬🇭')return GH_ALPHA_KEYS.has(key)?'GH Alpha':'Ghana';
+  const M={'🇹🇬':'Togo','🇧🇯':'Bénin','🇨🇮':"Côte d'Ivoire",'🇨🇲':'Cameroun','🇮🇹':'Italie','🇳🇬':'Nigeria','🇧🇫':'Burkina Faso','🇲🇹':'Malte'};
+  return M[icon]||'Autres';
+}
+const TIRAGE_JOUR_COUNTRY_COLOR={'Bénin':'#111F33','Togo':'#4A2E1A',"Côte d'Ivoire":'#7C2D12','Cameroun':'#2E7D32','Ghana':'#0B2A1E','GH Alpha':'#4C1D95','Italie':'#006341','Nigeria':'#14532D','Burkina Faso':'#9A3412','Malte':'#1F2D3D','Autres':'#374151'};
+const TIRAGE_JOUR_COUNTRY_ORDER=['Bénin','Togo',"Côte d'Ivoire",'Cameroun','Ghana','GH Alpha','Italie','Nigeria','Burkina Faso','Malte','Autres'];
+// Parse indépendant de l'état global GAME/T (qui pilote le jeu affiché à l'écran) — sinon consulter
+// "en coulisses" l'historique de ~180 jeux à la fois écraserait GAME/T pendant qu'on le fait.
+function parseLinesFor(lines,gdef){
+  const n4=gdef&&gdef.n4,n6=gdef&&gdef.n6;
+  return lines.map(line=>{
+    const p=line.split('|');
+    const r=n6?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7],+p[8]],s:+p[9]}:n4?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6]],s:+p[7]}:{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7]],s:+p[8]};
+    if(n6){if(p.length>=12&&p[10]!==''&&p[11]!=='')r.x=[+p[10],+p[11]];return r;}
+    if(p.length>=16&&p[14]!==''&&p[15]!=='')r.x=[+p[14],+p[15]];
+    if(p.length>=14)r.m=[+p[9],+p[10],+p[11],+p[12],+p[13]];
+    else if(p.length>=13&&p[9]!==undefined&&p[9]!==''&&p[10]!==''&&p[11]!==''&&p[12]!=='')r.m=[+p[9],+p[10],+p[11],+p[12],NaN];
+    else if(p.length>=12&&p[9]!==undefined&&p[9]!==''&&p[10]!==undefined&&p[10]!==''&&p[11]!==undefined&&p[11]!=='')r.m=[+p[9],+p[10],+p[11],NaN,NaN];
+    else if(p.length>=11&&p[9]!==undefined&&p[9]!==''&&p[10]!==undefined&&p[10]!=='')r.m=[+p[9],+p[10],NaN,NaN,NaN];
+    else if(p.length>=10&&p[9]!==undefined&&p[9]!=='')r.m=[+p[9],NaN,NaN,NaN,NaN];
+    return r;
+  });
+}
+// Ligne la plus récente d'un jeu (id numérique max = clé de tri réelle utilisée partout dans l'app).
+function latestRowFor(key){
+  const gdef=GAMES[key];
+  if(!gdef||!gdef.raw)return null;
+  const lines=gdef.raw.trim().split('\n').filter(Boolean);
+  if(!lines.length)return null;
+  const rows=parseLinesFor(lines,gdef);
+  let best=rows[0];
+  for(const r of rows)if(r.t>best.t)best=r;
+  return best;
+}
+function setTirageJourDate(v){state.tirageJourDate=v;render();}
+function tirageJourHTML(){
+  const baseDate=state.tirageJourDate?new Date(state.tirageJourDate+'T00:00:00'):new Date();
+  const wd=baseDate.getDay();
+  const todayK=ymdKey(baseDate);
+  const entries=GAME_SCHEDULE.filter(g=>g.w.includes(wd)).map(g=>{
+    const gdef=GAMES[g.k];
+    if(!gdef)return null;
+    const row=latestRowFor(g.k);
+    const done=!!(row&&rowYmdKey(row)===todayK);
+    return{key:g.k,gdef,hour:g.h,row,done,country:tirageJourCountry(g.k,gdef.icon)};
+  }).filter(Boolean);
+  const byCountry={};
+  entries.forEach(e=>{(byCountry[e.country]=byCountry[e.country]||[]).push(e);});
+  const dayLabel=CI_DAY_NAMES[wd];
+  const dateLabel=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
+  const doneCount=entries.filter(e=>e.done).length;
+  const isoVal=`${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,'0')}-${String(baseDate.getDate()).padStart(2,'0')}`;
+  let html=`<div id="app-content">
+  <div class="header" style="background:#92400E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:14px;font-weight:600">📆 TIRAGE DU JOUR — ${dayLabel} ${dateLabel}</div>
+      <button onclick="state.tirageJourOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+    <div style="font-size:10.5px;margin-top:4px;opacity:.9">${entries.length} jeu(x) prévu(s) · ${doneCount} déjà tiré(s), ${entries.length-doneCount} à venir</div>
+    <div style="display:flex;gap:6px;margin-top:6px;align-items:center">
+      <input type="date" value="${isoVal}" onchange="setTirageJourDate(this.value)" style="padding:3px 6px;border-radius:6px;border:none;font-size:11px">
+      ${state.tirageJourDate?`<button onclick="setTirageJourDate('')" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid rgba(255,255,255,.4);background:transparent;color:#fff;cursor:pointer">Aujourd'hui</button>`:''}
+    </div>
+  </div>
+  <div style="padding:8px 10px 90px">
+  ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
+  TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
+    const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
+    const list=byCountry[c].slice().sort((a,b)=>{
+      const ah=a.hour?parseInt(a.hour):99,bh=b.hour?parseInt(b.hour):99;
+      if(ah!==bh)return ah-bh;
+      return a.gdef.name.localeCompare(b.gdef.name);
+    });
+    return`<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:${col};border-bottom:2px solid ${col};padding-bottom:3px;margin-bottom:5px">${c} (${list.length})</div>
+      ${list.map(e=>{
+        const hourTag=e.hour?`<span style="font-size:9.5px;font-weight:700;color:#fff;background:${col};padding:1px 6px;border-radius:10px">${e.hour}H</span>`:`<span style="font-size:9px;color:#aaa">heure ?</span>`;
+        const body=e.done?`${e.row.n.map(n=>numSpan(n)).join('')}${e.row.m?e.row.m.map(n=>numSpan(n,{isM:true})).join(''):''}`:`<span style="font-size:10.5px;color:#c58a00;font-weight:600">⏳ à venir</span>`;
+        return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 2px;border-bottom:1px solid #f2f2f2">
+          <span style="width:52px;flex-shrink:0">${hourTag}</span>
+          <span style="font-size:11px;font-weight:600;min-width:110px">${e.gdef.name}</span>
+          ${body}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('')}
+  </div>
+  </div>`;
+  return html;
+}
 // ══════ TOGO (LONATO) — filtre Jour / Jeu (vue dédiée, unifie les 12 jeux hebdo) ══════
 const TOGO_GAMES=[
   {key:'matinal_lundi',name:'MATINAL LUNDI',jour:'Lundi',heure:'9h',raw:RAW_MATINAL_LUNDI,color:'92400E'},
@@ -3943,6 +4108,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
+  tirageJourOpen:false, tirageJourDate:'',
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──
@@ -10666,6 +10832,7 @@ function goNav(id){
   else if(id==='cotedivoire'){state.ciFiltreOpen=!state.ciFiltreOpen;state.showSearchHub=false;}
   else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
+  else if(id==='tirageJour'){state.tirageJourOpen=!state.tirageJourOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else if(id==='conversion'){
     const opening=!state.conversionOpen;
@@ -10692,12 +10859,13 @@ function bottomNavHTML(){
     ['cotedivoire','🇨🇮','C. Ivoire'],
     ['italie','🇮🇹','Italie'],
     ['multi','🌍','Multi-Pays'],
+    ['tirageJour','📆','Tirage du jour'],
     ['pronostic','🍀','Pronostic'],
     ['conversion','🧩🔁','Conversion'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(state.tab===id&&!state.showSearchHub)))))))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(state.tab===id&&!state.showSearchHub))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -15101,6 +15269,11 @@ function __renderBody(){
   }
   if(state.multiFiltreOpen){
     document.getElementById('app').innerHTML=multiFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.tirageJourOpen){
+    document.getElementById('app').innerHTML=tirageJourHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

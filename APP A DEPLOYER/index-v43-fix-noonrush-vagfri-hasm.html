@@ -1297,7 +1297,9 @@ function latestRowFor(key){
   return best;
 }
 function setTirageJourDate(v){state.tirageJourDate=v;render();}
-function tirageJourHTML(){
+// Construit la liste des jeux prévus pour une date donnée (par défaut : celle sélectionnée dans
+// l'onglet, ou aujourd'hui) — factorisé pour être identique entre l'affichage écran et l'export Excel.
+function tirageJourEntries(){
   const baseDate=state.tirageJourDate?new Date(state.tirageJourDate+'T00:00:00'):new Date();
   const wd=baseDate.getDay();
   const todayK=ymdKey(baseDate);
@@ -1308,6 +1310,34 @@ function tirageJourHTML(){
     const done=!!(row&&rowYmdKey(row)===todayK);
     return{key:g.k,gdef,hour:g.h,row,done,country:tirageJourCountry(g.k,gdef.icon)};
   }).filter(Boolean);
+  return{baseDate,wd,entries};
+}
+function exportTirageJour(){
+  const{entries,baseDate}=tirageJourEntries();
+  if(!entries.length){alert('Aucun jeu prévu ce jour-là à exporter.');return;}
+  const sorted=entries.slice().sort((a,b)=>{
+    if(a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country);
+    const ah=a.hour?parseInt(a.hour):99,bh=b.hour?parseInt(b.hour):99;
+    if(ah!==bh)return ah-bh;
+    return a.gdef.name.localeCompare(b.gdef.name);
+  });
+  const maxN=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row?e.row.n.length:0),5);
+  const maxM=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
+  const columns=[
+    {header:'Pays',get:r=>r.country,bg:r=>TIRAGE_JOUR_COUNTRY_COLOR[r.country],fg:'#FFFFFF'},
+    {header:'Heure',get:r=>r.hour?r.hour+'H':'?'},
+    {header:'Jeu',get:r=>r.gdef.name},
+    {header:'Statut',get:r=>r.done?'Tiré':'À venir',bg:r=>r.done?'#DCFCE7':'#FEF3C7',fg:r=>r.done?'#166534':'#92400E'},
+    {header:'Date',get:r=>r.done&&r.row?r.row.d+'/'+r.row.y:''},
+    ...Array.from({length:maxN},(_,i)=>({header:'N'+(i+1),get:r=>r.done&&r.row&&r.row.n[i]!=null&&!isNaN(r.row.n[i])?r.row.n[i]:''})),
+    {header:'TOT',get:r=>r.done&&r.row?r.row.s:'',total:true},
+    ...Array.from({length:maxM},(_,i)=>({header:'M'+(i+1),get:r=>r.done&&r.row&&r.row.m&&r.row.m[i]!=null&&!isNaN(r.row.m[i])?r.row.m[i]:'',fg:r=>r.done&&r.row&&r.row.m&&r.row.m[i]!=null&&!isNaN(r.row.m[i])?'#6D28D9':null})),
+  ];
+  const dateTag=`${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,'0')}-${String(baseDate.getDate()).padStart(2,'0')}`;
+  exportCountryFiltre(sorted,columns,'Tirage_du_jour_'+dateTag,'TirageDuJour','export-tirage-btn');
+}
+function tirageJourHTML(){
+  const{baseDate,wd,entries}=tirageJourEntries();
   const byCountry={};
   entries.forEach(e=>{(byCountry[e.country]=byCountry[e.country]||[]).push(e);});
   const dayLabel=CI_DAY_NAMES[wd];
@@ -1318,7 +1348,8 @@ function tirageJourHTML(){
   <div class="header" style="background:#92400E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="font-size:14px;font-weight:600">📆 TIRAGE DU JOUR — ${dayLabel} ${dateLabel}</div>
-      <button onclick="state.tirageJourOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+      <button id="export-tirage-btn" onclick="exportTirageJour()" style="margin-left:auto;padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.tirageJourOpen=false;render()" style="padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
     </div>
     <div style="font-size:10.5px;margin-top:4px;opacity:.9">${entries.length} jeu(x) prévu(s) · ${doneCount} déjà tiré(s), ${entries.length-doneCount} à venir</div>
     <div style="display:flex;gap:6px;margin-top:6px;align-items:center">

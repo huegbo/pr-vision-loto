@@ -1337,15 +1337,28 @@ function tirageJourEntries(){
     if(!gdef)return null;
     const row=rowForDate(g.k,todayK); // le résultat de CE jour précis (pas juste "le plus récent connu") — marche aussi en naviguant vers une date passée
     const done=!!row;
-    return{key:g.k,gdef,hour:g.h,row,done,country:tirageJourCountry(g.k,gdef.icon)};
+    return{key:g.k,gdef,label:gdef.name,hour:g.h,row,done,country:tirageJourCountry(g.k,gdef.icon)};
   }).filter(Boolean);
+  // Cameroun SUPER 4 CAGNOTTE : le résultat publié un jour donné concerne souvent encore la veille
+  // (retard de publication côté source) — sur demande explicite, on affiche donc toujours les DEUX
+  // résultats côte à côte (celui du jour + celui de la veille), plutôt qu'un seul qui pourrait être
+  // le mauvais jour.
+  const s4=entries.find(e=>e.key==='cm_super4');
+  if(s4){
+    const gdef=GAMES.cm_super4;
+    const prevDate=new Date(baseDate);prevDate.setDate(prevDate.getDate()-1);
+    const prevK=ymdKey(prevDate);
+    const prevRow=rowForDate('cm_super4',prevK);
+    s4.label=gdef.name+' (du jour)';
+    entries.push({key:'cm_super4',gdef,label:gdef.name+' (veille)',hour:s4.hour,row:prevRow,done:!!prevRow,country:s4.country});
+  }
   return{baseDate,wd,entries};
 }
 function openTirageJourAsGame(){
   const{entries,baseDate}=tirageJourEntries();
   const rows=entries.filter(e=>e.done&&e.row).map(e=>({
     d:e.row.d,y:e.row.y,n:e.row.n,s:e.row.s,m:e.row.m,
-    jeu:e.key,jeuLabel:e.gdef.name,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
+    jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
   }));
   const dateTag=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
   openFiltreAsGame(rows,{name:'TIRAGE DU JOUR '+dateTag,icon:'📆',key:'tirage_jour_custom',closeFlag:'tirageJourOpen',bonusField:'m'});
@@ -1357,14 +1370,14 @@ function exportTirageJour(){
     if(a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country);
     const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
     if(ah!==bh)return ah-bh;
-    return a.gdef.name.localeCompare(b.gdef.name);
+    return a.label.localeCompare(b.label);
   });
   const maxN=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row?e.row.n.length:0),5);
   const maxM=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
   const columns=[
     {header:'Pays',get:r=>r.country,bg:r=>TIRAGE_JOUR_COUNTRY_COLOR[r.country],fg:'#FFFFFF'},
     {header:'Heure',get:r=>r.hour?hourLabel(r.hour):'?'},
-    {header:'Jeu',get:r=>r.gdef.name},
+    {header:'Jeu',get:r=>r.label},
     {header:'Statut',get:r=>r.done?'Tiré':'À venir',bg:r=>r.done?'#DCFCE7':'#FEF3C7',fg:r=>r.done?'#166534':'#92400E'},
     {header:'Date',get:r=>r.done&&r.row?r.row.d+'/'+r.row.y:''},
     ...Array.from({length:maxN},(_,i)=>({header:'N'+(i+1),get:r=>r.done&&r.row&&r.row.n[i]!=null&&!isNaN(r.row.n[i])?r.row.n[i]:''})),
@@ -1403,7 +1416,7 @@ function tirageJourHTML(){
     const list=byCountry[c].slice().sort((a,b)=>{
       const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
       if(ah!==bh)return ah-bh;
-      return a.gdef.name.localeCompare(b.gdef.name);
+      return a.label.localeCompare(b.label);
     });
     return`<div style="margin-bottom:12px">
       <div style="font-size:11px;font-weight:700;color:${col};border-bottom:2px solid ${col};padding-bottom:3px;margin-bottom:5px">${c} (${list.length})</div>
@@ -1412,7 +1425,7 @@ function tirageJourHTML(){
         const body=e.done?`${e.row.n.map(n=>numSpan(n)).join('')}${e.row.m?e.row.m.map(n=>numSpan(n,{isM:true})).join(''):''}`:`<span style="font-size:10.5px;color:#c58a00;font-weight:600">⏳ à venir</span>`;
         return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 2px;border-bottom:1px solid #f2f2f2">
           <span style="width:52px;flex-shrink:0">${hourTag}</span>
-          <span style="font-size:11px;font-weight:600;min-width:110px">${e.gdef.name}</span>
+          <span style="font-size:11px;font-weight:600;min-width:110px">${e.label}</span>
           ${body}
         </div>`;
       }).join('')}

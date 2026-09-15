@@ -784,14 +784,14 @@ function openFiltreAsGame(rows,opts){
 }
 function openBeninFiltreAsGame(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
-    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]])&&dateRangeKeep(r,state.beninDateRange));
   openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m',labelMap:BENIN_JEU_LABELS,colorMap:BENIN_JEU_COLORS});
 }
 function beninFiltreHTML(){
   if(!state.beninHeures)state.beninHeures=[...BENIN_HEURE_ORDER];
   if(!state.beninFamilles)state.beninFamilles=[...BENIN_FAMILLE_ORDER];
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
-    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]])&&dateRangeKeep(r,state.beninDateRange));
   let html=`<div id="app-content">
   <div class="header" style="background:#111F33;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
@@ -825,6 +825,7 @@ function beninFiltreHTML(){
         ${BENIN_FAMILLE_ORDER.map(f=>{const sel=state.beninFamilles.includes(f);const c=BENIN_FAMILLE_COLORS[f];return `<button onclick="toggleBeninFamille('${f}')" style="padding:3px 11px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${sel?'2px solid #'+c:'1px solid #ddd'};background:${sel?'#'+c:'#f5f5f5'};color:${sel?'#fff':'#777'}">${f}</button>`;}).join('')}
         <button onclick="beninResetFiltres()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #374151;background:#F3F4F6;color:#374151;cursor:pointer;font-weight:500">↺ Tout réinitialiser</button>
       </div>
+      ${dateRangePickerHTML('beninDateRange','setBeninDateRange','#111F33')}
       <div style="font-size:9px;color:#888;margin-top:5px">Astuce : pour voir les tirages du lundi à 18H, garde <b>Lundi</b> en jour et <b>18H</b> en heure.</div>
       <div style="font-size:9px;color:#6D28D9;margin-top:3px;background:#F5F3FF;border-radius:5px;padding:4px 7px"><b>14H = 10 numéros.</b> Les tirages de 14H (Fortune et Star) se jouent en deux zones : <b>ZONE A</b> (colonnes A1-A5) et <b>ZONE B</b> (colonnes B1-B5). Ce sont deux tirages complets, pas des numéros machine. Aux autres heures il n'y a qu'un seul tirage de 5 numéros. Source : loteriebenin.bj</div>
     </div>
@@ -947,11 +948,11 @@ function toggleGhAlphaJeu(code){
   render();
 }
 function openGhAlphaFiltreAsGame(){
-  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghAlphaDateRange));
   openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
 }
 function ghAlphaFiltreHTML(){
-  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghAlphaDateRange));
   let html=`<div id="app-content">
   <div class="header" style="background:#4C1D95;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
@@ -977,6 +978,7 @@ function ghAlphaFiltreHTML(){
         <button onclick="state.ghAlphaJeux=[...GH_ALPHA_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.ghAlphaJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('ghAlphaDateRange','setGhAlphaDateRange','#4C1D95')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1006,7 +1008,7 @@ function ghAlphaFiltreHTML(){
   return html;
 }
 function exportGhAlphaFiltre(){
-  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu));
+  const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghAlphaDateRange));
   const jeuFill=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
@@ -1031,11 +1033,11 @@ function toggleGhanaJeu(code){
   render();
 }
 function openGhanaFiltreAsGame(){
-  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghanaDateRange));
   openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
 }
 function ghanaFiltreHTML(){
-  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghanaDateRange));
   let html=`<div id="app-content">
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
@@ -1061,6 +1063,7 @@ function ghanaFiltreHTML(){
         <button onclick="state.ghanaJeux=[...GHANA_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.ghanaJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('ghanaDateRange','setGhanaDateRange','#0B2A1E')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1127,11 +1130,11 @@ function toggleCamerounJeu(code){
   render();
 }
 function openCamerounFiltreAsGame(){
-  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu)&&dateRangeKeep(r,state.camerounDateRange));
   openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m',labelMap:CAMEROUN_JEU_LABELS,colorMap:CAMEROUN_JEU_COLORS});
 }
 function camerounFiltreHTML(){
-  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu)&&dateRangeKeep(r,state.camerounDateRange));
   let html=`<div id="app-content">
   <div class="header" style="background:#0B2A1E;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
     <div style="display:flex;align-items:center;gap:8px">
@@ -1157,6 +1160,7 @@ function camerounFiltreHTML(){
         <button onclick="state.camerounJeux=[...CAMEROUN_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.camerounJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('camerounDateRange','setCamerounDateRange','#2E7D32')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1244,7 +1248,7 @@ function toggleTogoJeu(code){
   render();
 }
 function openTogoFiltreAsGame(){
-  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu)&&dateRangeKeep(r,state.togoDateRange));
   openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus',labelMap:TOGO_JEU_LABELS,colorMap:TOGO_JEU_COLORS});
 }
 // ══════ TOUT TOGO — jeu combiné (12 jeux hebdo fusionnés chronologiquement) ══════
@@ -1415,7 +1419,7 @@ function togoIncidenceHTML(rows){
   </div>`;
 }
 function togoFiltreHTML(){
-  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu)&&dateRangeKeep(r,state.togoDateRange));
   const togoMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
   <div class="header" style="background:#4A2E1A;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
@@ -1442,6 +1446,7 @@ function togoFiltreHTML(){
         <button onclick="state.togoJeux=[...TOGO_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.togoJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('togoDateRange','setTogoDateRange','#4A2E1A')}
     </div>
     ${togoIncidenceHTML(rows)}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}</div>
@@ -1525,7 +1530,7 @@ async function exportCountryFiltre(rows, columns, filenamePrefix, sheetName, btn
 }
 function exportBeninFiltre(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
-    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]]));
+    &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]])&&dateRangeKeep(r,state.beninDateRange));
   const jeuFill=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=BENIN_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
@@ -1542,7 +1547,7 @@ function exportBeninFiltre(){
   exportCountryFiltre(rows,columns,'Benin_filtre','Bénin','export-benin-btn');
 }
 function exportGhanaFiltre(){
-  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu));
+  const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghanaDateRange));
   const jeuFill=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=GHANA_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
@@ -1557,7 +1562,7 @@ function exportGhanaFiltre(){
   exportCountryFiltre(rows,columns,'Ghana_filtre','Ghana','export-ghana-btn');
 }
 function exportCamerounFiltre(){
-  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu));
+  const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu)&&dateRangeKeep(r,state.camerounDateRange));
   const jeuFill=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=CAMEROUN_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
   const columns=[
@@ -1571,7 +1576,7 @@ function exportCamerounFiltre(){
   exportCountryFiltre(rows,columns,'Cameroun_filtre','Cameroun','export-cameroun-btn');
 }
 function exportTogoFiltre(){
-  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu));
+  const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu)&&dateRangeKeep(r,state.togoDateRange));
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   const jeuFill=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=TOGO_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
@@ -1649,11 +1654,11 @@ function toggleCIJeu(code){
   render();
 }
 function openCIFiltreAsGame(){
-  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu)&&dateRangeKeep(r,state.ciDateRange));
   openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus',labelMap:CI_JEU_LABELS,colorMap:CI_JEU_COLORS});
 }
 function ciFiltreHTML(){
-  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu)&&dateRangeKeep(r,state.ciDateRange));
   const ciMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
   <div class="header" style="background:#7C2D12;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
@@ -1680,6 +1685,7 @@ function ciFiltreHTML(){
         <button onclick="state.ciJeux=CI_GAMES.map(g=>g.key);render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.ciJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('ciDateRange','setCIDateRange','#7C2D12')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1708,7 +1714,7 @@ function ciFiltreHTML(){
   return html;
 }
 function exportCIFiltre(){
-  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu));
+  const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu)&&dateRangeKeep(r,state.ciDateRange));
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   const jeuFill=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c?'#'+c:null;};
   const jeuFont=(r)=>{const c=CI_JEU_COLORS[r.jeu];return c&&isLightBg(c)?'#000000':'#FFFFFF';};
@@ -1771,11 +1777,11 @@ function toggleITJeu(code){
   render();
 }
 function openITFiltreAsGame(){
-  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
   openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus',labelMap:IT_JEU_LABELS,colorMap:IT_JEU_COLORS});
 }
 function itFiltreHTML(){
-  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
   const itMaxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
   const itMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
@@ -1803,6 +1809,7 @@ function itFiltreHTML(){
         <button onclick="state.itJeux=IT_GAMES.map(g=>g.key);render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.itJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
+      ${dateRangePickerHTML('itDateRange','setITDateRange','#006341')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
     <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
@@ -1831,7 +1838,7 @@ function itFiltreHTML(){
   return html;
 }
 function exportITFiltre(){
-  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu));
+  const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
   const maxN=rows.reduce((m,r)=>Math.max(m,r.n?r.n.length:0),5);
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   const jeuFill=(r)=>{const c=IT_JEU_COLORS[r.jeu];return c?'#'+c:null;};
@@ -2627,12 +2634,50 @@ function toggleMultiJeu(code){
   if(i>=0)state.multiJeux.splice(i,1);else state.multiJeux.push(code);
   render();
 }
+// ── Plage de dates rapide, réutilisée par MULTI-PAYS et chaque panneau pays filtré (Bénin, Togo,
+// Cameroun, Côte d'Ivoire, Ghana, GH Alpha, Italie) : Aujourd'hui / 3 derniers jours / Dernière
+// semaine, en plus des filtres Jour/Jeu déjà existants — évite d'avoir à parcourir des dizaines de
+// milliers de lignes (janvier→décembre) pour retrouver les tirages récents, et fait aussi respecter
+// cette période par « Ouvrir comme un jeu » et par l'export Excel de chaque panneau. Le calcul se
+// fait sur des vrais objets Date (pas une soustraction arithmétique sur un YYYYMMDD, qui casserait
+// aux changements de mois), converti ensuite dans ce même format pour comparer.
+function ymdKey(d){return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();}
+function dateRangeCutoffKey(daysBack){const d=new Date();d.setDate(d.getDate()-daysBack);return ymdKey(d);}
+function rowYmdKey(r){const[dd,mm]=String(r.d).split('/').map(Number);return(+r.y)*10000+mm*100+dd;}
+function dateRangeKeep(r,rangeVal){
+  const rng=rangeVal||'all';
+  if(rng==='all')return true;
+  const k=rowYmdKey(r),todayK=ymdKey(new Date());
+  if(rng==='today')return k===todayK;
+  if(rng==='3d')return k>=dateRangeCutoffKey(2)&&k<=todayK; // aujourd'hui + 2 jours précédents
+  if(rng==='7d')return k>=dateRangeCutoffKey(6)&&k<=todayK; // aujourd'hui + 6 jours précédents
+  return true;
+}
+const DATE_RANGE_OPTIONS=[['all','Tout'],['today',"Aujourd'hui"],['3d','3 derniers jours'],['7d','Dernière semaine']];
+function dateRangePickerHTML(stateKey,setFn,accentColor){
+  const cur=state[stateKey]||'all';
+  return `<div style="font-size:10px;font-weight:600;margin-bottom:4px;margin-top:8px">Période</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px">
+    ${DATE_RANGE_OPTIONS.map(([k,lbl])=>{const sel=cur===k;return `<button onclick="${setFn}('${k}')" style="padding:3px 9px;font-size:10px;border-radius:14px;cursor:pointer;font-weight:600;border:${sel?'2px solid '+accentColor:'1px solid #ddd'};background:${sel?accentColor:'#f5f5f5'};color:${sel?'#fff':'#777'}">${lbl}</button>`;}).join('')}
+  </div>`;
+}
+function setMultiDateRange(v){state.multiDateRange=v;render();}
+function setBeninDateRange(v){state.beninDateRange=v;render();}
+function setGhanaDateRange(v){state.ghanaDateRange=v;render();}
+function setGhAlphaDateRange(v){state.ghAlphaDateRange=v;render();}
+function setCamerounDateRange(v){state.camerounDateRange=v;render();}
+function setTogoDateRange(v){state.togoDateRange=v;render();}
+function setCIDateRange(v){state.ciDateRange=v;render();}
+function setITDateRange(v){state.itDateRange=v;render();}
+function multiFilteredRows(){
+  return parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey)&&dateRangeKeep(r,state.multiDateRange));
+}
 function openMultiFiltreAsGame(){
-  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  const rows=multiFilteredRows();
   openFiltreAsGame(rows,{name:'MULTI-PAYS (filtré)',icon:'🌍',key:'multi_custom',closeFlag:'multiFiltreOpen',bonusField:'bonus'});
 }
 function multiFiltreHTML(){
-  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  const rows=multiFilteredRows();
   const multiMaxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   let html=`<div id="app-content">
   <div class="header" style="background:#1F2D3D;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
@@ -2665,7 +2710,8 @@ function multiFiltreHTML(){
         <button onclick="state.multiJeux=[...MULTI_JEU_ORDER];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tous</button>
         <button onclick="state.multiJeux=[];render()" style="padding:3px 9px;font-size:10px;border-radius:14px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
       </div>
-      <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre.</div>
+      ${dateRangePickerHTML('multiDateRange','setMultiDateRange','#1F2D3D')}
+      <div style="font-size:9px;color:#888;margin-top:5px">Fusionne les tirages des 4 pays en une seule chronologie, pour repérer un numéro qui revient d'un pays/jeu à l'autre. « Ouvrir comme un jeu » et « Excel » respectent aussi la période choisie ci-dessus.</div>
     </div>
     ${multiAiTodayHTML()}
     ${multiAiWeekdayHTML()}
@@ -2702,7 +2748,7 @@ function multiFiltreHTML(){
   return html;
 }
 function exportMultiFiltre(){
-  const rows=parseMultiPaysAll().filter(r=>state.multiPays.includes(r.pays)&&state.multiJours.includes(r.jourLabel)&&state.multiJeux.includes(r.jeuKey));
+  const rows=multiFilteredRows();
   const maxBonus=rows.reduce((m,r)=>Math.max(m,r.bonus?r.bonus.length:0),0);
   const columns=[
     {header:'Pays',get:r=>MULTI_PAYS_LABELS[r.pays],bg:r=>'#'+MULTI_PAYS_COLORS[r.pays],fg:'#FFFFFF'},
@@ -3888,15 +3934,15 @@ let state={
   // Mode tableau compact : colonnes étroites, chiffres nus, fond gris alterné par colonne
   compactMode:(localStorage.getItem('compactMode')==='1'),
   excelFont:(localStorage.getItem('excelFont')||'Poppins'), excelFontSize:parseFloat(localStorage.getItem('excelFontSize'))||12, excelRowPad:parseFloat(localStorage.getItem('excelRowPad'))||5,
-  beninFiltreOpen:false, beninJours:[...BENIN_JOUR_ORDER], beninJeux:[...BENIN_JEU_ORDER],
+  beninFiltreOpen:false, beninJours:[...BENIN_JOUR_ORDER], beninJeux:[...BENIN_JEU_ORDER], beninDateRange:'all',
   beninHeures:[...BENIN_HEURE_ORDER], beninFamilles:[...BENIN_FAMILLE_ORDER],
-  ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER],
-  ghAlphaFiltreOpen:false, ghAlphaJours:[...GHANA_JOUR_ORDER], ghAlphaJeux:[...GH_ALPHA_JEU_ORDER],
-  camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER],
-  togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER],
-  ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key),
-  itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key),
-  multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER],
+  ghanaFiltreOpen:false, ghanaJours:[...GHANA_JOUR_ORDER], ghanaJeux:[...GHANA_JEU_ORDER], ghanaDateRange:'all',
+  ghAlphaFiltreOpen:false, ghAlphaJours:[...GHANA_JOUR_ORDER], ghAlphaJeux:[...GH_ALPHA_JEU_ORDER], ghAlphaDateRange:'all',
+  camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER], camerounDateRange:'all',
+  togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER], togoDateRange:'all',
+  ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
+  itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
+  multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──

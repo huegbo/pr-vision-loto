@@ -1555,7 +1555,17 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
       <span style="font-size:10px;font-weight:800;color:#78350F;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${pinned.label}">${pinned.label}</span>
       ${pinned.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${pinned.row.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>`:`<div style="font-size:10px;color:#92400E;font-style:italic;flex:1">en attente</div>`}
     </div>`:'';
+  // Bandeau "numéros répétés" collé JUSTE AU-DESSUS de Super 4 (la boussole) — plus de trou entre les
+  // deux comme avant (où le bandeau était tout en haut de page, séparé). Construit ici en interne
+  // (au lieu d'appeler tirageJourCommonStripHTML qui a sa propre carte avec marge/coins arrondis)
+  // pour qu'il forme un seul bloc visuel continu avec la ligne Super 4 juste en dessous.
+  const commons=tirageJourCommonNumbers(entries);
+  const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFFBEB;padding:7px 8px;border-bottom:2px solid #FDE68A">
+      <span style="font-size:9.5px;font-weight:800;color:#92400E;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
+      ${commons.map(c=>`<span style="width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FDE047,#B45309);color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+    </div>`:'';
   return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
+    ${stripRow}
     ${pinnedRow}
     ${withHour.map(row).join('')}
     ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:5px 8px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
@@ -1618,7 +1628,7 @@ function tirageJourHTML(){
   </div>
   <div style="padding:12px 10px 90px">
   ${tirageJourPairsHTML(strongPairs)}
-  ${tirageJourCommonStripHTML(entries)}
+  ${state.tirageJourView==='pays'?tirageJourCommonStripHTML(entries):''}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
   state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet,strongSet):

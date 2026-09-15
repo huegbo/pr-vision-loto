@@ -1407,6 +1407,17 @@ function tirageJourCommonNumbers(entries){
     .sort((a,b)=>byNum[b].length-byNum[a].length||a-b)
     .map(n=>({n,games:byNum[n]}));
 }
+// Bandeau TOUJOURS visible (contrairement à la carte 🧠 Analyse, repliée derrière le bouton) —
+// juste la liste compacte des numéros qui reviennent aujourd'hui, pour qu'on la voie sans avoir à
+// cliquer sur "Analyse".
+function tirageJourCommonStripHTML(entries){
+  const commons=tirageJourCommonNumbers(entries);
+  if(!commons.length)return'';
+  return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:8px 10px;margin-bottom:12px">
+    <span style="font-size:10px;font-weight:800;color:#92400E;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
+    ${commons.map(c=>`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FDE047,#B45309);color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff;box-shadow:0 0 0 1px #92400E;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+  </div>`;
+}
 function tirageJourAnalyseHTML(entries){
   const commons=tirageJourCommonNumbers(entries);
   if(!commons.length){
@@ -1570,6 +1581,7 @@ function tirageJourHTML(){
     </div>
   </div>
   <div style="padding:12px 10px 90px">
+  ${tirageJourCommonStripHTML(entries)}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
   state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet):

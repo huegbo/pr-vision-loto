@@ -1442,7 +1442,7 @@ function tirageJourCommonStripHTML(entries){
   if(!commons.length)return'';
   return`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:8px 10px;margin-bottom:12px">
     <span style="font-size:10px;font-weight:800;color:#92400E;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
-    ${commons.map(c=>`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FDE047,#B45309);color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff;box-shadow:0 0 0 1px #92400E;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+    ${commons.map(c=>`<span style="width:23px;height:23px;border-radius:50%;background:#78350F;color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #FDE68A;box-shadow:0 0 0 1px #78350F;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
   </div>`;
 }
 function tirageJourAnalyseHTML(entries){
@@ -1460,7 +1460,7 @@ function tirageJourAnalyseHTML(entries){
       const diz=Math.floor(c.n/10)*10;
       const dizLabel=c.n===90?'80-90':`${diz}-${diz+9}`;
       return`<div style="display:flex;gap:10px;background:#fff;border-radius:10px;padding:8px 10px;margin-bottom:6px;align-items:center">
-        <div style="width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FBBF24,#B45309);color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${c.n}</div>
+        <div style="width:32px;height:32px;border-radius:50%;background:#78350F;color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid #FDE68A">${c.n}</div>
         <div style="flex:1;min-width:0">
           <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:3px">
             <span style="font-size:9px;font-weight:700;color:#78350F;background:#FEF3C7;border-radius:8px;padding:1px 7px">×${c.games.length} jeux</span>
@@ -1529,7 +1529,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
   // le pas sur common=true (simple numéro qui revient quelque part) — rouge plus fort que doré.
   const miniBall=(n,c1,c2,common,strong)=>{
     if(strong){c1='#FCA5A5';c2='#B91C1C';}
-    else if(common){c1='#FDE047';c2='#B45309';}
+    else if(common){c1='#78350F';c2='#78350F';}
     const on=common||strong;
     return`<span style="width:${on?21:19}px;height:${on?21:19}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${on?`box-shadow:0 0 0 2px ${strong?'#7F1D1D':'#92400E'};border:1px solid #fff`:''}">${n}</span>`;
   };
@@ -1562,7 +1562,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
   const commons=tirageJourCommonNumbers(entries);
   const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFFBEB;padding:7px 8px;border-bottom:2px solid #FDE68A">
       <span style="font-size:9.5px;font-weight:800;color:#92400E;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
-      ${commons.map(c=>`<span style="width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FDE047,#B45309);color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+      ${commons.map(c=>`<span style="width:20px;height:20px;border-radius:50%;background:#78350F;color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #FDE68A;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
     </div>`:'';
   return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
     ${stripRow}
@@ -1592,7 +1592,7 @@ function tirageJourHTML(){
   // qu'il saute vraiment aux yeux dans la liste, même en scrollant vite.
   const roundBall=(n,c1,c2,common,strong)=>{
     if(strong){c1='#FCA5A5';c2='#B91C1C';}
-    else if(common){c1='#FDE047';c2='#B45309';}
+    else if(common){c1='#78350F';c2='#78350F';}
     const on=common||strong;
     return`<span style="width:${on?29:25}px;height:${on?29:25}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:${on?'12.5px':'11px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${on?`,0 0 0 3px ${strong?'#7F1D1D':'#92400E'}`:''};border:${on?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
   };

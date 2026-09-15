@@ -1193,8 +1193,13 @@ function camerounFiltreHTML(){
 // de chaque table RAW_* (fréquence des jours de semaine sur tout l'historique du jeu), sauf Italie
 // où l'heure/jours viennent de la source officielle Lotto (mar/jeu/ven/sam, 20h) plutôt que de la
 // déduction historique (incomplète pour Cagliari dans nos données). Les tables composites
-// ("TOUT X", agrégats de plusieurs jeux/heures) sont volontairement exclues : elles feraient
-// doublon avec leurs jeux individuels déjà listés. Un jeu sans heure connue est quand même listé
+// ("TOUT X", agrégats de plusieurs jeux/heures — ex: bj_h11/h14/h18, toutbenin, benin_all_jeu,
+// digital_tout, digital_benin, matinal, et aussi les tables "combiné jour" bj_f_lun/f_mar/f_jeu/
+// f_ven/s_mer/s_sam/s_dim qui regroupent Fortune/Star 11h+14h+18h d'un même jour — retirées le
+// 15/09/2026 après un faux-positif détecté dans l'analyse "numéros communs" : bj_f_mar dupliquait
+// intégralement bj_f11 le mardi, ce qui faisait ressortir TOUS ses numéros comme "communs" à tort)
+// sont volontairement exclues : elles feraient doublon avec leurs jeux individuels déjà listés.
+// Un jeu sans heure connue est quand même listé
 // (juste sans tri par heure, en bas de sa section pays) — à compléter au fur et à mesure.
 const GAME_SCHEDULE=[
 {k:"diamant",w:[1],h:"13"},{k:"gold",w:[1],h:"18"},{k:"cash",w:[2],h:"13"},{k:"boom",w:[2],h:"18"},
@@ -1206,9 +1211,7 @@ const GAME_SCHEDULE=[
 {k:"digital_08h",w:[0,1,2,3,4,5,6],h:"08"},{k:"digital_00h",w:[0,1,2,3,4,5,6],h:"00"},
 {k:"digital_20h",w:[0,1,2,3,4,5,6],h:"20"},{k:"bj_f11",w:[1,2,4,5],h:"11"},{k:"bj_f14",w:[1,2,4,5],h:"14"},
 {k:"bj_f18",w:[1,2,4,5],h:"18"},{k:"bj_s11",w:[0,3,6],h:"11"},{k:"bj_s14",w:[0,3,6],h:"14"},
-{k:"bj_s18",w:[0,3,6],h:"18"},{k:"bj_f_lun",w:[1],h:null},{k:"bj_f_mar",w:[2],h:null},
-{k:"bj_s_mer",w:[3],h:null},{k:"bj_f_jeu",w:[4],h:null},{k:"bj_f_ven",w:[5],h:null},
-{k:"bj_s_sam",w:[6],h:null},{k:"bj_s_dim",w:[0],h:null},{k:"cagliari",w:[2,4,5,6],h:"20"},
+{k:"bj_s18",w:[0,3,6],h:"18"},{k:"cagliari",w:[2,4,5,6],h:"20"},
 {k:"malta",w:[6],h:null},{k:"national",w:[6],h:null},{k:"gh_g1",w:[5],h:null},{k:"gh_g2",w:[1],h:null},
 {k:"gh_g3",w:[6],h:null},{k:"gh_g4",w:[4],h:null},{k:"gh_g5",w:[2],h:null},{k:"gh_g6",w:[3],h:null},
 {k:"gh_g7",w:[1,2,3,4,5,6],h:null},{k:"gh_g8",w:[1,4],h:null},{k:"gh_g9",w:[5],h:null},

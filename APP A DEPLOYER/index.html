@@ -1481,7 +1481,12 @@ function tirageJourChronoHTML(entries,roundBall,commonSet){
   // avec l'heure + le nom du jeu, façon "résultat du jour" resserré. Anneau doré si le numéro fait
   // partie des "numéros communs" détectés par l'analyse (🧠), pour qu'ils sautent aussi aux yeux ICI,
   // directement dans la liste, sans devoir se référer à la carte d'analyse séparée.
-  const miniBall=(n,c1,c2,common)=>`<span style="width:19px;height:19px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${common?'box-shadow:0 0 0 2px #F59E0B;':''}">${n}</span>`;
+  // Numéro commun : remplace carrément la couleur du jeu par un dégradé doré + anneau — beaucoup
+  // plus visible qu'un simple liseré autour de la couleur d'origine.
+  const miniBall=(n,c1,c2,common)=>{
+    if(common){c1='#FDE047';c2='#B45309';}
+    return`<span style="width:${common?21:19}px;height:${common?21:19}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${common?'box-shadow:0 0 0 2px #92400E;border:1px solid #fff':''}">${n}</span>`;
+  };
   const row=(e)=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151';
     const darkCol=darken(col,0.32);
@@ -1527,7 +1532,12 @@ function tirageJourHTML(){
   // tous les autres onglets pays, pour que celui-ci soit visuellement reconnaissable au premier coup d'œil.
   // Anneau doré si le numéro fait partie des "numéros communs" (🧠 Analyse) — visible directement
   // dans la liste, pas seulement dans la carte d'analyse séparée.
-  const roundBall=(n,c1,c2,common)=>`<span style="width:25px;height:25px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${common?',0 0 0 3px #F59E0B':''};flex-shrink:0">${n}</span>`;
+  // Idem : un numéro commun devient une boule dorée à part entière (pas juste un liseré), pour
+  // qu'il saute vraiment aux yeux dans la liste, même en scrollant vite.
+  const roundBall=(n,c1,c2,common)=>{
+    if(common){c1='#FDE047';c2='#B45309';}
+    return`<span style="width:${common?29:25}px;height:${common?29:25}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:${common?'12.5px':'11px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${common?',0 0 0 3px #92400E':''};border:${common?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
+  };
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
   let html=`<div id="app-content">
   <div class="header" style="background:linear-gradient(160deg,#B45309,#78350F);color:#fff;padding:12px 14px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901;border-radius:0 0 16px 16px;box-shadow:0 4px 14px rgba(120,53,15,.35)">

@@ -1242,7 +1242,7 @@ const GAME_SCHEDULE=[
 {k:"ci_diamant",w:[6],h:"12:55"},{k:"ci_moaye",w:[6],h:"15:55"},{k:"ci_afterwork",w:[0,1,2,3,4,5,6],h:null},
 {k:"ci_digital21h",w:[0,1,2,3,4,5,6],h:"21"},{k:"ci_digital22h",w:[0,1,2,3,4,5,6],h:"22"},
 {k:"ci_digital23h",w:[0,1,2,3,4,5,6],h:"23"},{k:"ci_benediction",w:[0],h:"09:55"},{k:"ci_prestige",w:[0],h:"12:55"},
-{k:"ci_awale",w:[0],h:"15:55"},{k:"ci_espoir",w:[0],h:"19:00"},{k:"ci_reveil",w:[1],h:"09:55"},
+{k:"ci_awale",w:[0],h:"15:55"},{k:"ci_espoir",w:[0],h:"20:00"},{k:"ci_reveil",w:[1],h:"09:55"},
 {k:"ci_etoile",w:[1],h:"12:55"},{k:"ci_akwaba",w:[1],h:"15:55"},{k:"ci_matinale",w:[2],h:"09:55"},
 {k:"ci_emergence",w:[2],h:"12:55"},{k:"ci_sika",w:[2],h:"15:55"},{k:"ci_premiere_heure",w:[3],h:"09:55"},
 {k:"ci_fortune",w:[3],h:"12:55"},{k:"ci_baraka",w:[3],h:"15:55"},{k:"ci_kado",w:[4],h:"09:55"},
@@ -1575,7 +1575,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   const pinnedRow=super4Last3.length?`<div style="background:#FEF3C7;border-bottom:2px solid #F59E0B">
       <div style="display:flex;align-items:center;gap:5px;padding:6px 8px 3px">
         <span style="font-size:13px;flex-shrink:0">🧭</span>
-        <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 3 derniers tirages</span>
+        <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 8px 8px 30px;overflow-x:auto">
         ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
@@ -1602,7 +1602,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
 }
 function tirageJourHTML(){
   const{baseDate,wd,entries,todayK}=tirageJourEntries();
-  const super4Last3=lastNRowsFor('cm_super4',todayK,3);
+  const super4Last3=lastNRowsFor('cm_super4',todayK,6);
   const byCountry={};
   entries.forEach(e=>{(byCountry[e.country]=byCountry[e.country]||[]).push(e);});
   const dayLabel=CI_DAY_NAMES[wd];

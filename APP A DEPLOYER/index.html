@@ -1210,9 +1210,9 @@ const GAME_SCHEDULE=[
 {k:"diamant",w:[1],h:"13"},{k:"gold",w:[1],h:"18"},{k:"cash",w:[2],h:"13"},{k:"boom",w:[2],h:"18"},
 {k:"benz",w:[3],h:"13"},{k:"prestige",w:[3],h:"18"},{k:"million",w:[4],h:"13"},{k:"super",w:[4],h:"18"},
 {k:"kadoo",w:[5],h:"13"},{k:"king",w:[5],h:"18"},{k:"sam",w:[6],h:"13"},{k:"bingo",w:[6],h:"18"},
-{k:"detente",w:[0],h:"16"},{k:"matinal_lundi",w:[1],h:null},{k:"matinal_mardi",w:[2],h:null},
-{k:"matinal_mercredi",w:[3],h:null},{k:"matinal_jeudi",w:[4],h:null},{k:"matinal_vendredi",w:[5],h:null},
-{k:"matinal_samedi",w:[6],h:null},{k:"midweek",w:[3],h:null},{k:"aseda",w:[0],h:null},
+{k:"detente",w:[0],h:"16"},{k:"matinal_lundi",w:[1],h:"09"},{k:"matinal_mardi",w:[2],h:"09"},
+{k:"matinal_mercredi",w:[3],h:"09"},{k:"matinal_jeudi",w:[4],h:"09"},{k:"matinal_vendredi",w:[5],h:"09"},
+{k:"matinal_samedi",w:[6],h:"09"},{k:"midweek",w:[3],h:null},{k:"aseda",w:[0],h:null},
 {k:"digital_08h",w:[0,1,2,3,4,5,6],h:"08"},{k:"digital_00h",w:[0,1,2,3,4,5,6],h:"00"},
 {k:"digital_20h",w:[0,1,2,3,4,5,6],h:"20"},{k:"bj_f11",w:[1,2,4,5],h:"11"},{k:"bj_f14",w:[1,2,4,5],h:"14"},
 {k:"bj_f18",w:[1,2,4,5],h:"18"},{k:"bj_s11",w:[0,3,6],h:"11"},{k:"bj_s14",w:[0,3,6],h:"14"},
@@ -1577,7 +1577,7 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
         <span style="font-size:13px;flex-shrink:0">🧭</span>
         <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 3 derniers tirages</span>
       </div>
-      ${super4Last3.slice().reverse().map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 8px 3px 30px">
+      ${super4Last3.map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 8px 3px 30px">
         <span style="font-size:9px;font-weight:700;color:#78350F;width:38px;flex-shrink:0">${r.d}/${String(r.y).slice(-2)}</span>
         <div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${r.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
       </div>`).join('')}

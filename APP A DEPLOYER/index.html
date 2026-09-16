@@ -752,13 +752,18 @@ function openFiltreAsGame(rows,opts){
   // Badge "jeu d'origine" par tirage : row.jeuLabel/jeuColor (déjà présent sur les lignes Multi-Pays)
   // sinon on retombe sur opts.labelMap/opts.colorMap + row.jeu (fourni par chaque panneau pays), et
   // à défaut sur row.jeuKey (format "pays:jeu") pour en extraire un code court.
+  // Mini-drapeau à côté du badge : row.jeuIcon si fourni explicitement (Tirage du jour, un jeu par
+  // ligne, pays variable), sinon déduit de row.pays via MULTI_PAYS_LABELS (Multi-Pays filtré, même
+  // principe), sinon le drapeau unique de opts.icon (vues pays uniques : Bénin/Togo/Cameroun/CI/
+  // Italie/Ghana filtrés — tout le jeu est du même pays, un seul drapeau suffit).
   {
     const badgeMap={};
     ordered.forEach((r,i)=>{
       const rawCode=r.jeu||(r.jeuKey&&r.jeuKey.includes(':')?r.jeuKey.split(':')[1]:r.jeuKey)||'';
       const label=r.jeuLabel||(opts.labelMap&&rawCode?opts.labelMap[rawCode]:null)||rawCode;
       const color=r.jeuColor||(opts.colorMap&&rawCode?opts.colorMap[rawCode]:null);
-      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888'};
+      const icon=r.jeuIcon||(r.pays&&MULTI_PAYS_LABELS[r.pays]?MULTI_PAYS_LABELS[r.pays].split(' ')[0]:null)||opts.icon||null;
+      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888',icon};
     });
     CUSTOM_BADGE_MAP[key]=badgeMap;
   }
@@ -1479,6 +1484,7 @@ function openTirageJourAsGame(){
   const rows=entries.filter(e=>e.done&&e.row).map(e=>({
     d:e.row.d,y:e.row.y,n:e.row.n,s:e.row.s,m:e.row.m,
     jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
+    jeuIcon:e.gdef.icon||'🌍',
   }));
   const dateTag=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
   openFiltreAsGame(rows,{name:'TIRAGE DU JOUR '+dateTag,icon:'📆',key:'tirage_jour_custom',closeFlag:'tirageJourOpen',bonusField:'m'});
@@ -1843,29 +1849,34 @@ function multiBadgeHTML(row,fS){
     const c=(typeof bjCodeOf==='function')?bjCodeOf(row):null;
     if(!c)return '';
     const o=bjOfficiel(row,c);
-    return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${isLightBg(BENIN_JEU_COLORS[c])?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;
+    return `<span style="background:#${BENIN_JEU_COLORS[c]};color:${isLightBg(BENIN_JEU_COLORS[c])?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${o.label} — heure officielle du tirage">${o.code}</span>`;
   }
   if(GAME.key==='cm_tout'){
     const c=cmCodeOf(row);
     if(!c)return '';
     const col=CAMEROUN_JEU_COLORS[c]||'888888';
-    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${CAMEROUN_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${CAMEROUN_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
   }
   if(GAME.key==='togo_tout'){
     const c=tgCodeOf(row);
     if(!c)return '';
     const col=TOGO_JEU_COLORS[c]||'888888';
-    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
+    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${TOGO_JEU_LABELS[c]||c}">${c.toUpperCase().slice(0,3)}</span>`;
   }
   // Jeux virtuels créés par "📂 Ouvrir comme un jeu" (BÉNIN/TOGO/CAMEROUN/CI/GHANA/GH ALPHA/ITALIE/
-  // MULTI-PAYS (filtré)) — même badge coloré que les vues filtre/export dédiées, demandé
-  // explicitement pour que "ouvrir comme un jeu" n'affiche pas moins d'info que la vue filtrée.
+  // MULTI-PAYS (filtré)/TIRAGE DU JOUR) — même badge coloré que les vues filtre/export dédiées,
+  // demandé explicitement pour que "ouvrir comme un jeu" n'affiche pas moins d'info que la vue
+  // filtrée. Police réduite (et padding resserré) par rapport aux autres badges : la 1ère colonne
+  // de la grille Navigation ne fait que 28px de large pour un jeu à numéros machine (.grid-nav-m),
+  // trop étroit pour loger le badge (3 lettres) ET le n° de tirage en entier à la taille normale —
+  // demande explicite : "réduire la police pour avoir plus de caractère" (vu sur Tirage du jour).
   if(CUSTOM_BADGE_MAP[GAME.key]){
     const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
     if(!info)return '';
     const col=info.color||'888888';
     const code=(info.code||info.label||'').replace(/[^\p{L}\p{N}]/gu,'').toUpperCase().slice(0,3)||'?';
-    return `<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:3px;padding:0 3px;font-size:${Math.max(7,fS-2)}px;font-weight:700;margin-right:2px" title="${info.label}">${code}</span>`;
+    const flag=info.icon?`<span style="font-size:${Math.max(7,fS-3)}px;margin-right:1px;vertical-align:middle" title="${info.label}">${info.icon}</span>`:'';
+    return `${flag}<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${info.label}">${code}</span>`;
   }
   return '';
 }
@@ -14390,7 +14401,7 @@ function vRowHTML(it,ri,C){
           const hC=_pane2?row.n.some((n,ni)=>state.colored2[n]||state.coloredCells2[row.t+'_'+ni]):row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
-            <div style="font-weight:500;color:#${color};font-size:${fS}px">${isAnchor&&_aLk?'🔒':''}${multiBadgeHTML(row,fS)}${row.t}</div>
+            ${(()=>{const _bdg=multiBadgeHTML(row,fS);return `<div style="font-weight:500;color:#${color};font-size:${_bdg?Math.max(7,fS-2):fS}px">${isAnchor&&_aLk?'🔒':''}${_bdg}${row.t}</div>`;})()}
             <div style="font-size:${fS}px;color:#555">${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);
               // Miroir superposé + Mêmes numéros superposés : toujours visibles dans

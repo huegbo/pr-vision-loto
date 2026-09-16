@@ -1363,7 +1363,21 @@ function tirageJourEntries(){
     s4.label=gdef.name+' (du jour)';
     entries.push({key:'cm_super4',gdef,label:gdef.name+' (veille)',hour:s4.hour,row:prevRow,done:!!prevRow,country:s4.country});
   }
-  return{baseDate,wd,entries};
+  return{baseDate,wd,entries,todayK};
+}
+// Les N derniers tirages CONNUS d'un jeu, à une date de référence donnée (targetK, clé ymdKey) —
+// contrairement à rowForDate() (1 seul tirage, date exacte) ou latestRowFor() (1 seul, toujours le
+// plus récent tout court, sans notion de date de référence). Sert à la "boussole" Super 4 de la vue
+// chronologique : demande explicite de montrer les 3 derniers tirages (pas juste celui de la veille).
+function lastNRowsFor(key,targetK,n){
+  const gdef=GAMES[key];
+  if(!gdef||!gdef.raw)return [];
+  const lines=gdef.raw.trim().split('\n').filter(Boolean);
+  const rows=parseLinesFor(lines,gdef).map(r=>{
+    const[dd,mm]=String(r.d).split('/').map(Number);
+    return Object.assign(r,{_k:(+r.y)*10000+mm*100+dd});
+  }).filter(r=>r._k<=targetK).sort((a,b)=>b.t-a.t);
+  return rows.slice(0,n);
 }
 function toggleTirageJourAnalyse(){state.tirageJourShowAnalyse=!state.tirageJourShowAnalyse;render();}
 function setTirageJourView(v){state.tirageJourView=v;render();}
@@ -1516,11 +1530,14 @@ function exportTirageJour(){
 // Vue "Chronologique" : liste plate triée par heure (toutes pays confondus), lignes resserrées —
 // alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
 // sélecteur state.tirageJourView plutôt qu'à la remplacer.
-function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
+function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3){
   commonSet=commonSet||new Set();
   strongSet=strongSet||new Set();
-  // SUPER 4 CAGNOTTE (veille) sert de repère ("boussole") pour l'utilisateur — toujours épinglé en
-  // tout premier dans la vue chronologique, peu importe son heure, plutôt que noyé dans le tri horaire.
+  super4Last3=super4Last3||[];
+  // SUPER 4 CAGNOTTE sert de repère ("boussole") pour l'utilisateur — toujours épinglé en tout
+  // premier dans la vue chronologique, peu importe son heure, plutôt que noyé dans le tri horaire.
+  // Affiche les 3 DERNIERS tirages connus (pas juste celui de la veille) : demande explicite pour
+  // avoir plus de recul d'un coup d'œil sans avoir à naviguer.
   const pinned=entries.find(e=>e.key==='cm_super4'&&e.label.includes('veille'));
   const rest=pinned?entries.filter(e=>e!==pinned):entries;
   const withHour=rest.filter(e=>e.hour).sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
@@ -1555,11 +1572,15 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
       ${resultBody}
     </div>`;
   };
-  const pinnedRow=pinned?`<div style="display:flex;align-items:center;gap:7px;padding:7px 8px;background:#FEF3C7;border-bottom:2px solid #F59E0B">
-      <span style="font-size:13px;flex-shrink:0">🧭</span>
-      <span style="font-size:9.5px;font-weight:800;color:#92400E;width:34px;flex-shrink:0">${pinned.hour?hourLabel(pinned.hour):'?'}</span>
-      <span style="font-size:10px;font-weight:800;color:#78350F;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${pinned.label}">${pinned.label}</span>
-      ${pinned.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${pinned.row.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>`:`<div style="font-size:10px;color:#92400E;font-style:italic;flex:1">en attente</div>`}
+  const pinnedRow=super4Last3.length?`<div style="background:#FEF3C7;border-bottom:2px solid #F59E0B">
+      <div style="display:flex;align-items:center;gap:5px;padding:6px 8px 3px">
+        <span style="font-size:13px;flex-shrink:0">🧭</span>
+        <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 3 derniers tirages</span>
+      </div>
+      ${super4Last3.map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 8px 3px 30px">
+        <span style="font-size:9px;font-weight:700;color:#78350F;width:38px;flex-shrink:0">${r.d}/${String(r.y).slice(-2)}</span>
+        <div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${r.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
+      </div>`).join('')}
     </div>`:'';
   // Bandeau "numéros répétés" collé JUSTE AU-DESSUS de Super 4 (la boussole) — plus de trou entre les
   // deux comme avant (où le bandeau était tout en haut de page, séparé). Construit ici en interne
@@ -1578,7 +1599,8 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet){
   </div>`;
 }
 function tirageJourHTML(){
-  const{baseDate,wd,entries}=tirageJourEntries();
+  const{baseDate,wd,entries,todayK}=tirageJourEntries();
+  const super4Last3=lastNRowsFor('cm_super4',todayK,3);
   const byCountry={};
   entries.forEach(e=>{(byCountry[e.country]=byCountry[e.country]||[]).push(e);});
   const dayLabel=CI_DAY_NAMES[wd];
@@ -1637,7 +1659,7 @@ function tirageJourHTML(){
   ${state.tirageJourView==='pays'?tirageJourCommonStripHTML(entries):''}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
-  state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet,strongSet):
+  state.tirageJourView==='chrono'?tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3):
   TIRAGE_JOUR_COUNTRY_ORDER.filter(c=>byCountry[c]&&byCountry[c].length).map(c=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[c]||'#374151';
     const flag=byCountry[c][0].gdef.icon||'🌍';

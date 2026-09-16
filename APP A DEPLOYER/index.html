@@ -1577,10 +1577,12 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
         <span style="font-size:13px;flex-shrink:0">🧭</span>
         <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 3 derniers tirages</span>
       </div>
-      ${super4Last3.map(r=>`<div style="display:flex;align-items:center;gap:7px;padding:3px 8px 3px 30px">
-        <span style="font-size:9px;font-weight:700;color:#78350F;width:38px;flex-shrink:0">${r.d}/${String(r.y).slice(-2)}</span>
-        <div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">${r.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
-      </div>`).join('')}
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 8px 8px 30px;overflow-x:auto">
+        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+          <span style="font-size:9px;font-weight:700;color:#78350F;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:flex;gap:2px">${r.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
+        </div>`).join('')}
+      </div>
     </div>`:'';
   // Bandeau "numéros répétés" collé JUSTE AU-DESSUS de Super 4 (la boussole) — plus de trou entre les
   // deux comme avant (où le bandeau était tout en haut de page, séparé). Construit ici en interne

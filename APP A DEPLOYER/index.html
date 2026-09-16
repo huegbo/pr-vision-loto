@@ -807,6 +807,7 @@ function beninFiltreHTML(){
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    ${expertiseAiHTML('benin')}
     <div class="card" style="margin-bottom:8px">
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
@@ -1150,6 +1151,7 @@ function camerounFiltreHTML(){
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    ${expertiseAiHTML('cameroun')}
     <div class="card" style="margin-bottom:8px">
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
@@ -1952,6 +1954,7 @@ function togoFiltreHTML(){
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    ${expertiseAiHTML('togo')}
     <div class="card" style="margin-bottom:8px">
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
@@ -2908,6 +2911,65 @@ function removeAiMultiProposal(id){
 function clearAiMultiProposals(){
   if(!(state.multiAiProposals||[]).length)return;
   state.multiAiProposals=[];render();
+}
+// ══════ Analyse IA — Expertise 4 semaines par pays (Bénin/Togo/Cameroun), tous jeux confondus ══════
+// Demande explicite : pouvoir obtenir directement depuis l'appli (au lieu de le redemander à chaque
+// fois) l'analyse fréquences/retards/pronostic croisé sur les 4 dernières semaines, par pays.
+const EXPERTISE_PAYS_CONF={
+  benin:{label:'Bénin',icon:'🇧🇯',rows:()=>parseBeninAll(),bonusField:'m'},
+  togo:{label:'Togo',icon:'🇹🇬',rows:()=>parseTogoAll(),bonusField:'bonus'},
+  // SUPER4 exclu : jeu à 4 numéros (pas 5), format différent — fausserait le mélange avec les autres jeux Cameroun.
+  cameroun:{label:'Cameroun',icon:'🇨🇲',rows:()=>parseCamerounAll().filter(r=>r.jeu!=='SUPER4'),bonusField:'m'},
+};
+function expertiseRows(pays,days){
+  days=days||28;
+  const conf=EXPERTISE_PAYS_CONF[pays];
+  if(!conf)return[];
+  const today=new Date();today.setHours(0,0,0,0);
+  const cutoff=new Date(today.getTime()-days*86400000);
+  return conf.rows().filter(r=>{
+    const[dd,mm]=String(r.d).split('/').map(Number);
+    const dt=new Date(+r.y,mm-1,dd);
+    return dt>=cutoff&&dt<=today;
+  });
+}
+// Limité à 30 tirages (comme aiLast10/aiMultiLast10 se limitent déjà à 10) pour rester dans une
+// taille de requête raisonnable pour l'IA, même si la fenêtre de 4 semaines contient bien plus de tirages.
+function expertiseAiPayload(pays){
+  const conf=EXPERTISE_PAYS_CONF[pays];
+  return expertiseRows(pays).slice(0,30).map(r=>({jeu:r.jeu,date:r.d+'/'+r.y,n:r.n,m:(r[conf.bonusField]&&r[conf.bonusField].some(v=>v!=null))?r[conf.bonusField]:null}));
+}
+async function runAiExpertise(pays){
+  const conf=EXPERTISE_PAYS_CONF[pays];
+  if(!conf)return;
+  const total=expertiseRows(pays).length;
+  const tirages=expertiseAiPayload(pays);
+  if(!tirages.length){alert('Aucun tirage disponible sur les 4 dernières semaines pour ce pays');return;}
+  state.expertiseAi=state.expertiseAi||{};
+  if(!state.expertiseAi[pays])state.expertiseAi[pays]={loading:false,result:'',error:''};
+  state.expertiseAi[pays].loading=true;state.expertiseAi[pays].error='';state.expertiseAi[pays].result='';render();
+  try{
+    const resp=await fetch('/api/analyse-ia',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({gameName:`${conf.label} — Expertise 4 semaines (tous jeux, ${tirages.length}/${total} tirages)`,tirages})});
+    const data=await resp.json().catch(()=>({}));
+    if(!resp.ok||data.error){state.expertiseAi[pays].error=(data&&data.error)||('Erreur HTTP '+resp.status);}
+    else state.expertiseAi[pays].result=data.analyse||'Réponse vide.';
+  }catch(e){
+    state.expertiseAi[pays].error='Erreur réseau : '+(e&&e.message||e);
+  }
+  state.expertiseAi[pays].loading=false;render();
+}
+function expertiseAiHTML(pays){
+  const conf=EXPERTISE_PAYS_CONF[pays];
+  if(!conf)return'';
+  const st=(state.expertiseAi&&state.expertiseAi[pays])||{loading:false,result:'',error:''};
+  const total=expertiseRows(pays).length;
+  return`<div class="card" style="margin-bottom:8px;background:#FFF7ED;border:1.5px solid #C2410C">
+    <div style="font-size:11px;font-weight:700;color:#7C2D12;margin-bottom:6px">🔬 Expertise IA — 4 dernières semaines (${total} tirage${total>1?'s':''}, tous jeux ${conf.icon} ${conf.label})</div>
+    <button onclick="runAiExpertise('${pays}')" ${st.loading?'disabled':''} style="padding:5px 12px;background:#C2410C;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:11px">${st.loading?'⏳ Analyse en cours…':"🔬 Lancer l'expertise"}</button>
+    ${st.error?`<div style="margin-top:6px;font-size:10px;color:#C62828">${st.error}</div>`:''}
+    ${st.result?`<div style="margin-top:7px;font-size:11px;line-height:1.5;color:#7C2D12;background:#fff;border-radius:6px;padding:8px 10px;white-space:pre-wrap">${st.result}</div>`:''}
+    ${!st.result&&!st.error&&!st.loading?`<div style="margin-top:4px;font-size:9px;color:#92400E">Envoie jusqu'à 30 tirages (sur les 4 dernières semaines, tous jeux ${conf.label} confondus) à l'IA : fréquences, numéros en retard, pronostic croisé.</div>`:''}
+  </div>`;
 }
 // ══════ Analyse IA — journée en cours (tous pays fusionnés, + un panneau par pays), toujours sur TOUS les tirages du jour le plus récent, peu importe les filtres Pays/Jour/Jeu à l'écran ══════
 function aiTodayRowsAll(){
@@ -4393,6 +4455,7 @@ let state={
   multiAiLoading:false, multiAiResult:'', multiAiError:'',
   multiAiProposeLoading:false, multiAiProposeError:'', multiAiProposeActive:null, multiAiProposals:[],
   multiAiTodayLoading:false, multiAiTodayResult:'', multiAiTodayError:'',
+  expertiseAi:{},
   multiAiTodayByPays:{},
   multiAiWeekdayByDay:{},
   multiAiCustomDate:'', multiAiCustomLoading:false, multiAiCustomResult:'', multiAiCustomError:'',

@@ -2194,6 +2194,7 @@ function ciFiltreHTML(){
     </div>
   </div>
   <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    ${expertiseAiHTML('cotedivoire')}
     <div class="card" style="margin-bottom:8px">
       <div style="font-size:10px;font-weight:600;margin-bottom:4px">Jour</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
@@ -2920,6 +2921,7 @@ const EXPERTISE_PAYS_CONF={
   togo:{label:'Togo',icon:'🇹🇬',rows:()=>parseTogoAll(),bonusField:'bonus'},
   // SUPER4 exclu : jeu à 4 numéros (pas 5), format différent — fausserait le mélange avec les autres jeux Cameroun.
   cameroun:{label:'Cameroun',icon:'🇨🇲',rows:()=>parseCamerounAll().filter(r=>r.jeu!=='SUPER4'),bonusField:'m'},
+  cotedivoire:{label:"Côte d'Ivoire",icon:'🇨🇮',rows:()=>parseCIAll(),bonusField:'bonus'},
 };
 function expertiseRows(pays,days){
   days=days||28;

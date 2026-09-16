@@ -1446,7 +1446,7 @@ function tirageJourPairsHTML(pairs){
   return`<div style="background:linear-gradient(160deg,#FEE2E2,#FECACA);border:1px solid #FCA5A5;border-radius:12px;padding:10px;margin-bottom:12px">
     <div style="font-size:11.5px;font-weight:800;color:#991B1B;margin-bottom:6px">🎯 Doubles correspondances entre 2 tirages</div>
     ${pairs.map(p=>`<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#fff;border-radius:9px;padding:6px 9px;margin-bottom:5px">
-      <span style="font-size:9.5px;font-weight:700;color:#333">${p.a.label} ↔ ${p.b.label}</span>
+      <span style="font-size:9.5px;font-weight:700;color:#333">${p.a.gdef.icon||''} ${p.a.label} ↔ ${p.b.gdef.icon||''} ${p.b.label}</span>
       <div style="display:flex;gap:3px">
         ${p.shared.map(n=>`<span style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#FCA5A5,#B91C1C);color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1px solid #fff">${n}</span>`).join('')}
       </div>

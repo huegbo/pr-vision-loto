@@ -4587,7 +4587,7 @@ let state={
   multiClassifType:'counter', // classification choisie pour la détection croisée entre jeux (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir)
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   journalTagsDraft:[], journalFilterTag:null,
-  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgPredCount:{},
+  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgColOrder:null, mgPredCount:{},
   // nav
   selYears:YEARS.slice(0,4), showAllYears:false,
   searchInput:'', search:[], pin:null, sync:false, freezeCol:false, excelMode:false, excelTextSize:(localStorage.getItem('excelTextSize')||'normal'),
@@ -14095,7 +14095,45 @@ function mgColumns(){
     if(s.mode==='week')return {colId:s.key+'~'+s.id,key:s.key,mode:'week',week:{from:s.weekFrom,to:s.weekTo}};
     return {colId:s.key+'~'+s.id,key:s.key,mode:'year',year:s.year};
   });
-  return [...base,...extra];
+  let cols=[...base,...extra];
+  // Ordre d'affichage personnalisé (state.mgColOrder, liste de colId) — permet à l'utilisateur de
+  // réordonner librement les colonnes comparées (ex: mettre une colonne ajoutée en dernier en position 1)
+  // via moveMgColumn(). Toute colonne pas encore présente dans mgColOrder (nouvelle, ou jamais déplacée)
+  // garde sa position naturelle relative (tri stable) et se retrouve après les colonnes déjà ordonnées.
+  const order=state.mgColOrder;
+  if(order&&order.length){
+    const idx={};order.forEach((id,i)=>{idx[id]=i;});
+    cols=cols.map((c,i)=>({c,i})).sort((a,b)=>{
+      const ia=idx[a.c.colId]!==undefined?idx[a.c.colId]:1000000+a.i;
+      const ib=idx[b.c.colId]!==undefined?idx[b.c.colId]:1000000+b.i;
+      return ia-ib;
+    }).map(x=>x.c);
+  }
+  return cols;
+}
+// Déplace une colonne d'un cran vers la gauche (dir=-1) ou la droite (dir=+1) dans l'affichage
+// "Comparer Lotos". Mémorise l'ordre complet des colId dans state.mgColOrder pour qu'il survive
+// aux ajouts/suppressions ultérieurs de colonnes (voir mgColumns() ci-dessus).
+function moveMgColumn(colId,dir){
+  const ids=mgColumns().map(c=>c.colId);
+  const i=ids.indexOf(colId);
+  if(i<0)return;
+  const j=i+dir;
+  if(j<0||j>=ids.length)return;
+  const tmp=ids[i];ids[i]=ids[j];ids[j]=tmp;
+  state.mgColOrder=ids;
+  render();
+}
+// Envoie directement une colonne en position 1 (tout à gauche) — raccourci pratique pour une
+// colonne qu'on vient d'ajouter et qu'on veut voir en premier sans cliquer ◀ plusieurs fois.
+function moveMgColumnFirst(colId){
+  const ids=mgColumns().map(c=>c.colId);
+  const i=ids.indexOf(colId);
+  if(i<=0)return;
+  ids.splice(i,1);
+  ids.unshift(colId);
+  state.mgColOrder=ids;
+  render();
 }
 // Retourne les tirages (ordre chronologique croissant, comme BY_YEAR) pour une colonne, selon son mode.
 function mgColRows(gd,col){
@@ -16039,6 +16077,11 @@ function __renderBody(){
             const c=mgColColor({mode,year:y});const custom=!!(state.mgYears||{})[k];
             const rg=mgRangeOf(k),wk=mgWeekRangeOf(k);
             return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:${(custom||mode!=='year')?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:2px 4px 2px 7px;background:#fff">
+              <span style="display:inline-flex;gap:1px" title="Changer la position de cette colonne dans le tableau comparé">
+                <button type="button" onclick="event.stopPropagation();moveMgColumnFirst('${k}')" title="Mettre en position 1 (tout à gauche)" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-radius:4px 0 0 4px;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">⏮</button>
+                <button type="button" onclick="event.stopPropagation();moveMgColumn('${k}',-1)" title="Déplacer d'une position vers la gauche" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">◀</button>
+                <button type="button" onclick="event.stopPropagation();moveMgColumn('${k}',1)" title="Déplacer d'une position vers la droite" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;border-radius:0 4px 4px 0;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">▶</button>
+              </span>
               <span style="font-size:9px;font-weight:600;color:#1F2D3D">${GAMES[k].icon} ${GAMES[k].name}</span>
               ${mgModeToggleHTML('setMgMode',k,mode)}
               ${mode==='year'?`<select onchange="setMgYear('${k}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">
@@ -16058,7 +16101,13 @@ function __renderBody(){
           ${(state.mgSlots||[]).filter(s=>GAMES[s.key]).map(s=>{
             const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
             const mode=s.mode||'year';const c=mgColColor({mode,year:s.year});
+            const colId=s.key+'~'+s.id;
             return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:2px solid #${c};border-radius:11px;padding:2px 4px 2px 7px;background:#FFF7ED">
+              <span style="display:inline-flex;gap:1px" title="Changer la position de cette colonne dans le tableau comparé">
+                <button type="button" onclick="event.stopPropagation();moveMgColumnFirst('${colId}')" title="Mettre en position 1 (tout à gauche)" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-radius:4px 0 0 4px;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">⏮</button>
+                <button type="button" onclick="event.stopPropagation();moveMgColumn('${colId}',-1)" title="Déplacer d'une position vers la gauche" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">◀</button>
+                <button type="button" onclick="event.stopPropagation();moveMgColumn('${colId}',1)" title="Déplacer d'une position vers la droite" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;border-radius:0 4px 4px 0;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">▶</button>
+              </span>
               <span style="font-size:9px;font-weight:600;color:#1F2D3D">${GAMES[s.key].icon} ${GAMES[s.key].name}</span>
               ${mgModeToggleHTML('setMgSlotMode',s.id,mode)}
               ${mode==='year'?`<select onchange="setMgSlotYear('${s.id}',this.value)" style="font-size:10px;font-weight:700;border:1px solid #ccc;border-radius:6px;padding:1px 2px;background:#f9f9f9;color:#1F2D3D;cursor:pointer">

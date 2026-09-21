@@ -6456,6 +6456,34 @@ function deleteJournalEntry(date){
   state.journal=state.journal.filter(e=>e.date!==date);
   saveJournalState();render();
 }
+// ── Nouveau tableau Excel vierge (bloc-notes externe à remplir) ──
+async function createBlankExcelNote(){
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Notes');
+    ws.columns=[
+      {header:'Date',key:'date',width:14},
+      {header:'Jeu',key:'jeu',width:18},
+      {header:'Numéros',key:'nums',width:28},
+      {header:'Remarque',key:'note',width:40},
+    ];
+    const headerRow=ws.getRow(1);
+    headerRow.eachCell(cell=>{
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB('#7C3AED')}};
+      cell.font={color:{argb:hexToARGB('#FFFFFF')},bold:true};
+    });
+    for(let i=0;i<30;i++)ws.addRow(['','','','']);
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='Bloc_notes_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  }catch(err){
+    alert("Erreur pendant la création du tableau : "+(err&&err.message?err.message:err));
+  }
+}
 function journalHTML(){
   const usedTagKeys=new Set();
   state.journal.forEach(e=>(e.tags||[]).forEach(k=>usedTagKeys.add(k)));
@@ -11364,6 +11392,7 @@ function fabGo(action){
   else if(action==='past'){state.tab=0;state.showSearchHub=false;state.showPass=true;}
   else if(action==='settings'){state.showSettings=true;}
   else if(action==='journal'){state.showJournal=true;}
+  else if(action==='new_excel'){createBlankExcelNote();return;}
   render();
 }
 function goNav(id){
@@ -11457,6 +11486,7 @@ function fabHTML(){
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
     ['past','📕','Consulter journaux (Pass)','#2563EB','#fff'],
     ['journal','📔','Carnet de suivi (jour par jour)','#7C3AED','#fff'],
+    ['new_excel','📊','Nouveau tableau Excel (bloc-notes vierge à remplir)','#16A34A','#fff'],
     ['settings','⚙️','Réglages','#64748B','#fff'],
   ];
   h+=`<div onclick="toggleFab()" style="position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));width:52px;height:52px;border-radius:16px;background:linear-gradient(135deg,#6D28D9,#0891B2);box-shadow:0 6px 20px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:996;font-size:22px">${state.showFab?'✕':'⊞'}</div>`;

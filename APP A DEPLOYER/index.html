@@ -4586,6 +4586,7 @@ let state={
   multiAiCustomByPays:{},
   multiClassifType:'counter', // classification choisie pour la détection croisée entre jeux (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir)
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
+  showClassifTable:false,
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgColOrder:null, mgPredCount:{},
   // nav
@@ -6523,6 +6524,75 @@ function journalHTML(){
           ${(e.tags||[]).length?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">${e.tags.map(k=>{const t=JOURNAL_TAGS.find(x=>x.key===k);return t?`<span style="padding:1px 6px;border-radius:10px;font-size:8px;font-weight:500;background:${t.bg};color:${t.fg}">${t.label}</span>`:'';}).join('')}</div>`:''}
           <div style="font-size:11px;color:#333;margin-top:3px;white-space:pre-wrap">${e.note}</div>
         </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Tableau de classification (1-90 → Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Code/Miroir) ──
+async function exportClassifTable(){
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Classification');
+    ws.columns=[
+      {header:'N°',key:'n',width:6},
+      {header:'Counter',key:'counter',width:10},
+      {header:'Bonanza',key:'bonanza',width:10},
+      {header:'Malta',key:'malta',width:10},
+      {header:'Key',key:'key',width:10},
+      {header:'Turning',key:'turning',width:10},
+      {header:'Partner',key:'partner',width:10},
+      {header:'Shadow',key:'shadow',width:10},
+      {header:'Equiv',key:'equiv',width:10},
+      {header:'Code',key:'code',width:10},
+      {header:'Miroir',key:'miroir',width:10},
+    ];
+    const headerRow=ws.getRow(1);
+    headerRow.eachCell(cell=>{
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB('#6A1B9A')}};
+      cell.font={color:{argb:hexToARGB('#FFFFFF')},bold:true};
+    });
+    for(let n=1;n<=90;n++){
+      const c=getCL(n);
+      ws.addRow([n,c.counter||'',c.bonanza||'',c.malta||'',c.key||'',c.turning||'',c.partner||'',c.shadow||'',c.equiv||'',c.code||'',MIR[n]||'']);
+    }
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='Tableau_classification_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  }catch(err){
+    alert("Erreur pendant l'export du tableau de classification : "+(err&&err.message?err.message:err));
+  }
+}
+function classifTableHTML(){
+  const cols=[['counter','Counter'],['bonanza','Bonanza'],['malta','Malta'],['key','Key'],['turning','Turning'],['partner','Partner'],['shadow','Shadow'],['equiv','Equiv'],['code','Code'],['miroir','Miroir']];
+  let rows='';
+  for(let n=1;n<=90;n++){
+    const c=getCL(n);
+    const vals={counter:c.counter,bonanza:c.bonanza,malta:c.malta,key:c.key,turning:c.turning,partner:c.partner,shadow:c.shadow,equiv:c.equiv,code:c.code,miroir:MIR[n]};
+    rows+=`<tr style="border-bottom:1px solid #eee">
+      <td style="position:sticky;left:0;background:#fff;padding:3px 6px;font-weight:700;color:#1F2D3D;border-right:1px solid #ddd">${n}</td>
+      ${cols.map(([k])=>`<td style="padding:3px 6px;text-align:center;color:#333">${vals[k]!=null&&vals[k]!==''?vals[k]:'—'}</td>`).join('')}
+    </tr>`;
+  }
+  return`<div onclick="state.showClassifTable=false;render()" style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:998"></div>
+  <div onclick="event.stopPropagation()" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;background:#fff;border-radius:16px;padding:14px;width:420px;max-width:94vw;max-height:85vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:15px;font-weight:600;color:#1F2D3D">🧬 Tableau de classification</span>
+      <span onclick="state.showClassifTable=false;render()" style="cursor:pointer;font-size:18px;color:#999">✕</span>
+    </div>
+    <div style="font-size:9.5px;color:#666;margin-bottom:8px">Pour chaque numéro 1-90 : ses éléments de classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv, Code, Miroir).</div>
+    <button onclick="exportClassifTable()" style="margin-bottom:8px;padding:5px 12px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:11px">⬇ Exporter en Excel</button>
+    <div style="overflow-x:auto">
+      <table style="border-collapse:collapse;font-size:10px;white-space:nowrap">
+        <thead><tr style="border-bottom:2px solid #6A1B9A">
+          <th style="position:sticky;left:0;background:#fff;padding:3px 6px;text-align:left;border-right:1px solid #ddd">N°</th>
+          ${cols.map(([,label])=>`<th style="padding:3px 6px;color:#6A1B9A">${label}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
     </div>
   </div>`;
 }
@@ -11392,6 +11462,7 @@ function fabGo(action){
   else if(action==='past'){state.tab=0;state.showSearchHub=false;state.showPass=true;}
   else if(action==='settings'){state.showSettings=true;}
   else if(action==='journal'){state.showJournal=true;}
+  else if(action==='classif_table'){state.showClassifTable=true;}
   else if(action==='new_excel'){createBlankExcelNote();return;}
   render();
 }
@@ -11463,6 +11534,7 @@ function fabHTML(){
   }
   if(state.showSettings)h+=settingsHTML();
   if(state.showJournal)h+=journalHTML();
+  if(state.showClassifTable)h+=classifTableHTML();
   const items=[
     ['plans','📐','Projets / Plans','#3B82F6','#fff'],
     ['color','🎨','Coloriage manuel','#fff','#E53935'],
@@ -11486,6 +11558,7 @@ function fabHTML(){
     ['analyse','📊','Modules d\'analyse','#4ADE80','#065F46'],
     ['past','📕','Consulter journaux (Pass)','#2563EB','#fff'],
     ['journal','📔','Carnet de suivi (jour par jour)','#7C3AED','#fff'],
+    ['classif_table','🧬','Tableau de classification (1-90, tous les éléments)','#6A1B9A','#fff'],
     ['new_excel','📊','Nouveau tableau Excel (bloc-notes vierge à remplir)','#16A34A','#fff'],
     ['settings','⚙️','Réglages','#64748B','#fff'],
   ];

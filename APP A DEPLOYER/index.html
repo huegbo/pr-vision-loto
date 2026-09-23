@@ -2027,6 +2027,35 @@ function multiBadgeHTML(row,fS){
   }
   return '';
 }
+// Même info que multiBadgeHTML() mais renvoyée en données brutes {label,color} (pas de HTML) —
+// utilisée par l'export Excel générique (exportColoredExcel) pour ajouter une colonne "Jeu" sur
+// tous les jeux combinés (Bénin/Cameroun/Togo/virtuels "ouvrir comme un jeu"), demandé le
+// 23/09/2026 ("je voudrais que les noms des loto arrivent ds l'export excel").
+function multiBadgeInfo(row){
+  if(!GAME)return null;
+  if(BJ_MULTI.includes(GAME.key)){
+    const c=(typeof bjCodeOf==='function')?bjCodeOf(row):null;
+    if(!c)return null;
+    const o=bjOfficiel(row,c);
+    return {label:o.label,color:BENIN_JEU_COLORS[c]||'888888'};
+  }
+  if(GAME.key==='cm_tout'){
+    const c=cmCodeOf(row);
+    if(!c)return null;
+    return {label:CAMEROUN_JEU_LABELS[c]||c,color:CAMEROUN_JEU_COLORS[c]||'888888'};
+  }
+  if(GAME.key==='togo_tout'){
+    const c=tgCodeOf(row);
+    if(!c)return null;
+    return {label:TOGO_JEU_LABELS[c]||c,color:TOGO_JEU_COLORS[c]||'888888'};
+  }
+  if(CUSTOM_BADGE_MAP[GAME.key]){
+    const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
+    if(!info)return null;
+    return {label:info.label||info.code||'',color:info.color||'888888'};
+  }
+  return null;
+}
 // ══════ Incidences historiques par jour de la semaine (Togo) — fréquence des numéros pour pronostiquer le prochain jour identique ══════
 function togoIncidenceHTML(rows){
   if(state.togoJours.length!==1){
@@ -8029,12 +8058,18 @@ async function exportColoredExcel(){
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet(sanitizeSheet(GAME.name+' - '+exportLabel));
     const nNums=5;
-    // Même ordre que l'affichage à l'écran : N1..N5, TOT juste après (coloré),
+    // Colonne "Jeu" (nom du loto d'origine, ex: Fortune 14H, Star Mercredi...) — ajoutée seulement
+    // pour les jeux combinés (Bénin/Cameroun/Togo/virtuels "ouvrir comme un jeu") qui portent cette
+    // info par tirage (voir multiBadgeInfo). Demandé le 23/09/2026 : "je voudrais que les noms des
+    // loto arrivent ds l'export excel" — jusque-là seul l'affichage à l'écran montrait ce badge.
+    const includeJeu=cols.some(c=>c.rows.some(r=>multiBadgeInfo(r)));
+    const jeuOffset=includeJeu?1:0;
+    // Même ordre que l'affichage à l'écran : (Jeu,) N1..N5, TOT juste après (coloré),
     // puis M1..M5 et TOT.M (coloré) tout à la fin si demandé dans le panneau d'export.
-    const blockCols=2+nNums+1+(includeM?6:0); // N°,Date,N1..N5,TOT,(M1..M5,TOT.M)
+    const blockCols=2+jeuOffset+nNums+1+(includeM?6:0); // N°,Date,(Jeu,)N1..N5,TOT,(M1..M5,TOT.M)
     const gap=1; // colonne vide entre chaque bloc année
     const colsPerYear=blockCols+gap;
-    const heads=['N°','Date','N1','N2','N3','N4','N5','TOT',...(includeM?['M1','M2','M3','M4','M5','TOT.M']:[])];
+    const heads=['N°','Date',...(includeJeu?['Jeu']:[]),'N1','N2','N3','N4','N5','TOT',...(includeM?['M1','M2','M3','M4','M5','TOT.M']:[])];
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
 
     const captionRow=ws.addRow([`${GAME.name} — Export : ${exportLabel}`]);
@@ -8063,8 +8098,19 @@ async function exportColoredExcel(){
         const mk=anMark(r,ctx); // anMark applique aussi la couche "Miroir même ligne toujours actif" même si aucune analyse (D) n'est choisie
         row.getCell(startCol).value=r.t;
         row.getCell(startCol+1).value=r.d;
+        if(includeJeu){
+          const jeuCell=row.getCell(startCol+2);
+          const info=multiBadgeInfo(r);
+          if(info){
+            jeuCell.value=info.label;
+            if(includeColors){
+              jeuCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(info.color)}};
+              jeuCell.font={color:{argb:hexToARGB(isLightBg(info.color)?'000000':'FFFFFF')},bold:true};
+            }
+          }
+        }
         r.n.forEach((v,ni)=>{
-          const cell=row.getCell(startCol+2+ni);
+          const cell=row.getCell(startCol+2+jeuOffset+ni);
           cell.value=v;
           if(!includeColors)return;
           const cid=r.t+'_'+ni;
@@ -8095,7 +8141,7 @@ async function exportColoredExcel(){
           }
         });
         // TOT juste après N5 (même ordre qu'à l'écran)
-        const totCell=row.getCell(startCol+2+nNums);
+        const totCell=row.getCell(startCol+2+jeuOffset+nNums);
         totCell.value=r.s;
         if(includeColors){
           const tc=tC(r.s);
@@ -8106,7 +8152,7 @@ async function exportColoredExcel(){
           const bmk=anMarkBonus(r,ctx); // couche "Miroir même ligne/superposé toujours actif" côté bonus
           r.m.forEach((v,mi)=>{
             if(isNaN(v))return; // case vide (« · » à l'écran) — on laisse la cellule Excel vide
-            const cell=row.getCell(startCol+3+nNums+mi);
+            const cell=row.getCell(startCol+3+jeuOffset+nNums+mi);
             cell.value=v;
             if(!includeColors)return;
             const cid=r.t+'_m'+mi;

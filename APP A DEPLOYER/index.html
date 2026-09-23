@@ -4586,7 +4586,7 @@ let state={
   multiAiCustomByPays:{},
   multiClassifType:'counter', // classification choisie pour la détection croisée entre jeux (Counter/Bonanza/Malta/Key/Turning/Partner/Shadow/Equiv/Miroir)
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
-  showClassifTable:false, classifTableMin:false,
+  showClassifTable:false, classifTableMin:false, classifTabOpen:false,
   journalTagsDraft:[], journalFilterTag:null,
   navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgColOrder:null, mgPredCount:{},
   // nav
@@ -6565,6 +6565,41 @@ async function exportClassifTable(){
   }catch(err){
     alert("Erreur pendant l'export du tableau de classification : "+(err&&err.message?err.message:err));
   }
+}
+// Version "onglet plein écran" (accessible depuis la barre de navigation, comme Bénin/Ghana/Togo...),
+// en plus du panneau flottant classifTableHTML() — les deux restent disponibles.
+function classifTabHTML(){
+  const cols=[['counter','Counter'],['bonanza','Bonanza'],['malta','Malta'],['key','Key'],['turning','Turning'],['partner','Partner'],['shadow','Shadow'],['equiv','Equiv'],['code','Code'],['miroir','Miroir']];
+  let rows='';
+  for(let n=1;n<=90;n++){
+    const c=getCL(n);
+    const vals={counter:c.counter,bonanza:c.bonanza,malta:c.malta,key:c.key,turning:c.turning,partner:c.partner,shadow:c.shadow,equiv:c.equiv,code:c.code,miroir:MIR[n]};
+    rows+=`<tr style="border-bottom:1px solid #eee">
+      <td style="position:sticky;left:0;background:#fff;padding:4px 8px;font-weight:700;color:#1F2D3D;border-right:1px solid #ddd">${n}</td>
+      ${cols.map(([k])=>`<td style="padding:4px 8px;text-align:center;color:#333">${vals[k]!=null&&vals[k]!==''?vals[k]:'—'}</td>`).join('')}
+    </tr>`;
+  }
+  return`<div id="app-content">
+  <div class="header" style="background:#3B1E6B;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-size:14px;font-weight:600">🧬 Tableau de classification (1-90)</div>
+      <button id="export-classif-btn" onclick="exportClassifTable()" style="padding:4px 10px;background:#2E7D32;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600">⬇ Excel</button>
+      <button onclick="state.classifTabOpen=false;render()" style="margin-left:auto;padding:4px 10px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px">✕ Fermer</button>
+    </div>
+  </div>
+  <div style="padding:10px 12px calc(70px + env(safe-area-inset-bottom))">
+    <div style="font-size:10px;color:#666;margin-bottom:8px">Pour chaque numéro 1-90 : ses éléments de classification (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv, Code, Miroir).</div>
+    <div style="overflow-x:auto;background:#fff;border-radius:10px;border:1px solid #eee">
+      <table style="border-collapse:collapse;font-size:11px;white-space:nowrap;width:100%">
+        <thead><tr style="border-bottom:2px solid #6A1B9A;position:sticky;top:0;background:#fff;z-index:1">
+          <th style="position:sticky;left:0;background:#fff;padding:4px 8px;text-align:left;border-right:1px solid #ddd">N°</th>
+          ${cols.map(([,label])=>`<th style="padding:4px 8px;color:#6A1B9A">${label}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>
+  </div>`;
 }
 function classifTableHTML(){
   const cols=[['counter','Counter'],['bonanza','Bonanza'],['malta','Malta'],['key','Key'],['turning','Turning'],['partner','Partner'],['shadow','Shadow'],['equiv','Equiv'],['code','Code'],['miroir','Miroir']];
@@ -11493,6 +11528,7 @@ function goNav(id){
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='tirageJour'){state.tirageJourOpen=!state.tirageJourOpen;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
+  else if(id==='classif'){state.classifTabOpen=!state.classifTabOpen;state.showSearchHub=false;}
   else if(id==='conversion'){
     const opening=!state.conversionOpen;
     state.conversionOpen=opening;state.showSearchHub=false;
@@ -11523,10 +11559,11 @@ function bottomNavHTML(){
     ['tirageJour','📆','Tirage du jour'],
     ['pronostic','🍀','Pronostic'],
     ['conversion','🧩🔁','Conversion'],
+    ['classif','🧬','Classification'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))));
+      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -16012,6 +16049,11 @@ function __renderBody(){
       const c=document.getElementById('pronoPreviewCanvas');
       if(c)drawPronosticPoster(c);
     }
+    return;
+  }
+  if(state.classifTabOpen){
+    document.getElementById('app').innerHTML=classifTabHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
     return;
   }
   const disp=state.showAllYears?YEARS:YEARS.slice(0,15);

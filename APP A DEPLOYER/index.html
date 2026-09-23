@@ -4643,6 +4643,7 @@ let state={
   dbtMode:'ligne', dbtMin:2, dbtRes:null,
   prpGapMin:1, prpGapMax:3, prpRes:null, prpMulti:false, prpMultiGames:[], prpMultiRes:null,
   mc3Gap:1, mc3Res:null, mc3Multi:false, mc3MultiGames:[], mc3MultiRes:null,
+  mip3Gap:1, mip3Res:null, mip3Multi:false, mip3MultiGames:[], mip3MultiRes:null,
   elmMode:'ligne', elmGap:1, elmTypes:null, elmRes:null, elmFocus:null,
   elmHL:[], elmHLMode:'ligne', elmHLGap:1, elmHLNum:null, elmHLDraft:null, elmHLCount:null,
   anchors:{}, anchorLocks:{}, freezeOn:false, freezeOffsets:null,
@@ -8878,6 +8879,156 @@ async function exportMc3Excel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
+// ══════ Trio de tirages avec paire miroir interne : 3 tirages consécutifs où CHAQUE tirage
+// contient, à lui seul, une paire de numéros miroirs l'un de l'autre (ex: 86+68 dans un tirage,
+// puis 35+53 dans le suivant, puis 15+51 dans le suivant — les 3 paires peuvent être différentes).
+// Demandé par l'utilisateur le 23/09/2026, à partir d'un exemple repéré sur ALL BENIN officiel. ══════
+function findInternalMirrorPairs(row){
+  const nums=Array.from(new Set((row.n||[]).concat(row.m||[]))).filter(x=>!isNaN(x));
+  const pairs=[],seen=new Set();
+  for(let i=0;i<nums.length;i++){
+    const a=nums[i];
+    if(!MIR[a])continue;
+    const b=MIR[a];
+    if(!nums.includes(b))continue;
+    const key=[Math.min(a,b),Math.max(a,b)].join('-');
+    if(seen.has(key))continue;
+    seen.add(key);
+    pairs.push([a,b]);
+  }
+  return pairs;
+}
+function mip3Run(gap){
+  const asc=T.slice().reverse(); // ordre chronologique croissant
+  const g=Math.max(1,gap||1);
+  const res=[];
+  for(let i=0;i+2*g<asc.length;i++){
+    const r1=asc[i],r2=asc[i+g],r3=asc[i+2*g];
+    const p1=findInternalMirrorPairs(r1);if(!p1.length)continue;
+    const p2=findInternalMirrorPairs(r2);if(!p2.length)continue;
+    const p3=findInternalMirrorPairs(r3);if(!p3.length)continue;
+    res.push({r1,r2,r3,p1,p2,p3,gap:g});
+  }
+  res.sort((a,b)=>b.r3.t-a.r3.t); // le plus récent d'abord
+  return res;
+}
+function mip3Find(){
+  const gap=Math.max(1,parseInt(state.mip3Gap)||1);
+  if(state.mip3Multi&&state.mip3MultiGames&&state.mip3MultiGames.length){
+    const savedKey=GAME.key, results=[];
+    for(const gk of state.mip3MultiGames){
+      loadGame(gk);
+      const r=mip3Run(gap);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:r.length,rows:r});
+    }
+    loadGame(savedKey);
+    state.mip3MultiRes={gap,results};
+    state.mip3Res=null;
+  }else{
+    if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+    state.mip3Res=mip3Run(gap);
+    state.mip3MultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('mip3-res')||document.getElementById('mip3-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function mip3Clear(){state.mip3Res=null;state.mip3MultiRes=null;render();}
+function toggleMip3MultiGame(k){
+  if(!state.mip3MultiGames)state.mip3MultiGames=[];
+  const i=state.mip3MultiGames.indexOf(k);
+  if(i>=0)state.mip3MultiGames.splice(i,1);else state.mip3MultiGames.push(k);
+}
+function mip3PairsStr(pairs){return pairs.map(p=>p[0]+'↔'+p[1]).join(', ');}
+function mip3RowsTableHTML(rows,max){
+  const show=rows.slice(0,max);
+  return `<table class="excel-tbl" style="width:100%"><thead><tr>
+    ${['1er tirage','Date','Paire(s)','2e tirage','Date','Paire(s)','3e tirage','Date','Paire(s)','Écart'].map(h=>`<th style="position:sticky;top:0;background:#0D9488;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+  </tr></thead><tbody>
+  ${show.map((r,k)=>{const bg=k%2?'#E6F7F5':'#fff';return `<tr>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${r.r1.t}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${r.r1.d}/${r.r1.y}</td>
+    <td style="background:#CCFBF1;font-weight:700;font-size:9.5px;padding:3px 4px;text-align:center;color:#0F766E">${mip3PairsStr(r.p1)}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${r.r2.t}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${r.r2.d}/${r.r2.y}</td>
+    <td style="background:#CCFBF1;font-weight:700;font-size:9.5px;padding:3px 4px;text-align:center;color:#0F766E">${mip3PairsStr(r.p2)}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${r.r3.t}</td>
+    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${r.r3.d}/${r.r3.y}</td>
+    <td style="background:#CCFBF1;font-weight:700;font-size:9.5px;padding:3px 4px;text-align:center;color:#0F766E">${mip3PairsStr(r.p3)}</td>
+    <td style="background:#FEF3C7;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${r.gap}</td>
+  </tr>`;}).join('')}
+  </tbody></table>`;
+}
+function mip3ResultHTML(){
+  if(!state.mip3Res)return '';
+  const res=state.mip3Res,MAX=300;
+  if(!res.length)return `<div id="mip3-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun trio de tirages avec paire miroir interne trouvé pour cet écart.</div>`;
+  return `<div id="mip3-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0F766E">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-mip3-btn" onclick="exportMip3Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
+    <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${mip3RowsTableHTML(res,MAX)}</div></div>`;
+}
+function mip3MultiResultHTML(){
+  const mr=state.mip3MultiRes;
+  if(!mr)return '';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return `<div id="mip3-multi-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#0F766E;margin-bottom:6px">${total} résultat${total>1?'s':''} au total sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
+    ${mr.results.filter(r=>r.count>0).map(r=>`<div style="margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;color:#0F766E;margin-bottom:3px">${r.icon} ${r.gameName} — ${r.count} résultat${r.count>1?'s':''}</div>
+      <div style="max-height:30vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${mip3RowsTableHTML(r.rows,100)}</div>
+    </div>`).join('')}
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun trio trouvé pour cet écart, dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
+}
+function mip3PanelHTML(){
+  return `<div style="background:#fff;border:1.5px solid #0D9488;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🪞🔗 Trio de tirages — paire miroir interne à chacun</div>
+    <div style="background:#E6F7F5;border:1px solid #99E6DC;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#0F766E">
+      Cherche 3 tirages successifs où CHAQUE tirage contient, à lui seul, une paire de numéros miroirs l'un de l'autre (ex: 86+68, ou 35+53, ou 15+51) — les paires peuvent être différentes d'un tirage à l'autre. Écart entre chaque tirage réglable (1 = tirages consécutifs).
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600">Écart entre chaque tirage</span>
+      <input type="number" min="1" value="${state.mip3Gap}" onchange="state.mip3Gap=this.value;render()" style="width:46px;padding:2px 4px;border:1.5px solid #0D9488;border-radius:4px;font-size:10px;text-align:center;font-weight:600">
+      <span style="font-size:9px;color:#0F766E">tirage(s)</span>
+    </div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#0F766E;margin-bottom:5px"><input type="checkbox" ${state.mip3Multi?'checked':''} onchange="state.mip3Multi=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois (tout loto)</label>
+    ${state.mip3Multi?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#E6F7F5;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.mip3MultiGames||[]).includes(k);return`<button onclick="toggleMip3MultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#0D9488':'#ccc'};background:${sel?'#0D9488':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.mip3MultiGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.mip3MultiGames=[];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:`<div style="font-size:9px;color:#888;margin-bottom:6px">${GAME.icon||''} ${GAME.name} — ${T.length} tirages</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button onclick="mip3Find()" style="padding:4px 14px;background:#0D9488;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="mip3Clear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+    </div>
+    ${mip3ResultHTML()}
+    ${mip3MultiResultHTML()}
+  </div>`;
+}
+async function exportMip3Excel(){
+  const res=state.mip3Res;
+  if(!res||!res.length){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-mip3-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Trio paire miroir interne');
+    ws.addRow(['Filtre : Trio de tirages — paire miroir interne à chacun — écart '+state.mip3Gap]).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['N° 1er tirage','Date 1er tirage','Paire(s) 1er tirage','N° 2e tirage','Date 2e tirage','Paire(s) 2e tirage','N° 3e tirage','Date 3e tirage','Paire(s) 3e tirage','Écart (tirages)'];
+    ws.addRow(header).font={bold:true};
+    res.forEach(r=>{
+      const row=ws.addRow([r.r1.t,r.r1.d+'/'+r.r1.y,mip3PairsStr(r.p1),r.r2.t,r.r2.d+'/'+r.r2.y,mip3PairsStr(r.p2),r.r3.t,r.r3.d+'/'+r.r3.y,mip3PairsStr(r.p3),r.gap]);
+      row.getCell(10).font={bold:true};
+    });
+    ws.columns.forEach(c=>{c.width=18;});
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_trio_paire_miroir.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
+}
 // Boilerplate commun de téléchargement, réutilisé par les exports des modules de recherche ci-dessous.
 async function dlXlsxBlob(wb,filename){
   const buf=await wb.xlsx.writeBuffer();
@@ -11100,6 +11251,7 @@ const SEARCH_SECTIONS=[
   {key:'dbt',icon:'➕',title:'Double même total',desc:'Deux paires qui donnent le même total',color:'#DB2777',html:dbtPanelHTML},
   {key:'prp',icon:'🔁',title:'Paires qui reviennent',desc:'Une paire ressort ensemble après un écart réglable de tirages',color:'#0E7490',html:prpPanelHTML},
   {key:'mc3',icon:'🪞3️⃣',title:'Chaîne miroir sur 3 tirages',desc:'Un numéro sort, son miroir sort au tirage suivant, puis il revient au 3e',color:'#AB47BC',html:mc3PanelHTML},
+  {key:'mip3',icon:'🪞🔗',title:'Trio — paire miroir interne',desc:'3 tirages de suite, chacun avec sa propre paire de numéros miroirs (ex: 86+68, puis 35+53, puis 15+51)',color:'#0D9488',html:mip3PanelHTML},
   {key:'vtot',icon:'🧱',title:'Même total superposé',desc:'N numéros aux mêmes positions, écart réglable',color:'#7C3AED',html:vtotPanelHTML},
   {key:'vtotd',icon:'⚖️',title:'Total ↔ Différence superposé',desc:"Total d'un côté = différence de l'autre, toute position, écart réglable",color:'#7C3AED',html:vtotdPanelHTML},
   {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},

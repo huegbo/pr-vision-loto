@@ -2,7 +2,8 @@
 // Chargé par un <script src> classique : fonctionne aussi en ouverture locale (file://).
 // Ne pas éditer à la main sans faire attention : chaque bloc est un gabarit `...`.
 window.LOTO_DATA = {};
-window.LOTO_DATA.RAW_STR = `1861|16/09|2026|55|15|62|65|76|273
+window.LOTO_DATA.RAW_STR = `1862|23/09|2026|63|49|56|90|33|291
+1861|16/09|2026|55|15|62|65|76|273
 1860|09/09|2026|42|75|6|47|67|237
 1859|02/09|2026|90|3|47|83|16|239
 1858|26/08|2026|39|70|26|16|88|239

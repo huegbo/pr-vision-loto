@@ -8174,7 +8174,7 @@ async function exportColoredExcel(){
           const validM=r.m.filter(v=>!isNaN(v));
           if(validM.length){
             const ms=validM.reduce((a,b)=>a+b,0);
-            const totMCell=row.getCell(startCol+3+nNums+5);
+            const totMCell=row.getCell(startCol+3+jeuOffset+nNums+5);
             totMCell.value=ms;
             if(includeColors){
               const mc=tC(ms);

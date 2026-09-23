@@ -2027,32 +2027,33 @@ function multiBadgeHTML(row,fS){
   }
   return '';
 }
-// Même info que multiBadgeHTML() mais renvoyée en données brutes {label,color} (pas de HTML) —
+// Même info que multiBadgeHTML() mais renvoyée en données brutes {label,color,icon} (pas de HTML) —
 // utilisée par l'export Excel générique (exportColoredExcel) pour ajouter une colonne "Jeu" sur
 // tous les jeux combinés (Bénin/Cameroun/Togo/virtuels "ouvrir comme un jeu"), demandé le
-// 23/09/2026 ("je voudrais que les noms des loto arrivent ds l'export excel").
+// 23/09/2026 ("je voudrais que les noms des loto arrivent ds l'export excel", "avec le drapeau").
+// icon = drapeau/emoji du pays d'origine, pour que la colonne Jeu se voie bien ("une place de choix").
 function multiBadgeInfo(row){
   if(!GAME)return null;
   if(BJ_MULTI.includes(GAME.key)){
     const c=(typeof bjCodeOf==='function')?bjCodeOf(row):null;
     if(!c)return null;
     const o=bjOfficiel(row,c);
-    return {label:o.label,color:BENIN_JEU_COLORS[c]||'888888'};
+    return {label:o.label,color:BENIN_JEU_COLORS[c]||'888888',icon:'🇧🇯'};
   }
   if(GAME.key==='cm_tout'){
     const c=cmCodeOf(row);
     if(!c)return null;
-    return {label:CAMEROUN_JEU_LABELS[c]||c,color:CAMEROUN_JEU_COLORS[c]||'888888'};
+    return {label:CAMEROUN_JEU_LABELS[c]||c,color:CAMEROUN_JEU_COLORS[c]||'888888',icon:'🇨🇲'};
   }
   if(GAME.key==='togo_tout'){
     const c=tgCodeOf(row);
     if(!c)return null;
-    return {label:TOGO_JEU_LABELS[c]||c,color:TOGO_JEU_COLORS[c]||'888888'};
+    return {label:TOGO_JEU_LABELS[c]||c,color:TOGO_JEU_COLORS[c]||'888888',icon:'🇹🇬'};
   }
   if(CUSTOM_BADGE_MAP[GAME.key]){
     const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
     if(!info)return null;
-    return {label:info.label||info.code||'',color:info.color||'888888'};
+    return {label:info.label||info.code||'',color:info.color||'888888',icon:info.icon||null};
   }
   return null;
 }
@@ -8102,7 +8103,7 @@ async function exportColoredExcel(){
           const jeuCell=row.getCell(startCol+2);
           const info=multiBadgeInfo(r);
           if(info){
-            jeuCell.value=info.label;
+            jeuCell.value=(info.icon?info.icon+' ':'')+info.label;
             if(includeColors){
               jeuCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(info.color)}};
               jeuCell.font={color:{argb:hexToARGB(isLightBg(info.color)?'000000':'FFFFFF')},bold:true};

@@ -750,7 +750,14 @@ function openFiltreAsGame(rows,opts){
     return parts.join('|');
   });
   const key=opts.key;
-  GAMES[key]={name:opts.name+' ('+filtered.length+' tirages)',icon:opts.icon,raw:lines.join('\n'),hasM:filtered.some(r=>r[bonusField]),sum10:true,n6:mainLen===6};
+  // opts.reopenFn (nom de la fonction globale qui a produit ce jeu, ex: 'openBeninFiltreAsGame') est
+  // mémorisé pour permettre un rafraîchissement en un clic : ce jeu "ouvert comme un jeu" est un
+  // INSTANTANÉ figé au moment du clic (lines.join ci-dessus) — si de nouvelles données sont ajoutées
+  // ensuite aux tables sources (ex: un nouveau tirage Star Mercredi), ce jeu virtuel ne les voit PAS
+  // automatiquement tant qu'il n'est pas rouvert. Signalé le 23/09/2026 ("star du mercredi pas à jour",
+  // "même ds multipays") : l'utilisateur avait ouvert ces filtres AVANT que je n'ajoute les derniers
+  // tirages, donc son instantané était resté figé sur l'ancien état.
+  GAMES[key]={name:opts.name+' ('+filtered.length+' tirages)',icon:opts.icon,raw:lines.join('\n'),hasM:filtered.some(r=>r[bonusField]),sum10:true,n6:mainLen===6,_reopenFn:opts.reopenFn||null};
   // Badge "jeu d'origine" par tirage : row.jeuLabel/jeuColor (déjà présent sur les lignes Multi-Pays)
   // sinon on retombe sur opts.labelMap/opts.colorMap + row.jeu (fourni par chaque panneau pays), et
   // à défaut sur row.jeuKey (format "pays:jeu") pour en extraire un code court.
@@ -792,7 +799,7 @@ function openFiltreAsGame(rows,opts){
 function openBeninFiltreAsGame(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)
     &&state.beninHeures.includes(BENIN_HEURE[r.jeu])&&state.beninFamilles.includes(BENIN_FAMILLE[r.jeu[0]])&&dateRangeKeep(r,state.beninDateRange));
-  openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m',labelMap:BENIN_JEU_LABELS,colorMap:BENIN_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'BÉNIN (filtré)',icon:'🇧🇯',key:'benin_custom',closeFlag:'beninFiltreOpen',bonusField:'m',labelMap:BENIN_JEU_LABELS,colorMap:BENIN_JEU_COLORS,reopenFn:'openBeninFiltreAsGame'});
 }
 function beninFiltreHTML(){
   if(!state.beninHeures)state.beninHeures=[...BENIN_HEURE_ORDER];
@@ -957,7 +964,7 @@ function toggleGhAlphaJeu(code){
 }
 function openGhAlphaFiltreAsGame(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghAlphaDateRange));
-  openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'GH ALPHALOTTO FAMILY (filtré)',icon:'🇬🇭',key:'ghalpha_custom',closeFlag:'ghAlphaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS,reopenFn:'openGhAlphaFiltreAsGame'});
 }
 function ghAlphaFiltreHTML(){
   const rows=parseGhAlphaAll().filter(r=>state.ghAlphaJours.includes(r.jour)&&state.ghAlphaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghAlphaDateRange));
@@ -1069,7 +1076,7 @@ function toggleNigeriaJeu(code){
 }
 function openNigeriaFiltreAsGame(){
   const rows=parseNigeriaAll().filter(r=>state.nigeriaJours.includes(r.jour)&&state.nigeriaJeux.includes(r.jeu)&&dateRangeKeep(r,state.nigeriaDateRange));
-  openFiltreAsGame(rows,{name:'NIGERIA (filtré)',icon:'🇳🇬',key:'nigeria_custom',closeFlag:'nigeriaFiltreOpen',bonusField:'m',labelMap:NIGERIA_JEU_LABELS,colorMap:NIGERIA_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'NIGERIA (filtré)',icon:'🇳🇬',key:'nigeria_custom',closeFlag:'nigeriaFiltreOpen',bonusField:'m',labelMap:NIGERIA_JEU_LABELS,colorMap:NIGERIA_JEU_COLORS,reopenFn:'openNigeriaFiltreAsGame'});
 }
 function nigeriaFiltreHTML(){
   const rows=parseNigeriaAll().filter(r=>state.nigeriaJours.includes(r.jour)&&state.nigeriaJeux.includes(r.jeu)&&dateRangeKeep(r,state.nigeriaDateRange));
@@ -1154,7 +1161,7 @@ function toggleGhanaJeu(code){
 }
 function openGhanaFiltreAsGame(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghanaDateRange));
-  openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'GHANA (filtré)',icon:'🇬🇭',key:'ghana_custom',closeFlag:'ghanaFiltreOpen',bonusField:'m',labelMap:GHANA_JEU_LABELS,colorMap:GHANA_JEU_COLORS,reopenFn:'openGhanaFiltreAsGame'});
 }
 function ghanaFiltreHTML(){
   const rows=parseGhanaAll().filter(r=>state.ghanaJours.includes(r.jour)&&state.ghanaJeux.includes(r.jeu)&&dateRangeKeep(r,state.ghanaDateRange));
@@ -1251,7 +1258,7 @@ function toggleCamerounJeu(code){
 }
 function openCamerounFiltreAsGame(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu)&&dateRangeKeep(r,state.camerounDateRange));
-  openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m',labelMap:CAMEROUN_JEU_LABELS,colorMap:CAMEROUN_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'CAMEROUN (filtré)',icon:'🇨🇲',key:'cameroun_custom',closeFlag:'camerounFiltreOpen',bonusField:'m',labelMap:CAMEROUN_JEU_LABELS,colorMap:CAMEROUN_JEU_COLORS,reopenFn:'openCamerounFiltreAsGame'});
 }
 function camerounFiltreHTML(){
   const rows=parseCamerounAll().filter(r=>state.camerounJours.includes(r.jour)&&state.camerounJeux.includes(r.jeu)&&dateRangeKeep(r,state.camerounDateRange));
@@ -1881,7 +1888,7 @@ function toggleTogoJeu(code){
 }
 function openTogoFiltreAsGame(){
   const rows=parseTogoAll().filter(r=>state.togoJours.includes(r.jour)&&state.togoJeux.includes(r.jeu)&&dateRangeKeep(r,state.togoDateRange));
-  openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus',labelMap:TOGO_JEU_LABELS,colorMap:TOGO_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'TOGO (filtré)',icon:'🇹🇬',key:'togo_custom',closeFlag:'togoFiltreOpen',bonusField:'bonus',labelMap:TOGO_JEU_LABELS,colorMap:TOGO_JEU_COLORS,reopenFn:'openTogoFiltreAsGame'});
 }
 // ══════ TOUT TOGO — jeu combiné (12 jeux hebdo fusionnés chronologiquement) ══════
 let TOGO_TOUT_RAW=null;
@@ -2293,7 +2300,7 @@ function toggleCIJeu(code){
 }
 function openCIFiltreAsGame(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu)&&dateRangeKeep(r,state.ciDateRange));
-  openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus',labelMap:CI_JEU_LABELS,colorMap:CI_JEU_COLORS});
+  openFiltreAsGame(rows,{name:"CÔTE D'IVOIRE (filtré)",icon:'🇨🇮',key:'ci_custom',closeFlag:'ciFiltreOpen',bonusField:'bonus',labelMap:CI_JEU_LABELS,colorMap:CI_JEU_COLORS,reopenFn:'openCIFiltreAsGame'});
 }
 function ciFiltreHTML(){
   const rows=parseCIAll().filter(r=>state.ciJours.includes(r.jour)&&state.ciJeux.includes(r.jeu)&&dateRangeKeep(r,state.ciDateRange));
@@ -2417,7 +2424,7 @@ function toggleITJeu(code){
 }
 function openITFiltreAsGame(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
-  openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus',labelMap:IT_JEU_LABELS,colorMap:IT_JEU_COLORS});
+  openFiltreAsGame(rows,{name:'ITALIE (filtré)',icon:'🇮🇹',key:'it_custom',closeFlag:'itFiltreOpen',bonusField:'bonus',labelMap:IT_JEU_LABELS,colorMap:IT_JEU_COLORS,reopenFn:'openITFiltreAsGame'});
 }
 function itFiltreHTML(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
@@ -3381,7 +3388,7 @@ function multiFilteredRows(){
 }
 function openMultiFiltreAsGame(){
   const rows=multiFilteredRows();
-  openFiltreAsGame(rows,{name:'MULTI-PAYS (filtré)',icon:'🌍',key:'multi_custom',closeFlag:'multiFiltreOpen',bonusField:'bonus'});
+  openFiltreAsGame(rows,{name:'MULTI-PAYS (filtré)',icon:'🌍',key:'multi_custom',closeFlag:'multiFiltreOpen',bonusField:'bonus',reopenFn:'openMultiFiltreAsGame'});
 }
 function multiFiltreHTML(){
   const rows=multiFilteredRows();
@@ -11580,6 +11587,16 @@ function fabHTML(){
     h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>🔀 Jeu virtuel (Conversion) — numéros convertis, pas les tirages officiels</span>
       <button onclick="returnFromConvVirtual()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#7E22CE;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">↩ Retour à Conversion</button>
+    </div>`;
+  }
+  // "Ouvrir comme un jeu" (Bénin/Ghana/Togo/Cameroun/CI/Italie/Nigeria/GH Alpha/Multi-Pays filtrés) crée
+  // un INSTANTANÉ figé des tirages au moment du clic — si de nouveaux tirages sont ajoutés aux tables
+  // sources ensuite, ce jeu ne les affiche pas tant qu'il n'est pas rouvert. Bouton de rafraîchissement
+  // en un clic pour éviter d'avoir à retourner dans le filtre d'origine et recocher les mêmes options.
+  if(GAMES[GAME.key]&&GAMES[GAME.key]._reopenFn){
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+      <span>📸 Jeu "ouvert comme un jeu" — instantané figé au moment de l'ouverture, pas mis à jour automatiquement</span>
+      <button onclick="window['${GAMES[GAME.key]._reopenFn}']()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#0E7490;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">🔄 Rafraîchir (derniers tirages)</button>
     </div>`;
   }
   if(state.showSettings)h+=settingsHTML();

@@ -6581,8 +6581,10 @@ function classifTableHTML(){
   // l'utilisateur fait ailleurs dans l'app (coloriage, navigation...), ne capte les clics que
   // sur lui-même, et peut être réduit sans se fermer complètement.
   if(state.classifTableMin){
-    return`<div onclick="state.classifTableMin=false;render()" style="position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:997;background:#6A1B9A;color:#fff;padding:8px 12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px">
-      🧬 Classification <span onclick="event.stopPropagation();state.showClassifTable=false;state.classifTableMin=false;render()" style="opacity:.8">✕</span>
+    return`<div style="position:fixed;right:12px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:997;background:#6A1B9A;color:#fff;padding:8px 10px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,.35);display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700">
+      <span onclick="state.classifTableMin=false;render()" style="cursor:pointer">🧬 Classification</span>
+      <span onclick="exportClassifTable()" title="Exporter en Excel" style="cursor:pointer;background:#2E7D32;padding:3px 7px;border-radius:8px;font-size:12px">⬇</span>
+      <span onclick="state.showClassifTable=false;state.classifTableMin=false;render()" style="cursor:pointer;opacity:.8">✕</span>
     </div>`;
   }
   return`<div style="position:fixed;right:10px;bottom:calc(78px + env(safe-area-inset-bottom));z-index:997;background:#fff;border-radius:16px;padding:12px;width:360px;max-width:92vw;max-height:60vh;overflow-y:auto;box-shadow:0 10px 34px rgba(0,0,0,.4);border:1.5px solid #6A1B9A">
@@ -11473,6 +11475,7 @@ function fabGo(action){
   else if(action==='settings'){state.showSettings=true;}
   else if(action==='journal'){state.showJournal=true;}
   else if(action==='classif_table'){state.showClassifTable=true;}
+  else if(action==='classif_table_export'){exportClassifTable();return;}
   else if(action==='new_excel'){createBlankExcelNote();return;}
   render();
 }
@@ -11569,6 +11572,7 @@ function fabHTML(){
     ['past','📕','Consulter journaux (Pass)','#2563EB','#fff'],
     ['journal','📔','Carnet de suivi (jour par jour)','#7C3AED','#fff'],
     ['classif_table','🧬','Tableau de classification (1-90, tous les éléments)','#6A1B9A','#fff'],
+    ['classif_table_export','⬇🧬','Exporter le tableau de classification en Excel (direct)','#2E7D32','#fff'],
     ['new_excel','📊','Nouveau tableau Excel (bloc-notes vierge à remplir)','#16A34A','#fff'],
     ['settings','⚙️','Réglages','#64748B','#fff'],
   ];

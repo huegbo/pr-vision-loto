@@ -1163,6 +1163,30 @@ function exportNigeriaFiltre(){
   ];
   exportCountryFiltre(rows,columns,'Nigeria_filtre','Nigeria','export-nigeria-btn');
 }
+// ══════ NIGER (LONANI) — intégration Multi-Pays, 7 jeux ══════
+const NIGER_JEU_LABELS={ne_arziki:'NE ARZIKI',ne_soudji:'NE SOUDJI',ne_mamaki:'NE MAMAKI',ne_gomni:'NE GOMNI',ne_irma_sabou:'NE IRMA SABOU',ne_faraha:'NE FARAHA',ne_guimbia:'NE GUIMBIA'};
+const NIGER_JEU_ORDER=['ne_arziki','ne_soudji','ne_mamaki','ne_gomni','ne_irma_sabou','ne_faraha','ne_guimbia'];
+const NIGER_JEU_COLORS={ne_arziki:'D97706',ne_soudji:'0891B2',ne_mamaki:'7C3AED',ne_gomni:'DC2626',ne_irma_sabou:'059669',ne_faraha:'BE123C',ne_guimbia:'475569'};
+// Aucun code jour stocké dans ces RAW_NE_* (5 numéros gagnants seulement, pas de numéros machine) —
+// jour déduit dynamiquement de la date, même principe que parseNigeriaAll() (réutilise NG_DOW_CODE).
+let NIGER_ALL_ROWS=null;
+function parseNigerAll(){
+  if(NIGER_ALL_ROWS) return NIGER_ALL_ROWS;
+  const rows=[];
+  NIGER_JEU_ORDER.forEach(key=>{
+    GAMES[key].raw.trim().split('\n').forEach(line=>{
+      const p=line.split('|');
+      const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
+      const [dd,mm]=p[1].split('/').map(Number);
+      const jour=NG_DOW_CODE[new Date(+p[2],mm-1,dd).getDay()];
+      rows.push({jour,jeu:key,d:p[1],y:p[2],n,m:null});
+    });
+  });
+  const sortKeyOf=(d,y)=>{const[dd,mm]=d.split('/').map(Number);return(+y)*10000+mm*100+dd;};
+  rows.sort((a,b)=>sortKeyOf(b.d,b.y)-sortKeyOf(a.d,a.y));
+  NIGER_ALL_ROWS=rows;
+  return NIGER_ALL_ROWS;
+}
 function toggleGhanaJour(code){
   const i=state.ghanaJours.indexOf(code);
   if(i>=0)state.ghanaJours.splice(i,1);else state.ghanaJours.push(code);
@@ -2571,9 +2595,9 @@ function parseBFAll(){
   });
   return BF_ALL_ROWS;
 }
-const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','ghalpha','italie','nigeria','burkina'];
-const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',ghalpha:'🇬🇭 GH ALPHALOTTO FAMILY',italie:'🇮🇹 Italie',nigeria:'🇳🇬 Nigeria',burkina:'🇧🇫 Burkina Faso'};
-const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',ghalpha:'4C1D95',italie:'006341',nigeria:'008751',burkina:'CE1126'};
+const MULTI_PAYS_ORDER=['benin','togo','cameroun','cotedivoire','ghana','ghalpha','italie','nigeria','niger','burkina'];
+const MULTI_PAYS_LABELS={benin:'🇧🇯 Bénin',togo:'🇹🇬 Togo',cameroun:'🇨🇲 Cameroun',cotedivoire:"🇨🇮 Côte d'Ivoire",ghana:'🇬🇭 Ghana',ghalpha:'🇬🇭 GH ALPHALOTTO FAMILY',italie:'🇮🇹 Italie',nigeria:'🇳🇬 Nigeria',niger:'🇳🇪 Niger',burkina:'🇧🇫 Burkina Faso'};
+const MULTI_PAYS_COLORS={benin:'1D4E89',togo:'92400E',cameroun:'2E7D32',cotedivoire:'C2410C',ghana:'0B2A1E',ghalpha:'4C1D95',italie:'006341',nigeria:'008751',niger:'D97706',burkina:'CE1126'};
 const MULTI_JOUR_ORDER=TOGO_JOUR_ORDER; // déjà Lundi..Dimanche, commun aux 4 pays via les labels normalisés
 const MULTI_JEU_OPTIONS=[
   ...BENIN_JEU_ORDER.map(k=>({key:'benin:'+k,label:'🇧🇯 '+BENIN_JEU_LABELS[k],color:BENIN_JEU_COLORS[k]})),
@@ -2584,6 +2608,7 @@ const MULTI_JEU_OPTIONS=[
   ...GH_ALPHA_JEU_ORDER.map(k=>({key:'ghalpha:'+k,label:'🇬🇭 '+GHANA_JEU_LABELS[k],color:GHANA_JEU_COLORS[k]})),
   ...IT_GAMES.map(g=>({key:'italie:'+g.key,label:'🇮🇹 '+IT_JEU_LABELS[g.key],color:IT_JEU_COLORS[g.key]})),
   ...NIGERIA_JEU_ORDER.map(k=>({key:'nigeria:'+k,label:'🇳🇬 '+NIGERIA_JEU_LABELS[k],color:NIGERIA_JEU_COLORS[k]})),
+  ...NIGER_JEU_ORDER.map(k=>({key:'niger:'+k,label:'🇳🇪 '+NIGER_JEU_LABELS[k],color:NIGER_JEU_COLORS[k]})),
   ...BF_GAMES.map(g=>({key:'burkina:'+g.key,label:'🇧🇫 '+BF_JEU_LABELS[g.key],color:BF_JEU_COLORS[g.key]})),
 ];
 const MULTI_JEU_ORDER=MULTI_JEU_OPTIONS.map(o=>o.key);
@@ -2602,6 +2627,7 @@ function multiHeureNum(pays,jeuRawKey){
   if(pays==='ghalpha')return -1; // pas d'heure de tirage connue (jour uniquement)
   if(pays==='italie')return -1; // pas d'heure de tirage connue dans les données Italie (jour uniquement)
   if(pays==='nigeria')return -1; // pas d'heure de tirage connue dans les données Nigeria (jour uniquement)
+  if(pays==='niger')return -1; // pas d'heure de tirage connue dans les données Niger (jour uniquement)
   if(pays==='burkina')return -1; // pas d'heure de tirage connue dans les données Burkina Faso (jour uniquement)
   return -1;
 }
@@ -2645,6 +2671,11 @@ function parseMultiPaysAll(){
     rows.push({pays:'nigeria',jourLabel:GHANA_JOUR_LABELS[r.jour],
       jeuKey:'nigeria:'+r.jeu,jeuLabel:MULTI_JEU_MAP['nigeria:'+r.jeu]?MULTI_JEU_MAP['nigeria:'+r.jeu].label:r.jeu,jeuColor:NIGERIA_JEU_COLORS[r.jeu],
       d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('nigeria',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
+  });
+  parseNigerAll().forEach(r=>{
+    rows.push({pays:'niger',jourLabel:GHANA_JOUR_LABELS[r.jour],
+      jeuKey:'niger:'+r.jeu,jeuLabel:MULTI_JEU_MAP['niger:'+r.jeu]?MULTI_JEU_MAP['niger:'+r.jeu].label:r.jeu,jeuColor:NIGER_JEU_COLORS[r.jeu],
+      d:r.d,y:r.y,sortKey:sortKeyOf(r.d,r.y),heureNum:multiHeureNum('niger',r.jeu),n:r.n,s:r.n.reduce((a,b)=>a+b,0),bonus:r.m});
   });
   parseBFAll().forEach(r=>{
     rows.push({pays:'burkina',jourLabel:r.jour,

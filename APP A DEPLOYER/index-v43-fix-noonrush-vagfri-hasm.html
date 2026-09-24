@@ -669,7 +669,7 @@ const BENIN_JEU_ORDER=['D00','D08','D20','F11','F14','F18','S11','S14','S18'];
 const BENIN_JEU_COLORS={D00:'0E7C7B',D08:'0D9488',D20:'17A398',F11:'1D4E89',F14:'2C6FB0',F18:'4A90D9',S11:'6D28D9',S14:'8B5CF6',S18:'A78BFA'};
 function parseBeninAll(){
   if(BENIN_ALL_ROWS) return BENIN_ALL_ROWS;
-  BENIN_ALL_ROWS=RAW_BENIN_ALL.trim().split('\n').map(line=>{
+  BENIN_ALL_ROWS=RAW_BENIN_ALL.trim().split('\n').filter(line=>line.trim()).map(line=>{
     const p=line.split('|');
     const n=[+p[4],+p[5],+p[6],+p[7],+p[8]];
     const s=p[9]===''?null:+p[9];
@@ -910,7 +910,7 @@ const GHANA_ALPHA_FAMILY_JOUR={precise:'SU',alpha:'MO',delta:'TU',omega:'WE',exc
 let GHANA_ALL_ROWS=null;
 function parseGhanaAll(){
   if(GHANA_ALL_ROWS) return GHANA_ALL_ROWS;
-  const rows=RAW_GHANA_ALL.trim().split('\n').map(line=>{
+  const rows=RAW_GHANA_ALL.trim().split('\n').filter(line=>line.trim()).map(line=>{
     const p=line.split('|');
     const n=[+p[4],+p[5],+p[6],+p[7],+p[8]];
     const mRaw=[p[9],p[10],p[11],p[12],p[13]];
@@ -1065,6 +1065,7 @@ function parseNigeriaAll(){
   const rows=[];
   NIGERIA_JEU_ORDER.forEach(key=>{
     GAMES[key].raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
       const p=line.split('|');
       const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
       const m=(p.length>=14)?[+p[9],+p[10],+p[11],+p[12],+p[13]]:null;
@@ -1175,6 +1176,7 @@ function parseNigerAll(){
   const rows=[];
   NIGER_JEU_ORDER.forEach(key=>{
     GAMES[key].raw.trim().split('\n').forEach(line=>{
+      if(!line.trim())return;
       const p=line.split('|');
       const n=[+p[3],+p[4],+p[5],+p[6],+p[7]];
       const [dd,mm]=p[1].split('/').map(Number);
@@ -1264,7 +1266,7 @@ const CAMEROUN_JEU_COLORS={MOUNGO:'0E7C7B',WOURI:'17A398',MFOUNDI:'2DC6B0',LOGON
 let CAMEROUN_ALL_ROWS=null;
 function parseCamerounAll(){
   if(CAMEROUN_ALL_ROWS) return CAMEROUN_ALL_ROWS;
-  CAMEROUN_ALL_ROWS=RAW_CAMEROUN_ALL.trim().split('\n').map(line=>{
+  CAMEROUN_ALL_ROWS=RAW_CAMEROUN_ALL.trim().split('\n').filter(line=>line.trim()).map(line=>{
     const p=line.split('|');
     const n=[+p[4],+p[5],+p[6],+p[7],+p[8]];
     const mRaw=[p[9],p[10],p[11],p[12],p[13]];

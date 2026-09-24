@@ -786,7 +786,8 @@ function openFiltreAsGame(rows,opts){
       const label=r.jeuLabel||(opts.labelMap&&rawCode?opts.labelMap[rawCode]:null)||rawCode;
       const color=r.jeuColor||(opts.colorMap&&rawCode?opts.colorMap[rawCode]:null);
       const icon=r.jeuIcon||(r.pays&&MULTI_PAYS_LABELS[r.pays]?MULTI_PAYS_LABELS[r.pays].split(' ')[0]:null)||opts.icon||null;
-      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888',icon};
+      const jour=r.jourLabel||r.jour||null;
+      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888',icon,jour};
     });
     CUSTOM_BADGE_MAP[key]=badgeMap;
   }
@@ -2063,7 +2064,12 @@ function multiBadgeHTML(row,fS){
     const col=info.color||'888888';
     const code=(info.code||info.label||'').replace(/[^\p{L}\p{N}]/gu,'').toUpperCase().slice(0,3)||'?';
     const flag=info.icon?`<span style="font-size:${Math.max(7,fS-3)}px;margin-right:1px;vertical-align:middle" title="${info.label}">${info.icon}</span>`:'';
-    return `${flag}<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${info.label}">${code}</span>`;
+    // Badge "Jour" (ex: SAM pour Samedi) — demandé le 24/09/2026 ("ouvrir comme un jeu ajouter le
+    // jour") : les jeux virtuels créés par "📂 Ouvrir comme un jeu" (notamment Multi-Pays filtré, qui
+    // mélange plusieurs jours/pays sur une même chronologie) affichaient déjà le badge "jeu d'origine"
+    // mais pas le jour du tirage — ajouté ici en petit badge gris avant le badge coloré du jeu.
+    const jourBadge=info.jour?`<span style="background:#E2E8F0;color:#374151;border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="Jour du tirage : ${info.jour}">${String(info.jour).replace(/[^\p{L}\p{N}]/gu,'').toUpperCase().slice(0,3)}</span>`:'';
+    return `${jourBadge}${flag}<span style="background:#${col};color:${isLightBg(col)?'#000':'#fff'};border-radius:2px;padding:0 1px;font-size:${Math.max(6,fS-4)}px;font-weight:700;margin-right:1px" title="${info.label}">${code}</span>`;
   }
   return '';
 }
@@ -2093,7 +2099,7 @@ function multiBadgeInfo(row){
   if(CUSTOM_BADGE_MAP[GAME.key]){
     const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
     if(!info)return null;
-    return {label:info.label||info.code||'',color:info.color||'888888',icon:info.icon||null};
+    return {label:info.label||info.code||'',color:info.color||'888888',icon:info.icon||null,jour:info.jour||null};
   }
   return null;
 }
@@ -8371,7 +8377,7 @@ async function exportColoredExcel(){
           const jeuCell=row.getCell(startCol+2);
           const info=multiBadgeInfo(r);
           if(info){
-            jeuCell.value=(info.icon?info.icon+' ':'')+info.label;
+            jeuCell.value=(info.icon?info.icon+' ':'')+(info.jour?info.jour+' · ':'')+info.label;
             if(includeColors){
               jeuCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(info.color)}};
               jeuCell.font={color:{argb:hexToARGB(isLightBg(info.color)?'000000':'FFFFFF')},bold:true};

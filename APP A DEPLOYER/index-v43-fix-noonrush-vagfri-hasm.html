@@ -6932,24 +6932,71 @@ function searchNumFromMenu(n,cid,mode){
   render();
 }
 // Recherche par SOMME : trouve les tirages où N numéros (2 à 5) parmi les 5 additionnent à la somme
-function doTotalSearch(){
-  const v=document.getElementById('tsi');
-  const t=parseInt(v?v.value:state.totalSearch);
-  if(isNaN(t)){state.totalMatches=[];render();return;}
-  state.totalSearch=String(t);
-  const k=state.totalK||5; // nombre de numéros
+function totalMatchesFor(rows,t,k){
   const matches=[];
-  // combinaisons de k indices parmi 5
   const combos=kCombos(5,k);
-  T.forEach(r=>{
+  rows.forEach(r=>{
     for(const c of combos){
       const sum=c.reduce((a,i)=>a+r.n[i],0);
       if(sum===t){matches.push({t:r.t,d:r.d,y:r.y,nums:c.map(i=>r.n[i]),row:r});break;}
     }
   });
-  state.totalMatches=matches;
-  saveHist({type:'total',game:GAME.key,gameName:GAME.name,val:t,k});
+  return matches;
+}
+function doTotalSearch(){
+  const v=document.getElementById('tsi');
+  const t=parseInt(v?v.value:state.totalSearch);
+  if(isNaN(t)){state.totalMatches=[];state.totalMultiRes=null;render();return;}
+  state.totalSearch=String(t);
+  const k=state.totalK||5; // nombre de numéros
+  if(state.totalMulti&&state.totalMultiGames&&state.totalMultiGames.length){
+    const savedKey=GAME.key,results=[];
+    for(const gk of state.totalMultiGames){
+      if(!GAMES[gk])continue;
+      loadGame(gk);
+      const matches=totalMatchesFor(T,t,k);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:matches.length,matches});
+    }
+    loadGame(savedKey);
+    state.totalMultiRes={t,k,results};
+    state.totalMatches=[];
+    saveHist({type:'total',game:'multi',gameName:'Multi',val:t,k});
+  }else{
+    state.totalMatches=totalMatchesFor(T,t,k);
+    state.totalMultiRes=null;
+    saveHist({type:'total',game:GAME.key,gameName:GAME.name,val:t,k});
+  }
   render();
+}
+function toggleTotalMultiGame(k){
+  if(!state.totalMultiGames)state.totalMultiGames=[];
+  const i=state.totalMultiGames.indexOf(k);
+  if(i>=0)state.totalMultiGames.splice(i,1);else state.totalMultiGames.push(k);
+  render();
+}
+function totalMultiResultHTML(){
+  const mr=state.totalMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return`<div id="total-multi-res" style="margin-top:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#B45309">${total} tirage${total>1?'s':''} où ${mr.k} numéros = ${mr.t}, sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#FEF3C7':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#B45309">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#B45309':'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+        ${res.matches.slice(0,10).map(m=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+          <span style="font-weight:700;color:#B45309">N°${m.t}</span><span style="color:#888;font-size:8px">${m.d}/${m.y}</span>
+          ${m.row.n.map(n=>`<span style="font-weight:500;background:${m.nums.includes(n)?'#F59E0B':'transparent'};color:${m.nums.includes(n)?'#fff':'#333'};border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+        </div>`).join('')}
+        ${res.matches.length>10?`<div style="font-size:8px;color:#999">… et ${res.matches.length-10} autres</div>`:''}
+      </div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 // génère les combinaisons de k indices parmi n
 function kCombos(n,k){
@@ -7021,6 +7068,75 @@ function runHist(e){
   else render();
 }
 function clearHist(){state.searchHist=[];lsRemove('lmj_searchHist');render();}
+
+// ══════ Générique : "tout loto" réutilisable par n'importe quel module de recherche ══════
+// predicateBuilder() doit retourner une fonction (row)=>bool ; reconstruite pour chaque jeu
+// (au cas où le prédicat dépendrait d'un état qui se recalcule par jeu — sans effet de bord sinon).
+function multiGameFilter(gamesList,predicateBuilder){
+  const savedKey=GAME.key,results=[];
+  for(const gk of gamesList){
+    if(!GAMES[gk])continue;
+    loadGame(gk);
+    const pred=predicateBuilder();
+    const rows=T.filter(pred);
+    results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:rows.length,rows});
+  }
+  loadGame(savedKey);
+  return results;
+}
+function multiGameCompute(gamesList,computeFn){
+  const savedKey=GAME.key,results=[];
+  for(const gk of gamesList){
+    if(!GAMES[gk])continue;
+    loadGame(gk);
+    const rows=computeFn();
+    results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:rows.length,rows});
+  }
+  loadGame(savedKey);
+  return results;
+}
+function toggleGenericMultiGame(gamesKey,k){
+  if(!state[gamesKey])state[gamesKey]=[];
+  const i=state[gamesKey].indexOf(k);
+  if(i>=0)state[gamesKey].splice(i,1);else state[gamesKey].push(k);
+  render();
+}
+function genericMultiToggleHTML(flagKey,gamesKey,onToggleFn,color,bg){
+  return `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:${state[flagKey]?color:'#aaa'};margin:5px 0"><input type="checkbox" ${state[flagKey]?'checked':''} onchange="state.${flagKey}=this.checked;if(state.${flagKey}&&(!state.${gamesKey}||!state.${gamesKey}.length))state.${gamesKey}=Object.keys(GAMES);${onToggleFn}()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
+  ${state[flagKey]?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;padding:5px;background:${bg};border-radius:6px">
+    ${Object.entries(GAMES).map(([k,g])=>{const sel=(state[gamesKey]||[]).includes(k);return`<button onclick="toggleGenericMultiGame('${gamesKey}','${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?color:'#ccc'};background:${sel?color:'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+    <button onclick="state.${gamesKey}=Object.keys(GAMES);${onToggleFn}()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+    <button onclick="state.${gamesKey}=[];${onToggleFn}()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+  </div>`:''}`;
+}
+function simpleRowRenderer(color){
+  return r=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+    <span style="font-weight:700;color:${color}">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+    ${r.n.map(n=>`<span style="font-weight:500;background:#f5f5f5;color:#333;border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+    ${r.m?r.m.map(n=>`<span style="font-weight:500;background:#eef;color:#556;border-radius:3px;padding:0 3px">${n}</span>`).join(''):''}
+    <span style="font-weight:600;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
+  </div>`;};
+}
+function genericMultiResultHTML(mr,opts){
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return`<div style="margin-top:6px">
+    <div style="font-size:10px;font-weight:600;color:${opts.color};margin-bottom:4px">${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?opts.bgHit:'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:${opts.color}">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?opts.color:'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+        ${res.rows.slice(0,10).map(r=>opts.rowRenderer(r)).join('')}
+        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
+      </div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
+}
 
 // Recherche combinée : numéros ET/OU total sur la même ligne
 function doComboSearch(){
@@ -11124,7 +11240,13 @@ function dateSectionHTML(){
       <button onclick="doDateSearch()" style="padding:4px 12px;background:#0891B2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: <b>25/12</b> = tous les 25 décembre, toutes années · <b>/6</b> = tout le mois de juin · <b>25/12/2024</b> = date exacte</div>
-    ${dateResHTML()}
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#0891B2;margin:5px 0"><input type="checkbox" ${state.dateMulti?'checked':''} onchange="state.dateMulti=this.checked;if(state.dateMulti&&(!state.dateMultiGames||!state.dateMultiGames.length))state.dateMultiGames=Object.keys(GAMES);doDateSearch()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
+    ${state.dateMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;padding:5px;background:#E0F7FA;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.dateMultiGames||[]).includes(k);return`<button onclick="toggleDateMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#0891B2':'#ccc'};background:${sel?'#0891B2':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.dateMultiGames=Object.keys(GAMES);doDateSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.dateMultiGames=[];doDateSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:''}
+    ${state.dateMulti?dateMultiResultHTML():dateResHTML()}
   </div>`;
 }
 
@@ -11155,17 +11277,27 @@ function toggleCalOcc(o){
   if(i>=0)state.calOcc.splice(i,1);else state.calOcc.push(o);
   render();
 }
-function doCalSearch(){
-  if(!state.calJours.length||!state.calOcc.length){alert('Coche au moins un jour de semaine et une occurrence avant de chercher.');return;}
-  state.calMatches=T.filter(r=>{
+function calPredicateBuilder(){
+  return r=>{
     const[dd,mm]=r.d.split('/').map(Number);
     const yy=+r.y;
     const jour=CI_DAY_NAMES[new Date(yy,mm-1,dd).getDay()];
     if(!state.calJours.includes(jour))return false;
     const{occ,isLast}=calOccOfDay(dd,mm,yy);
     return state.calOcc.includes(occ)||(isLast&&state.calOcc.includes('last'));
-  });
-  saveHist({type:'cal',game:GAME.key,gameName:GAME.name,jours:state.calJours.slice(),occ:state.calOcc.slice()});
+  };
+}
+function doCalSearch(){
+  if(!state.calJours.length||!state.calOcc.length){alert('Coche au moins un jour de semaine et une occurrence avant de chercher.');return;}
+  if(state.calMulti&&state.calMultiGames&&state.calMultiGames.length){
+    state.calMultiRes={results:multiGameFilter(state.calMultiGames,calPredicateBuilder)};
+    state.calMatches=null;
+    saveHist({type:'cal',game:'multi',gameName:'Multi',jours:state.calJours.slice(),occ:state.calOcc.slice()});
+  }else{
+    state.calMatches=T.filter(calPredicateBuilder());
+    state.calMultiRes=null;
+    saveHist({type:'cal',game:GAME.key,gameName:GAME.name,jours:state.calJours.slice(),occ:state.calOcc.slice()});
+  }
   render();
 }
 function calSearchClear(){state.calMatches=null;render();}
@@ -11193,9 +11325,8 @@ function calResHTML(){
     </div></div>`;
 }
 function setCalNth(v){state.calNth=Math.max(1,parseInt(v)||1);render();}
-function doCalNthSearch(){
+function calNthCompute(){
   const n=state.calNth|0;
-  if(n<1){alert('Indique un rang valide (1, 2, 3...).');return;}
   const byMonth={};
   T.forEach(r=>{
     const[dd,mm]=r.d.split('/').map(Number);
@@ -11209,8 +11340,20 @@ function doCalNthSearch(){
     if(list[n-1])out.push(list[n-1]);
   });
   out.sort((a,b)=>b.t-a.t); // affichage le plus récent en premier, comme les autres modules
-  state.calNthMatches=out;
-  saveHist({type:'calNth',game:GAME.key,gameName:GAME.name,n});
+  return out;
+}
+function doCalNthSearch(){
+  const n=state.calNth|0;
+  if(n<1){alert('Indique un rang valide (1, 2, 3...).');return;}
+  if(state.calNthMulti&&state.calNthMultiGames&&state.calNthMultiGames.length){
+    state.calNthMultiRes={results:multiGameCompute(state.calNthMultiGames,calNthCompute)};
+    state.calNthMatches=null;
+    saveHist({type:'calNth',game:'multi',gameName:'Multi',n});
+  }else{
+    state.calNthMatches=calNthCompute();
+    state.calNthMultiRes=null;
+    saveHist({type:'calNth',game:GAME.key,gameName:GAME.name,n});
+  }
   render();
 }
 function calNthSearchClear(){state.calNthMatches=null;render();}
@@ -11258,7 +11401,8 @@ function calSectionHTML(){
       ${state.calMatches?`<button onclick="calSearchClear()" style="padding:4px 12px;background:#f5f5f5;color:#777;border:1px solid #ddd;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Effacer</button>`:''}
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: « début de mois » = coche 1er (et 2e si besoin) · « tous les lundis » = coche les 5 occurrences avec Lundi.</div>
-    ${calResHTML()}`:`
+    ${genericMultiToggleHTML('calMulti','calMultiGames','doCalSearch','#0891B2','#E0F7FA')}
+    ${state.calMulti?genericMultiResultHTML(state.calMultiRes,{color:'#0891B2',bgHit:'#E0F7FA',rowRenderer:simpleRowRenderer('#0891B2')}):calResHTML()}`:`
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
       <span style="font-size:9px;color:#777">Rang du tirage dans le mois :</span>
       <input type="number" min="1" value="${state.calNth}" oninput="setCalNth(this.value)" style="width:60px;padding:4px;border:1.5px solid #0891B2;border-radius:5px;font-size:12px;text-align:center">
@@ -11268,7 +11412,8 @@ function calSectionHTML(){
       ${state.calNthMatches?`<button onclick="calNthSearchClear()" style="padding:4px 12px;background:#f5f5f5;color:#777;border:1px solid #ddd;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Effacer</button>`:''}
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: 2 = le 2e tirage de chaque mois (dans l'ordre chronologique), peu importe le jour de semaine.</div>
-    ${calNthResHTML()}`}
+    ${genericMultiToggleHTML('calNthMulti','calNthMultiGames','doCalNthSearch','#0891B2','#E0F7FA')}
+    ${state.calNthMulti?genericMultiResultHTML(state.calNthMultiRes,{color:'#0891B2',bgHit:'#E0F7FA',rowRenderer:simpleRowRenderer('#0891B2')}):calNthResHTML()}`}
   </div>`;
 }
 function bankersSectionHTML(){
@@ -11285,7 +11430,8 @@ function bankersSectionHTML(){
       <span style="font-size:9px;color:#777">ligne(s) (1 = consécutives)</span>
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Écart 1 = tirages consécutifs (points 9-11). Écart plus grand = compare des lignes plus espacées (points 12-14), même colonne D1..D10.</div>
-    ${bankerResHTML()}
+    ${genericMultiToggleHTML('bankerMulti','bankerMultiGames','triggerBankerMulti','#B45309','#FEF3C7')}
+    ${state.bankerMulti?genericMultiResultHTML(state.bankerMultiRes,{color:'#B45309',bgHit:'#FFFBEB',rowRenderer:bankerPairRowRenderer()}):bankerResHTML()}
   </div>`;
 }
 
@@ -11313,7 +11459,8 @@ function totalNearSectionHTML(){
       <span style="font-size:9px;color:#777">ligne(s) ${state.totalNearDir==='before'?'avant':'après'}</span>
       <button onclick="doTotalNearSearch()" style="padding:4px 12px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-left:auto">Chercher</button>
     </div>
-    ${totalNearResHTML()}
+    ${genericMultiToggleHTML('totalNearMulti','totalNearMultiGames','doTotalNearSearch','#7C3AED','#EDE9FE')}
+    ${state.totalNearMulti?genericMultiResultHTML(state.totalNearMultiRes,{color:'#7C3AED',bgHit:'#EDE9FE',rowRenderer:totalNearRowRenderer()}):totalNearResHTML()}
   </div>`;
 }
 
@@ -11361,7 +11508,8 @@ function termSectionHTML(){
       </div>`).join('')}
     <button onclick="doTermSearch()" style="padding:4px 12px;background:#DB2777;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaison 7 = tout numéro finissant par 7 (7, 17, 27, 37...). 2, 3 ou 4 terminaisons = elles doivent toutes apparaître sur la même ligne (place "Toutes" = n'importe où, ou une place D1..D5 précise pour chacune).</div>
-    ${termResHTML()}
+    ${genericMultiToggleHTML('termMulti','termMultiGames','doTermSearch','#DB2777','#FCE7F3')}
+    ${state.termMulti?genericMultiResultHTML(state.termMultiRes,{color:'#DB2777',bgHit:'#FCE7F3',rowRenderer:simpleRowRenderer('#DB2777')}):termResHTML()}
   </div>`;
 }
 
@@ -11385,7 +11533,8 @@ function digSectionHTML(){
       </div>`).join('')}
     <button onclick="doDigSearch()" style="padding:4px 12px;background:#0891B2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: chiffre 4 = 4, 14, 24, 34, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 54, 64, 74, 84 (dizaine OU unité). Différent de "Terminaison" qui ne regarde que le dernier chiffre.</div>
-    ${digResHTML()}
+    ${genericMultiToggleHTML('digMulti','digMultiGames','doDigSearch','#0891B2','#CFFAFE')}
+    ${state.digMulti?genericMultiResultHTML(state.digMultiRes,{color:'#0891B2',bgHit:'#CFFAFE',rowRenderer:simpleRowRenderer('#0891B2')}):digResHTML()}
   </div>`;
 }
 
@@ -11400,7 +11549,13 @@ function sommeligneSectionHTML(){
       <span style="font-size:9px;color:#777">numéro(s)</span>
       <button onclick="doTotalSearch()" style="padding:4px 12px;background:#F59E0B;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Trouver</button>
     </div>
-    ${state.totalMatches.length?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;color:#B45309;font-weight:500">${state.totalMatches.length} tirage(s) où ${state.totalK} numéros = ${state.totalSearch}</span><button id="export-total-btn" onclick="exportTotalMatchesExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#B45309;margin:5px 0"><input type="checkbox" ${state.totalMulti?'checked':''} onchange="state.totalMulti=this.checked;if(state.totalMulti&&(!state.totalMultiGames||!state.totalMultiGames.length))state.totalMultiGames=Object.keys(GAMES);doTotalSearch()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
+    ${state.totalMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;padding:5px;background:#FEF3C7;border-radius:6px">
+      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.totalMultiGames||[]).includes(k);return`<button onclick="toggleTotalMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#B45309':'#ccc'};background:${sel?'#B45309':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+      <button onclick="state.totalMultiGames=Object.keys(GAMES);doTotalSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+      <button onclick="state.totalMultiGames=[];doTotalSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+    </div>`:''}
+    ${state.totalMulti?totalMultiResultHTML():(state.totalMatches.length?`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><span style="font-size:10px;color:#B45309;font-weight:500">${state.totalMatches.length} tirage(s) où ${state.totalK} numéros = ${state.totalSearch}</span><button id="export-total-btn" onclick="exportTotalMatchesExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
       <div style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto">
         ${state.totalMatches.slice(0,30).map(m=>{const tc=tC(m.row.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
           <span style="font-weight:700;color:#B45309">${GAME.name} ${m.t}</span><span style="color:#888;font-size:8px">${m.d}/${m.y}</span>
@@ -11408,7 +11563,7 @@ function sommeligneSectionHTML(){
           <span style="font-size:8px;color:#B45309">(${m.nums.join('+')}=${state.totalSearch})</span>
           <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">TOT ${m.row.s}</span>
         </div>`;}).join('')}
-      </div>${state.totalMatches.length>30?`<div style="font-size:8px;color:#999">… et ${state.totalMatches.length-30} autres</div>`:''}`:state.totalSearch?`<span style="font-size:10px;color:#999">aucun tirage trouvé</span>`:''}
+      </div>${state.totalMatches.length>30?`<div style="font-size:8px;color:#999">… et ${state.totalMatches.length-30} autres</div>`:''}`:state.totalSearch?`<span style="font-size:10px;color:#999">aucun tirage trouvé</span>`:'')}
   </div>`;
 }
 
@@ -12254,26 +12409,74 @@ function csvHeader(){return'Jeu;N° tirage;Date;Année;N1;N2;N3;N4;N5;TOTAL'+(GA
 // ══════ #4 — Tirages à un mois ou une date donnée ══════
 // Saisie "jj/mm" (tous les tirages de ce jour/mois, toutes années confondues)
 // ou "jj/mm/aaaa" (date exacte) ou "/mm" (tout le mois, tous les jours)
-function doDateSearch(){
-  const v=document.getElementById('dsi');
-  if(!v)return;
-  const val=v.value.trim();
-  state.dateInput=val;
-  if(!val){state.dateMatches=null;render();return;}
-  const parts=val.split('/').map(s=>s.trim());
-  const day=parts[0]?parseInt(parts[0]):null;
-  const month=parts[1]?parseInt(parts[1]):null;
-  const year=parts[2]?parts[2]:null;
-  if((parts[0]&&isNaN(day))||(parts[1]&&isNaN(month))){state.dateMatches=[];render();return;}
-  state.dateMatches=T.filter(r=>{
+function dateMatchesFor(rows,day,month,year){
+  return rows.filter(r=>{
     const[rd,rm]=r.d.split('/').map(x=>parseInt(x));
     if(day!=null&&rd!==day)return false;
     if(month!=null&&rm!==month)return false;
     if(year!=null&&String(r.y)!==String(year))return false;
     return true;
   });
-  saveHist({type:'date',game:GAME.key,gameName:GAME.name,val});
+}
+function doDateSearch(){
+  const v=document.getElementById('dsi');
+  const val=v?v.value.trim():(state.dateInput||'');
+  state.dateInput=val;
+  if(!val){state.dateMatches=null;state.dateMultiRes=null;render();return;}
+  const parts=val.split('/').map(s=>s.trim());
+  const day=parts[0]?parseInt(parts[0]):null;
+  const month=parts[1]?parseInt(parts[1]):null;
+  const year=parts[2]?parts[2]:null;
+  if((parts[0]&&isNaN(day))||(parts[1]&&isNaN(month))){state.dateMatches=[];state.dateMultiRes=null;render();return;}
+  if(state.dateMulti&&state.dateMultiGames&&state.dateMultiGames.length){
+    const savedKey=GAME.key,results=[];
+    for(const gk of state.dateMultiGames){
+      if(!GAMES[gk])continue;
+      loadGame(gk);
+      const rows=dateMatchesFor(T,day,month,year);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:rows.length,rows});
+    }
+    loadGame(savedKey);
+    state.dateMultiRes={val,results};
+    state.dateMatches=null;
+    saveHist({type:'date',game:'multi',gameName:'Multi',val});
+  }else{
+    state.dateMatches=dateMatchesFor(T,day,month,year);
+    state.dateMultiRes=null;
+    saveHist({type:'date',game:GAME.key,gameName:GAME.name,val});
+  }
   render();
+}
+function toggleDateMultiGame(k){
+  if(!state.dateMultiGames)state.dateMultiGames=[];
+  const i=state.dateMultiGames.indexOf(k);
+  if(i>=0)state.dateMultiGames.splice(i,1);else state.dateMultiGames.push(k);
+  render();
+}
+function dateMultiResultHTML(){
+  const mr=state.dateMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return`<div id="date-multi-res" style="margin-top:6px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0891B2">${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} pour "${mr.val}", sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#E0F7FA':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#0891B2">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#0891B2':'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+        ${res.rows.slice(0,10).map(r=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+          <span style="font-weight:700;color:#0891B2">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+          ${r.n.map(n=>`<span style="font-weight:500;background:#E0F2FE;color:#0369A1;border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+          <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
+        </div>`;}).join('')}
+        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
+      </div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 function exportDateSearch(){
   const rows=state.dateMatches;
@@ -12316,13 +12519,36 @@ function bankerAlignedPairs(k,gap){
 }
 function doBankerSearch(k){
   state.bankerK=k;
-  state.bankerMatches=bankerAlignedPairs(k,parseInt(state.bankerGap)||1);
-  saveHist({type:'bankers',game:GAME.key,gameName:GAME.name,k,gap:parseInt(state.bankerGap)||1});
+  if(state.bankerMulti&&state.bankerMultiGames&&state.bankerMultiGames.length){
+    state.bankerMultiRes={results:multiGameCompute(state.bankerMultiGames,()=>bankerAlignedPairs(k,parseInt(state.bankerGap)||1))};
+    state.bankerMatches=null;
+    saveHist({type:'bankers',game:'multi',gameName:'Multi',k,gap:parseInt(state.bankerGap)||1});
+  }else{
+    state.bankerMatches=bankerAlignedPairs(k,parseInt(state.bankerGap)||1);
+    state.bankerMultiRes=null;
+    saveHist({type:'bankers',game:GAME.key,gameName:GAME.name,k,gap:parseInt(state.bankerGap)||1});
+  }
   render();
+}
+function triggerBankerMulti(){doBankerSearch(state.bankerK||2);}
+function bankerPairRowRenderer(){
+  return({a,b,matches})=>{
+    const idxSet=new Set(matches.map(m=>m.idx));
+    const rowHtml=(r)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:9.5px">
+      <span style="font-weight:700;color:#B45309;width:44px">${r.t}</span><span style="color:#888;font-size:8px;width:56px">${r.d}/${r.y}</span>
+      ${r.n.map((n,ni)=>numSpan(n,{isSrc:idxSet.has(ni)})).join('')}
+      ${r.m?r.m.map((n,mi)=>numSpan(n,{isM:true,isSrc:idxSet.has(5+mi)})).join(''):''}
+    </div>`;
+    return`<div style="border:1px solid #FDE68A;background:#FFFBEB;border-radius:6px;padding:4px 6px;margin-bottom:3px">
+      ${rowHtml(a)}${rowHtml(b)}
+      <div style="font-size:8px;color:#92400E;margin-top:2px">📍 position(s) ${matches.map(m=>'D'+(m.idx+1)+'='+m.val).join(', ')}</div>
+    </div>`;
+  };
 }
 function updateBankerGap(v){
   state.bankerGap=v;
   if(state.bankerMatches)state.bankerMatches=bankerAlignedPairs(state.bankerK,parseInt(v)||1);
+  if(state.bankerMultiRes)state.bankerMultiRes={results:multiGameCompute(state.bankerMultiGames,()=>bankerAlignedPairs(state.bankerK,parseInt(v)||1))};
   render();
 }
 function exportBankerSearch(){
@@ -12361,18 +12587,8 @@ function bankerResHTML(){
 // Cherche les tirages dont K numéros font un total donné, ET où un numéro précis
 // apparaît dans l'une des N lignes juste avant (précédé) ou juste après (succédé).
 function setTotalNearDir(d){state.totalNearDir=d;render();}
-function doTotalNearSearch(){
-  const tv=document.getElementById('tns-tot'),nv=document.getElementById('tns-num'),lv=document.getElementById('tns-lines');
-  const tot=parseInt(tv?tv.value:state.totalNearTot);
-  const num=parseInt(nv?nv.value:state.totalNearNum);
-  const lines=Math.max(1,parseInt(lv?lv.value:state.totalNearLines)||1);
-  state.totalNearTot=isNaN(tot)?'':String(tot);
-  state.totalNearNum=isNaN(num)?'':String(num);
-  state.totalNearLines=lines;
-  if(isNaN(tot)||isNaN(num)){state.totalNearMatches=[];render();return;}
-  const k=state.totalNearK||5;
+function totalNearCompute(tot,num,lines,k,dir){
   const combos=kCombos(5,k);
-  const dir=state.totalNearDir;
   const matches=[];
   T.forEach((r,gi)=>{
     let sumOk=false;
@@ -12385,9 +12601,37 @@ function doTotalNearSearch(){
       if(nb.n.includes(num)||(nb.m&&nb.m.includes(num))){matches.push({row:r,neighbor:nb,offset:off});break;}
     }
   });
-  state.totalNearMatches=matches;
-  saveHist({type:'totalNear',game:GAME.key,gameName:GAME.name,tot,num,dir,lines,k});
+  return matches;
+}
+function doTotalNearSearch(){
+  const tv=document.getElementById('tns-tot'),nv=document.getElementById('tns-num'),lv=document.getElementById('tns-lines');
+  const tot=parseInt(tv?tv.value:state.totalNearTot);
+  const num=parseInt(nv?nv.value:state.totalNearNum);
+  const lines=Math.max(1,parseInt(lv?lv.value:state.totalNearLines)||1);
+  state.totalNearTot=isNaN(tot)?'':String(tot);
+  state.totalNearNum=isNaN(num)?'':String(num);
+  state.totalNearLines=lines;
+  if(isNaN(tot)||isNaN(num)){state.totalNearMatches=[];state.totalNearMultiRes=null;render();return;}
+  const k=state.totalNearK||5;
+  const dir=state.totalNearDir;
+  if(state.totalNearMulti&&state.totalNearMultiGames&&state.totalNearMultiGames.length){
+    state.totalNearMultiRes={results:multiGameCompute(state.totalNearMultiGames,()=>totalNearCompute(tot,num,lines,k,dir))};
+    state.totalNearMatches=[];
+    saveHist({type:'totalNear',game:'multi',gameName:'Multi',tot,num,dir,lines,k});
+  }else{
+    state.totalNearMatches=totalNearCompute(tot,num,lines,k,dir);
+    state.totalNearMultiRes=null;
+    saveHist({type:'totalNear',game:GAME.key,gameName:GAME.name,tot,num,dir,lines,k});
+  }
   render();
+}
+function totalNearRowRenderer(){
+  return({row:r,neighbor:nb,offset})=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+    <span style="font-weight:700;color:#7C3AED">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+    ${r.n.map(n=>`<span style="font-weight:500;background:#f5f5f5;color:#333;border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+    <span style="font-weight:600;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
+    <span style="font-size:8px;color:#7C3AED">→ voisin N°${nb.t} (${nb.d}/${nb.y}), décalage ${offset}</span>
+  </div>`;};
 }
 function exportTotalNearSearch(){
   const m=state.totalNearMatches;
@@ -12489,21 +12733,32 @@ function seqResHTML(){
 // Chaque terminaison peut être cherchée à une position précise (D1..D10) ou n'importe où sur la ligne.
 function setTermCount(n){state.termCount=n;render();}
 function setTermSlot(i,field,v){state.termSlots[i][field]=v;}
-function doTermSearch(){
+function termPredicateBuilder(){
   const slots=state.termSlots.slice(0,state.termCount).map(s=>({
     digit:(s.digit!==''&&!isNaN(parseInt(s.digit)))?parseInt(s.digit):null,
     pos:(s.pos!==''&&s.pos!=null)?parseInt(s.pos):null
   }));
-  if(!slots.length||slots.some(s=>s.digit===null)){state.termMatches=[];render();return;}
-  const rows=T.filter(row=>{
+  if(!slots.length||slots.some(s=>s.digit===null))return null;
+  return row=>{
     const all=row.n.concat(row.m||[]);
     return slots.every(s=>{
       if(s.pos!=null){const v=all[s.pos];return v!=null&&v%10===s.digit;}
       return all.some(v=>v%10===s.digit);
     });
-  });
-  state.termMatches=rows;
-  saveHist({type:'term',game:GAME.key,gameName:GAME.name,count:state.termCount,slots:JSON.parse(JSON.stringify(state.termSlots.slice(0,state.termCount)))});
+  };
+}
+function doTermSearch(){
+  const pred=termPredicateBuilder();
+  if(!pred){state.termMatches=[];state.termMultiRes=null;render();return;}
+  if(state.termMulti&&state.termMultiGames&&state.termMultiGames.length){
+    state.termMultiRes={results:multiGameFilter(state.termMultiGames,termPredicateBuilder)};
+    state.termMatches=[];
+    saveHist({type:'term',game:'multi',gameName:'Multi',count:state.termCount,slots:JSON.parse(JSON.stringify(state.termSlots.slice(0,state.termCount)))});
+  }else{
+    state.termMatches=T.filter(pred);
+    state.termMultiRes=null;
+    saveHist({type:'term',game:GAME.key,gameName:GAME.name,count:state.termCount,slots:JSON.parse(JSON.stringify(state.termSlots.slice(0,state.termCount)))});
+  }
   render();
 }
 function exportTermSearch(){
@@ -12542,22 +12797,33 @@ function numbersContainingDigit(d){
 }
 function setDigCount(n){state.digCount=n;render();}
 function setDigSlot(i,field,v){state.digSlots[i][field]=v;}
-function doDigSearch(){
+function digPredicateBuilder(){
   const slots=state.digSlots.slice(0,state.digCount).map(s=>({
     digit:(s.digit!==''&&!isNaN(parseInt(s.digit)))?parseInt(s.digit):null,
     pos:(s.pos!==''&&s.pos!=null)?parseInt(s.pos):null
   }));
-  if(!slots.length||slots.some(s=>s.digit===null)){state.digMatches=[];render();return;}
+  if(!slots.length||slots.some(s=>s.digit===null))return null;
   const sets=slots.map(s=>new Set(numbersContainingDigit(s.digit)));
-  const rows=T.filter(row=>{
+  return row=>{
     const all=row.n.concat(row.m||[]);
     return slots.every((s,si)=>{
       if(s.pos!=null){const v=all[s.pos];return v!=null&&sets[si].has(v);}
       return all.some(v=>sets[si].has(v));
     });
-  });
-  state.digMatches=rows;
-  saveHist({type:'dig',game:GAME.key,gameName:GAME.name,count:state.digCount,slots:JSON.parse(JSON.stringify(state.digSlots.slice(0,state.digCount)))});
+  };
+}
+function doDigSearch(){
+  const pred=digPredicateBuilder();
+  if(!pred){state.digMatches=[];state.digMultiRes=null;render();return;}
+  if(state.digMulti&&state.digMultiGames&&state.digMultiGames.length){
+    state.digMultiRes={results:multiGameFilter(state.digMultiGames,digPredicateBuilder)};
+    state.digMatches=[];
+    saveHist({type:'dig',game:'multi',gameName:'Multi',count:state.digCount,slots:JSON.parse(JSON.stringify(state.digSlots.slice(0,state.digCount)))});
+  }else{
+    state.digMatches=T.filter(pred);
+    state.digMultiRes=null;
+    saveHist({type:'dig',game:GAME.key,gameName:GAME.name,count:state.digCount,slots:JSON.parse(JSON.stringify(state.digSlots.slice(0,state.digCount)))});
+  }
   render();
 }
 function exportDigSearch(){
@@ -12856,12 +13122,7 @@ function cmp2CardHTML(){
   </div>`;
 }
 // ══════ Picking par Position — après l'apparition d'un numéro pivot, que sort-il à telle position ? ══════
-function doPosPicking(){
-  const pivot=parseInt(state.posPivot);
-  if(isNaN(pivot)){state.posResult=null;render();return;}
-  const pivotPos=state.posPivotPos!==''?parseInt(state.posPivotPos):null;
-  const targetPos=parseInt(state.posTargetPos);
-  const offset=Math.max(1,parseInt(state.posOffset)||1);
+function posPickingCompute(pivot,pivotPos,targetPos,offset){
   const occ=[];
   T.forEach((row,gi)=>{
     const all=row.n.concat(row.m||[]);
@@ -12876,9 +13137,44 @@ function doPosPicking(){
   const freq={};
   occ.forEach(o=>{freq[o.val]=(freq[o.val]||0)+1;});
   const freqList=Object.entries(freq).map(([val,count])=>({val:parseInt(val),count})).sort((a,b)=>b.count-a.count);
-  state.posResult={occ,freqList};
-  saveHist({type:'pos',game:GAME.key,gameName:GAME.name,pivot,pivotPos:state.posPivotPos,targetPos:state.posTargetPos,offset});
+  return{occ,freqList};
+}
+function doPosPicking(){
+  const pivot=parseInt(state.posPivot);
+  if(isNaN(pivot)){state.posResult=null;state.posMultiRes=null;render();return;}
+  const pivotPos=state.posPivotPos!==''?parseInt(state.posPivotPos):null;
+  const targetPos=parseInt(state.posTargetPos);
+  const offset=Math.max(1,parseInt(state.posOffset)||1);
+  if(state.posMulti&&state.posMultiGames&&state.posMultiGames.length){
+    const savedKey=GAME.key,results=[];
+    for(const gk of state.posMultiGames){
+      if(!GAMES[gk])continue;
+      loadGame(gk);
+      const res=posPickingCompute(pivot,pivotPos,targetPos,offset);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,res});
+    }
+    loadGame(savedKey);
+    state.posMultiRes=results;
+    state.posResult=null;
+    saveHist({type:'pos',game:'multi',gameName:'Multi',pivot,pivotPos:state.posPivotPos,targetPos:state.posTargetPos,offset});
+  }else{
+    state.posResult=posPickingCompute(pivot,pivotPos,targetPos,offset);
+    state.posMultiRes=null;
+    saveHist({type:'pos',game:GAME.key,gameName:GAME.name,pivot,pivotPos:state.posPivotPos,targetPos:state.posTargetPos,offset});
+  }
   render();
+}
+function posMultiResHTML(){
+  const results=state.posMultiRes;
+  if(!results)return'';
+  return`<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+    ${results.map(({gameName,icon,res})=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:5px 7px;background:${res.occ.length?'#FFF7ED':'#fafafa'}">
+      <div style="font-size:11px;font-weight:600;color:#EA580C;margin-bottom:3px">${icon} ${gameName} — ${res.occ.length} occurrence${res.occ.length>1?'s':''}</div>
+      ${res.occ.length?`<div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${res.freqList.slice(0,10).map(f=>`<div style="display:flex;align-items:center;gap:3px;background:#fff;border:1px solid #FDBA74;border-radius:12px;padding:1px 7px"><span style="font-size:10px;font-weight:600">${f.val}</span><span style="font-size:9px;font-weight:700;color:#9A3412">×${f.count}</span></div>`).join('')}
+      </div>`:''}
+    </div>`).join('')}
+  </div>`;
 }
 function exportPosPicking(){
   const res=state.posResult;
@@ -12933,17 +13229,17 @@ function posPickingCardHTML(){
     </div>
     <button onclick="doPosPicking()" style="padding:4px 12px;background:#EA580C;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: pivot=7 (n'importe où), position D3, 1 ligne après → montre quel numéro revient le plus souvent en D3 juste après une sortie du 7.</div>
-    ${posResHTML()}
+    ${genericMultiToggleHTML('posMulti','posMultiGames','doPosPicking','#EA580C','#FFEDD5')}
+    ${state.posMulti?posMultiResHTML():posResHTML()}
   </div>`;
 }
 // ══════ Compteur — additionne plusieurs tirages consécutifs pour dégager les numéros "chauds" ══════
-function doCompteur(){
-  const n=Math.max(2,parseInt(state.cptN)||5);
+function compteurCompute(n,ref){
   let rows;
-  if(state.cptRef!==''){
-    const ref=parseInt(state.cptRef);
-    const idx=T.findIndex(r=>r.t===ref);
-    if(idx<0){alert('Tirage de référence introuvable');return;}
+  if(ref!==''){
+    const refN=parseInt(ref);
+    const idx=T.findIndex(r=>r.t===refN);
+    if(idx<0)return null;
     rows=T.slice(idx,idx+n);
   }else{
     rows=T.slice(0,n);
@@ -12956,9 +13252,46 @@ function doCompteur(){
   });
   const grand=sumsByPos.reduce((a,b)=>a+b,0);
   const freqList=Object.entries(freq).map(([val,count])=>({val:parseInt(val),count})).sort((a,b)=>b.count-a.count||a.val-b.val);
-  state.cptResult={rows,sumsByPos,grand,freqList};
-  saveHist({type:'cpt',game:GAME.key,gameName:GAME.name,n,ref:state.cptRef});
+  return{rows,sumsByPos,grand,freqList};
+}
+function doCompteur(){
+  const n=Math.max(2,parseInt(state.cptN)||5);
+  if(state.cptMulti&&state.cptMultiGames&&state.cptMultiGames.length){
+    const savedKey=GAME.key,results=[];
+    for(const gk of state.cptMultiGames){
+      if(!GAMES[gk])continue;
+      loadGame(gk);
+      const res=compteurCompute(n,state.cptRef);
+      if(res)results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,res});
+    }
+    loadGame(savedKey);
+    state.cptMultiRes=results;
+    state.cptResult=null;
+    saveHist({type:'cpt',game:'multi',gameName:'Multi',n,ref:state.cptRef});
+  }else{
+    const res=compteurCompute(n,state.cptRef);
+    if(!res){alert('Tirage de référence introuvable');return;}
+    state.cptResult=res;
+    state.cptMultiRes=null;
+    saveHist({type:'cpt',game:GAME.key,gameName:GAME.name,n,ref:state.cptRef});
+  }
   render();
+}
+function cptMultiResHTML(){
+  const results=state.cptMultiRes;
+  if(!results)return'';
+  return`<div style="margin-top:6px;display:flex;flex-direction:column;gap:6px">
+    ${results.map(({gameName,icon,res})=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:5px 7px;background:#ECFDF5">
+      <div style="font-size:11px;font-weight:600;color:#065F46;margin-bottom:3px">${icon} ${gameName} — ${res.rows.length} tirages (T${res.rows[res.rows.length-1].t} à T${res.rows[0].t})</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px">
+        ${res.sumsByPos.map((s,i)=>`<div style="background:#fff;border:1px solid #6EE7B7;border-radius:6px;padding:2px 6px;font-size:9px"><b>D${i+1}</b>=${s}</div>`).join('')}
+        <div style="background:#065F46;color:#fff;border-radius:6px;padding:2px 8px;font-size:9px;font-weight:700">Total=${res.grand}</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${res.freqList.slice(0,10).map(f=>`<div style="display:flex;align-items:center;gap:3px;background:#fff;border:1px solid #6EE7B7;border-radius:12px;padding:1px 7px"><span style="font-size:10px;font-weight:600">${f.val}</span><span style="font-size:9px;font-weight:700;color:#065F46">×${f.count}</span></div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
 function exportCompteur(){
   const res=state.cptResult;
@@ -13001,16 +13334,17 @@ function compteurCardHTML(){
     </div>
     <button onclick="doCompteur()" style="padding:4px 12px;background:#059669;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">🔄 Calculer</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Additionne les numéros sur N tirages consécutifs (sommes par position D1-D5 + total), et calcule la "masse" (fréquence) de chaque numéro sur cette période.</div>
-    ${cptResHTML()}
+    ${genericMultiToggleHTML('cptMulti','cptMultiGames','doCompteur','#059669','#D1FAE5')}
+    ${state.cptMulti?cptMultiResHTML():cptResHTML()}
   </div>`;
 }
 function setCollesCount(n){state.collesCount=n;render();}
 function setCollesSlot(i,v){state.collesSlots[i]=v;}
-function doCollesSearch(){
+function collesPredicateBuilder(){
   const vals=state.collesSlots.slice(0,state.collesCount).map(v=>parseInt(v));
-  if(vals.some(v=>isNaN(v))){state.collesMatches=[];render();return;}
+  if(vals.some(v=>isNaN(v)))return null;
   const n=vals.length;
-  const rows=T.filter(row=>{
+  return row=>{
     const all=row.n.concat(row.m||[]);
     for(let i=0;i<=all.length-n;i++){
       const window=all.slice(i,i+n);
@@ -13020,9 +13354,21 @@ function doCollesSearch(){
       if(match)return true;
     }
     return false;
-  });
-  state.collesMatches=rows;
-  saveHist({type:'colles',game:GAME.key,gameName:GAME.name,vals,order:state.collesOrder});
+  };
+}
+function doCollesSearch(){
+  const pred=collesPredicateBuilder();
+  if(!pred){state.collesMatches=[];state.collesMultiRes=null;render();return;}
+  const vals=state.collesSlots.slice(0,state.collesCount).map(v=>parseInt(v));
+  if(state.collesMulti&&state.collesMultiGames&&state.collesMultiGames.length){
+    state.collesMultiRes={results:multiGameFilter(state.collesMultiGames,collesPredicateBuilder)};
+    state.collesMatches=[];
+    saveHist({type:'colles',game:'multi',gameName:'Multi',vals,order:state.collesOrder});
+  }else{
+    state.collesMatches=T.filter(pred);
+    state.collesMultiRes=null;
+    saveHist({type:'colles',game:GAME.key,gameName:GAME.name,vals,order:state.collesOrder});
+  }
   render();
 }
 function exportCollesSearch(){
@@ -13077,17 +13423,18 @@ function collesCardHTML(){
     </div>
     <button onclick="doCollesSearch()" style="padding:4px 12px;background:#4338CA;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: 13 + 31 → trouve les tirages où ils sont côte à côte, peu importe où sur la ligne.</div>
-    ${collesResHTML()}
+    ${genericMultiToggleHTML('collesMulti','collesMultiGames','doCollesSearch','#4338CA','#E0E7FF')}
+    ${state.collesMulti?genericMultiResultHTML(state.collesMultiRes,{color:'#4338CA',bgHit:'#E0E7FF',rowRenderer:simpleRowRenderer('#4338CA')}):collesResHTML()}
   </div>`;
 }
 // ══════ Terminaisons collées — 2 ou 3 derniers chiffres dans des positions adjacentes ══════
 function setTermCollesCount(n){state.termCollesCount=n;render();}
 function setTermCollesSlot(i,v){state.termCollesSlots[i]=v;}
-function doTermCollesSearch(){
+function termCollesPredicateBuilder(){
   const digs=state.termCollesSlots.slice(0,state.termCollesCount).map(v=>parseInt(v));
-  if(digs.some(d=>isNaN(d))){state.termCollesMatches=[];render();return;}
+  if(digs.some(d=>isNaN(d)))return null;
   const n=digs.length;
-  const rows=T.filter(row=>{
+  return row=>{
     const all=row.n.concat(row.m||[]);
     for(let i=0;i<=all.length-n;i++){
       const window=all.slice(i,i+n).map(v=>v%10);
@@ -13097,9 +13444,21 @@ function doTermCollesSearch(){
       if(match)return true;
     }
     return false;
-  });
-  state.termCollesMatches=rows;
-  saveHist({type:'termcolles',game:GAME.key,gameName:GAME.name,digs,order:state.termCollesOrder});
+  };
+}
+function doTermCollesSearch(){
+  const pred=termCollesPredicateBuilder();
+  if(!pred){state.termCollesMatches=[];state.termCollesMultiRes=null;render();return;}
+  const digs=state.termCollesSlots.slice(0,state.termCollesCount).map(v=>parseInt(v));
+  if(state.termCollesMulti&&state.termCollesMultiGames&&state.termCollesMultiGames.length){
+    state.termCollesMultiRes={results:multiGameFilter(state.termCollesMultiGames,termCollesPredicateBuilder)};
+    state.termCollesMatches=[];
+    saveHist({type:'termcolles',game:'multi',gameName:'Multi',digs,order:state.termCollesOrder});
+  }else{
+    state.termCollesMatches=T.filter(pred);
+    state.termCollesMultiRes=null;
+    saveHist({type:'termcolles',game:GAME.key,gameName:GAME.name,digs,order:state.termCollesOrder});
+  }
   render();
 }
 function exportTermCollesSearch(){
@@ -13154,24 +13513,35 @@ function termCollesCardHTML(){
     </div>
     <button onclick="doTermCollesSearch()" style="padding:4px 12px;background:#BE185D;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaisons 3 + 7 côte à côte → trouve un numéro finissant par 3 juste à côté d'un numéro finissant par 7.</div>
-    ${termCollesResHTML()}
+    ${genericMultiToggleHTML('termCollesMulti','termCollesMultiGames','doTermCollesSearch','#BE185D','#FCE7F3')}
+    ${state.termCollesMulti?genericMultiResultHTML(state.termCollesMultiRes,{color:'#BE185D',bgHit:'#FCE7F3',rowRenderer:simpleRowRenderer('#BE185D')}):termCollesResHTML()}
   </div>`;
 }
 // ══════ Même groupe (preuve par 9) — plusieurs numéros du même groupe sur une ligne ══════
 function group9(v){return v%9===0?9:v%9;}
 function setG9Min(n){state.g9Min=n;render();}
-function doGroup9Search(){
+function g9PredicateBuilder(){
   const min=state.g9Min;
   const specific=state.g9Specific!==''?parseInt(state.g9Specific):null;
-  const rows=T.filter(row=>{
+  return row=>{
     const all=row.n.concat(row.m||[]);
     const counts={};
     all.forEach(v=>{const g=group9(v);counts[g]=(counts[g]||0)+1;});
     if(specific!=null)return (counts[specific]||0)>=min;
     return Object.values(counts).some(c=>c>=min);
-  });
-  state.g9Matches=rows;
-  saveHist({type:'g9',game:GAME.key,gameName:GAME.name,min,specific:state.g9Specific});
+  };
+}
+function doGroup9Search(){
+  const pred=g9PredicateBuilder();
+  if(state.g9Multi&&state.g9MultiGames&&state.g9MultiGames.length){
+    state.g9MultiRes={results:multiGameFilter(state.g9MultiGames,g9PredicateBuilder)};
+    state.g9Matches=[];
+    saveHist({type:'g9',game:'multi',gameName:'Multi',min:state.g9Min,specific:state.g9Specific});
+  }else{
+    state.g9Matches=T.filter(pred);
+    state.g9MultiRes=null;
+    saveHist({type:'g9',game:GAME.key,gameName:GAME.name,min:state.g9Min,specific:state.g9Specific});
+  }
   render();
 }
 function exportGroup9Search(){
@@ -13225,25 +13595,36 @@ function group9CardHTML(){
     </div>
     <button onclick="doGroup9Search()" style="padding:4px 12px;background:#0D9488;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Preuve par 9 : reste de la division par 9 (9 au lieu de 0). Ex groupe 1 : 1,10,19,28,37,46,55,64,73,82.</div>
-    ${group9ResHTML()}
+    ${genericMultiToggleHTML('g9Multi','g9MultiGames','doGroup9Search','#0D9488','#CCFBF1')}
+    ${state.g9Multi?genericMultiResultHTML(state.g9MultiRes,{color:'#0D9488',bgHit:'#CCFBF1',rowRenderer:simpleRowRenderer('#0D9488')}):group9ResHTML()}
   </div>`;
 }
 // ══════ Même colonne (dizaine) — plusieurs numéros de la même dizaine sur une ligne ══════
 function colonne(v){return Math.floor(v/10);} // 1-9→0, 10-19→1, 20-29→2 ... 90→9
 function colonneLabel(c){return c===0?'1-9':(c===9?'90':(c*10)+'-'+(c*10+9));}
 function setColMin(n){state.colMin=n;render();}
-function doColonneSearch(){
+function colonnePredicateBuilder(){
   const min=state.colMin;
   const specific=state.colSpecific!==''?parseInt(state.colSpecific):null;
-  const rows=T.filter(row=>{
+  return row=>{
     const all=row.n.concat(row.m||[]);
     const counts={};
     all.forEach(v=>{const c=colonne(v);counts[c]=(counts[c]||0)+1;});
     if(specific!=null)return (counts[specific]||0)>=min;
     return Object.values(counts).some(c=>c>=min);
-  });
-  state.colMatches=rows;
-  saveHist({type:'colonne',game:GAME.key,gameName:GAME.name,min,specific:state.colSpecific});
+  };
+}
+function doColonneSearch(){
+  const pred=colonnePredicateBuilder();
+  if(state.colMulti&&state.colMultiGames&&state.colMultiGames.length){
+    state.colMultiRes={results:multiGameFilter(state.colMultiGames,colonnePredicateBuilder)};
+    state.colMatches=[];
+    saveHist({type:'colonne',game:'multi',gameName:'Multi',min:state.colMin,specific:state.colSpecific});
+  }else{
+    state.colMatches=T.filter(pred);
+    state.colMultiRes=null;
+    saveHist({type:'colonne',game:GAME.key,gameName:GAME.name,min:state.colMin,specific:state.colSpecific});
+  }
   render();
 }
 function exportColonneSearch(){
@@ -13309,7 +13690,8 @@ function colonneCardHTML(){
     </div>
     <button onclick="doColonneSearch()" style="padding:4px 12px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Colonnes (dizaines) : 1-9, 10-19, 20-29, 30-39, 40-49, 50-59, 60-69, 70-79, 80-89, 90. Ex: 10,11,12 sont dans la même colonne (10-19).</div>
-    ${colonneResHTML()}
+    ${genericMultiToggleHTML('colMulti','colMultiGames','doColonneSearch','#B45309','#FEF3C7')}
+    ${state.colMulti?genericMultiResultHTML(state.colMultiRes,{color:'#B45309',bgHit:'#FEF3C7',rowRenderer:simpleRowRenderer('#B45309')}):colonneResHTML()}
   </div>`;
 }
 // ══════ FIGER L'ALIGNEMENT — la méthode simple ══════

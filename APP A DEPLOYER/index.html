@@ -6781,7 +6781,84 @@ function doSearch(){
   const v=document.getElementById('si');
   if(v){const nums=v.value.split(/[\s,;]+/).map(s=>parseInt(s)).filter(n=>!isNaN(n)&&n>=1&&n<=90);state.search=nums;state.searchInput=v.value;state.searchPosIdx=null;
     if(nums.length)saveHist({type:'num',game:GAME.key,gameName:GAME.name,val:nums});}
+  if(state.searchAllGames&&state.searchAllGamesList&&state.searchAllGamesList.length&&state.search.length){
+    const savedKey=GAME.key,results=[];
+    for(const gk of state.searchAllGamesList){
+      if(!GAMES[gk])continue;
+      loadGame(gk);
+      const rows=T.filter(r=>searchMatch(r,state.search,state.searchPosMode,state.searchPosIdx)).sort((a,b)=>b.t-a.t);
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:rows.length,rows});
+    }
+    loadGame(savedKey);
+    state.searchAllRes={nums:state.search.slice(),results};
+  }else{
+    state.searchAllRes=null;
+  }
   render();
+}
+function toggleSearchAllGame(k){
+  if(!state.searchAllGamesList)state.searchAllGamesList=[];
+  const i=state.searchAllGamesList.indexOf(k);
+  if(i>=0)state.searchAllGamesList.splice(i,1);else state.searchAllGamesList.push(k);
+  render();
+}
+function searchAllResultHTML(){
+  const mr=state.searchAllRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  return`<div id="search-all-res" style="margin-top:6px;background:#F0FDF4;border:1px solid #10B981;border-radius:8px;padding:6px 10px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#059669">🎰 [${mr.nums.join('+')}] — ${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} au total sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</span>${total?`<button id="export-searchall-btn" onclick="exportSearchAllExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button>`:''}</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#fff':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#059669">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#059669':'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+        ${res.rows.slice(0,10).map(r=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
+          <span style="font-weight:700;color:#059669">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
+          ${r.n.map(n=>`<span style="font-weight:500;background:${mr.nums.includes(n)?'#059669':'transparent'};color:${mr.nums.includes(n)?'#fff':'#333'};border-radius:3px;padding:0 3px">${n}</span>`).join('')}
+          <span style="font-weight:600;color:#666">${r.s}</span>
+        </div>`).join('')}
+        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
+      </div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
+}
+async function exportSearchAllExcel(){
+  const mr=state.searchAllRes;
+  if(!mr||!mr.results||!mr.results.some(x=>x.count)){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  const btn=document.getElementById('export-searchall-btn');
+  if(btn)btn.textContent='⏳...';
+  try{
+    const wb=new ExcelJS.Workbook();
+    const ws=wb.addWorksheet('Numeros (tout loto)');
+    ws.addRow(['Recherche : '+mr.nums.join(', ')+' — tout loto — '+mr.results.length+' jeu(x)']).font={bold:true,italic:true};
+    ws.addRow([]);
+    const header=['Jeu','Tirage','Date','Année','N1','N2','N3','N4','N5','Total'];
+    ws.addRow(header).font={bold:true};
+    mr.results.forEach(res=>{
+      if(!res.count||!res.rows)return;
+      res.rows.forEach(r=>{
+        const ns5=(r.n||[]).slice(0,5);while(ns5.length<5)ns5.push('');
+        const row=ws.addRow([res.gameName,r.t,r.d||'',r.y||'',...ns5,r.s]);
+        mr.nums.forEach(n=>{(r.n||[]).forEach((v,i)=>{if(v===n){const c=row.getCell(5+i);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFE4D0'}};c.font={bold:true};}});});
+        const tc=tC(r.s);
+        const totCell=row.getCell(header.length);
+        totCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(tc[0])}};
+        totCell.font={bold:true,color:{argb:hexToARGB(tc[1])}};
+      });
+    });
+    ws.columns.forEach(c=>{c.width=10;});
+    await dlXlsxBlob(wb,'tout_loto_numeros.xlsx');
+  }catch(err){
+    alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
+  }finally{
+    if(btn)btn.textContent='📤 Excel';
+  }
 }
 // Vérifie si un tirage correspond aux numéros cherchés, selon le mode choisi :
 // 'any'  = chaque numéro doit apparaître n'importe où dans le tirage (D1-D5 + D6-D10 si présent)
@@ -16563,6 +16640,13 @@ function __renderBody(){
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 9px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">🎨 Exporter avec couleurs</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 9px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">⚡ Export rapide</button>
       ${state.search.length&&state.searchPosMode==='same'?`<div style="width:100%;font-size:8px;color:#F59E0B">📍 ${state.search.map((n,i)=>{const idx=(state.searchPosIdx&&state.searchPosIdx[i]!=null)?state.searchPosIdx[i]:i;return n+'→D'+(idx+1);}).join(' · ')}</div>`:''}
+      <label style="width:100%;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;color:${state.searchAllGames?'#059669':'#aaa'}" title="Cherche ces numéros en même temps dans tous les jeux sélectionnés ci-dessous, pas seulement dans le jeu affiché"><input type="checkbox" ${state.searchAllGames?'checked':''} onchange="state.searchAllGames=this.checked;if(state.searchAllGames&&(!state.searchAllGamesList||!state.searchAllGamesList.length))state.searchAllGamesList=Object.keys(GAMES);doSearch()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
+      ${state.searchAllGames?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:3px;margin-top:2px;padding:5px;background:#F0FDF4;border-radius:6px">
+        ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.searchAllGamesList||[]).includes(k);return`<button onclick="toggleSearchAllGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#059669':'#ccc'};background:${sel?'#059669':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
+        <button onclick="state.searchAllGamesList=Object.keys(GAMES);doSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
+        <button onclick="state.searchAllGamesList=[];doSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
+      </div>`:''}
+      ${state.searchAllGames?searchAllResultHTML():''}
     </div>
     ${state.exportPanel?exportPanelHTML():''}`;
     if(state.search.length){

@@ -4714,12 +4714,15 @@ let state={
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
   // numéros trouvés à N'IMPORTE QUELLE position (le module existant, lui, exige une position fixe)
-  vseqCount:5, vseqLevels:[], vseqDir:'down', vseqRes:null,
-  dbtMode:'ligne', dbtMin:2, dbtRes:null,
+  vseqCount:5, vseqLevels:[], vseqDir:'down', vseqRes:null, vseqMulti:false, vseqMultiGames:[], vseqMultiRes:null,
+  dbtMode:'ligne', dbtMin:2, dbtRes:null, dbtMulti:false, dbtMultiGames:[], dbtMultiRes:null,
+  vtotMulti:false, vtotMultiGames:[], vtotMultiRes:null,
+  vttMulti:false, vttMultiGames:[], vttMultiRes:null,
+  cetMulti:false, cetMultiGames:[], cetMultiRes:null,
   prpGapMin:1, prpGapMax:3, prpRes:null, prpMulti:false, prpMultiGames:[], prpMultiRes:null,
   mc3Gap:1, mc3Res:null, mc3Multi:false, mc3MultiGames:[], mc3MultiRes:null,
   mip3Gap:1, mip3Res:null, mip3Multi:false, mip3MultiGames:[], mip3MultiRes:null,
-  elmMode:'ligne', elmGap:1, elmTypes:null, elmRes:null, elmFocus:null,
+  elmMode:'ligne', elmGap:1, elmTypes:null, elmRes:null, elmFocus:null, elmMulti:false, elmMultiGames:[], elmMultiRes:null,
   elmHL:[], elmHLMode:'ligne', elmHLGap:1, elmHLNum:null, elmHLDraft:null, elmHLCount:null,
   anchors:{}, anchorLocks:{}, freezeOn:false, freezeOffsets:null,
   maxRows:0,   // 0 = tout afficher : la virtualisation rend la limite inutile
@@ -4752,13 +4755,13 @@ let state={
   pronosticOrdre:'saisi', pronosticAuto:0,   // ordre des numeros a l'export : 'saisi' ou 'croissant'        // contour des boules : absent par défaut
   pronosticTitleSize:'normal', pronosticAlign:'center',        // taille et alignement du titre
   searchPosMode:'any', searchPosIdx:null,
-  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, comboMulti:false, comboMultiGames:[], comboMultiRes:null, searchModuleOpen:null, searchModuleQuery:'', totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null,
+  showSearchHub:false, searchHist:[], totalSearch:'', totalMatches:[], comboRes:null, comboMulti:false, comboMultiGames:[], comboMultiRes:null, searchModuleOpen:null, searchModuleQuery:'', totalK:5, cqInput:'', cqRes:null, showFab:false, showSettings:false, zoomSheetOpen:false, showBonusDefault:true, longPressTransform:true, multiGameSearch:false, multiGames:[], multiCqRes:null, formInput:"2*n+1", formTerms:6, formRes:null, formMulti:false, formMultiGames:[], formMultiRes:null,
   convPickerFor:null, // clé du jeu de base pour lequel le panneau « 🔀 Ajouter une conversion » (Comparer plusieurs lotos) est ouvert, sinon null
   darkMode:lsGetOr('lmj_dark','0')==='1', zoom:parseFloat(lsGetOr('lmj_zoom','1'))||1,
   dateInput:'', dateMatches:null, bankerK:2, bankerGap:1, bankerMatches:null,
   calMode:'occ', calJours:[], calOcc:[], calMatches:null, calNth:2, calNthMatches:null,
   totalNearTot:'', totalNearNum:'', totalNearDir:'before', totalNearLines:3, totalNearK:5, totalNearMatches:null,
-  seqLevels:[{decalage:0,vals:['','','','','']}], seqMatches:null,
+  seqLevels:[{decalage:0,vals:['','','','','']}], seqMatches:null, seqOldMulti:false, seqOldMultiGames:[], seqOldMultiRes:null,
   termCount:1, termSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], termMatches:null,
   digCount:1, digSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], digMatches:null,
   pickA:'', pickB:'', pickTirageRef:'', pickLines:2, pickDir:'after', pickResult:null,
@@ -7346,23 +7349,34 @@ const FAMOUS_SEQ={
   pentagonaux:{label:'Pentagonaux', desc:'1,5,12,22,35,51,70', gen:()=>{const a=[];let n=1;while(true){const v=n*(3*n-1)/2;if(v>90)break;a.push(v);n++;}return a;}},
   hautcomposes:{label:'Hautement composés', desc:'1,2,4,6,12,24,36,48,60', gen:()=>{const dc=n=>{let c=0;for(let d=1;d<=n;d++)if(n%d===0)c++;return c;};const a=[];let mx=0;for(let n=1;n<=90;n++){const d=dc(n);if(d>mx){mx=d;a.push(n);}}return a;}}
 };
-function runFamousSeq(key){
-  const seq=FAMOUS_SEQ[key];if(!seq)return;
-  const vals=[...new Set(seq.gen().filter(v=>v>=1&&v<=90))].sort((a,b)=>a-b);
-  const terms=vals.map((v,i)=>({n:i,v}));
-  if(vals.length<2){state.formRes={error:'Suite sans valeurs exploitables',terms:[],matches:[]};render();return;}
-  const win=vals.length;
+function formulaMatchWindow(vals){
+  // cherche des fenêtres de tirages consécutifs contenant TOUS les termes (ordre libre, position libre)
+  const win=vals.length; // taille de fenêtre = nombre de termes (1 terme par tirage minimum)
   const matches=[];
   for(let gi=0;gi<=T.length-win;gi++){
     const window=T.slice(gi,gi+win);
     const allNums=new Set();window.forEach(r=>r.n.forEach(x=>allNums.add(x)));
     if(vals.every(v=>allNums.has(v))){
-      matches.push({start:window[0].t,end:window[win-1].t,window:window.map(r=>r.t),
-        placement:vals.map(v=>{const ti=window.findIndex(r=>r.n.includes(v));return{v,tirage:window[ti].t};})});
+      const placement=vals.map(v=>{const ti=window.findIndex(r=>r.n.includes(v));return{v,tirage:window[ti].t};});
+      matches.push({start:window[0].t,end:window[win-1].t,window:window.map(r=>r.t),placement});
     }
   }
+  return matches;
+}
+function runFamousSeq(key){
+  const seq=FAMOUS_SEQ[key];if(!seq)return;
+  const vals=[...new Set(seq.gen().filter(v=>v>=1&&v<=90))].sort((a,b)=>a-b);
+  const terms=vals.map((v,i)=>({n:i,v}));
   state.formInput=seq.label;
-  state.formRes={error:null,expr:seq.label,terms,vals,matches};
+  if(vals.length<2){state.formRes={error:'Suite sans valeurs exploitables',terms:[],matches:[]};state.formMultiRes=null;render();return;}
+  if(state.formMulti&&state.formMultiGames&&state.formMultiGames.length){
+    state.formMultiRes={expr:seq.label,terms,results:multiGameCompute(state.formMultiGames,()=>formulaMatchWindow(vals))};
+    state.formRes=null;
+  }else{
+    const matches=formulaMatchWindow(vals);
+    state.formRes={error:null,expr:seq.label,terms,vals,matches};
+    state.formMultiRes=null;
+  }
   render();
 }
 function evalFormula(expr,n){
@@ -7379,23 +7393,37 @@ function doFormula(){
   // calcule les termes de la suite (valeurs 1..90 uniquement)
   const terms=[];
   for(let n=0;n<state.formTerms;n++){const v=evalFormula(expr,n);if(v>=1&&v<=90)terms.push({n,v});}
-  if(terms.length<2){state.formRes={error:'Formule invalide ou moins de 2 termes entre 1 et 90',terms:[],matches:[]};render();return;}
+  if(terms.length<2){state.formRes={error:'Formule invalide ou moins de 2 termes entre 1 et 90',terms:[],matches:[]};state.formMultiRes=null;render();return;}
   const vals=terms.map(t=>t.v);
-  // cherche des fenêtres de tirages consécutifs contenant TOUS les termes (ordre libre, position libre)
-  const win=vals.length; // taille de fenêtre = nombre de termes (1 terme par tirage minimum)
-  const matches=[];
-  for(let gi=0;gi<=T.length-win;gi++){
-    const window=T.slice(gi,gi+win);
-    const allNums=new Set();window.forEach(r=>r.n.forEach(x=>allNums.add(x)));
-    if(vals.every(v=>allNums.has(v))){
-      // pour chaque terme, trouver dans quel tirage il est
-      const placement=vals.map(v=>{const ti=window.findIndex(r=>r.n.includes(v));return{v,tirage:window[ti].t};});
-      matches.push({start:window[0].t,end:window[win-1].t,window:window.map(r=>r.t),placement});
-    }
+  if(state.formMulti&&state.formMultiGames&&state.formMultiGames.length){
+    state.formMultiRes={expr,terms,results:multiGameCompute(state.formMultiGames,()=>formulaMatchWindow(vals))};
+    state.formRes=null;
+  }else{
+    const matches=formulaMatchWindow(vals);
+    state.formRes={error:null,expr,terms,vals,matches};
+    state.formMultiRes=null;
   }
-  state.formRes={error:null,expr,terms,vals,matches};
   saveHist({type:'formula',game:GAME.key,gameName:GAME.name,expr,terms:state.formTerms});
   render();
+}
+function formMultiResultHTML(){
+  const mr=state.formMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((a,x)=>a+x.count,0);
+  return`<div style="margin-top:6px">
+    <div style="font-size:10px;color:#7C3AED;margin-bottom:3px"><b>Suite:</b> ${mr.terms.map(t=>t.v).join(', ')} <span style="color:#999">(${mr.terms.length} termes de ${mr.expr})</span></div>
+    <div style="font-size:10px;font-weight:600;color:#7C3AED;margin-bottom:4px">${mr.results.length} jeu(x) — ${total} fenêtre(s) au total</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #EDE9FE;border-radius:6px;padding:4px 7px;background:${res.count?'#FaF8FF':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#7C3AED">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#7C3AED':'#bbb'}">${res.count} fenêtre(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#555;margin-top:2px">${res.rows.slice(0,5).map(m=>`Tirages ${m.window.join(' → ')}`).join(' · ')}${res.rows.length>5?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucune fenêtre trouvée dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 async function exportFormExcel(){
   const r=state.formRes;
@@ -8522,19 +8550,10 @@ function vseqHitIdx(row,level){
   }
   return res;
 }
-function runVseq(){
-  const levels=vseqFromDOM();
-  state.vseqLevels=levels;
-  const used=levels.filter(l=>l.nums.length);
-  if(!used.length){alert('Écris au moins un numéro sur le premier niveau');return;}
-  if(!levels[0].nums.length){alert('Le niveau 1 (point de départ) doit contenir au moins un numéro');return;}
-  // Bornes d'années facultatives
-  const fy=parseInt((document.getElementById('vseq-y1')||{}).value)||null;
-  const ty=parseInt((document.getElementById('vseq-y2')||{}).value)||null;
-  const lo=fy&&ty?Math.min(fy,ty):fy||ty, hi=fy&&ty?Math.max(fy,ty):fy||ty;
+function vseqCompute(levels,dir,lo,hi){
   // Tirages triés du plus ancien au plus récent : le décalage se compte en POSITIONS
   const TA=[...T].sort((a,b)=>a.t-b.t);
-  const step=state.vseqDir==='down'?1:-1;
+  const step=dir==='down'?1:-1;
   const res=[];
   for(let s=0;s<TA.length;s++){
     const start=TA[s];
@@ -8552,9 +8571,46 @@ function runVseq(){
     }
     if(ok&&chain.length>1)res.push(chain);
   }
-  state.vseqRes=res;
+  return res;
+}
+function runVseq(){
+  const levels=vseqFromDOM();
+  state.vseqLevels=levels;
+  const used=levels.filter(l=>l.nums.length);
+  if(!used.length){alert('Écris au moins un numéro sur le premier niveau');return;}
+  if(!levels[0].nums.length){alert('Le niveau 1 (point de départ) doit contenir au moins un numéro');return;}
+  // Bornes d'années facultatives
+  const fy=parseInt((document.getElementById('vseq-y1')||{}).value)||null;
+  const ty=parseInt((document.getElementById('vseq-y2')||{}).value)||null;
+  const lo=fy&&ty?Math.min(fy,ty):fy||ty, hi=fy&&ty?Math.max(fy,ty):fy||ty;
+  const dir=state.vseqDir;
+  if(state.vseqMulti&&state.vseqMultiGames&&state.vseqMultiGames.length){
+    state.vseqMultiRes={results:multiGameCompute(state.vseqMultiGames,()=>vseqCompute(levels,dir,lo,hi))};
+    state.vseqRes=null;
+  }else{
+    state.vseqRes=vseqCompute(levels,dir,lo,hi);
+    state.vseqMultiRes=null;
+  }
   render();
-  setTimeout(()=>{const el=document.getElementById('vseq-res');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+  setTimeout(()=>{const el=document.getElementById('vseq-res')||document.getElementById('vseq-multi-res');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);
+}
+function vseqMultiResultHTML(){
+  const mr=state.vseqMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((a,x)=>a+x.count,0);
+  return`<div id="vseq-multi-res" style="margin-top:6px">
+    <div style="font-size:10px;font-weight:700;color:#B45309;margin-bottom:4px">🪜 ${mr.results.length} jeu(x) — ${total} séquence(s) au total</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #FCD34D;border-radius:6px;padding:4px 7px;background:${res.count?'#FFFBEB':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#B45309">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#B45309':'#bbb'}">${res.count} séquence(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#555;margin-top:2px">${res.rows.slice(0,5).map(chain=>chain.map(c=>'N°'+c.row.t).join('→')).join(' · ')}${res.rows.length>5?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#991B1B;margin-top:4px">Aucune séquence trouvée dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 function vseqSetCount(v){
   const n=Math.max(2,Math.min(10,parseInt(v)||2));
@@ -8647,7 +8703,8 @@ function vseqPanelHTML(){
       <button onclick="document.getElementById('vseq-nums-0').value='12 13';${[1,2,3,4].map((i,k)=>`(document.getElementById('vseq-gap-${i}')||{}).value='${[3,5,9,1][k]}';(document.getElementById('vseq-nums-${i}')||{}).value='${['34','3','6','12 13'][k]}';`).join('')}runVseq()" style="padding:4px 10px;font-size:9px;border-radius:5px;border:1px solid #B45309;background:#FEF3C7;color:#92400E;cursor:pointer;font-weight:500" title="Remplit l'exemple 12,13 → +3 34 → +5 3 → +9 6 → +1 12,13">Exemple</button>
       <span style="font-size:8px;color:#92400E">Le rang (décalage) se compte en tirages. Choisis "toute place" pour chercher n'importe où, ou une place exacte (N1..N5, M1..M5) par niveau.</span>
     </div>
-    ${vseqResultHTML()}
+    ${genericMultiToggleHTML('vseqMulti','vseqMultiGames','runVseq','#B45309','#FFFBEB')}
+    ${state.vseqMulti?vseqMultiResultHTML():vseqResultHTML()}
   </div>`;
 }
 async function exportVseqExcel(){
@@ -8713,7 +8770,7 @@ function dbtDisjoint(list,min){ // plus grand sous-ensemble de paires sans index
   }
   return keep.length>=min?keep:null;
 }
-function runDbt(){
+function dbtCompute(){
   const mode=state.dbtMode||'ligne', min=Math.max(2,parseInt(state.dbtMin)||2);
   const qty=state.dbtQty||'total'; // 'total' (somme) ou 'diff' (différence)
   const sep=qty==='diff'?'↔':'+';
@@ -8760,10 +8817,50 @@ function runDbt(){
       });
     }
   }
-  state.dbtRes=res;render();
+  return res;
+}
+function runDbt(){
+  if(state.dbtMulti&&state.dbtMultiGames&&state.dbtMultiGames.length){
+    state.dbtMultiRes={results:multiGameCompute(state.dbtMultiGames,dbtCompute)};
+    state.dbtRes=null;
+    saveHist({type:'dbt',game:'multi',gameName:'Multi',mode:state.dbtMode,qty:state.dbtQty,min:state.dbtMin});
+  }else{
+    state.dbtRes=dbtCompute();
+    state.dbtMultiRes=null;
+    saveHist({type:'dbt',game:GAME.key,gameName:GAME.name,mode:state.dbtMode,qty:state.dbtQty,min:state.dbtMin});
+  }
+  render();
   setTimeout(()=>{const e=document.getElementById('dbt-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
-function dbtClear(){state.dbtRes=null;render();}
+function dbtClear(){state.dbtRes=null;state.dbtMultiRes=null;render();}
+function dbtMultiResHTML(){
+  const mr=state.dbtMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((s,r)=>s+r.count,0);
+  const qtyLab=(state.dbtQty||'total')==='diff'?'Différence':'Total';
+  return`<div id="dbt-res" style="margin-top:6px">
+    <div style="font-size:10px;font-weight:600;color:#166534;margin-bottom:4px">${total} résultat${total>1?'s':''} sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
+    <div style="display:flex;flex-direction:column;gap:6px;max-height:360px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:5px 7px;background:${res.count?'#F0FDF4':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+        <span style="font-size:11px;font-weight:500;color:#166534">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#166534':'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+      </div>
+      ${res.count?`<table class="excel-tbl" style="width:100%"><thead><tr>${['N°','Date',qtyLab,'Paires','Où'].map(h=>`<th style="font-size:8px;padding:2px;background:#166534;color:#fff">${h}</th>`).join('')}</tr></thead><tbody>
+        ${res.rows.slice(0,10).map((x,k)=>`<tr>
+          <td style="font-size:8.5px;padding:2px 3px;font-weight:600;background:${k%2?'#F0FDF4':'#fff'}">${x.r.t}</td>
+          <td style="font-size:8.5px;padding:2px 3px;background:${k%2?'#F0FDF4':'#fff'}">${x.r.d}/${x.r.y}</td>
+          <td style="font-size:8.5px;padding:2px 3px;text-align:center;font-weight:700;background:#DCFCE7">${x.total}</td>
+          <td style="font-size:8.5px;padding:2px 3px;font-weight:600;color:#166534;background:${k%2?'#F0FDF4':'#fff'}">${x.paires.join(' · ')}</td>
+          <td style="font-size:8px;padding:2px 3px;color:#555;background:${k%2?'#F0FDF4':'#fff'}">${x.ou}</td>
+        </tr>`).join('')}
+        </tbody></table>
+        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun résultat trouvé dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
+}
 function dbtResultHTML(){
   if(!state.dbtRes)return '';
   const res=state.dbtRes,MAX=300;
@@ -8824,7 +8921,8 @@ function dbtPanelHTML(){
       <button onclick="dbtClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#166534">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
-    ${dbtResultHTML()}
+    ${genericMultiToggleHTML('dbtMulti','dbtMultiGames','runDbt','#166534','#F0FDF4')}
+    ${state.dbtMulti?dbtMultiResHTML():dbtResultHTML()}
   </div>`;
 }
 async function exportDbtExcel(){
@@ -9447,8 +9545,7 @@ function vtotCombos(n,k){ // toutes les combinaisons d'indices [0..n-1] de taill
   })(0,[]);
   return out;
 }
-function runVtot(){
-  const N=Math.max(1,Math.min(5,parseInt(state.vtotN)||2)), gap=Math.max(1,Math.min(5,parseInt(state.vtotGap)||1));
+function vtotCompute(N,gap){
   const combos=vtotCombos(5,N), res=[];
   for(let i=0;i<T.length;i++){
     const r=T[i];
@@ -9461,10 +9558,37 @@ function runVtot(){
       });
     });
   }
-  state.vtotRes=res;render();
-  setTimeout(()=>{const e=document.getElementById('vtot-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+  return res;
 }
-function vtotClear(){state.vtotRes=null;render();}
+function runVtot(){
+  const N=Math.max(1,Math.min(5,parseInt(state.vtotN)||2)), gap=Math.max(1,Math.min(5,parseInt(state.vtotGap)||1));
+  if(state.vtotMulti&&state.vtotMultiGames&&state.vtotMultiGames.length){
+    state.vtotMultiRes={N,gap,results:multiGameCompute(state.vtotMultiGames,()=>vtotCompute(N,gap))};
+    state.vtotRes=null;
+  }else{
+    state.vtotRes=vtotCompute(N,gap);
+    state.vtotMultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('vtot-res')||document.getElementById('vtot-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function vtotClear(){state.vtotRes=null;state.vtotMultiRes=null;render();}
+function vtotMultiResultHTML(){
+  const r=state.vtotMultiRes;
+  if(!r)return'';
+  const total=r.results.reduce((a,x)=>a+x.count,0);
+  return`<div id="vtot-multi-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#9A3412">${r.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (N=${r.N}, écart ${r.gap})</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
+    ${r.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#FFF7ED':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#9A3412">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#9A3412':'#bbb'}">${res.count} résultat(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (N${x.pos.map(p=>p+1).join(',N')}=${x.total})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div></div>`;
+}
 function vtotResultHTML(){
   if(!state.vtotRes)return '';
   const res=state.vtotRes,MAX=300;
@@ -9509,7 +9633,8 @@ function vtotPanelHTML(){
       <button onclick="vtotClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#9A3412">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
-    ${vtotResultHTML()}
+    ${genericMultiToggleHTML('vtotMulti','vtotMultiGames','runVtot','#9A3412','#FFF7ED')}
+    ${state.vtotMulti?vtotMultiResultHTML():vtotResultHTML()}
   </div>`;
 }
 async function exportVtotExcel(){
@@ -10101,11 +10226,33 @@ function runVtt(){
   const gap=Math.max(1,Math.min(T.length-1,parseInt(state.vttGap)||1));
   const mode=state.vttMode||'same';
   const target=parseInt(state.vttTarget);
-  if(mode==='diff'&&isNaN(target)){state.vttRes=null;render();return;}
-  state.vttRes=vttRun(gap,mode,isNaN(target)?0:target);
+  if(mode==='diff'&&isNaN(target)){state.vttRes=null;state.vttMultiRes=null;render();return;}
+  if(state.vttMulti&&state.vttMultiGames&&state.vttMultiGames.length){
+    state.vttMultiRes={gap,mode,target:isNaN(target)?0:target,results:multiGameCompute(state.vttMultiGames,()=>vttRun(gap,mode,isNaN(target)?0:target))};
+    state.vttRes=null;
+  }else{
+    state.vttRes=vttRun(gap,mode,isNaN(target)?0:target);
+    state.vttMultiRes=null;
+  }
   render();
 }
-function vttClear(){state.vttRes=null;render();}
+function vttClear(){state.vttRes=null;state.vttMultiRes=null;render();}
+function vttMultiResultHTML(){
+  const r=state.vttMultiRes;
+  if(!r)return'';
+  const total=r.results.reduce((a,x)=>a+x.count,0);
+  return`<div id="vtt-multi-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0369A1">${r.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (pas ${r.gap})</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
+    ${r.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#E0F2FE':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#0369A1">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#0369A1':'#bbb'}">${res.count} résultat(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}↔N°${x.voisin.t} (${x.rs}↔${x.vs}, écart ${x.diff})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div></div>`;
+}
 function vttResultHTML(){
   if(!state.vttRes)return '';
   const res=state.vttRes,MAX=300;
@@ -10161,7 +10308,8 @@ function vttPanelHTML(){
       <button onclick="vttClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#0369A1">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
-    ${vttResultHTML()}
+    ${genericMultiToggleHTML('vttMulti','vttMultiGames','runVtt','#0369A1','#E0F2FE')}
+    ${state.vttMulti?vttMultiResultHTML():vttResultHTML()}
   </div>`;
 }
 async function exportVttExcel(){
@@ -10302,11 +10450,7 @@ function toggleElmType(k){
   if(i>=0)a.splice(i,1);else a.push(k);
   state.elmRes=null;render();
 }
-function runElm(){
-  const mode=state.elmMode||'ligne', types=elmTypes(), gap=Math.max(1,parseInt(state.elmGap)||1);
-  // elmFocus : quand la recherche est lancée depuis le menu d'un numéro, on ne garde
-  // que ce numéro-là. Mis à null quand on relance depuis le panneau de recherche.
-  const foc=state.elmFocus;
+function elmCompute(mode,types,gap,foc){
   const LB={},CO={};ELM_DEF.forEach(c=>{LB[c.key]=c.label;CO[c.key]=[c.bg,c.fg];});
   const res=[];
   for(let i=0;i<T.length;i++){
@@ -10340,10 +10484,40 @@ function runElm(){
       });
     }
   }
-  state.elmRes=res;render();
-  setTimeout(()=>{const e=document.getElementById('elm-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+  return res;
 }
-function elmClear(){state.elmRes=null;render();}
+function runElm(){
+  const mode=state.elmMode||'ligne', types=elmTypes(), gap=Math.max(1,parseInt(state.elmGap)||1);
+  // elmFocus : quand la recherche est lancée depuis le menu d'un numéro, on ne garde
+  // que ce numéro-là. Mis à null quand on relance depuis le panneau de recherche.
+  const foc=state.elmFocus;
+  if(state.elmMulti&&state.elmMultiGames&&state.elmMultiGames.length){
+    state.elmMultiRes={results:multiGameCompute(state.elmMultiGames,()=>elmCompute(mode,types,gap,foc))};
+    state.elmRes=null;
+  }else{
+    state.elmRes=elmCompute(mode,types,gap,foc);
+    state.elmMultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('elm-res')||document.getElementById('elm-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function elmClear(){state.elmRes=null;state.elmMultiRes=null;render();}
+function elmMultiResultHTML(){
+  const mr=state.elmMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((a,x)=>a+x.count,0);
+  return`<div id="elm-multi-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#7C2D12">${mr.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#FFF7ED':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#7C2D12">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#7C2D12':'#bbb'}">${res.count} résultat(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}: ${x.num}↔${x.elm} (${x.type})`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div></div>`;
+}
 function elmResultHTML(){
   if(!state.elmRes)return '';
   const res=state.elmRes,MAX=300;
@@ -10404,7 +10578,8 @@ function elmPanelHTML(){
       <button onclick="elmClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#7C2D12">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
-    ${elmResultHTML()}
+    ${genericMultiToggleHTML('elmMulti','elmMultiGames','runElm','#7C2D12','#FFF7ED')}
+    ${state.elmMulti?elmMultiResultHTML():elmResultHTML()}
   </div>`;
 }
 async function exportElmExcel(){
@@ -11031,8 +11206,7 @@ async function exportConversionExcel(){
 // Ex. le numéro 1 tiré + son Counter (46) = 47. On vérifie si 47 est le total du
 // tirage lui-même (même ligne) ou le total d'un tirage superposé (écart réglable).
 // Utilise les mêmes dérivés que le module "Numéro + un de ses éléments" (ELM_DEF/elmDerivs).
-function runCet(){
-  const type=state.cetType||'counter', vs=state.cetVs||'ligne', gap=Math.max(1,Math.min(5,parseInt(state.cetGap)||1));
+function cetCompute(type,vs,gap){
   const res=[];
   for(let i=0;i<T.length;i++){
     const r=T[i];
@@ -11051,10 +11225,38 @@ function runCet(){
       }
     });
   }
-  state.cetRes=res;render();
-  setTimeout(()=>{const e=document.getElementById('cet-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+  return res;
 }
-function cetClear(){state.cetRes=null;render();}
+function runCet(){
+  const type=state.cetType||'counter', vs=state.cetVs||'ligne', gap=Math.max(1,Math.min(5,parseInt(state.cetGap)||1));
+  if(state.cetMulti&&state.cetMultiGames&&state.cetMultiGames.length){
+    state.cetMultiRes={results:multiGameCompute(state.cetMultiGames,()=>cetCompute(type,vs,gap))};
+    state.cetRes=null;
+  }else{
+    state.cetRes=cetCompute(type,vs,gap);
+    state.cetMultiRes=null;
+  }
+  render();
+  setTimeout(()=>{const e=document.getElementById('cet-res')||document.getElementById('cet-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function cetClear(){state.cetRes=null;state.cetMultiRes=null;render();}
+function cetMultiResultHTML(){
+  const mr=state.cetMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((a,x)=>a+x.count,0);
+  const label=(ELM_DEF.find(d=>d.key===(state.cetType||'counter'))||{}).label||'Élément';
+  return`<div id="cet-multi-res" style="margin-top:7px">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0F766E">${mr.results.length} jeu(x) — ${total} résultat${total>1?'s':''} au total (Numéro + ${label})</span></div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:44vh;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#F0FDFA':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#0F766E">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#0F766E':'#bbb'}">${res.count} résultat(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#666;margin-top:2px">${res.rows.slice(0,6).map(x=>`N°${x.r.t}: ${x.num}+${x.elmVal}=${x.total}`).join(', ')}${res.rows.length>6?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div></div>`;
+}
 function cetResultHTML(){
   if(!state.cetRes)return '';
   const res=state.cetRes,MAX=300;
@@ -11112,7 +11314,8 @@ function cetPanelHTML(){
       <button onclick="cetClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
       <span style="font-size:8px;color:#0F766E">« dessus » = tirage plus récent, « dessous » = tirage plus ancien.</span>
     </div>
-    ${cetResultHTML()}
+    ${genericMultiToggleHTML('cetMulti','cetMultiGames','runCet','#0F766E','#F0FDFA')}
+    ${state.cetMulti?cetMultiResultHTML():cetResultHTML()}
   </div>`;
 }
 async function exportCetExcel(){
@@ -11207,7 +11410,8 @@ function formuleSectionHTML(){
         ${Object.entries(FAMOUS_SEQ).map(([k,s])=>`<button onclick="runFamousSeq('${k}')" title="${s.desc}" style="padding:2px 8px;font-size:9px;border-radius:9px;border:1px solid #7C3AED;background:#F5F3FF;color:#5B21B6;cursor:pointer;font-weight:500">${s.label}</button>`).join('')}
       </div>
     </div>
-    ${formResultHTML()}
+    ${genericMultiToggleHTML('formMulti','formMultiGames','doFormula','#7C3AED','#F5F3FF')}
+    ${state.formMulti?formMultiResultHTML():formResultHTML()}
   </div>`;
 }
 
@@ -11484,7 +11688,8 @@ function seqOldSectionHTML(){
       <button onclick="doSeqSearch()" style="padding:4px 12px;background:#059669;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-left:auto">Chercher</button>
     </div>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: Niveau 1 → N5=59 · Niveau 2 (décalage 1) → N1=24 · Niveau 3 (décalage 1) → N5=57</div>
-    ${seqResHTML()}
+    ${genericMultiToggleHTML('seqOldMulti','seqOldMultiGames','doSeqSearch','#059669','#ECFDF5')}
+    ${state.seqOldMulti?seqOldMultiResultHTML():seqResHTML()}
   </div>`;
 }
 
@@ -12673,12 +12878,7 @@ function addSeqLevel(){state.seqLevels.push({decalage:1,vals:['','','','','']});
 function removeSeqLevel(i){if(state.seqLevels.length>1){state.seqLevels.splice(i,1);render();}}
 function setSeqDecalage(i,v){state.seqLevels[i].decalage=v;}
 function setSeqVal(i,pi,v){state.seqLevels[i].vals[pi]=v;}
-function doSeqSearch(){
-  const levels=state.seqLevels.map(l=>({
-    decalage:parseInt(l.decalage)||1,
-    conds:l.vals.map((v,pi)=>(v!==''&&!isNaN(parseInt(v)))?{pi,val:parseInt(v)}:null).filter(Boolean)
-  }));
-  if(!levels.length||!levels[0].conds.length){state.seqMatches=[];render();return;}
+function seqOldCompute(levels){
   const matches=[];
   for(let gi=0;gi<T.length;gi++){
     const row0=T[gi];
@@ -12696,9 +12896,41 @@ function doSeqSearch(){
     }
     if(ok)matches.push(chain);
   }
-  state.seqMatches=matches;
+  return matches;
+}
+function doSeqSearch(){
+  const levels=state.seqLevels.map(l=>({
+    decalage:parseInt(l.decalage)||1,
+    conds:l.vals.map((v,pi)=>(v!==''&&!isNaN(parseInt(v)))?{pi,val:parseInt(v)}:null).filter(Boolean)
+  }));
+  if(!levels.length||!levels[0].conds.length){state.seqMatches=[];state.seqOldMultiRes=null;render();return;}
+  if(state.seqOldMulti&&state.seqOldMultiGames&&state.seqOldMultiGames.length){
+    state.seqOldMultiRes={results:multiGameCompute(state.seqOldMultiGames,()=>seqOldCompute(levels))};
+    state.seqMatches=null;
+  }else{
+    state.seqMatches=seqOldCompute(levels);
+    state.seqOldMultiRes=null;
+  }
   saveHist({type:'seq',game:GAME.key,gameName:GAME.name,levels:JSON.parse(JSON.stringify(state.seqLevels))});
   render();
+}
+function seqOldMultiResultHTML(){
+  const mr=state.seqOldMultiRes;
+  if(!mr)return'';
+  const total=mr.results.reduce((a,x)=>a+x.count,0);
+  return`<div style="margin-top:6px">
+    <div style="font-size:10px;font-weight:600;color:#059669;margin-bottom:4px">${mr.results.length} jeu(x) — ${total} séquence(s) au total</div>
+    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
+    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?'#ECFDF5':'#fafafa'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:11px;font-weight:500;color:#059669">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:${res.count?'#059669':'#bbb'}">${res.count} séquence(s)</span>
+      </div>
+      ${res.count?`<div style="font-size:9px;color:#555;margin-top:2px">${res.rows.slice(0,5).map(chain=>chain.map(r=>'N°'+r.t).join('→')).join(' · ')}${res.rows.length>5?'…':''}</div>`:''}
+    </div>`).join('')}
+    </div>
+    ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucune séquence trouvée dans aucun des jeux sélectionnés.</div>`:''}
+  </div>`;
 }
 function exportSeqSearch(){
   const m=state.seqMatches;

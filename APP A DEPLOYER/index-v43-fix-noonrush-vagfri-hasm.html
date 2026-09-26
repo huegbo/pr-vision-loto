@@ -16402,7 +16402,13 @@ function anMark(row,ctx){
     const _colR=state.repMultColor||'#D32F2F';
     [rPrev,rNext].forEach(other=>{
       if(!other)return;
-      const shared=row.n.filter(n=>other.n.includes(n));
+      // Comparaison étendue aux numéros machine (toggle "🔀 Gagnant↔Machine", state.repMultCross) :
+      // le total gagnant+machine de CE tirage est comparé au total gagnant+machine de l'autre
+      // tirage, donc un numéro partagé même via la case machine compte dans le seuil et sera
+      // marqué, quelle que soit la colonne (gagnant OU machine) où il apparaît.
+      const rowAll=state.repMultCross?row.n.concat(row.m||[]):row.n;
+      const otherAll=state.repMultCross?other.n.concat(other.m||[]):other.n;
+      const shared=rowAll.filter(n=>otherAll.includes(n));
       if(shared.length>=Math.max(2,state.repMultMin||2)){
         row.n.forEach((n,i)=>{
           if(out[i])return;
@@ -16514,8 +16520,13 @@ function anMarkBonus(row,ctx){
     const rNext=(gi!=null&&gi-rgap>=0)?T[gi-rgap]:null;
     const _colR=state.repMultColor||'#D32F2F';
     [rPrev,rNext].forEach(other=>{
-      if(!other||!other.m)return;
-      const shared=row.m.filter(n=>!isNaN(n)&&other.m.includes(n));
+      if(!other)return;
+      // Même bascule repMultCross que côté numéros gagnants (anMark ci-dessus) : compare le
+      // total gagnant+machine des deux tirages, pas seulement machine-contre-machine.
+      const rowAll=state.repMultCross?row.n.concat(row.m||[]):row.m;
+      const otherAll=state.repMultCross?other.n.concat(other.m||[]):(other.m||[]);
+      if(!rowAll||!otherAll.length)return;
+      const shared=rowAll.filter(n=>!isNaN(n)&&otherAll.includes(n));
       if(shared.length>=Math.max(2,state.repMultMin||2)){
         row.m.forEach((n,i)=>{
           if(out[i]||isNaN(n))return;

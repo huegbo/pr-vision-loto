@@ -1261,7 +1261,7 @@ function ghanaFiltreHTML(){
   return html;
 }
 // ══════ CAMEROUN (Premier Bet 5/90) — filtre Jour / Jeu (vue dédiée, unifie les 11 jeux) ══════
-const CAMEROUN_JEU_LABELS={CONTINENT:'CONTINENT (21h)',LIONS:'LIONS (18h30)',LOGONE:'LOGONE (12h30)',MBOA:'MBOA (20h)',MFOUNDI:'MFOUNDI (11h)',MONT_CAMEROUN:'MONT CAMEROUN (14h)',MOUNGO:'MOUNGO (8h)',NOUN:'NOUN (15h30)',SANAGA:'SANAGA (17h)',WOURI:'WOURI (9h30)',SUPER4:'SUPER 4 CAGNOTTE'};
+const CAMEROUN_JEU_LABELS={CONTINENT:'CONTINENT (21h)',LIONS:'LIONS (18h30)',LOGONE:'LOGONE (12h30)',MBOA:'MBOA (20h)',MFOUNDI:'MFOUNDI (11h)',MONT_CAMEROUN:'MONT CAMEROUN (14h)',MOUNGO:'MOUNGO (8h)',NOUN:'NOUN (15h30)',SANAGA:'SANAGA (17h)',WOURI:'WOURI (9h30)',SUPER4:'SUPER 4 CAGNOTTE (20h)'};
 const CAMEROUN_JEU_ORDER=['MOUNGO','WOURI','MFOUNDI','LOGONE','MONT_CAMEROUN','NOUN','SANAGA','LIONS','MBOA','CONTINENT','SUPER4'];
 const CAMEROUN_JEU_COLORS={MOUNGO:'0E7C7B',WOURI:'17A398',MFOUNDI:'2DC6B0',LOGONE:'1D4E89',MONT_CAMEROUN:'2C6FB0',NOUN:'4A90D9',SANAGA:'6D28D9',LIONS:'8B5CF6',MBOA:'B45309',CONTINENT:'D97706',SUPER4:'F59E0B'};
 let CAMEROUN_ALL_ROWS=null;
@@ -1423,7 +1423,7 @@ const GAME_SCHEDULE=[
 {k:"ng_king",w:[6],h:null},{k:"ng_mark_ii",w:[0,3],h:null},{k:"ng_metro",w:[1,5],h:null},
 {k:"ng_peoples",w:[1,4],h:null},{k:"ng_royal",w:[0,5],h:null},{k:"ng_super",w:[2,6],h:null},
 {k:"ng_tota",w:[0,3],h:null},{k:"ng_vag",w:[3,5],h:null},{k:"cm_continent",w:[1,2,3,4,5,6],h:"21:00"},
-{k:"cm_super4",w:[0,1,2,3,4,5,6],h:"22:00"},{k:"cm_lions",w:[1,2,3,4,5,6],h:"18:30"},
+{k:"cm_super4",w:[0,1,2,3,4,5,6],h:"20:00"},{k:"cm_lions",w:[1,2,3,4,5,6],h:"18:30"},
 {k:"cm_logone",w:[0,1,2,3,4,5,6],h:"12:30"},{k:"cm_mboa",w:[1,2,3,4,5,6],h:"20:00"},
 {k:"cm_mfoundi",w:[1,2,3,4,5,6],h:"11:00"},{k:"cm_mont_cameroun",w:[1,2,3,4,5,6],h:"14:00"},
 {k:"cm_moungo",w:[1,2,3,4,5,6],h:"08:00"},{k:"cm_noun",w:[1,2,3,4,5,6],h:"15:30"},
@@ -1431,9 +1431,8 @@ const GAME_SCHEDULE=[
 ];
 // Horaires officiels Cameroun 5/90 confirmés par capture le 15/09/2026 (certains à la demi-heure,
 // d'où le format "HH:MM" au lieu de "HH" comme les autres jeux) — voir hourSortKey()/hourLabel().
-// SUPER 4 CAGNOTTE (22:00) est une ESTIMATION provisoire (pas de programme officiel vu) — calcul
-// initial à partir d'un post "il y a 12h" donnait ~21h, ajusté à 22h à la demande le 15/09/2026 —
-// à corriger si une heure officielle plus précise est trouvée.
+// SUPER 4 CAGNOTTE (20:00) — confirmé par l'utilisateur le 27/09/2026 (auparavant estimé à 22h,
+// lui-même ajusté depuis ~21h le 15/09/2026 ; ces versions précédentes étaient provisoires).
 const GH_ALPHA_KEYS=new Set(['precise','alpha','delta','omega','excel','prime','kenstar',
   'alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri',
   'alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu',

@@ -11779,12 +11779,121 @@ function sommeligneSectionHTML(){
   </div>`;
 }
 
+// ══════ Filtre : Total d'une paire collée + son inverse collé (ex: 65 21 68 → 65+21=86, inverse 68) ══════
+// Ajouté le 28/09/2026 à la demande de l'utilisateur (exemple Fortune 14H du 28/09/2026 : 65 21 68 16 78).
+// Règle : deux numéros collés (positions adjacentes) a,b → total S=a+b (si S>90 on retire 90).
+// On cherche, collé à la paire, l'INVERSE de S (chiffres renversés : 86→68, 5→50, 90→9).
+function ticReduce(s){while(s>90)s-=90;return s;}
+function ticInverse(s){const u=s%10,d=Math.floor(s/10);const v=u*10+d;return (v>=1&&v<=90)?v:null;}
+function ticCompute(){
+  const cible=(state.ticCible||'inverse'); // 'inverse' | 'total' | 'les2'
+  const cote=(state.ticCote||'apres');     // 'apres' | 'avant' | 'les2'
+  const ligne=(state.ticLigne||'gagnants'); // 'gagnants' | 'machine' | 'les2'
+  const tf=parseInt(state.ticTotal);const totFilter=isNaN(tf)?null:tf;
+  const res=[];
+  for(const r of T){
+    const lines=[];
+    if(ligne!=='machine')lines.push({arr:r.n,lab:'Gagnants',key:'n'});
+    if(ligne!=='gagnants'&&r.m&&r.m.length)lines.push({arr:r.m,lab:'Machine',key:'m'});
+    const hits=[];
+    for(const L of lines){
+      const a=L.arr;
+      for(let i=0;i+1<a.length;i++){
+        const x=a[i],y=a[i+1];if(!x||!y)continue;
+        const S=ticReduce(x+y);
+        if(totFilter!=null&&S!==totFilter)continue;
+        const inv=ticInverse(S);
+        const targets=[];
+        if(cible!=='total'&&inv!=null)targets.push({v:inv,t:'inverse'});
+        if(cible!=='inverse')targets.push({v:S,t:'total'});
+        const spots=[];
+        if(cote!=='avant'&&i+2<a.length)spots.push({j:i+2,o:'après'});
+        if(cote!=='apres'&&i-1>=0)spots.push({j:i-1,o:'avant'});
+        for(const sp of spots)for(const tg of targets){
+          if(a[sp.j]===tg.v){
+            hits.push({key:L.key,lab:L.lab,idx:[i,i+1,sp.j],x,y,S,v:tg.v,type:tg.t,ou:sp.o,
+              txt:`${x}+${y}=${S}${x+y>90?' (−90)':''} → ${tg.type==='inverse'?'miroir ':''}${tg.v} collé ${sp.o}`});
+          }
+        }
+      }
+    }
+    if(hits.length)res.push({r,t:r.t,d:r.d,y:r.y,n:r.n,m:r.m,s:r.s,hits});
+  }
+  return res;
+}
+function runTic(){
+  const ti=document.getElementById('tic-tot');if(ti)state.ticTotal=ti.value;
+  if(state.ticMulti&&state.ticMultiGames&&state.ticMultiGames.length){
+    state.ticMultiRes={results:multiGameCompute(state.ticMultiGames,ticCompute)};state.ticRes=null;
+  }else{state.ticRes=ticCompute();state.ticMultiRes=null;}
+  render();
+  setTimeout(()=>{const e=document.getElementById('tic-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function ticClear(){state.ticRes=null;state.ticMultiRes=null;render();}
+function ticRowHTML(x){
+  const tc=tC(x.s);
+  const hl={n:new Set(),m:new Set()};x.hits.forEach(h=>h.idx.forEach(i=>hl[h.key].add(i)));
+  const cell=(arr,key,bgOff)=>(arr||[]).map((v,i)=>`<span style="font-weight:${hl[key].has(i)?700:500};background:${hl[key].has(i)?'#0F766E':bgOff};color:${hl[key].has(i)?'#fff':'#333'};border-radius:3px;padding:0 4px">${v}</span>`).join('');
+  return `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:3px 0">
+    <span style="font-weight:700;color:#0F766E">N°${x.t}</span><span style="color:#888;font-size:8.5px">${x.d}/${x.y}</span>
+    ${cell(x.n,'n','#f5f5f5')}${x.m&&x.m.length?`<span style="color:#bbb">|</span>${cell(x.m,'m','#eef')}`:''}
+    <span style="font-weight:600;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${x.s}</span>
+    <span style="flex-basis:100%;font-size:9px;color:#0F766E;padding-left:2px">${x.hits.map(h=>(h.key==='m'?'[Machine] ':'')+h.txt).join(' · ')}</span>
+  </div>`;
+}
+function ticResultHTML(){
+  if(!state.ticRes)return '';
+  const res=state.ticRes,MAX=300;
+  if(!res.length)return `<div id="tic-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
+  return `<div id="tic-res" style="margin-top:7px">
+    <div style="font-size:10px;font-weight:600;color:#0F766E;margin-bottom:4px">${res.length} tirage${res.length>1?'s':''} sur ${T.length}${res.length>MAX?` — les ${MAX} plus récents affichés`:''}</div>
+    <div style="max-height:46vh;overflow-y:auto;border:1px solid #E5E9F0;border-radius:6px;padding:2px 6px">${res.slice(0,MAX).map(ticRowHTML).join('')}</div>
+  </div>`;
+}
+function ticPanelHTML(){
+  const cible=state.ticCible||'inverse',cote=state.ticCote||'apres',ligne=state.ticLigne||'gagnants';
+  const btn=(cur,val,lab,key)=>`<button onclick="state.${key}='${val}';state.ticRes=null;state.ticMultiRes=null;render()" style="padding:2px 9px;font-size:9.5px;border-radius:8px;border:1.5px solid ${cur===val?'#0F766E':'#ddd'};background:${cur===val?'#0F766E':'#fff'};color:${cur===val?'#fff':'#0F766E'};cursor:pointer;font-weight:600">${lab}</button>`;
+  const hasM=!!(GAME&&GAME.hasM);
+  return `<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🔄 Total + son miroir collé — deux numéros collés, puis le miroir de leur total juste à côté</div>
+    <div style="background:#F0FDFA;border:1px solid #99F6E4;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#0F766E">
+      Exemple — Fortune 14H du 28/09/2026 : <b>65 21 68</b> 16 78 → <b>65+21 = 86</b>, son miroir <b>68</b> collé juste après.
+      Si le total dépasse 90, on retire 90 (ex : 70+45 = 115 → 25, miroir 52). Un chiffre seul a pour miroir sa dizaine (5 → 50).
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600;width:62px">Chercher</span>
+      ${btn(cible,'inverse','Miroir du total','ticCible')}${btn(cible,'total','Total direct','ticCible')}${btn(cible,'les2','Les deux','ticCible')}
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600;width:62px">Collé</span>
+      ${btn(cote,'apres','Après la paire','ticCote')}${btn(cote,'avant','Avant la paire','ticCote')}${btn(cote,'les2','Avant ou après','ticCote')}
+    </div>
+    ${hasM?`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:5px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600;width:62px">Ligne</span>
+      ${btn(ligne,'gagnants','Gagnants','ticLigne')}${btn(ligne,'machine','Machine','ticLigne')}${btn(ligne,'les2','Les deux','ticLigne')}
+    </div>`:''}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <span style="font-size:9px;color:#0F766E;font-weight:600;width:62px">Total précis</span>
+      <input id="tic-tot" type="number" min="1" max="90" value="${state.ticTotal||''}" placeholder="tous" style="width:60px;padding:3px 5px;border:1.5px solid #0F766E;border-radius:5px;font-size:11px;text-align:center">
+      <span style="font-size:8.5px;color:#888">(vide = tous les totaux ; ex : 86)</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:9px;color:#0F766E;font-weight:600">${GAME.icon||''} ${GAME.name}</span><span style="font-size:9px;color:#888">${T.length} tirages</span>
+      <button onclick="runTic()" style="padding:4px 14px;background:#0F766E;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button>
+      <button onclick="ticClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
+    </div>
+    ${genericMultiToggleHTML('ticMulti','ticMultiGames','runTic','#0F766E','#F0FDFA')}
+    ${state.ticMulti?`<div id="tic-res">${genericMultiResultHTML(state.ticMultiRes,{color:'#0F766E',bgHit:'#F0FDFA',rowRenderer:ticRowHTML})}</div>`:ticResultHTML()}
+  </div>`;
+}
+
 const SEARCH_SECTIONS=[
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
   {key:'vseq',icon:'🪜',title:'Séquence de numéros (avec position)',desc:'Motif vertical sur plusieurs tirages — place exacte ou collés, écart réglable',color:'#B45309',html:vseqPanelHTML},
   {key:'seqOld',icon:'🧬',title:'Séquence de numéros (niveaux + décalage)',desc:'Ancien module : niveaux chaînés, décalage entre chaque niveau',color:'#059669',html:seqOldSectionHTML},
   {key:'dbt',icon:'➕',title:'Double même total',desc:'Deux paires qui donnent le même total',color:'#DB2777',html:dbtPanelHTML},
+  {key:'tic',icon:'🔄',title:'Total + son miroir collé',desc:'Deux numéros collés, puis le miroir de leur total juste à côté (ex: 65 21 68 → 65+21=86, miroir 68)',color:'#0F766E',html:ticPanelHTML},
   {key:'prp',icon:'🔁',title:'Paires qui reviennent',desc:'Une paire ressort ensemble après un écart réglable de tirages',color:'#0E7490',html:prpPanelHTML},
   {key:'mc3',icon:'🪞3️⃣',title:'Chaîne miroir sur 3 tirages',desc:'Un numéro sort, son miroir sort au tirage suivant, puis il revient au 3e',color:'#AB47BC',html:mc3PanelHTML},
   {key:'mip3',icon:'🪞🔗',title:'Trio — paire miroir interne',desc:'3 tirages de suite, chacun avec sa propre paire de numéros miroirs (ex: 86+68, puis 35+53, puis 15+51)',color:'#0D9488',html:mip3PanelHTML},

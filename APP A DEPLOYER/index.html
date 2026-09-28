@@ -787,7 +787,8 @@ function openFiltreAsGame(rows,opts){
       const color=r.jeuColor||(opts.colorMap&&rawCode?opts.colorMap[rawCode]:null);
       const icon=r.jeuIcon||(r.pays&&MULTI_PAYS_LABELS[r.pays]?MULTI_PAYS_LABELS[r.pays].split(' ')[0]:null)||opts.icon||null;
       const jour=r.jourLabel||r.jour||null;
-      if(rawCode||label)badgeMap[i+1]={code:rawCode,label,color:color||'888888',icon,jour};
+      const hour=r.hour||null;
+      if(rawCode||label||hour)badgeMap[i+1]={code:rawCode,label,color:color||'888888',icon,jour,hour};
     });
     CUSTOM_BADGE_MAP[key]=badgeMap;
   }
@@ -1661,7 +1662,7 @@ function openTirageJourAsGame(){
   const rows=entries.filter(e=>e.done&&e.row).map(e=>({
     d:e.row.d,y:e.row.y,n:e.row.n,s:e.row.s,m:e.row.m,
     jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
-    jeuIcon:e.gdef.icon||'🌍',
+    jeuIcon:e.gdef.icon||'🌍',hour:e.hour||null,
   }));
   const dateTag=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
   openFiltreAsGame(rows,{name:'TIRAGE DU JOUR '+dateTag,icon:'📆',key:'tirage_jour_custom',closeFlag:'tirageJourOpen',bonusField:'m'});
@@ -2098,7 +2099,7 @@ function multiBadgeInfo(row){
   if(CUSTOM_BADGE_MAP[GAME.key]){
     const info=CUSTOM_BADGE_MAP[GAME.key][row.t];
     if(!info)return null;
-    return {label:info.label||info.code||'',color:info.color||'888888',icon:info.icon||null,jour:info.jour||null};
+    return {label:info.label||info.code||'',color:info.color||'888888',icon:info.icon||null,jour:info.jour||null,hour:info.hour||null};
   }
   return null;
 }
@@ -8337,13 +8338,19 @@ async function exportColoredExcel(){
     // info par tirage (voir multiBadgeInfo). Demandé le 23/09/2026 : "je voudrais que les noms des
     // loto arrivent ds l'export excel" — jusque-là seul l'affichage à l'écran montrait ce badge.
     const includeJeu=cols.some(c=>c.rows.some(r=>multiBadgeInfo(r)));
-    const jeuOffset=includeJeu?1:0;
-    // Même ordre que l'affichage à l'écran : (Jeu,) N1..N5, TOT juste après (coloré),
+    // Colonne "Heure" (heure du tirage, ex: "8H", "14H30") — même source que la colonne Jeu
+    // (multiBadgeInfo/CUSTOM_BADGE_MAP), ajoutée seulement quand au moins un tirage porte cette info
+    // (typiquement "Tirage du jour" ouvert comme un jeu). Demandé le 28/09/2026 : "ajouter l'heure du
+    // tirage dispo ds l'export excel".
+    const includeHeure=cols.some(c=>c.rows.some(r=>{const info=multiBadgeInfo(r);return info&&info.hour;}));
+    const heureOffset=includeHeure?1:0;
+    const jeuOffset=(includeJeu?1:0)+heureOffset;
+    // Même ordre que l'affichage à l'écran : (Heure,)(Jeu,) N1..N5, TOT juste après (coloré),
     // puis M1..M5 et TOT.M (coloré) tout à la fin si demandé dans le panneau d'export.
-    const blockCols=2+jeuOffset+nNums+1+(includeM?6:0); // N°,Date,(Jeu,)N1..N5,TOT,(M1..M5,TOT.M)
+    const blockCols=2+jeuOffset+nNums+1+(includeM?6:0); // N°,Date,(Heure,)(Jeu,)N1..N5,TOT,(M1..M5,TOT.M)
     const gap=1; // colonne vide entre chaque bloc année
     const colsPerYear=blockCols+gap;
-    const heads=['N°','Date',...(includeJeu?['Jeu']:[]),'N1','N2','N3','N4','N5','TOT',...(includeM?['M1','M2','M3','M4','M5','TOT.M']:[])];
+    const heads=['N°','Date',...(includeHeure?['Heure']:[]),...(includeJeu?['Jeu']:[]),'N1','N2','N3','N4','N5','TOT',...(includeM?['M1','M2','M3','M4','M5','TOT.M']:[])];
     const maxRows=Math.max(...cols.map(c=>c.rows.length));
 
     const captionRow=ws.addRow([`${GAME.name} — Export : ${exportLabel}`]);
@@ -8372,9 +8379,13 @@ async function exportColoredExcel(){
         const mk=anMark(r,ctx); // anMark applique aussi la couche "Miroir même ligne toujours actif" même si aucune analyse (D) n'est choisie
         row.getCell(startCol).value=r.t;
         row.getCell(startCol+1).value=r.d;
+        const badgeInfo=(includeHeure||includeJeu)?multiBadgeInfo(r):null;
+        if(includeHeure){
+          row.getCell(startCol+2).value=(badgeInfo&&badgeInfo.hour)?hourLabel(badgeInfo.hour):'';
+        }
         if(includeJeu){
-          const jeuCell=row.getCell(startCol+2);
-          const info=multiBadgeInfo(r);
+          const jeuCell=row.getCell(startCol+2+heureOffset);
+          const info=badgeInfo;
           if(info){
             jeuCell.value=(info.icon?info.icon+' ':'')+(info.jour?info.jour+' · ':'')+info.label;
             if(includeColors){

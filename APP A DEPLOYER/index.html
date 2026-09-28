@@ -1522,11 +1522,35 @@ function tirageJourSortedEntries(entries){
     return a.label.localeCompare(b.label);
   });
 }
-function setTirageJourDate(v){state.tirageJourDate=v;render();}
-// Construit la liste des jeux prévus pour une date donnée (par défaut : celle sélectionnée dans
-// l'onglet, ou aujourd'hui) — factorisé pour être identique entre l'affichage écran et l'export Excel.
-function tirageJourEntries(){
-  const baseDate=state.tirageJourDate?new Date(state.tirageJourDate+'T00:00:00'):new Date();
+function setTirageJourDate(v){
+  state.tirageJourDate=v;
+  // Si la fin de plage devient antérieure au nouveau début, on la réaligne plutôt que de laisser
+  // une plage invalide silencieuse.
+  if(state.tirageJourEndDate&&state.tirageJourEndDate<v)state.tirageJourEndDate=v;
+  render();
+}
+function setTirageJourEndDate(v){state.tirageJourEndDate=v;render();}
+function resetTirageJourDates(){state.tirageJourDate='';state.tirageJourEndDate='';render();}
+// Plage de dates actuellement sélectionnée (1 à 3 jours, consécutifs) — un seul jour par défaut
+// (comportement historique), ou jusqu'à 3 si l'utilisateur renseigne une date de fin via le second
+// sélecteur ("Plusieurs jours" demandé le 28/09/2026). La fin est bornée à +2 jours après le début
+// (3 jours max au total) même si l'input HTML n'a pas encore appliqué son propre "max".
+function tirageJourRangeDates(){
+  const start=state.tirageJourDate?new Date(state.tirageJourDate+'T00:00:00'):new Date();
+  start.setHours(0,0,0,0);
+  let end=state.tirageJourEndDate?new Date(state.tirageJourEndDate+'T00:00:00'):new Date(start);
+  end.setHours(0,0,0,0);
+  if(end<start)end=new Date(start);
+  const maxEnd=new Date(start);maxEnd.setDate(maxEnd.getDate()+2);
+  if(end>maxEnd)end=maxEnd;
+  const dates=[];
+  let cur=new Date(start);
+  while(cur<=end){dates.push(new Date(cur));cur.setDate(cur.getDate()+1);}
+  return dates;
+}
+// Construit la liste des jeux prévus pour UNE date donnée — factorisé pour être identique entre
+// l'affichage écran (simple ou multi-jours) et l'export Excel.
+function tirageJourEntriesForDate(baseDate){
   const wd=baseDate.getDay();
   const todayK=ymdKey(baseDate);
   const entries=GAME_SCHEDULE.filter(g=>g.w.includes(wd)).map(g=>{
@@ -1550,6 +1574,16 @@ function tirageJourEntries(){
     entries.push({key:'cm_super4',gdef,label:gdef.name+' (veille)',hour:s4.hour,row:prevRow,done:!!prevRow,country:s4.country});
   }
   return{baseDate,wd,entries,todayK};
+}
+// Un jour = tirageJourEntriesForDate(premier jour de la plage) — conservé tel quel (nom historique)
+// pour tout le code qui ne gère qu'un seul jour à la fois.
+function tirageJourEntries(){
+  return tirageJourEntriesForDate(tirageJourRangeDates()[0]);
+}
+// Tous les jours de la plage sélectionnée, chacun avec ses propres entries — sert à la vue multi-
+// jours (un bloc par jour) et aux exports/"ouvrir comme un jeu" quand plusieurs jours sont choisis.
+function tirageJourMultiDays(){
+  return tirageJourRangeDates().map(d=>tirageJourEntriesForDate(d));
 }
 // Les N derniers tirages CONNUS d'un jeu, à une date de référence donnée (targetK, clé ymdKey) —
 // contrairement à rowForDate() (1 seul tirage, date exacte) ou latestRowFor() (1 seul, toujours le
@@ -1679,8 +1713,20 @@ function tirageJourAnalyseHTML(entries){
     }).join('')}
   </div>`;
 }
+// Liste finale à plat (1 à 3 jours) dans l'ordre d'affichage voulu : jour par jour du plus ancien au
+// plus récent, et à l'intérieur de chaque jour selon l'angle actuellement sélectionné à l'écran (par
+// pays / chronologique). Partagée entre "Ouvrir comme un jeu" et l'export Excel, qui doivent tous les
+// deux "regrouper par jour, un bloc par jour" (demandé le 28/09/2026 avec la plage de dates).
+function tirageJourFlatSorted(){
+  const days=tirageJourMultiDays();
+  const out=[];
+  days.forEach(day=>{
+    tirageJourSortedEntries(day.entries).forEach(e=>out.push(Object.assign({dayBaseDate:day.baseDate},e)));
+  });
+  return{days,flat:out};
+}
 function openTirageJourAsGame(){
-  const{entries,baseDate}=tirageJourEntries();
+  const{days,flat}=tirageJourFlatSorted();
   // Super 4 Cagnotte (et tout autre jeu à 4 numéros, cm_super4 étant le seul actuellement) n'a que
   // 4 numéros contre 5 pour tous les autres jeux du Tirage du jour — sans ce padding, openFiltreAsGame()
   // le considère comme un "format minoritaire" et l'EXCLUT SILENCIEUSEMENT (avec juste une alerte
@@ -1688,26 +1734,29 @@ function openTirageJourAsGame(){
   // aussi super 4"). NaN en 5e position plutôt que de forcer 5 vrais numéros : rendu en case vide côté
   // export (voir plus bas, r.n.forEach ignore les valeurs NaN) et côté affichage écran (openFiltreAsGame
   // / roundBall filtrent déjà les NaN ailleurs dans l'appli).
-  // Trié selon l'angle actuellement sélectionné à l'écran (par pays / chronologique — voir
-  // tirageJourSortedEntries) puis INVERSÉ ici car openFiltreAsGame() ci-dessous fait lui-même un
+  // "flat" est déjà dans l'ordre d'affichage voulu (jour par jour, ancien→récent ; par pays/chrono à
+  // l'intérieur de chaque jour) — on l'INVERSE ici car openFiltreAsGame() ci-dessous fait lui-même un
   // .reverse() pour numéroter ses id 1..N (convention "plus ancien = id 1") — sans cette inversion
   // volontaire en amont, le tri se retrouverait inversé dans le résultat final affiché/exporté.
-  const sortedEntries=tirageJourSortedEntries(entries).reverse();
+  const sortedEntries=flat.slice().reverse();
   const rows=sortedEntries.filter(e=>e.done&&e.row).map(e=>({
     d:e.row.d,y:e.row.y,n:e.row.n.length<5?[...e.row.n,...Array(5-e.row.n.length).fill(NaN)]:e.row.n,s:e.row.s,m:e.row.m,
     jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
     jeuIcon:e.gdef.icon||'🌍',hour:e.hour||null,
   }));
-  const dateTag=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
+  const fmt=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const dateTag=days.length>1?`${fmt(days[0].baseDate)}—${fmt(days[days.length-1].baseDate)}`:fmt(days[0].baseDate);
   openFiltreAsGame(rows,{name:'TIRAGE DU JOUR '+dateTag,icon:'📆',key:'tirage_jour_custom',closeFlag:'tirageJourOpen',bonusField:'m'});
 }
 function exportTirageJour(){
-  const{entries,baseDate}=tirageJourEntries();
-  if(!entries.length){alert('Aucun jeu prévu ce jour-là à exporter.');return;}
-  const sorted=tirageJourSortedEntries(entries);
-  const maxN=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row?e.row.n.length:0),5);
-  const maxM=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
+  const{days,flat}=tirageJourFlatSorted();
+  if(!flat.length){alert('Aucun jeu prévu ce(s) jour(s) à exporter.');return;}
+  const maxN=flat.reduce((m,e)=>Math.max(m,e.done&&e.row?e.row.n.length:0),5);
+  const maxM=flat.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
+  const multi=days.length>1;
+  const dayFmt=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   const columns=[
+    ...(multi?[{header:'Jour',get:r=>dayFmt(r.dayBaseDate)}]:[]),
     {header:'Pays',get:r=>r.country,bg:r=>TIRAGE_JOUR_COUNTRY_COLOR[r.country],fg:'#FFFFFF'},
     {header:'Heure',get:r=>r.hour?hourLabel(r.hour):'?'},
     {header:'Jeu',get:r=>r.label},
@@ -1717,8 +1766,9 @@ function exportTirageJour(){
     {header:'TOT',get:r=>r.done&&r.row?r.row.s:'',total:true},
     ...Array.from({length:maxM},(_,i)=>({header:'M'+(i+1),get:r=>r.done&&r.row&&r.row.m&&r.row.m[i]!=null&&!isNaN(r.row.m[i])?r.row.m[i]:'',fg:r=>r.done&&r.row&&r.row.m&&r.row.m[i]!=null&&!isNaN(r.row.m[i])?'#6D28D9':null})),
   ];
-  const dateTag=`${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,'0')}-${String(baseDate.getDate()).padStart(2,'0')}`;
-  exportCountryFiltre(sorted,columns,'Tirage_du_jour_'+dateTag,'TirageDuJour','export-tirage-btn');
+  const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const dateTag=multi?`${fmt(days[0].baseDate)}_a_${fmt(days[days.length-1].baseDate)}`:fmt(days[0].baseDate);
+  exportCountryFiltre(flat,columns,'Tirage_du_jour_'+dateTag,'TirageDuJour','export-tirage-btn');
 }
 // Vue "Chronologique" : liste plate triée par heure (toutes pays confondus), lignes resserrées —
 // alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
@@ -1793,20 +1843,14 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
     ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:5px 8px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
   </div>`;
 }
-function tirageJourHTML(){
-  const{baseDate,wd,entries,todayK}=tirageJourEntries();
+// Corps de l'affichage pour UN jour (bandeau numéros répétés / analyse / vue par pays ou
+// chronologique) — factorisé pour être réutilisé identique en mode "1 jour" (aucun changement visuel
+// par rapport à avant) et en mode "plusieurs jours" (un bloc de ce corps par jour, sous son propre
+// en-tête de section).
+function tirageJourDayBodyHTML(entries,todayK,dayLabel){
   const super4Last3=lastNRowsFor('cm_super4',todayK,6);
   const byCountry={};
   entries.forEach(e=>{(byCountry[e.country]=byCountry[e.country]||[]).push(e);});
-  const dayLabel=CI_DAY_NAMES[wd];
-  const dateLabel=`${String(baseDate.getDate()).padStart(2,'0')}/${String(baseDate.getMonth()+1).padStart(2,'0')}/${baseDate.getFullYear()}`;
-  const doneCount=entries.filter(e=>e.done).length;
-  const upcomingCount=entries.length-doneCount;
-  const isoVal=`${baseDate.getFullYear()}-${String(baseDate.getMonth()+1).padStart(2,'0')}-${String(baseDate.getDate()).padStart(2,'0')}`;
-  const statPill=(n,lbl,fg,bg)=>`<div style="flex:1;text-align:center;background:${bg};border-radius:10px;padding:6px 4px">
-    <div style="font-size:15px;font-weight:800;color:${fg}">${n}</div>
-    <div style="font-size:8.5px;font-weight:600;color:${fg};opacity:.85;text-transform:uppercase;letter-spacing:.3px">${lbl}</div>
-  </div>`;
   // Balles rondes en dégradé — délibérément différentes des puces carrées "numSpan" utilisées dans
   // tous les autres onglets pays, pour que celui-ci soit visuellement reconnaissable au premier coup d'œil.
   // Anneau doré si le numéro fait partie des "numéros communs" (🧠 Analyse) — visible directement
@@ -1822,35 +1866,7 @@ function tirageJourHTML(){
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
   const strongPairs=tirageJourStrongPairs(entries);
   const strongSet=new Set(strongPairs.flatMap(p=>p.shared));
-  let html=`<div id="app-content">
-  <div class="header" style="background:linear-gradient(160deg,#B45309,#78350F);color:#fff;padding:12px 14px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901;border-radius:0 0 16px 16px;box-shadow:0 4px 14px rgba(120,53,15,.35)">
-    <div style="display:flex;align-items:center;gap:8px">
-      <div style="font-size:20px">📆</div>
-      <div>
-        <div style="font-size:14px;font-weight:800;letter-spacing:.3px">TIRAGE DU JOUR</div>
-        <div style="font-size:10.5px;opacity:.9;font-weight:600">${dayLabel} ${dateLabel}</div>
-      </div>
-      <button onclick="state.tirageJourOpen=false;render()" style="margin-left:auto;width:26px;height:26px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:12px">✕</button>
-    </div>
-    <div style="display:flex;gap:6px;margin-top:10px">
-      ${statPill(entries.length,'Prévus','#fff','rgba(255,255,255,.14)')}
-      ${statPill(doneCount,'Tirés','#fff','rgba(34,197,94,.32)')}
-      ${statPill(upcomingCount,'À venir','#fff','rgba(251,191,36,.32)')}
-    </div>
-    <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
-      <input type="date" value="${isoVal}" onchange="setTirageJourDate(this.value)" style="padding:4px 7px;border-radius:8px;border:none;font-size:11px">
-      ${state.tirageJourDate?`<button onclick="setTirageJourDate('')" style="padding:4px 10px;font-size:10px;border-radius:14px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;font-weight:600">↺ Aujourd'hui</button>`:''}
-      <button onclick="toggleTirageJourAnalyse()" style="padding:5px 10px;background:${state.tirageJourShowAnalyse?'#fff':'rgba(255,255,255,.18)'};color:${state.tirageJourShowAnalyse?'#78350F':'#fff'};border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">🧠 Analyse</button>
-      <button onclick="openTirageJourAsGame()" style="margin-left:auto;padding:5px 10px;background:#fff;color:#78350F;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">📂 Ouvrir comme un jeu</button>
-      <button id="export-tirage-btn" onclick="exportTirageJour()" style="padding:5px 10px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">⬇ Excel</button>
-    </div>
-    <div style="display:flex;gap:4px;margin-top:8px;background:rgba(255,255,255,.14);border-radius:9px;padding:3px">
-      <button onclick="setTirageJourView('pays')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='pays'?'#fff':'transparent'};color:${state.tirageJourView==='pays'?'#78350F':'#fff'}">🗂 Par pays</button>
-      <button onclick="setTirageJourView('chrono')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='chrono'?'#fff':'transparent'};color:${state.tirageJourView==='chrono'?'#78350F':'#fff'}">⏱ Chronologique</button>
-    </div>
-  </div>
-  <div style="padding:12px 10px 90px">
-  ${tirageJourPairsHTML(strongPairs)}
+  return`${tirageJourPairsHTML(strongPairs)}
   ${state.tirageJourView==='pays'?tirageJourCommonStripHTML(entries):''}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:
@@ -1891,7 +1907,70 @@ function tirageJourHTML(){
         }).join('')}
       </div>
     </div>`;
-  }).join('')}
+  }).join('')}`;
+}
+function tirageJourHTML(){
+  const days=tirageJourMultiDays();
+  const multi=days.length>1;
+  const fmtDM=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const fmtISO=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const totalEntries=days.reduce((s,d)=>s+d.entries.length,0);
+  const totalDone=days.reduce((s,d)=>s+d.entries.filter(e=>e.done).length,0);
+  const totalUpcoming=totalEntries-totalDone;
+  const headerDateLabel=multi?`${CI_DAY_NAMES[days[0].wd]} ${fmtDM(days[0].baseDate)} → ${CI_DAY_NAMES[days[days.length-1].wd]} ${fmtDM(days[days.length-1].baseDate)}`:`${CI_DAY_NAMES[days[0].wd]} ${fmtDM(days[0].baseDate)}`;
+  const isoStart=fmtISO(days[0].baseDate);
+  const isoEnd=state.tirageJourEndDate||isoStart;
+  const maxEndIso=(()=>{const m=new Date(days[0].baseDate);m.setDate(m.getDate()+2);return fmtISO(m);})();
+  const statPill=(n,lbl,fg,bg)=>`<div style="flex:1;text-align:center;background:${bg};border-radius:10px;padding:6px 4px">
+    <div style="font-size:15px;font-weight:800;color:${fg}">${n}</div>
+    <div style="font-size:8.5px;font-weight:600;color:${fg};opacity:.85;text-transform:uppercase;letter-spacing:.3px">${lbl}</div>
+  </div>`;
+  const dateActive=!!(state.tirageJourDate||state.tirageJourEndDate);
+  let html=`<div id="app-content">
+  <div class="header" style="background:linear-gradient(160deg,#B45309,#78350F);color:#fff;padding:12px 14px 14px;margin-top:calc(66px + env(safe-area-inset-top));position:relative;z-index:901;border-radius:0 0 16px 16px;box-shadow:0 4px 14px rgba(120,53,15,.35)">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:20px">📆</div>
+      <div>
+        <div style="font-size:14px;font-weight:800;letter-spacing:.3px">TIRAGE DU JOUR</div>
+        <div style="font-size:10.5px;opacity:.9;font-weight:600">${headerDateLabel}${multi?` <span style="opacity:.8">(${days.length} jours)</span>`:''}</div>
+      </div>
+      <button onclick="state.tirageJourOpen=false;render()" style="margin-left:auto;width:26px;height:26px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:12px">✕</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:10px">
+      ${statPill(totalEntries,'Prévus','#fff','rgba(255,255,255,.14)')}
+      ${statPill(totalDone,'Tirés','#fff','rgba(34,197,94,.32)')}
+      ${statPill(totalUpcoming,'À venir','#fff','rgba(251,191,36,.32)')}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.14);border-radius:8px;padding:2px 6px">
+        <input type="date" value="${isoStart}" onchange="setTirageJourDate(this.value)" style="padding:4px 5px;border-radius:6px;border:none;font-size:11px">
+        <span style="font-size:9.5px;opacity:.85;font-weight:700">à</span>
+        <input type="date" value="${isoEnd}" min="${isoStart}" max="${maxEndIso}" onchange="setTirageJourEndDate(this.value)" title="Choisir jusqu'à 3 jours (plage)" style="padding:4px 5px;border-radius:6px;border:none;font-size:11px">
+      </div>
+      ${dateActive?`<button onclick="resetTirageJourDates()" style="padding:4px 10px;font-size:10px;border-radius:14px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer;font-weight:600">↺ Aujourd'hui</button>`:''}
+      <button onclick="toggleTirageJourAnalyse()" style="padding:5px 10px;background:${state.tirageJourShowAnalyse?'#fff':'rgba(255,255,255,.18)'};color:${state.tirageJourShowAnalyse?'#78350F':'#fff'};border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">🧠 Analyse</button>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:9px;align-items:center;flex-wrap:wrap">
+      <button onclick="openTirageJourAsGame()" style="flex:1;padding:5px 10px;background:#fff;color:#78350F;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">📂 Ouvrir comme un jeu</button>
+      <button id="export-tirage-btn" onclick="exportTirageJour()" style="flex:1;padding:5px 10px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:10.5px;font-weight:700">⬇ Excel</button>
+    </div>
+    <div style="display:flex;gap:4px;margin-top:8px;background:rgba(255,255,255,.14);border-radius:9px;padding:3px">
+      <button onclick="setTirageJourView('pays')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='pays'?'#fff':'transparent'};color:${state.tirageJourView==='pays'?'#78350F':'#fff'}">🗂 Par pays</button>
+      <button onclick="setTirageJourView('chrono')" style="flex:1;padding:4px 6px;border:none;border-radius:7px;cursor:pointer;font-size:10px;font-weight:700;background:${state.tirageJourView==='chrono'?'#fff':'transparent'};color:${state.tirageJourView==='chrono'?'#78350F':'#fff'}">⏱ Chronologique</button>
+    </div>
+  </div>
+  <div style="padding:12px 10px 90px">
+  ${multi?days.map(day=>{
+    const dLabel=CI_DAY_NAMES[day.wd];
+    const dDone=day.entries.filter(e=>e.done).length;
+    return`<div style="margin-bottom:22px">
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #F3E8D8">
+        <div style="font-size:12.5px;font-weight:800;color:#78350F">${dLabel} ${fmtDM(day.baseDate)}</div>
+        <div style="font-size:9.5px;color:#92400E;opacity:.85">${day.entries.length} prévus · ${dDone} tirés</div>
+      </div>
+      ${tirageJourDayBodyHTML(day.entries,day.todayK,dLabel)}
+    </div>`;
+  }).join(''):tirageJourDayBodyHTML(days[0].entries,days[0].todayK,CI_DAY_NAMES[days[0].wd])}
   </div>
   </div>`;
   return html;
@@ -4777,7 +4856,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  tirageJourOpen:false, tirageJourDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──

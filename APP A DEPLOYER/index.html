@@ -1509,6 +1509,19 @@ function rowForDate(key,targetK){
   }
   return null;
 }
+// Ordre "par pays" (groupé, comme le sélecteur écran 🗂/⏱) ou "chronologique" (heure seule, tous pays
+// mélangés) — partagé entre openTirageJourAsGame() et exportTirageJour() pour que les DEUX exports
+// suivent le même angle que celui actuellement sélectionné à l'écran (state.tirageJourView). Demandé
+// le 28/09/2026 : "on fera l'export sous deux angles par pays et ensuite chronologiquement".
+function tirageJourSortedEntries(entries){
+  const chrono=state.tirageJourView==='chrono';
+  return entries.slice().sort((a,b)=>{
+    if(!chrono&&a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country);
+    const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
+    if(ah!==bh)return ah-bh;
+    return a.label.localeCompare(b.label);
+  });
+}
 function setTirageJourDate(v){state.tirageJourDate=v;render();}
 // Construit la liste des jeux prévus pour une date donnée (par défaut : celle sélectionnée dans
 // l'onglet, ou aujourd'hui) — factorisé pour être identique entre l'affichage écran et l'export Excel.
@@ -1675,18 +1688,11 @@ function openTirageJourAsGame(){
   // aussi super 4"). NaN en 5e position plutôt que de forcer 5 vrais numéros : rendu en case vide côté
   // export (voir plus bas, r.n.forEach ignore les valeurs NaN) et côté affichage écran (openFiltreAsGame
   // / roundBall filtrent déjà les NaN ailleurs dans l'appli).
-  // Trié par pays puis par heure (même logique que exportTirageJour() plus bas) — entries suit
-  // l'ordre de définition de GAME_SCHEDULE, pas l'ordre chronologique des heures, d'où le mélange
-  // (ex: GOLD 18h listé avant DIAMANT 13h) signalé le 28/09/2026 ("pourquoi cette chronologie n'est
-  // pas respectée"). Trié en ORDRE DESCENDANT ici car openFiltreAsGame() ci-dessous fait lui-même un
+  // Trié selon l'angle actuellement sélectionné à l'écran (par pays / chronologique — voir
+  // tirageJourSortedEntries) puis INVERSÉ ici car openFiltreAsGame() ci-dessous fait lui-même un
   // .reverse() pour numéroter ses id 1..N (convention "plus ancien = id 1") — sans cette inversion
   // volontaire en amont, le tri se retrouverait inversé dans le résultat final affiché/exporté.
-  const sortedEntries=entries.slice().sort((a,b)=>{
-    if(a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country);
-    const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
-    if(ah!==bh)return bh-ah;
-    return b.label.localeCompare(a.label);
-  });
+  const sortedEntries=tirageJourSortedEntries(entries).reverse();
   const rows=sortedEntries.filter(e=>e.done&&e.row).map(e=>({
     d:e.row.d,y:e.row.y,n:e.row.n.length<5?[...e.row.n,...Array(5-e.row.n.length).fill(NaN)]:e.row.n,s:e.row.s,m:e.row.m,
     jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
@@ -1698,12 +1704,7 @@ function openTirageJourAsGame(){
 function exportTirageJour(){
   const{entries,baseDate}=tirageJourEntries();
   if(!entries.length){alert('Aucun jeu prévu ce jour-là à exporter.');return;}
-  const sorted=entries.slice().sort((a,b)=>{
-    if(a.country!==b.country)return TIRAGE_JOUR_COUNTRY_ORDER.indexOf(a.country)-TIRAGE_JOUR_COUNTRY_ORDER.indexOf(b.country);
-    const ah=hourSortKey(a.hour),bh=hourSortKey(b.hour);
-    if(ah!==bh)return ah-bh;
-    return a.label.localeCompare(b.label);
-  });
+  const sorted=tirageJourSortedEntries(entries);
   const maxN=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row?e.row.n.length:0),5);
   const maxM=sorted.reduce((m,e)=>Math.max(m,e.done&&e.row&&e.row.m?e.row.m.length:0),0);
   const columns=[

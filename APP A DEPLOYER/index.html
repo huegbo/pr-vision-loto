@@ -757,9 +757,13 @@ function openFiltreAsGame(rows,opts){
   }
   const ordered=filtered.slice().reverse(); // parse*All() est le plus récent en premier ; on veut l'inverse pour numéroter les IDs du plus ancien (1) au plus récent, comme tous les autres jeux de l'appli.
   const lines=ordered.map((r,i)=>{
-    const s=r.s!=null?r.s:r.n.reduce((a,b)=>a+b,0);
+    const s=r.s!=null?r.s:r.n.reduce((a,b)=>a+(isNaN(b)?0:b),0);
     const bonus=r[bonusField];
-    const parts=[i+1,r.d,r.y,...r.n,s];
+    // r.n peut contenir des NaN de padding (ex: Super4, 4 numéros complétés à 5 pour ne pas être
+    // exclu comme "format minoritaire" — voir openTirageJourAsGame) : converties en chaîne vide,
+    // comme déjà fait pour bonus juste en dessous, sinon Array.join() écrirait littéralement "NaN"
+    // dans la table brute du jeu virtuel.
+    const parts=[i+1,r.d,r.y,...r.n.map(v=>(v==null||isNaN(v))?'':v),s];
     if(bonus)parts.push(...bonus.map(v=>(v==null||isNaN(v))?'':v));
     return parts.join('|');
   });
@@ -1461,9 +1465,14 @@ const TIRAGE_JOUR_COUNTRY_ORDER=['Bénin','Togo',"Côte d'Ivoire",'Cameroun','Gh
 // "en coulisses" l'historique de ~180 jeux à la fois écraserait GAME/T pendant qu'on le fait.
 function parseLinesFor(lines,gdef){
   const n4=gdef&&gdef.n4,n6=gdef&&gdef.n6;
+  // Champ vide → NaN (pas 0, qui n'est jamais un vrai numéro de loto) : utilisé pour le padding d'un
+  // jeu à 4 numéros mélangé avec des jeux à 5 (ex: Super4 Cagnotte dans "Tirage du jour" ouvert comme
+  // un jeu — voir openTirageJourAsGame) — sinon "" parsé par +'' donnerait 0, affichant une fausse
+  // 5e boule "0" au lieu d'une case vide, partout où ce jeu virtuel est affiché/exporté.
+  const nn=x=>x===''||x===undefined?NaN:+x;
   return lines.map(line=>{
     const p=line.split('|');
-    const r=n6?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7],+p[8]],s:+p[9]}:n4?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6]],s:+p[7]}:{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7]],s:+p[8]};
+    const r=n6?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7],+p[8]],s:+p[9]}:n4?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6]],s:+p[7]}:{t:+p[0],d:p[1],y:p[2],n:[nn(p[3]),nn(p[4]),nn(p[5]),nn(p[6]),nn(p[7])],s:+p[8]};
     if(n6){if(p.length>=12&&p[10]!==''&&p[11]!=='')r.x=[+p[10],+p[11]];return r;}
     if(p.length>=16&&p[14]!==''&&p[15]!=='')r.x=[+p[14],+p[15]];
     if(p.length>=14)r.m=[+p[9],+p[10],+p[11],+p[12],+p[13]];
@@ -1659,8 +1668,15 @@ function tirageJourAnalyseHTML(entries){
 }
 function openTirageJourAsGame(){
   const{entries,baseDate}=tirageJourEntries();
+  // Super 4 Cagnotte (et tout autre jeu à 4 numéros, cm_super4 étant le seul actuellement) n'a que
+  // 4 numéros contre 5 pour tous les autres jeux du Tirage du jour — sans ce padding, openFiltreAsGame()
+  // le considère comme un "format minoritaire" et l'EXCLUT SILENCIEUSEMENT (avec juste une alerte
+  // passagère) du jeu virtuel "ouvrir comme un jeu"/export Excel. Signalé le 28/09/2026 ("il manque
+  // aussi super 4"). NaN en 5e position plutôt que de forcer 5 vrais numéros : rendu en case vide côté
+  // export (voir plus bas, r.n.forEach ignore les valeurs NaN) et côté affichage écran (openFiltreAsGame
+  // / roundBall filtrent déjà les NaN ailleurs dans l'appli).
   const rows=entries.filter(e=>e.done&&e.row).map(e=>({
-    d:e.row.d,y:e.row.y,n:e.row.n,s:e.row.s,m:e.row.m,
+    d:e.row.d,y:e.row.y,n:e.row.n.length<5?[...e.row.n,...Array(5-e.row.n.length).fill(NaN)]:e.row.n,s:e.row.s,m:e.row.m,
     jeu:e.key,jeuLabel:e.label,jeuColor:(TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151').replace('#',''),
     jeuIcon:e.gdef.icon||'🌍',hour:e.hour||null,
   }));
@@ -8396,6 +8412,7 @@ async function exportColoredExcel(){
         }
         r.n.forEach((v,ni)=>{
           const cell=row.getCell(startCol+2+jeuOffset+ni);
+          if(v==null||isNaN(v))return; // padding (ex: Super4, 4 numéros seulement) — case laissée vide plutôt que "NaN"
           cell.value=v;
           if(!includeColors)return;
           const cid=r.t+'_'+ni;

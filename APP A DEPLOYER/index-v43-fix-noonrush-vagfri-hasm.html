@@ -7000,6 +7000,16 @@ function searchMatch(row,nums,mode,posIdx){
   return nums.every(n=>row.n.includes(n)||(row.m&&row.m.includes(n)));
 }
 function setSearchPosMode(m){state.searchPosMode=m;if(m==='any')state.searchPosIdx=null;render();}
+// Retire UN SEUL numéro (par son index dans state.search) de la recherche en cours, en conservant
+// les positions déjà fixées des autres — répond à "impossible de les enlever" (30/09/2026) : avant,
+// seul un effacement total (✕) existait, pas de retrait numéro par numéro dans le mode "même position".
+function removeSearchNumAt(i){
+  state.search.splice(i,1);
+  if(state.searchPosIdx)state.searchPosIdx.splice(i,1);
+  state.searchInput=state.search.join(' ');
+  if(!state.search.length){state.searchPosIdx=null;state.searchPosMode='any';}
+  render();
+}
 // Détermine si le numéro n, à l'index de position idx (0-4=D1-D5, 5-9=D6-D10), doit être surligné comme résultat de recherche
 function isSearchHit(n,idx){
   if(!state.search.length)return false;
@@ -17506,7 +17516,7 @@ function __renderBody(){
       ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 10px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:10px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 9px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">🎨 Exporter avec couleurs</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 9px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">⚡ Export rapide</button>
-      ${state.search.length&&state.searchPosMode==='same'?`<div style="width:100%;font-size:8px;color:#F59E0B">📍 ${state.search.map((n,i)=>{const idx=(state.searchPosIdx&&state.searchPosIdx[i]!=null)?state.searchPosIdx[i]:i;return n+'→D'+(idx+1);}).join(' · ')}</div>`:''}
+      ${state.search.length&&state.searchPosMode==='same'?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${state.search.map((n,i)=>{const idx=(state.searchPosIdx&&state.searchPosIdx[i]!=null)?state.searchPosIdx[i]:i;return `<span onclick="removeSearchNumAt(${i})" title="Retirer ce numéro" style="font-size:9px;color:#F59E0B;font-weight:600;background:#FFF7ED;border:1px solid #FDBA74;border-radius:10px;padding:1px 6px;cursor:pointer">📍 ${n}→D${idx+1} ✕</span>`;}).join('')}</div>`:''}
       <label style="width:100%;font-size:10px;cursor:pointer;display:flex;align-items:center;gap:5px;font-weight:600;color:${state.searchAllGames?'#059669':'#aaa'}" title="Cherche ces numéros en même temps dans tous les jeux sélectionnés ci-dessous, pas seulement dans le jeu affiché"><input type="checkbox" ${state.searchAllGames?'checked':''} onchange="state.searchAllGames=this.checked;if(state.searchAllGames&&(!state.searchAllGamesList||!state.searchAllGamesList.length))state.searchAllGamesList=Object.keys(GAMES);doSearch()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
       ${state.searchAllGames?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:3px;margin-top:2px;padding:5px;background:#F0FDF4;border-radius:6px">
         ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.searchAllGamesList||[]).includes(k);return`<button onclick="toggleSearchAllGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#059669':'#ccc'};background:${sel?'#059669':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}

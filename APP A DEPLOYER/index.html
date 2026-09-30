@@ -7051,7 +7051,8 @@ function searchNumFromMenu(n,cid,mode){
     state.searchPosIdx=null;
   }
   state.searchInput=state.search.join(' ');
-  state.tab=0;state.showSearchHub=false;
+  // Ne bascule plus automatiquement vers l'onglet Navigation : on reste sur l'écran courant
+  // (Analyses, Recherche...) pour ne pas perdre le contexte de l'utilisateur — demande du 30/09/2026.
   closePopup();
   render();
 }

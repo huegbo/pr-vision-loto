@@ -8274,6 +8274,11 @@ async function exportMgColumnsExcel(){
 
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Comparaison lotos');
+    // Corrige un défaut d'ExcelJS (confirmé le 01/10/2026 : ws.pageSetup.horizontalDpi/verticalDpi
+    // valent 4294967295 — 0xFFFFFFFF — par défaut dès addWorksheet(), une valeur hors norme qui peut
+    // faire échouer la validation stricte d'Excel et déclencher la boîte de dialogue "Réparer" vue
+    // par l'utilisateur ("l expoort excel"). On force une valeur normale (300 dpi) pour rester prudent.
+    if(ws.pageSetup){ws.pageSetup.horizontalDpi=300;ws.pageSetup.verticalDpi=300;}
     const gap=1;
     const blockColsOf=c=>2+5+1+(c.g.hasM?6:0); // N°,Date,N1..N5,TOT/X1,(M1..M5,TOT.M/X2)
     const colOffsets=[];let acc=1;
@@ -8395,6 +8400,18 @@ async function exportMgColumnsExcel(){
     cols.forEach((c,ci)=>{ws.getColumn(colOffsets[ci]+1).width=10;});
 
     const buf=await wb.xlsx.writeBuffer();
+    // Filet de sécurité (01/10/2026, suite à un export .xlsx corrompu signalé par l'utilisateur,
+    // Excel demandant de "réparer" le fichier) : on relit immédiatement le buffer généré avec
+    // ExcelJS avant de le proposer au téléchargement. Si la relecture échoue, c'est que le fichier
+    // produit est invalide — on prévient l'utilisateur au lieu de lui laisser télécharger un .xlsx
+    // cassé sans le savoir, et on lui suggère de réduire le nombre de jeux comparés (fichier trop
+    // volumineux = cause la plus probable d'une génération qui s'interrompt mal).
+    try{
+      await new ExcelJS.Workbook().xlsx.load(buf);
+    }catch(verifyErr){
+      alert("Le fichier généré semble invalide ("+(verifyErr&&verifyErr.message?verifyErr.message:verifyErr)+"). Essaie avec moins de jeux sélectionnés, ou réessaie — l'export n'a pas été téléchargé pour éviter un fichier corrompu.");
+      return;
+    }
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);

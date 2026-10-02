@@ -1835,9 +1835,13 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   const casinoBall=(n,idx,common,strong)=>{
     const base=CASINO_BALL_COLORS[idx%CASINO_BALL_COLORS.length];
     const ring=strong?'0 0 0 2px #fff,0 0 0 4px #DC2626':common?'0 0 0 2px #fff,0 0 0 4px #F5C518':'0 0 0 1.5px #fff';
-    return`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${lighten(base,0.35)},${base});color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.35),${ring};text-shadow:0 1px 1px rgba(0,0,0,.35)">${n}</span>`;
+    // Essai "texte noir" jugé "trop vilain" (02/10/2026) → retour au blanc, avec un contour sombre
+    // marqué (plutôt qu'une simple ombre légère) pour que ça reste lisible même sur la boule jaune.
+    return`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${lighten(base,0.35)},${base});color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.35),${ring};text-shadow:-1px -1px 0 rgba(0,0,0,.45),1px -1px 0 rgba(0,0,0,.45),-1px 1px 0 rgba(0,0,0,.45),1px 1px 0 rgba(0,0,0,.45)">${n}</span>`;
   };
-  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(145deg,#8C0F28,#5A0A1A);border-bottom:3px solid #3D0712;padding:8px 10px 10px;position:relative;overflow:hidden">
+  // Couleur de fond imposée telle quelle (02/10/2026 : "imite ça intégralement") : le bordeaux plat
+  // exact du bouton "Open"/Linkyfi utilisé en référence, sans dégradé cette fois.
+  const pinnedRow=super4Last3.length?`<div style="background:#B9285A;border-bottom:3px solid #8C1D44;padding:8px 10px 10px;position:relative;overflow:hidden">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
         <span style="font-size:15px;flex-shrink:0">⏱️</span>
         <span style="font-size:13px;font-weight:900;background:linear-gradient(180deg,#FFE9A8,#F0B429);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 1px 0 rgba(0,0,0,.25);letter-spacing:.4px">SUPER 4</span>

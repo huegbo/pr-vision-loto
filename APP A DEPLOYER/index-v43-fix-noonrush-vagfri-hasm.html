@@ -1778,6 +1778,40 @@ function exportTirageJour(){
 // Vue "Chronologique" : liste plate triée par heure (toutes pays confondus), lignes resserrées —
 // alternative à la vue "Par pays" (regroupée, cartes plus grandes), gardée en parallèle via le
 // sélecteur state.tirageJourView plutôt qu'à la remplacer.
+// Bandeau SUPER 4 CAGNOTTE — extrait en fonction autonome (02/10/2026) pour pouvoir l'afficher
+// aussi bien en vue "⏱ Chronologique" qu'en vue "🗂 Par pays" (par défaut à l'ouverture de l'onglet),
+// où il n'apparaissait pas du tout auparavant ("PAS VISIBLE" — le code ne l'appelait que depuis
+// tirageJourChronoHTML, jamais depuis la branche "pays").
+function super4BannerHTML(super4Last3,commonSet,strongSet){
+  commonSet=commonSet||new Set();
+  strongSet=strongSet||new Set();
+  super4Last3=super4Last3||[];
+  if(!super4Last3.length)return'';
+  // Style "lotobonheur.ci" adopté tel quel (02/10/2026, capture "TIRAGE EMERGENCE") : fond violet
+  // plat, titre blanc en gras, boules BLANCHES toutes simples avec chiffres noirs (pas de dégradé
+  // ni de code couleur par position) — look officiel du site ivoirien. Le sens fonctionnel
+  // ("numéro répété"/"double correspondance" de l'analyse 🧠) reste visible via un anneau coloré
+  // superposé au cercle blanc (doré=répété, rouge=double correspondance) plutôt que par la couleur
+  // de fond de la boule.
+  const casinoBall=(n,idx,common,strong)=>{
+    const ring=strong?'0 0 0 3px #DC2626':common?'0 0 0 3px #F5C518':'none';
+    return`<span style="width:24px;height:24px;border-radius:50%;background:#fff;color:#111;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.4)${ring!=='none'?`,${ring}`:''}">${n}</span>`;
+  };
+  return`<div style="background:#7B2D8E;padding:8px 10px 10px;position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:15px;flex-shrink:0">⏱️</span>
+        <span style="font-size:13px;font-weight:900;color:#fff;letter-spacing:.4px">SUPER 4</span>
+        <span style="font-size:10.5px;font-weight:800;color:#F5C518;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:5px">CAGNOTTE</span>
+        <span style="font-size:9px;font-weight:700;color:#fff;opacity:.85">— 6 derniers tirages</span>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px;overflow-x:auto;padding-bottom:2px">
+        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;min-width:60px">
+          <span style="font-size:8.5px;font-weight:800;color:#F5C518;width:100%;text-align:center;white-space:nowrap;margin-bottom:4px">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">${r.n.map((n,ni)=>casinoBall(n,ni,commonSet.has(n),strongSet.has(n))).join('')}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+}
 function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3){
   commonSet=commonSet||new Set();
   strongSet=strongSet||new Set();
@@ -1824,37 +1858,9 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
       ${resultBody}
     </div>`;
   };
-  // Bandeau Super4 (02/10/2026, 5e passe) : style "casino rouge/or" choisi par l'utilisateur parmi
-  // plusieurs maquettes IA fournies en inspiration — titre doré en relief, fond rouge grenat en
-  // dégradé, cartes blanches par date avec boules classiques jaune/rouge/bleu/vert façon loto réel.
-  // Le code couleur des boules redevient donc décoratif (position 1→4), MAIS le sens fonctionnel
-  // (numéro "répété"/"double correspondance" détecté par l'analyse 🧠) reste visible via un anneau
-  // doré (répété) ou rouge vif (double correspondance) superposé à la couleur de base — l'info ne
-  // disparaît pas, elle devient un anneau plutôt qu'un remplissage.
-  const CASINO_BALL_COLORS=['#F5C518','#E63946','#2D7DD2','#2DA44E'];
-  const casinoBall=(n,idx,common,strong)=>{
-    const base=CASINO_BALL_COLORS[idx%CASINO_BALL_COLORS.length];
-    const ring=strong?'0 0 0 2px #fff,0 0 0 4px #DC2626':common?'0 0 0 2px #fff,0 0 0 4px #F5C518':'0 0 0 1.5px #fff';
-    // Essai "texte noir" jugé "trop vilain" (02/10/2026) → retour au blanc, avec un contour sombre
-    // marqué (plutôt qu'une simple ombre légère) pour que ça reste lisible même sur la boule jaune.
-    return`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${lighten(base,0.35)},${base});color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.35),${ring};text-shadow:-1px -1px 0 rgba(0,0,0,.45),1px -1px 0 rgba(0,0,0,.45),-1px 1px 0 rgba(0,0,0,.45),1px 1px 0 rgba(0,0,0,.45)">${n}</span>`;
-  };
-  // Couleur de fond imposée telle quelle (02/10/2026 : "imite ça intégralement") : le bordeaux plat
-  // exact du bouton "Open"/Linkyfi utilisé en référence, sans dégradé cette fois.
-  const pinnedRow=super4Last3.length?`<div style="background:#B9285A;border-bottom:3px solid #8C1D44;padding:8px 10px 10px;position:relative;overflow:hidden">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-        <span style="font-size:15px;flex-shrink:0">⏱️</span>
-        <span style="font-size:13px;font-weight:900;background:linear-gradient(180deg,#FFE9A8,#F0B429);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 1px 0 rgba(0,0,0,.25);letter-spacing:.4px">SUPER 4</span>
-        <span style="font-size:10.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:5px">CAGNOTTE</span>
-        <span style="font-size:9px;font-weight:700;color:#FFE9A8;opacity:.9">— 6 derniers tirages</span>
-      </div>
-      <div style="display:flex;align-items:flex-start;gap:8px;overflow-x:auto;padding-bottom:2px">
-        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;background:#fff;border-radius:10px;padding:0 0 6px;box-shadow:0 2px 5px rgba(0,0,0,.3);min-width:66px">
-          <span style="font-size:8.5px;font-weight:800;color:#000;background:#F5C518;padding:3px 0;border-radius:10px 10px 0 0;width:100%;text-align:center;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px 5px 0">${r.n.map((n,ni)=>casinoBall(n,ni,commonSet.has(n),strongSet.has(n))).join('')}</div>
-        </div>`).join('')}
-      </div>
-    </div>`:'';
+  // Bandeau Super4 : extrait dans super4BannerHTML() (02/10/2026) pour être réutilisable aussi en
+  // vue "Par pays" — ici on se contente de l'appeler.
+  const pinnedRow=super4BannerHTML(super4Last3,commonSet,strongSet);
   // Bandeau "numéros répétés" collé JUSTE AU-DESSUS de Super 4 (la boussole) — plus de trou entre les
   // deux comme avant (où le bandeau était tout en haut de page, séparé). Construit ici en interne
   // (au lieu d'appeler tirageJourCommonStripHTML qui a sa propre carte avec marge/coins arrondis)
@@ -1894,7 +1900,12 @@ function tirageJourDayBodyHTML(entries,todayK,dayLabel){
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
   const strongPairs=tirageJourStrongPairs(entries);
   const strongSet=new Set(strongPairs.flatMap(p=>p.shared));
+  // Bandeau Super4 Cagnotte : affiché aussi en vue "🗂 Par pays" (vue par défaut à l'ouverture) —
+  // avant il n'était câblé que dans la vue "⏱ Chronologique", donc invisible la plupart du temps
+  // ("PAS VISIBLE", 02/10/2026).
+  const super4Banner=state.tirageJourView==='pays'?super4BannerHTML(super4Last3,commonSet,strongSet):'';
   return`${tirageJourPairsHTML(strongPairs)}
+  ${super4Banner?`<div style="border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)">${super4Banner}</div>`:''}
   ${state.tirageJourView==='pays'?tirageJourCommonStripHTML(entries):''}
   ${state.tirageJourShowAnalyse?tirageJourAnalyseHTML(entries):''}
   ${entries.length===0?`<div style="text-align:center;color:#999;font-size:12px;padding:30px 10px">Aucun jeu connu ne tire un ${dayLabel.toLowerCase()}.</div>`:

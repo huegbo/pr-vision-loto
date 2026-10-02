@@ -1824,30 +1824,30 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
       ${resultBody}
     </div>`;
   };
-  // Palette (02/10/2026, 4e passe) : l'utilisateur a montré en exemple l'affiche Lonato "Matinal"
-  // (bandeau vert franc, boules vertes pleines avec numéros blancs bien gras) — on reprend cette
-  // identité pour le bandeau Super4 : fond vert en dégradé (au lieu de l'orange), boules vertes
-  // pleines à numéros blancs (plus de dégradé radial type "bille" ici, un style plat et net comme
-  // sur l'affiche), et une puce orange pour la date façon accent Lonato.
-  // Bandeau Super4 passé au bordeaux (02/10/2026 : "remplace pour ce bandeau" — exemple fourni, le
-  // bouton "Open" bordeaux/Linkyfi). Les boules "normales" passent en blanc plein (texte bordeaux)
-  // pour rester bien visibles sur ce fond foncé — avec le fond vert précédent, les boules non
-  // surlignées (couleur identique au fond) se fondaient presque dans le bandeau.
-  const lonatoBall=(n,common,strong)=>{
-    const bg=strong?'#DC2626':common?'#F59E0B':'#fff';
-    const txt=strong||common?'#fff':'#8C1D44';
-    const ring=strong?'0 0 0 2px #7F1D1D':common?'0 0 0 2px #92400E':'none';
-    return`<span style="width:22px;height:22px;border-radius:50%;background:${bg};color:${txt};font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.25)${ring!=='none'?','+ring:''}">${n}</span>`;
+  // Bandeau Super4 (02/10/2026, 5e passe) : style "casino rouge/or" choisi par l'utilisateur parmi
+  // plusieurs maquettes IA fournies en inspiration — titre doré en relief, fond rouge grenat en
+  // dégradé, cartes blanches par date avec boules classiques jaune/rouge/bleu/vert façon loto réel.
+  // Le code couleur des boules redevient donc décoratif (position 1→4), MAIS le sens fonctionnel
+  // (numéro "répété"/"double correspondance" détecté par l'analyse 🧠) reste visible via un anneau
+  // doré (répété) ou rouge vif (double correspondance) superposé à la couleur de base — l'info ne
+  // disparaît pas, elle devient un anneau plutôt qu'un remplissage.
+  const CASINO_BALL_COLORS=['#F5C518','#E63946','#2D7DD2','#2DA44E'];
+  const casinoBall=(n,idx,common,strong)=>{
+    const base=CASINO_BALL_COLORS[idx%CASINO_BALL_COLORS.length];
+    const ring=strong?'0 0 0 2px #fff,0 0 0 4px #DC2626':common?'0 0 0 2px #fff,0 0 0 4px #F5C518':'0 0 0 1.5px #fff';
+    return`<span style="width:23px;height:23px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${lighten(base,0.35)},${base});color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,.35),${ring};text-shadow:0 1px 1px rgba(0,0,0,.35)">${n}</span>`;
   };
-  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(135deg,#C62957,#8C1D44);border-bottom:3px solid #6B1536">
-      <div style="display:flex;align-items:center;gap:5px;padding:7px 10px 4px">
-        <span style="font-size:14px;flex-shrink:0">🧭</span>
-        <span style="font-size:10px;font-weight:900;color:#fff;letter-spacing:.3px">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
+  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(145deg,#8C0F28,#5A0A1A);border-bottom:3px solid #3D0712;padding:8px 10px 10px;position:relative;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+        <span style="font-size:15px;flex-shrink:0">⏱️</span>
+        <span style="font-size:13px;font-weight:900;background:linear-gradient(180deg,#FFE9A8,#F0B429);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 1px 0 rgba(0,0,0,.25);letter-spacing:.4px">SUPER 4</span>
+        <span style="font-size:10.5px;font-weight:800;color:#fff;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:5px">CAGNOTTE</span>
+        <span style="font-size:9px;font-weight:700;color:#FFE9A8;opacity:.9">— 6 derniers tirages</span>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:12px;padding:3px 10px 9px 30px;overflow-x:auto">
-        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
-          <span style="font-size:9px;font-weight:800;color:#fff;background:#F59E0B;padding:1px 6px;border-radius:8px;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
-          <div style="display:flex;gap:3px">${r.n.map(n=>lonatoBall(n,commonSet.has(n),strongSet.has(n))).join('')}</div>
+      <div style="display:flex;align-items:flex-start;gap:8px;overflow-x:auto;padding-bottom:2px">
+        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;background:#fff;border-radius:10px;padding:0 0 6px;box-shadow:0 2px 5px rgba(0,0,0,.3);min-width:66px">
+          <span style="font-size:8.5px;font-weight:800;color:#000;background:#F5C518;padding:3px 0;border-radius:10px 10px 0 0;width:100%;text-align:center;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:5px 5px 0">${r.n.map((n,ni)=>casinoBall(n,ni,commonSet.has(n),strongSet.has(n))).join('')}</div>
         </div>`).join('')}
       </div>
     </div>`:'';
@@ -6896,6 +6896,12 @@ function darken(hex,f){
   // f: 0..1, assombrit la couleur
   let[r,g,b]=hexToRgb(hex);
   r=Math.round(r*(1-f));g=Math.round(g*(1-f));b=Math.round(b*(1-f));
+  return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+function lighten(hex,f){
+  // f: 0..1, éclaircit la couleur (utilisé pour le reflet des boules "casino" du bandeau Super4)
+  let[r,g,b]=hexToRgb(hex);
+  r=Math.round(r+(255-r)*f);g=Math.round(g+(255-g)*f);b=Math.round(b+(255-b)*f);
   return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 function lum(hex){const[r,g,b]=hexToRgb(hex);return (0.299*r+0.587*g+0.114*b)/255;}

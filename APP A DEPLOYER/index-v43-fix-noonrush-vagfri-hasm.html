@@ -1809,26 +1809,33 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
     const darkCol=darken(col,0.32);
     const flag=e.gdef.icon||'🌍';
     const hourTxt=e.hour?hourLabel(e.hour):'?';
-    const resultBody=e.done?`<div style="display:flex;gap:2px;flex-wrap:wrap;flex:1;min-width:0">
+    const resultBody=e.done?`<div style="display:flex;gap:3px;flex-wrap:wrap;flex:1;min-width:0">
         ${e.row.n.map(n=>miniBall(n,col,darkCol,commonSet.has(n),strongSet.has(n))).join('')}
         ${e.row.m?e.row.m.filter(n=>n!=null&&!isNaN(n)).map(n=>miniBall(n,'#C4B5FD','#7C3AED',false)).join(''):''}
-      </div>`:`<div style="font-size:10px;color:#aaa;font-style:italic;flex:1">en attente</div>`;
-    return`<div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-bottom:1px solid #f2f2f2">
-      <span style="font-size:13px;flex-shrink:0">${flag}</span>
+      </div>`:`<div style="font-size:10px;color:#bbb;font-style:italic;flex:1">en attente</div>`;
+    // Style adouci (demande du 02/10/2026 : "un style plus agréable") : lignes plus aérées (padding
+    // et gap augmentés), bordure plus discrète, et surtout le libellé du jeu n'est plus tronqué en
+    // "DIGITAL REVE…" (width fixe trop étroite) — il passe sur 2 lignes si besoin (white-space:normal
+    // + line-height resserré) au lieu d'être coupé avec "…".
+    return`<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid #f5f5f5">
+      <span style="font-size:14px;flex-shrink:0">${flag}</span>
       <span style="font-size:9.5px;font-weight:800;color:${col};width:34px;flex-shrink:0">${hourTxt}</span>
-      <span style="font-size:10px;font-weight:700;color:#222;width:82px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${e.label}">${e.label}</span>
+      <span style="font-size:10px;font-weight:700;color:#333;width:92px;flex-shrink:0;line-height:1.15;white-space:normal" title="${e.label}">${e.label}</span>
       ${resultBody}
     </div>`;
   };
-  const pinnedRow=super4Last3.length?`<div style="background:#FEF3C7;border-bottom:2px solid #F59E0B">
-      <div style="display:flex;align-items:center;gap:5px;padding:6px 8px 3px">
+  // Palette ajustée le 02/10/2026 : la 1ère passe (gris-beige très pâle) a été jugée "trop fade" —
+  // on revient à un dégradé doré bien visible, mais propre (pas le jaune/orange saturé d'origine qui
+  // "piquait les yeux") : dégradé chaud en fond + boules Super4 en dégradé doré franc.
+  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(135deg,#FDECC8,#FBDFA0);border-bottom:2px solid #E8B454">
+      <div style="display:flex;align-items:center;gap:5px;padding:7px 10px 4px">
         <span style="font-size:13px;flex-shrink:0">🧭</span>
-        <span style="font-size:9.5px;font-weight:800;color:#92400E">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
+        <span style="font-size:9.5px;font-weight:800;color:#7A4A0A">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
       </div>
-      <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 8px 8px 30px;overflow-x:auto">
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:3px 10px 9px 30px;overflow-x:auto">
         ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
-          <span style="font-size:9px;font-weight:700;color:#78350F;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
-          <div style="display:flex;gap:2px">${r.n.map(n=>miniBall(n,'#FBBF24','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
+          <span style="font-size:9px;font-weight:700;color:#7A4A0A;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:flex;gap:3px">${r.n.map(n=>miniBall(n,'#F5BB4E','#C2770E',commonSet.has(n),strongSet.has(n))).join('')}</div>
         </div>`).join('')}
       </div>
     </div>`:'';
@@ -1837,15 +1844,15 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   // (au lieu d'appeler tirageJourCommonStripHTML qui a sa propre carte avec marge/coins arrondis)
   // pour qu'il forme un seul bloc visuel continu avec la ligne Super 4 juste en dessous.
   const commons=tirageJourCommonNumbers(entries);
-  const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#FFFBEB;padding:7px 8px;border-bottom:2px solid #FDE68A">
-      <span style="font-size:9.5px;font-weight:800;color:#92400E;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
-      ${commons.map(c=>`<span style="width:20px;height:20px;border-radius:50%;background:#78350F;color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #FDE68A;flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+  const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#FFF3DA;padding:8px 10px;border-bottom:1px solid #F0D9A3">
+      <span style="font-size:9.5px;font-weight:800;color:#7A4A0A;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
+      ${commons.map(c=>`<span style="width:21px;height:21px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#C2770E,#7A4A0A);color:#fff;font-size:9px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.15);flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
     </div>`:'';
-  return`<div style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eee;margin-bottom:16px">
+  return`<div style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #ededed;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
     ${stripRow}
     ${pinnedRow}
     ${withHour.map(row).join('')}
-    ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:5px 8px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
+    ${noHour.length?`<div style="font-size:9px;color:#aaa;padding:6px 10px;background:#fafafa;font-weight:700">HEURE INCONNUE</div>${noHour.map(row).join('')}`:''}
   </div>`;
 }
 // Corps de l'affichage pour UN jour (bandeau numéros répétés / analyse / vue par pays ou

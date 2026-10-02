@@ -1824,18 +1824,25 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
       ${resultBody}
     </div>`;
   };
-  // Palette (02/10/2026, 3e passe) : "trop fade" en v2 (beige pâle) → on monte franchement la
-  // saturation (dégradé orange/ambre vif, texte brun foncé bien contrasté, boules avec un vrai
-  // dégradé + ombre) tout en gardant les lignes aérées et les libellés non tronqués de la v1.
-  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(135deg,#FFD98A,#FDB44B);border-bottom:3px solid #C2650C">
+  // Palette (02/10/2026, 4e passe) : l'utilisateur a montré en exemple l'affiche Lonato "Matinal"
+  // (bandeau vert franc, boules vertes pleines avec numéros blancs bien gras) — on reprend cette
+  // identité pour le bandeau Super4 : fond vert en dégradé (au lieu de l'orange), boules vertes
+  // pleines à numéros blancs (plus de dégradé radial type "bille" ici, un style plat et net comme
+  // sur l'affiche), et une puce orange pour la date façon accent Lonato.
+  const lonatoBall=(n,common,strong)=>{
+    const bg=strong?'#B91C1C':common?'#7C2D12':'#1B7A33';
+    const ring=strong?'0 0 0 2px #7F1D1D':common?'0 0 0 2px #92400E':'none';
+    return`<span style="width:22px;height:22px;border-radius:50%;background:${bg};color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:1.5px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.25)${ring!=='none'?','+ring:''}">${n}</span>`;
+  };
+  const pinnedRow=super4Last3.length?`<div style="background:linear-gradient(135deg,#2F9E44,#1B7A33);border-bottom:3px solid #146127">
       <div style="display:flex;align-items:center;gap:5px;padding:7px 10px 4px">
         <span style="font-size:14px;flex-shrink:0">🧭</span>
-        <span style="font-size:10px;font-weight:900;color:#7C2D12">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
+        <span style="font-size:10px;font-weight:900;color:#fff;letter-spacing:.3px">SUPER 4 CAGNOTTE — 6 derniers tirages</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:12px;padding:3px 10px 9px 30px;overflow-x:auto">
-        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
-          <span style="font-size:9px;font-weight:800;color:#7C2D12;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
-          <div style="display:flex;gap:3px">${r.n.map(n=>miniBall(n,'#FDE68A','#B45309',commonSet.has(n),strongSet.has(n))).join('')}</div>
+        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0">
+          <span style="font-size:9px;font-weight:800;color:#fff;background:#F59E0B;padding:1px 6px;border-radius:8px;white-space:nowrap">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:flex;gap:3px">${r.n.map(n=>lonatoBall(n,commonSet.has(n),strongSet.has(n))).join('')}</div>
         </div>`).join('')}
       </div>
     </div>`:'';
@@ -1844,9 +1851,9 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   // (au lieu d'appeler tirageJourCommonStripHTML qui a sa propre carte avec marge/coins arrondis)
   // pour qu'il forme un seul bloc visuel continu avec la ligne Super 4 juste en dessous.
   const commons=tirageJourCommonNumbers(entries);
-  const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:linear-gradient(135deg,#FFF0CC,#FDE2A8);padding:8px 10px;border-bottom:2px solid #F0C572">
-      <span style="font-size:10px;font-weight:900;color:#7C2D12;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
-      ${commons.map(c=>`<span style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#F59E0B,#7C2D12);color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.25);flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
+  const stripRow=commons.length?`<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;background:#F0FDF4;padding:8px 10px;border-bottom:2px solid #BBF7D0">
+      <span style="font-size:10px;font-weight:900;color:#166534;white-space:nowrap">🔁 Répétés (${commons.length}) :</span>
+      ${commons.map(c=>`<span style="width:22px;height:22px;border-radius:50%;background:#1B7A33;color:#fff;font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.2);flex-shrink:0" title="${c.games.map(e=>e.label).join(' · ')}">${c.n}</span>`).join('')}
     </div>`:'';
   return`<div style="background:#fff;border-radius:14px;overflow:hidden;border:1px solid #ededed;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
     ${stripRow}

@@ -1782,32 +1782,47 @@ function exportTirageJour(){
 // aussi bien en vue "⏱ Chronologique" qu'en vue "🗂 Par pays" (par défaut à l'ouverture de l'onglet),
 // où il n'apparaissait pas du tout auparavant ("PAS VISIBLE" — le code ne l'appelait que depuis
 // tirageJourChronoHTML, jamais depuis la branche "pays").
+function toggleSuper4Style(){
+  state.tirageJourSuper4Style=state.tirageJourSuper4Style==='dark'?'violet':'dark';
+  render();
+}
 function super4BannerHTML(super4Last3,commonSet,strongSet){
   commonSet=commonSet||new Set();
   strongSet=strongSet||new Set();
   super4Last3=super4Last3||[];
   if(!super4Last3.length)return'';
-  // Style "lotobonheur.ci" adopté tel quel (02/10/2026, capture "TIRAGE EMERGENCE") : fond violet
-  // plat, titre blanc en gras, boules BLANCHES toutes simples avec chiffres noirs (pas de dégradé
-  // ni de code couleur par position) — look officiel du site ivoirien. Le sens fonctionnel
-  // ("numéro répété"/"double correspondance" de l'analyse 🧠) reste visible via un anneau coloré
-  // superposé au cercle blanc (doré=répété, rouge=double correspondance) plutôt que par la couleur
-  // de fond de la boule.
-  const casinoBall=(n,idx,common,strong)=>{
-    const ring=strong?'0 0 0 3px #DC2626':common?'0 0 0 3px #F5C518':'none';
-    return`<span style="width:24px;height:24px;border-radius:50%;background:#fff;color:#111;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.4)${ring!=='none'?`,${ring}`:''}">${n}</span>`;
-  };
-  return`<div style="background:#7B2D8E;padding:8px 10px 10px;position:relative;overflow:hidden">
+  // Deux styles essayés (02/10/2026) laissés au choix de l'utilisateur ("ou permettre de switcher" /
+  // "entre les deux styles") via un petit bouton 🔁 dans le bandeau, plutôt que d'en imposer un seul :
+  // "dark" = fond quasi-noir, boules cerclées de jaune, chiffres blancs ("The latest results").
+  // "violet" = fond violet plat, boules blanches pleines, chiffres noirs (style lotobonheur.ci).
+  // Dans les deux cas le sens fonctionnel ("numéro répété"/"double correspondance" de l'analyse 🧠)
+  // reste visible via un anneau doré (répété) ou rouge vif (double correspondance).
+  const style=state.tirageJourSuper4Style==='violet'?'violet':'dark';
+  const casinoBall=style==='violet'?
+    (n,idx,common,strong)=>{
+      const ring=strong?'0 0 0 3px #DC2626':common?'0 0 0 3px #F5C518':'none';
+      return`<span style="width:24px;height:24px;border-radius:50%;background:#fff;color:#111;font-size:10px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.4)${ring!=='none'?`,${ring}`:''}">${n}</span>`;
+    }:
+    (n,idx,common,strong)=>{
+      const ringColor=strong?'#DC2626':'#F5C518';
+      const ringWidth=strong||common?'2.5px':'2px';
+      return`<span style="width:26px;height:26px;border-radius:50%;background:#1a1a1a;color:#fff;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border:${ringWidth} solid ${ringColor}">${n}</span>`;
+    };
+  const bg=style==='violet'?'#7B2D8E':'#111';
+  const titleCol=style==='violet'?'#fff':'#F5C518';
+  const dateCol='#F5C518';
+  return`<div style="background:${bg};padding:8px 10px 10px;position:relative;overflow:hidden">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
         <span style="font-size:15px;flex-shrink:0">⏱️</span>
-        <span style="font-size:13px;font-weight:900;color:#fff;letter-spacing:.4px">SUPER 4</span>
-        <span style="font-size:10.5px;font-weight:800;color:#F5C518;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:5px">CAGNOTTE</span>
-        <span style="font-size:9px;font-weight:700;color:#fff;opacity:.85">— 6 derniers tirages</span>
+        <span style="font-size:13px;font-weight:900;color:${titleCol};letter-spacing:.4px">SUPER 4</span>
+        <span style="font-size:10.5px;font-weight:800;color:${style==='violet'?'#F5C518':'#fff'};background:rgba(255,255,255,.15);padding:2px 7px;border-radius:5px">CAGNOTTE</span>
+        <span style="font-size:9px;font-weight:700;color:${style==='violet'?'#fff':'#F5C518'};opacity:.85">— 6 derniers tirages</span>
+        <span onclick="toggleSuper4Style()" title="Changer de style" style="margin-left:auto;cursor:pointer;font-size:13px;flex-shrink:0;opacity:.85;padding:2px 4px">🔁</span>
       </div>
       <div style="display:flex;align-items:flex-start;gap:8px;overflow-x:auto;padding-bottom:2px">
-        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;min-width:60px">
-          <span style="font-size:8.5px;font-weight:800;color:#F5C518;width:100%;text-align:center;white-space:nowrap;margin-bottom:4px">${r.d}/${String(r.y).slice(-2)}</span>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">${r.n.map((n,ni)=>casinoBall(n,ni,commonSet.has(n),strongSet.has(n))).join('')}</div>
+        ${super4Last3.map(r=>`<div style="display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;min-width:64px">
+          <span style="font-size:8.5px;font-weight:800;color:${dateCol};width:100%;text-align:center;white-space:nowrap;margin-bottom:4px">${r.d}/${String(r.y).slice(-2)}</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">${r.n.map((n,ni)=>casinoBall(n,ni,commonSet.has(n),strongSet.has(n))).join('')}</div>
         </div>`).join('')}
       </div>
     </div>`;
@@ -4896,6 +4911,10 @@ let state={
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
   tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles
+  // essayés (02/10/2026 : "ou permettre de switcher" / "entre les deux styles"), via un bouton dans
+  // le bandeau lui-même plutôt que d'en imposer un seul définitivement.
+  tirageJourSuper4Style:'dark',
   multiRepeatColors:(()=>{try{return JSON.parse(localStorage.getItem('multiRepeatColors')||'{}');}catch(e){return{};}})(),
   cmToutJeux:[...CAMEROUN_JEU_ORDER], togoToutJeux:[...TOGO_JEU_ORDER],
   // ── Module Conversion : convertit un groupe de tirages en éléments de la classification ──

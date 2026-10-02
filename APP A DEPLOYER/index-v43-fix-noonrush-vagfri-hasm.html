@@ -4796,6 +4796,18 @@ function alignHitIdx(rowNums){
   });
   return hits;
 }
+// "Alignement vertical (colonne)" (02/10/2026) : si CE tirage fait partie des N derniers tirages
+// (l'actuel + les N-1 précédents, N réglable via state.vertN), toute la ligne est mise en valeur —
+// pour repérer d'un coup d'œil une séquence qui descend en colonne sur cette fenêtre de N tirages
+// (même position, numéros différents d'un tirage à l'autre, ex: 13 puis 81 puis 28).
+function vertHitIdx(row){
+  const hits=new Set();
+  const gi=IDX[row.t];
+  if(gi==null)return hits;
+  const n=Math.max(2,Math.min(6,state.vertN||3));
+  if(gi<n)[0,1,2,3,4].forEach(i=>hits.add(i));
+  return hits;
+}
 // Ordre choisi pour que 2-3 couleurs PRISES À LA SUITE (ex: colorier les 3 derniers tirages) soient
 // toujours bien distinctes à l'oeil — on alterne teintes chaudes/froides au lieu de les regrouper.
 const CC=[['#EF4444','#fff'],['#3B82F6','#fff'],['#EAB308','#000'],['#8B5CF6','#fff'],['#22C55E','#fff'],['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff'],['#6366F1','#fff'],['#F59E0B','#000']];
@@ -4999,6 +5011,16 @@ let state={
   alignAlways:false,
   alignColor:localStorage.getItem('alignColor')||'#F57C00',
   alignStyle:localStorage.getItem('alignStyle')||'',
+  // vert : "Alignement vertical (colonne)" (02/10/2026) — colore TOUTE la ligne pour les N derniers
+  // tirages (l'actuel + les N-1 précédents, N réglable), pour repérer d'un coup d'œil une séquence
+  // qui descend en colonne (même position, numéros différents d'un tirage à l'autre) — ex: 13 puis
+  // 81 puis 28 à la même position sur 3 tirages d'affilée. Contrairement à 🪜 Superposition (même
+  // numéro répété), ici les numéros peuvent être différents : c'est juste la fenêtre des N derniers
+  // tirages mise en valeur pour une lecture visuelle verticale, colonne par colonne.
+  vertAlways:false,
+  vertN:3,
+  vertColor:localStorage.getItem('vertColor')||'#2563EB',
+  vertStyle:localStorage.getItem('vertStyle')||'',
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
   // saisie de tirages
@@ -5136,6 +5158,7 @@ function clearAllColorsEverywhere(){
   state.repMultAlways=false; // rétablit le mode par défaut : Répétés (2+) après X tirages ÉTEINT
   state.elmDupAlways=false; // rétablit le mode par défaut : Même élément (2+) ÉTEINT
   state.alignAlways=false; // rétablit le mode par défaut : Alignement (même écart) ÉTEINT
+  state.vertAlways=false; // rétablit le mode par défaut : Alignement vertical (colonne) ÉTEINT
   state.elmHL=[];state.elmHLNum=null;state.elmHLDraft=null;state.elmHLCount=null; // éteint les cercles "éléments de la classification en exergue"
 }
 // ══════ Mode vierge — état totalement vide, SANS repère, aucun numéro coloré, MÊME les
@@ -5150,6 +5173,7 @@ function clearAllColorsBlank(){
   state.repMultAlways=false; // éteint Répétés (2+) après X tirages
   state.elmDupAlways=false; // éteint Même élément (2+)
   state.alignAlways=false; // éteint Alignement (même écart)
+  state.vertAlways=false; // éteint Alignement vertical (colonne)
 }
 // ══════ Réinitialiser à l'état par défaut — remise à zéro complète, différent de "Tout annuler" ══════
 // "Tout annuler" (clearAllColorsEverywhere) n'efface que couleurs/repères/blocs + remet Miroir/Superposition par défaut.
@@ -5830,6 +5854,7 @@ function numSpan(n, extra, cid){
   else if(extra&&extra.repMult&&state.repMultAlways)applyHl({bg:state.repMultColor||'#D32F2F',fg:'#fff',style:state.repMultStyle});
   else if(extra&&extra.elmDup&&state.elmDupAlways)applyHl({bg:state.elmDupColor||'#2E7D32',fg:'#fff',style:state.elmDupStyle});
   else if(extra&&extra.align&&state.alignAlways)applyHl({bg:state.alignColor||'#F57C00',fg:'#fff',style:state.alignStyle});
+  else if(extra&&extra.vert&&state.vertAlways)applyHl({bg:state.vertColor||'#2563EB',fg:'#fff',style:state.vertStyle});
   else if(colC)applyHl(colC);
   else if(col)applyHl(col);
   // Le style de repereMark/repere2Mark est maintenant tenu à jour par setRepereDisplayStyle()
@@ -8275,6 +8300,7 @@ function exportMgColumnsPDF(){
     if(state.repMultAlways)label+=' + Répétés (2+)';
     if(state.elmDupAlways)label+=' + Même élément (2+)';
     if(state.alignAlways)label+=' + Alignement';
+    if(state.vertAlways)label+=' + Alignement vertical';
     const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Comparaison lotos</title><style>
       @page{size:landscape;margin:10mm}
       body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:10px}
@@ -8339,6 +8365,7 @@ async function exportMgColumnsExcel(){
     if(state.repMultAlways)exportLabel+=' + Répétés (2+)';
     if(state.elmDupAlways)exportLabel+=' + Même élément (2+)';
     if(state.alignAlways)exportLabel+=' + Alignement';
+    if(state.vertAlways)exportLabel+=' + Alignement vertical';
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
 
     const wb=new ExcelJS.Workbook();
@@ -8536,6 +8563,7 @@ async function exportColoredExcel(){
     if(state.repMultAlways)exportLabel+=' + Répétés (2+)';
     if(state.elmDupAlways)exportLabel+=' + Même élément (2+)';
     if(state.alignAlways)exportLabel+=' + Alignement';
+    if(state.vertAlways)exportLabel+=' + Alignement vertical';
     if(state.elmHL&&state.elmHL.length)exportLabel+=' + Éléments ('+state.elmHL.map(k=>{const c=ELM_DEF.find(x=>x.key===k);return c?c.label:k;}).join(', ')+(state.elmHLMode==='superpose'?' superposés':' même ligne')+')';
     const sanitizeSheet=s=>s.replace(/[*?:\\/\[\]]/g,'-').slice(0,31);
     const sanitizeFile=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
@@ -15839,7 +15867,8 @@ function currentEnvSnapshot(){
       superposAlways:state.superposAlways,superposColor:state.superposColor,superposStyle:state.superposStyle,supGap:state.supGap,
       repMultAlways:state.repMultAlways,repMultColor:state.repMultColor,repMultStyle:state.repMultStyle,repMultGap:state.repMultGap,repMultMin:state.repMultMin,repMultCross:state.repMultCross,
       elmDupAlways:state.elmDupAlways,elmDupColor:state.elmDupColor,elmDupStyle:state.elmDupStyle,
-      alignAlways:state.alignAlways,alignColor:state.alignColor,alignStyle:state.alignStyle
+      alignAlways:state.alignAlways,alignColor:state.alignColor,alignStyle:state.alignStyle,
+      vertAlways:state.vertAlways,vertColor:state.vertColor,vertStyle:state.vertStyle,vertN:state.vertN
     }
   };
 }
@@ -16255,10 +16284,11 @@ function vRowHTML(it,ri,C){
               const _rmHits=repMultHitNums(row,row.n);
               const _edHits=elmDupHitIdx(row.n);
               const _alHits=alignHitIdx(row.n);
+              const _vHits=vertHitIdx(row);
               return row.n.map((n,ni)=>{
                 const _mirP=!!(MIR[n]&&((_prevR&&_prevR.n[ni]===MIR[n])||(_nextR&&_nextR.n[ni]===MIR[n])));
                 const _superpos=!!((_olderR&&_olderR.n[ni]===n)||(_newerR&&_newerR.n[ni]===n));
-                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,repMult:_rmHits.has(n),elmDup:_edHits.has(ni),align:_alHits.has(ni),fs:fN,pane2:_pane2},row.t+'_'+ni);
+                return numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&ns.has(MIR[n]),mirP:_mirP,superpos:_superpos,repMult:_rmHits.has(n),elmDup:_edHits.has(ni),align:_alHits.has(ni),vert:_vHits.has(ni),fs:fN,pane2:_pane2},row.t+'_'+ni);
               }).join('');})()}
             ${GAME.n6?`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div><div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div><div style="font-weight:700;color:#92700C;background:#FFF7D6;border-radius:2px;font-size:${fS}px">${row.x?row.x[1]:'·'}</div>`:GAME.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:${fS}px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:${fS}px">${row.s}</div>`}
             ${GAME.hasM?(()=>{const _bmkNav=row.m?anMarkBonus(row,{}):null;return [0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),an:_bmkNav&&_bmkNav[mi],pane2:_pane2},row.t+'_m'+mi):`<div style="color:#ddd;font-size:${fS}px">·</div>`).join('');})():''}
@@ -16782,6 +16812,12 @@ function anMark(row,ctx){
       idxSet.forEach(i=>{if(!out[i])out[i]=[_colA,'#fff',state.alignStyle];});
     });
   }
+  // Filtre "alignement vertical (colonne)" : si CE tirage fait partie des N derniers tirages,
+  // toute la ligne est mise en valeur — voir vertHitIdx() pour le détail.
+  if(state.vertAlways){
+    const _colV=state.vertColor||'#2563EB';
+    vertHitIdx(row).forEach(i=>{if(!out[i])out[i]=[_colV,'#fff',state.vertStyle];});
+  }
   return out;
 }
 // Marquage "Miroir même ligne / superposé / Superposition" pour les numéros complémentaires (bonus, N6-N10).
@@ -16811,7 +16847,7 @@ function anMarkBonus(row,ctx){
     const hits=decompEchoHits(row);
     row.m.forEach((n,i)=>{if(hits[row.n.length+i])out[i]=[col,De.fg];});
   }
-  if(!state.mirLAlways&&!state.mirPAlways&&!state.superposAlways&&!state.repMultAlways&&!state.elmDupAlways&&!state.alignAlways)return out;
+  if(!state.mirLAlways&&!state.mirPAlways&&!state.superposAlways&&!state.repMultAlways&&!state.elmDupAlways&&!state.alignAlways&&!state.vertAlways)return out;
   const gi=IDX[row.t];
   const mgap=Math.max(1,state.mirPGap||1);
   const prevR=(gi!=null&&gi+mgap<T.length)?T[gi+mgap]:null;
@@ -16896,6 +16932,10 @@ function anMarkBonus(row,ctx){
       pairs.forEach(([a,b])=>{idxSet.add(a);idxSet.add(b);});
       idxSet.forEach(i=>{if(!out[i])out[i]=[_colA,'#fff',state.alignStyle];});
     });
+  }
+  if(state.vertAlways){
+    const _colV=state.vertColor||'#2563EB';
+    vertHitIdx(row).forEach(i=>{if(!out[i])out[i]=[_colV,'#fff',state.vertStyle];});
   }
   return out;
 }
@@ -17064,6 +17104,13 @@ function anRender(){
         <input type="color" value="${state.alignColor}" title="Couleur des numéros alignés" onchange="state.alignColor=this.value;lsSet('alignColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
       </label>
       ${alwaysStyleBtns('alignStyle',state.alignColor)}
+      <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:${state.vertColor};cursor:pointer" title="Met en valeur toute la ligne pour les N derniers tirages (l'actuel + les N-1 précédents), pour repérer visuellement une séquence qui descend en colonne (ex: 13 puis 81 puis 28 à la même position)">
+        <input type="checkbox" ${state.vertAlways?'checked':''} onchange="state.vertAlways=this.checked;render()">
+        📶 Alignement vertical (colonne)
+        <input type="color" value="${state.vertColor}" title="Couleur de la fenêtre des N derniers tirages" onchange="state.vertColor=this.value;lsSet('vertColor',this.value);render()" style="width:20px;height:18px;padding:0;border:1px solid #ccc;border-radius:4px;cursor:pointer">
+      </label>
+      ${alwaysStyleBtns('vertStyle',state.vertColor)}
+      ${state.vertAlways?`<span style="font-size:9.5px;color:#666">${[2,3,4,5,6].map(g=>`<button onclick="state.vertN=${g};render()" style="padding:1px 7px;margin-left:2px;font-size:10px;border-radius:10px;border:1.5px solid ${(state.vertN||3)===g?state.vertColor:'#ddd'};background:${(state.vertN||3)===g?state.vertColor:'#fff'};color:${(state.vertN||3)===g?'#fff':'#888'};cursor:pointer;font-weight:500">${g}</button>`).join('')} tirages</span>`:''}
       <label style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:#C2410C;cursor:pointer">
         <input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">
         🎯 Mes repérés
@@ -17905,10 +17952,11 @@ function __renderBody(){
           const _rmHits2=repMultHitNums(row,row.n);
           const _edHits2=elmDupHitIdx(row.n);
           const _alHits2=alignHitIdx(row.n);
+          const _vHits2=vertHitIdx(row);
           row.n.forEach((n,ni)=>{
             const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
             const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
-            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
           });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;

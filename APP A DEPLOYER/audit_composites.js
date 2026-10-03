@@ -72,10 +72,33 @@ for (const [tbl, code] of [['RAW_BJ_S11', 'S11'], ['RAW_BJ_S14', 'S14'], ['RAW_B
   compare(`${tbl} -> RAW_BENIN_ALL (${code})`, src, datesFiltered('RAW_BENIN_ALL', 2, p => p[1] === code));
   compare(`${tbl} -> ${starHourTable[code]}`, src, dates(starHourTable[code], 1), true);
 }
-// Fusions par jour — ne comparer que si la table de fusion existe (pas toutes couvertes)
-console.log('  (RAW_BJ_S_SAM / RAW_BJ_S_DIM / RAW_BJ_S_MER : vérifier manuellement, ce sont des fusions')
-console.log('   par JOUR DE LA SEMAINE, pas par date — un script générique ne peut pas les comparer')
-console.log('   directement aux dates. Grep le tirage concerné dans ces 3 tables si un doute existe.)');
+// Fusions par jour (RAW_BJ_S_SAM/_DIM/_MER) : S11+S14+S18 combinés (multiset, une entrée
+// par tirage, dates dupliquées normales car 2-3 jeux par date) doivent correspondre exactement
+// à SAM+DIM+MER combinés (comparaison par COMPTE, pas juste par présence/absence de date).
+function multiset(arr) {
+  const m = new Map();
+  for (const d of arr) m.set(d, (m.get(d) || 0) + 1);
+  return m;
+}
+const starCombined = ['RAW_BJ_S11', 'RAW_BJ_S14', 'RAW_BJ_S18'].flatMap(t => dates(t, 1) || []);
+const samDimMerCombined = ['RAW_BJ_S_SAM', 'RAW_BJ_S_DIM', 'RAW_BJ_S_MER'].flatMap(t => dates(t, 1) || []);
+const msA = multiset(starCombined);
+const msB = multiset(samDimMerCombined);
+const allDates = new Set([...msA.keys(), ...msB.keys()]);
+let starFusionIssues = [];
+for (const d of allDates) {
+  const a = msA.get(d) || 0, b = msB.get(d) || 0;
+  // one-way seulement : composite > source = historique backfillé directement dans la
+  // fusion avant 2023 (connu, pas un bug) ; source > composite = vrai oubli de sync.
+  if (a > b) starFusionIssues.push(`${d} (S11/S14/S18: ${a}, SAM+DIM+MER: ${b})`);
+}
+if (starFusionIssues.length === 0) {
+  console.log(`  [OK]   RAW_BJ_S11+S14+S18 -> RAW_BJ_S_SAM+S_DIM+S_MER (${starCombined.length} tirages source, ${samDimMerCombined.length} dans les fusions)`);
+} else {
+  totalIssues += starFusionIssues.length;
+  console.log(`  [ECART] RAW_BJ_S11+S14+S18 -> RAW_BJ_S_SAM+S_DIM+S_MER`);
+  console.log(`          écarts de compte: ${starFusionIssues.join(', ')}`);
+}
 
 console.log('\n=== TOGO — Matinal (table brute vs tables par jour de semaine) ===');
 const matinalAll = dates('RAW_MATINAL', 1);

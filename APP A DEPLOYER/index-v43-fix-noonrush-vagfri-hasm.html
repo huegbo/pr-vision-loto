@@ -17927,7 +17927,8 @@ function __renderBody(){
         // ── MODE EXCEL multi-jeux : 1er jeu ENTIÈREMENT figé à gauche (toutes ses colonnes,
         // pas seulement N°/DATE), scroll vertical commun. Largeurs fixes par type de colonne
         // pour pouvoir calculer les offsets `left` cumulés du bloc figé.
-        const cols=mgColumns(true).map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
+        const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);const hid=!!(state.mgHidden&&state.mgHidden[colId]);return{colId,key,g,gd,hid,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
+        const _fv=cols.findIndex(c=>!c.hid); // 1re colonne VISIBLE = celle figée à gauche
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
@@ -17936,44 +17937,44 @@ function __renderBody(){
           if(g.hasM)arr.push(_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_N,_MG_W_TOT);
           return arr;
         };
-        {const hid=mgColumns().filter(c=>state.mgHidden&&state.mgHidden[c.colId]);
-          if(hid.length)html+=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${hid.map(c=>`<button type="button" onclick="toggleMgHidden('${c.colId}')" title="Ré-afficher cette colonne" style="padding:2px 8px;font-size:9px;border-radius:10px;border:1px dashed #90A4AE;background:#ECEFF1;color:#455A64;cursor:pointer;font-weight:600">🚫 ${GAMES[c.key].name} ${mgColLabel(c)} — ré-afficher</button>`).join('')}</div>`;}
-        const _mgW0=cols[0]?mgWidthsOf(cols[0].g):[];
+        const _mgW0=cols[_fv]?mgWidthsOf(cols[_fv].g):[];
         const _mgLefts0=[];{let acc=0;_mgW0.forEach(w=>{_mgLefts0.push(acc);acc+=w;});}
-        const mgFz=(ci,idx)=>ci===0?`left:${_mgLefts0[idx]}px;width:${_mgW0[idx]}px;min-width:${_mgW0[idx]}px;`:'';
+        const mgFz=(ci,idx)=>ci===_fv?`left:${_mgLefts0[idx]}px;width:${_mgW0[idx]}px;min-width:${_mgW0[idx]}px;`:'';
         html+=`<div id="col-exmg" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
-          const nCells=c.g.hasM?14:8;const light=isLightBg(c.color);
-          html+=`<th class="excel-blk ${ci===0?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}${ci===0?';left:0px':''}">${c.g.icon} ${c.g.name} ${c.label} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
+          const nCells=c.hid?1:(c.g.hasM?14:8);const light=isLightBg(c.color);
+          html+=`<th class="excel-blk ${ci===_fv?'excel-frozen':''}" colspan="${nCells}" style="background:#${c.color};color:${light?'#000':'#fff'}${ci===_fv?';left:0px':''}${c.hid?';opacity:.6;cursor:pointer;min-width:90px':''}"${c.hid?` onclick="toggleMgHidden('${c.colId}')" title="Colonne voilée — cliquer pour la ré-afficher"`:''}>${c.hid?'🚫 ':`<span onclick="toggleMgHidden('${c.colId}')" title="Voiler momentanément cette colonne" style="cursor:pointer;margin-right:4px">👁</span>`}${c.g.icon} ${c.g.name} ${c.label} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
         });
         html+=`</tr><tr>`;
         cols.forEach((c,ci)=>{
+          if(c.hid){html+=`<th class="excel-hd" style="opacity:.6"></th>`;return;}
           const heads=['N°','DATE','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TM']:[])];
-          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===0?'excel-frozen':''}" style="${mgFz(ci,hi)}">${h}</th>`;});
+          heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,hi)}">${h}</th>`;});
         });
         html+=`</tr></thead><tbody>`;
         for(let ri=0;ri<maxRows;ri++){
           html+=`<tr>`;
           cols.forEach((c,ci)=>{
             const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
-            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
+            if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
+            if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
-            html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;
+            html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
+            html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;
             const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // le temps d'un colonne : bascule T/IDX sur les données du bon jeu pour que miroir/superposition portent sur SES tirages
             const _mk=anMark(row,_mgCtx);
             const _bmk=row.m?anMarkBonus(row,_mgCtx):null;
             T=_T0;IDX=_IDX0;
-            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
-            html+=g.xtra?`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            html+=g.xtra?`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
-              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
+              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
               if(g.xtra){
-                html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
+                html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
               }else{
                 const ms=row.m?row.m.reduce((a,b)=>a+b,0):0;const mc=tC(ms);
-                html+=`<td class="excel-td ${ci===0?'excel-frozen':''}" style="font-weight:500;color:${row.m?mc[1]:'#ccc'};background:${row.m?mc[0]:bg};${mgFz(ci,13)}">${row.m?ms:'·'}</td>`;
+                html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${row.m?mc[1]:'#ccc'};background:${row.m?mc[0]:bg};${mgFz(ci,13)}">${row.m?ms:'·'}</td>`;
               }
             }
           });
@@ -17986,8 +17987,9 @@ function __renderBody(){
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
         mgColumns().forEach(col=>{
           const {colId,key}=col;
-          if(state.mgHidden&&state.mgHidden[colId]){ // colonne voilée : fine bande cliquable à sa place (comme une colonne masquée dans Excel)
-            html+=`<div onclick="toggleMgHidden('${colId}')" title="Colonne voilée : ${GAMES[key].name} ${mgColLabel(col)} — cliquer pour la ré-afficher" style="flex:0 0 26px;width:26px;min-width:26px;background:#ECEFF1;border:1px dashed #90A4AE;border-radius:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;font-size:11px;color:#455A64"><span>🚫</span><span style="writing-mode:vertical-rl;font-size:9px;font-weight:600;white-space:nowrap;max-height:240px;overflow:hidden">${GAMES[key].name} ${mgColLabel(col)}</span></div>`;
+          if(state.mgHidden&&state.mgHidden[colId]){ // colonne voilée : seul le NOM du loto reste visible (en-tête), les colonnes de numéros sont masquées
+            const _gh=GAMES[key],_ch=mgColColor(col);
+            html+=`<div class="col" onclick="toggleMgHidden('${colId}')" title="Colonne voilée — cliquer pour la ré-afficher" style="flex:0 0 auto;min-width:0;width:auto;border:2px dashed #${_ch};border-radius:8px;cursor:pointer;background:#ECEFF1;align-self:flex-start"><div class="col-hdr" style="background:#${_ch};color:${isLightBg(_ch)?'#000':'#fff'};opacity:.65;white-space:nowrap">🚫 ${_gh.icon} ${_gh.name} ${mgColLabel(col)}</div></div>`;
             return;
           }
           const g=GAMES[key], gd=gameData(key);

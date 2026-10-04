@@ -4981,7 +4981,7 @@ let state={
   showJournal:false, journalDate:new Date().toISOString().slice(0,10), journalNoteDraft:'', journal:[],
   showClassifTable:false, classifTableMin:false, classifTabOpen:false,
   journalTagsDraft:[], journalFilterTag:null,
-  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgColOrder:null, mgPredCount:{},
+  navMode:'years', selGames:['benz','diamant'], mgYear:'', mgYears:{}, mgSlots:[], mgHidden:{}, mgColOrder:null, mgPredCount:{},
   // nav
   selYears:YEARS.slice(0,4), showAllYears:false,
   searchInput:'', search:[], pin:null, sync:false, freezeCol:false, excelMode:false, excelTextSize:(localStorage.getItem('excelTextSize')||'normal'),
@@ -15823,7 +15823,7 @@ function setMgWeekRange(k,field,v){
 // ── Colonnes de comparaison : 1 colonne "de base" par jeu sélectionné (state.selGames),
 // + des colonnes "supplémentaires" (state.mgSlots) permettant de comparer LE MÊME jeu sur
 // plusieurs années (ou plages de N° de tirage / N° de semaine) différentes en même temps.
-function mgColumns(){
+function mgColumns(visibleOnly){
   const base=state.selGames.filter(k=>GAMES[k]).map(k=>{
     const mode=mgModeOf(k);
     if(mode==='range')return {colId:k,key:k,mode,range:mgRangeOf(k)};
@@ -15849,7 +15849,18 @@ function mgColumns(){
       return ia-ib;
     }).map(x=>x.c);
   }
+  if(visibleOnly&&state.mgHidden)cols=cols.filter(c=>!state.mgHidden[c.colId]); // colonnes « voilées » (👁) : masquées à l'écran seulement, pas dans les exports
   return cols;
+}
+function toggleMgHidden(colId){
+  state.mgHidden=state.mgHidden||{};
+  if(state.mgHidden[colId])delete state.mgHidden[colId];else state.mgHidden[colId]=true;
+  render();
+}
+function showAllMgHidden(){state.mgHidden={};render();}
+function mgEyeBtnHTML(colId){
+  const h=!!(state.mgHidden&&state.mgHidden[colId]);
+  return `<button type="button" onclick="event.stopPropagation();toggleMgHidden('${colId}')" title="${h?'Colonne voilée — cliquer pour la ré-afficher':'Voiler momentanément cette colonne (comme masquer une colonne dans Excel)'}" style="cursor:pointer;font-size:11px;line-height:1;width:20px;height:20px;border-radius:50%;border:1px solid ${h?'#C62828':'#999'};background:${h?'#FFEBEE':'#f0f0f0'};color:${h?'#C62828':'#444'};padding:0;display:inline-flex;align-items:center;justify-content:center">${h?'🚫':'👁'}</button>`;
 }
 // Déplace une colonne d'un cran vers la gauche (dir=-1) ou la droite (dir=+1) dans l'affichage
 // "Comparer Lotos". Mémorise l'ordre complet des colId dans state.mgColOrder pour qu'il survive
@@ -17852,13 +17863,14 @@ function __renderBody(){
         ${Object.entries(GAMES).map(([k,g])=>{const sel=state.selGames.includes(k);return`<button data-cname="${(g.name+' '+k).toLowerCase()}" onclick="toggleGameSel('${k}')" style="padding:2px 8px;font-size:9px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${sel?'#1F2D3D':'#ddd'};background:${sel?'#1F2D3D':'#f9f9f9'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
       </div>
       ${state.selGames.filter(k=>GAMES[k]).length?`<div style="margin-top:5px">
-        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">Colonnes par jeu : <span style="font-weight:400;color:#888">(Année, N° de tirage ex. 10 à 40, ou N° de semaine ISO ex. 2 à 53 — cumulées sur toutes les années. ➕ pour ajouter une autre colonne du même jeu, en plus)</span></div>
+        <div style="font-size:9px;color:#1F2D3D;font-weight:700;margin-bottom:3px">${Object.keys(state.mgHidden||{}).length?`<button type="button" onclick="showAllMgHidden()" style="margin-right:6px;padding:1px 8px;font-size:9px;border-radius:10px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:700">🚫 ${Object.keys(state.mgHidden).length} voilée(s) — tout afficher</button>`:''}Colonnes par jeu : <span style="font-weight:400;color:#888">(Année, N° de tirage ex. 10 à 40, ou N° de semaine ISO ex. 2 à 53 — cumulées sur toutes les années. ➕ pour ajouter une autre colonne du même jeu, en plus)</span></div>
         <div style="display:flex;flex-direction:column;gap:5px">
           ${state.selGames.filter(k=>GAMES[k]).map(k=>{
             const mode=mgModeOf(k);const y=mgYearOf(k);const ys=Object.keys(gameData(k).BY_YEAR).sort((a,b)=>b.localeCompare(a));
             const c=mgColColor({mode,year:y});const custom=!!(state.mgYears||{})[k];
             const rg=mgRangeOf(k),wk=mgWeekRangeOf(k);
-            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:${(custom||mode!=='year')?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:2px 4px 2px 7px;background:#fff">
+            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:${(custom||mode!=='year')?'2px solid #'+c:'1px solid #ddd'};border-radius:11px;padding:2px 4px 2px 7px;background:#fff;${state.mgHidden&&state.mgHidden[k]?'opacity:.55':''}">
+              ${mgEyeBtnHTML(k)}
               <span style="display:inline-flex;gap:1px" title="Changer la position de cette colonne dans le tableau comparé">
                 <button type="button" onclick="event.stopPropagation();moveMgColumnFirst('${k}')" title="Mettre en position 1 (tout à gauche)" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-radius:4px 0 0 4px;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">⏮</button>
                 <button type="button" onclick="event.stopPropagation();moveMgColumn('${k}',-1)" title="Déplacer d'une position vers la gauche" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">◀</button>
@@ -17884,7 +17896,8 @@ function __renderBody(){
             const ys=Object.keys(gameData(s.key).BY_YEAR).sort((a,b)=>b.localeCompare(a));
             const mode=s.mode||'year';const c=mgColColor({mode,year:s.year});
             const colId=s.key+'~'+s.id;
-            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:2px solid #${c};border-radius:11px;padding:2px 4px 2px 7px;background:#FFF7ED">
+            return `<span style="display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;border:2px solid #${c};border-radius:11px;padding:2px 4px 2px 7px;background:#FFF7ED;${state.mgHidden&&state.mgHidden[colId]?'opacity:.55':''}">
+              ${mgEyeBtnHTML(colId)}
               <span style="display:inline-flex;gap:1px" title="Changer la position de cette colonne dans le tableau comparé">
                 <button type="button" onclick="event.stopPropagation();moveMgColumnFirst('${colId}')" title="Mettre en position 1 (tout à gauche)" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-radius:4px 0 0 4px;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">⏮</button>
                 <button type="button" onclick="event.stopPropagation();moveMgColumn('${colId}',-1)" title="Déplacer d'une position vers la gauche" style="cursor:pointer;font-weight:700;color:#555;background:#f0f0f0;border:1px solid #ccc;border-left:none;width:16px;height:16px;font-size:9px;line-height:1;display:inline-flex;align-items:center;justify-content:center;padding:0">◀</button>
@@ -17914,7 +17927,7 @@ function __renderBody(){
         // ── MODE EXCEL multi-jeux : 1er jeu ENTIÈREMENT figé à gauche (toutes ses colonnes,
         // pas seulement N°/DATE), scroll vertical commun. Largeurs fixes par type de colonne
         // pour pouvoir calculer les offsets `left` cumulés du bloc figé.
-        const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
+        const cols=mgColumns(true).map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
@@ -17969,7 +17982,7 @@ function __renderBody(){
         const _gOff=anchorOffsetsG();
         const _mgCtx2=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         html+=`<div class="cols${state.compactMode?" compact":""}${state.sideBySide?"":" stacked"}${state.freezeCol&&state.sideBySide?" frozen":""}" id="cols-container">`;
-        mgColumns().forEach(col=>{
+        mgColumns(true).forEach(col=>{
           const {colId,key}=col;
           const g=GAMES[key], gd=gameData(key);
           const color=mgColColor(col);const light=isLightBg(color);

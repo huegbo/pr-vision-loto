@@ -5087,7 +5087,7 @@ let state={
   posPivot:'', posPivotPos:'', posTargetPos:'0', posOffset:1, posResult:null,
   cptN:5, cptRef:'', cptResult:null,
   collesCount:2, collesSlots:['','',''], collesOrder:'any', collesMatches:null,
-  termCollesCount:2, termCollesSlots:['','',''], termCollesOrder:'any', termCollesMatches:null,
+  termCollesCount:2, termVertCount:3, termVertDigit:'', termVertCol:'any', termVertAll:false, termVertRes:null, termCollesSlots:['','',''], termCollesOrder:'any', termCollesMatches:null,
   g9Min:2, g9Specific:'', g9Matches:null,
   colMin:2, colSpecific:'', colMatches:null,
   // comp
@@ -12292,6 +12292,7 @@ const SEARCH_SECTIONS=[
   {key:'compteur',icon:'➕',title:'Compteur',desc:'Additions sur plusieurs tirages (numéros chauds)',color:'#059669',html:compteurCardHTML},
   {key:'colles',icon:'🔗',title:'Numéros collés',desc:'Positions adjacentes (D1-D2, D2-D3...)',color:'#4338CA',html:collesCardHTML},
   {key:'termColles',icon:'🔗',title:'Terminaisons collées',desc:'Derniers chiffres adjacents',color:'#BE185D',html:termCollesCardHTML},
+  {key:'termVert',icon:'🔟⬇️',title:'Terminaisons superposées',desc:'Même dernier chiffre empilé en colonne sur 2 à 5 tirages consécutifs',color:'#BE185D',html:termVertCardHTML},
   {key:'group9',icon:'🔢',title:'Même groupe (preuve par 9)',desc:'Plusieurs numéros du même groupe sur une ligne',color:'#0D9488',html:group9CardHTML},
   {key:'colonne',icon:'🔟',title:'Même colonne (dizaine)',desc:'Plusieurs numéros de la même dizaine sur une ligne',color:'#B45309',html:colonneCardHTML},
   {key:'sommeligne',icon:'🎯',title:'Somme sur une ligne',desc:'Combien de numéros font ce total',color:'#F59E0B',html:sommeligneSectionHTML}
@@ -14240,6 +14241,73 @@ function termCollesCardHTML(){
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: terminaisons 3 + 7 côte à côte → trouve un numéro finissant par 3 juste à côté d'un numéro finissant par 7.</div>
     ${genericMultiToggleHTML('termCollesMulti','termCollesMultiGames','doTermCollesSearch','#BE185D','#FCE7F3')}
     ${state.termCollesMulti?genericMultiResultHTML(state.termCollesMultiRes,{color:'#BE185D',bgHit:'#FCE7F3',rowRenderer:simpleRowRenderer('#BE185D')}):termCollesResHTML()}
+  </div>`;
+}
+// ══════ Terminaisons superposées — même dernier chiffre EMPILÉ verticalement (même colonne, tirages consécutifs) ══════
+// Ex: 56 / 6 / 26 dans la même colonne sur 3 tirages de suite → terminaison 6 superposée ×3.
+function termVertFindInGame(key,k,digit,colSel){
+  const gd=gameData(key);const rows=gd.T||[];const g=GAMES[key];
+  const out=[];
+  const cols=[];
+  for(let c=0;c<5;c++)cols.push({id:'D'+(c+1),get:r=>r.n[c]});
+  if(g.hasM)for(let c=0;c<5;c++)cols.push({id:'M'+(c+1),get:r=>r.m?r.m[c]:null});
+  cols.forEach(col=>{
+    if(colSel!=='any'&&col.id!==colSel)return;
+    for(let i=0;i+k<=rows.length;i++){
+      const win=rows.slice(i,i+k);
+      const vals=win.map(col.get);
+      if(vals.some(v=>v==null||isNaN(v)))continue;
+      const d0=vals[0]%10;
+      if(!vals.every(v=>v%10===d0))continue;
+      if(digit!==''&&d0!==+digit)continue;
+      out.push({key,col:col.id,digit:d0,rows:win});
+    }
+  });
+  return out;
+}
+function termVertYmd(r){const[dd,mm]=String(r.d).split('/').map(Number);return(+r.y)*10000+mm*100+dd;}
+function doTermVertSearch(){
+  const k=state.termVertCount,digit=state.termVertDigit,colSel=state.termVertCol;
+  const keys=state.termVertAll?Object.keys(GAMES):[GAME.key];
+  let all=[];
+  keys.forEach(key=>{try{all=all.concat(termVertFindInGame(key,k,digit,colSel));}catch(e){}});
+  all.sort((a,b)=>termVertYmd(b.rows[0])-termVertYmd(a.rows[0]));
+  state.termVertRes={k,list:all};
+  render();
+}
+function termVertResHTML(){
+  const R=state.termVertRes;if(!R)return'';
+  if(!R.list.length)return`<div style="font-size:10px;color:#999;margin-top:5px">Aucune terminaison superposée trouvée</div>`;
+  const cell=(v,hit)=>`<span style="display:inline-block;min-width:22px;text-align:center;padding:1px 3px;border-radius:5px;font-size:10px;font-weight:${hit?'700':'400'};background:${hit?'#BE185D':'#f1f1f1'};color:${hit?'#fff':'#444'}">${v}</span>`;
+  return`<div style="margin-top:6px"><div style="font-size:10px;font-weight:600;color:#BE185D;margin-bottom:3px">${R.list.length} superposition(s) trouvée(s)${R.list.length>80?' (80 plus récentes affichées)':''}</div>
+  <div style="display:flex;flex-direction:column;gap:5px;max-height:360px;overflow-y:auto">
+  ${R.list.slice(0,80).map(m=>{const g=GAMES[m.key];const ci=m.col[0]==='D'?+m.col.slice(1)-1:5+(+m.col.slice(1)-1);
+    return`<div style="border:1px solid #F9A8D4;border-radius:7px;padding:3px 6px;background:#FFF5FA">
+      <div style="font-size:9px;font-weight:700;color:#BE185D">${g.icon} ${g.name} — colonne ${m.col} — terminaison ${m.digit} ×${R.k}</div>
+      ${m.rows.map(r=>{const all=r.n.concat(r.m||[]);return`<div style="display:flex;align-items:center;gap:3px;font-size:9px;margin-top:1px"><span style="color:#888;min-width:70px">N°${r.t} ${r.d}/${r.y}</span>${all.map((v,idx)=>cell(v,idx===ci)).join('')}</div>`;}).join('')}
+    </div>`;}).join('')}
+  </div></div>`;
+}
+function termVertCardHTML(){
+  const colOpts=['any','D1','D2','D3','D4','D5','M1','M2','M3','M4','M5'];
+  return`<div style="background:#fff;border:1.5px solid #BE185D;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#BE185D;margin-bottom:5px">🔟⬇️ Terminaisons superposées — même dernier chiffre empilé en colonne</div>
+    <div class="row" style="margin-top:0">
+      <span style="font-size:9px;color:#777">Sur combien de tirages de suite :</span>
+      ${[2,3,4,5].map(k=>`<button onclick="state.termVertCount=${k};render()" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${state.termVertCount===k?'#BE185D':'#ddd'};background:${state.termVertCount===k?'#FCE7F3':'#fff'};color:${state.termVertCount===k?'#9D174D':'#888'}">${k}</button>`).join('')}
+    </div>
+    <div class="row">
+      <span style="font-size:9px;color:#777">Terminaison :</span>
+      <input type="number" min="0" max="9" placeholder="toutes" value="${state.termVertDigit}" oninput="state.termVertDigit=this.value" style="width:62px;padding:4px 6px;border:1.5px solid #BE185D;border-radius:5px;font-size:12px">
+      <span style="font-size:9px;color:#777">Colonne :</span>
+      <select onchange="state.termVertCol=this.value" style="padding:3px 6px;border:1.5px solid #BE185D;border-radius:5px;font-size:11px">
+        ${colOpts.map(c=>`<option value="${c}" ${state.termVertCol===c?'selected':''}>${c==='any'?'Toutes':c}</option>`).join('')}
+      </select>
+    </div>
+    <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#BE185D;margin:4px 0;cursor:pointer"><input type="checkbox" ${state.termVertAll?'checked':''} onchange="state.termVertAll=this.checked;render()"> 🌍 Chercher dans TOUS les lotos (sinon : ${GAME.name})</label>
+    <button onclick="doTermVertSearch()" style="padding:4px 12px;background:#BE185D;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
+    <div style="font-size:8px;color:#888;margin-top:3px">Ex: 56, puis 6, puis 26 dans la même colonne sur 3 tirages consécutifs = terminaison 6 superposée ×3. Laisse « Terminaison » vide pour tester tous les chiffres.</div>
+    ${termVertResHTML()}
   </div>`;
 }
 // ══════ Même groupe (preuve par 9) — plusieurs numéros du même groupe sur une ligne ══════

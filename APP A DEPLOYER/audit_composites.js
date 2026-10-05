@@ -100,6 +100,22 @@ if (starFusionIssues.length === 0) {
   console.log(`          écarts de compte: ${starFusionIssues.join(', ')}`);
 }
 
+// Fusions Fortune par jour (RAW_BJ_F_LUN/_MAR/_JEU/_VEN) : F11+F14+F18 combinés doivent correspondre
+// (même logique one-way que les Star ci-dessus) — trou découvert le 05/10/2026 : F_MAR 29/09,
+// F_JEU 01/10 et F_VEN 02/10 n'avaient pas été alimentées pendant plusieurs jours.
+console.log('\n=== BÉNIN — Fortune (F11/F14/F18 -> fusions par jour) ===');
+{
+  const src = ['RAW_BJ_F11', 'RAW_BJ_F14', 'RAW_BJ_F18'].flatMap(t => dates(t, 1) || []);
+  const fus = ['RAW_BJ_F_LUN', 'RAW_BJ_F_MAR', 'RAW_BJ_F_JEU', 'RAW_BJ_F_VEN'].flatMap(t => dates(t, 1) || []);
+  const a = multiset(src), b = multiset(fus);
+  const issues = [];
+  for (const d of new Set([...a.keys(), ...b.keys()])) {
+    if ((a.get(d) || 0) > (b.get(d) || 0)) issues.push(`${d} (F11/F14/F18: ${a.get(d) || 0}, fusions: ${b.get(d) || 0})`);
+  }
+  if (!issues.length) console.log(`  [OK]   RAW_BJ_F11+F14+F18 -> RAW_BJ_F_LUN/MAR/JEU/VEN (${src.length} tirages source, ${fus.length} dans les fusions)`);
+  else { totalIssues += issues.length; console.log('  [ECART] RAW_BJ_F11+F14+F18 -> fusions Fortune par jour'); console.log('          écarts de compte: ' + issues.join(', ')); }
+}
+
 console.log('\n=== TOGO — Matinal (table brute vs tables par jour de semaine) ===');
 const matinalAll = dates('RAW_MATINAL', 1);
 const dayTables = ['RAW_MATINAL_LUNDI', 'RAW_MATINAL_MARDI', 'RAW_MATINAL_MERCREDI', 'RAW_MATINAL_JEUDI', 'RAW_MATINAL_VENDREDI', 'RAW_MATINAL_SAMEDI'];

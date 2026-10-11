@@ -14801,7 +14801,11 @@ function syncScroll(id){
   let all;
   if(state.tab===1)all=Array.from({length:state.np},(_,i)=>'p'+i);
   else all=(state.tab===0&&state.navMode==='games')?state.selGames:state.selYears;
-  all.forEach(y=>{if(String(y)!==String(id)){const el=document.getElementById('col-'+y);if(el&&el.scrollTop!==top){_progScroll[y]=true;el.scrollTop=top;}}  });
+  all.forEach(y=>{if(String(y)!==String(id)){const el=document.getElementById('col-'+y);if(!el)return;
+    // Colonne plus courte que la source : si elle ne peut pas suivre jusqu'à `top`, le navigateur la
+    // calerait en bas et ses premières lignes passeraient sous l'en-tête collant → on la laisse à 0.
+    const _mx=Math.max(0,el.scrollHeight-el.clientHeight);const _t=top>_mx?0:top;
+    if(el.scrollTop!==_t){_progScroll[y]=true;el.scrollTop=_t;}}  });
 }
 
 // Données d'un jeu sans changer le jeu actif (avec cache)

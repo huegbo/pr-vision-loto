@@ -17740,6 +17740,11 @@ function _doRender(){
       if(!window._lastEnvAutosave||_n-window._lastEnvAutosave>800){
         window._lastEnvAutosave=_n;
         if(typeof autoSaveCurrentEnv==='function')autoSaveCurrentEnv();
+      }else{
+        // Rendu trop rapproché : on programme une sauvegarde différée pour ne JAMAIS perdre la
+        // dernière modification (sinon, fermeture/rechargement juste après un changement = comparaison vierge).
+        clearTimeout(window._envAutosaveT);
+        window._envAutosaveT=setTimeout(()=>{window._lastEnvAutosave=Date.now();try{autoSaveCurrentEnv();}catch(_){}},900);
       }
     }catch(_){}
     // Mode Excel (années côte à côte, tableaux #col-exnav/#col-exan/#col-exmg) : les lignes y
@@ -18583,6 +18588,12 @@ loadDualViewPref();
 // Reprend automatiquement la dernière comparaison en cours (jeux/années/filtres), comme le
 // Mac qui rouvre tout seul les fenêtres après une coupure de courant — voir autoSaveCurrentEnv().
 try{loadAutoSavedEnv();}catch(_){}
+try{
+  const _flushEnv=()=>{try{autoSaveCurrentEnv();}catch(_){}};
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)_flushEnv();});
+  window.addEventListener('pagehide',_flushEnv);
+}catch(_){}
+
 // ── Démarrage sécurisé + splash (logo ~1,6s) ──
 (function(){
   var sp=null;

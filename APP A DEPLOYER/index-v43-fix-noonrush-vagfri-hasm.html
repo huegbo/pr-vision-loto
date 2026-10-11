@@ -16229,7 +16229,13 @@ function applyEnvState(id){
   const e=(state.savedEnvStates||[]).find(x=>x.id===id);
   if(!e)return;
   applyEnvSnapshot(e.snap);
+  // Ouvre réellement la vue Comparaison (sinon l'état est chargé mais rien ne change à l'écran
+  // quand on est sur un autre onglet / panneau / double vue).
+  state.tab=0; state.navMode='games'; state.showSearchHub=false; state.dualViewOn=false;
+  if(!state.mgYear)state.mgYear=YEARS[0];
   render();
+  try{autoSaveCurrentEnv();}catch(_){}
+  setTimeout(()=>{try{window.scrollTo({top:0,behavior:'smooth'});}catch(_){}},60);
 }
 function renameEnvState(id){
   const e=(state.savedEnvStates||[]).find(x=>x.id===id);

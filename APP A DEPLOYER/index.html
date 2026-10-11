@@ -16164,6 +16164,16 @@ function currentEnvSnapshot(){
     mgRanges:JSON.parse(JSON.stringify(state.mgRanges||{})),
     mgWeekRanges:JSON.parse(JSON.stringify(state.mgWeekRanges||{})),
     mgSlots:JSON.parse(JSON.stringify(state.mgSlots||[])),
+    mgHidden:JSON.parse(JSON.stringify(state.mgHidden||{})),
+    mgColOrder:state.mgColOrder?JSON.parse(JSON.stringify(state.mgColOrder)):null,
+    mgPredCount:JSON.parse(JSON.stringify(state.mgPredCount||{})),
+    // Coloriages, repères, lignes marquées/bloquées et ancres du jeu actif : sans eux, rouvrir
+    // un état redonnait une comparaison « vierge » (sans aucune couleur).
+    game:(typeof GAME!=='undefined'&&GAME&&GAME.key)||null,
+    colors:{colored:JSON.parse(JSON.stringify(state.colored||{})),coloredCells:JSON.parse(JSON.stringify(state.coloredCells||{})),
+      colored2:JSON.parse(JSON.stringify(state.colored2||{})),coloredCells2:JSON.parse(JSON.stringify(state.coloredCells2||{})),
+      markRows:JSON.parse(JSON.stringify(state.markRows||{})),blockRows:JSON.parse(JSON.stringify(state.blockRows||{})),
+      anchors:JSON.parse(JSON.stringify(state.anchors||{})),anchorLocks:JSON.parse(JSON.stringify(state.anchorLocks||{}))},
     always:{
       mirLAlways:state.mirLAlways,mirLColor:state.mirLColor,mirLStyle:state.mirLStyle,
       mirPAlways:state.mirPAlways,mirPColor:state.mirPColor,mirPStyle:state.mirPStyle,mirPGap:state.mirPGap,
@@ -16186,6 +16196,20 @@ function applyEnvSnapshot(snap){
   state.mgRanges=JSON.parse(JSON.stringify(snap.mgRanges||{}));
   state.mgWeekRanges=JSON.parse(JSON.stringify(snap.mgWeekRanges||{}));
   state.mgSlots=JSON.parse(JSON.stringify(snap.mgSlots||[]));
+  if(snap.mgHidden)state.mgHidden=JSON.parse(JSON.stringify(snap.mgHidden));
+  if(snap.mgColOrder!==undefined)state.mgColOrder=snap.mgColOrder?JSON.parse(JSON.stringify(snap.mgColOrder)):null;
+  if(snap.mgPredCount)state.mgPredCount=JSON.parse(JSON.stringify(snap.mgPredCount));
+  try{
+    if(snap.game&&GAMES[snap.game]&&GAME&&GAME.key!==snap.game)setGame(snap.game);
+    if(snap.colors){
+      const c=snap.colors;
+      state.colored=c.colored||{};state.coloredCells=c.coloredCells||{};
+      state.colored2=c.colored2||{};state.coloredCells2=c.coloredCells2||{};
+      state.markRows=c.markRows||{};state.blockRows=c.blockRows||{};
+      state.anchors=c.anchors||{};state.anchorLocks=c.anchorLocks||{};
+      saveColorState();
+    }
+  }catch(_){}
   if(snap.always)Object.keys(snap.always).forEach(k=>{state[k]=snap.always[k];});
 }
 function loadEnvStatesState(){

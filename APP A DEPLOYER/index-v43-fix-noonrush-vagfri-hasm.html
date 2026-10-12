@@ -6040,7 +6040,18 @@ function rowPairMark(row){
   return out;
 }
 
+function fixPlages(){
+  try{
+    if(!Array.isArray(state.plages))state.plages=[];
+    const d=[MAX_T,Math.max(MIN_T,MAX_T-52),Math.max(MIN_T,MAX_T-104),Math.max(MIN_T,MAX_T-520)];
+    for(let i=0;i<4;i++){
+      const c=state.plages[i];
+      if(!c||IDX[c.t]===undefined)state.plages[i]={t:d[i],nb:(c&&c.nb)||40};
+    }
+  }catch(_){}
+}
 function calcComp(){
+  fixPlages();
   const act=state.plages.slice(0,state.np);
   const pRows=act.map(cfg=>{
     const ri=IDX[cfg.t]; if(ri===undefined)return[];
@@ -18401,6 +18412,7 @@ function __renderBody(){
 
   // ── ONGLET COMPARAISON ────────────────────────────────────
   }else if(state.tab===1){
+    fixPlages();
     // Lever l'ambiguïté : cet onglet compare des PLAGES d'un même jeu.
     // Comparer plusieurs LOTOS entre eux se fait dans l'onglet Navigation.
     html+=`<div class="card" style="padding:7px 10px;background:#F3F7FF;border:1px solid #BBD3F5;display:flex;align-items:center;gap:8px;flex-wrap:wrap">

@@ -5021,6 +5021,7 @@ let state={
       return v!=='0';
     }catch(_){return true;}
   })(),
+  mgExportN:parseInt(localStorage.getItem('mgExportN'))||0,
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -8356,7 +8357,7 @@ function exportPanelHTML(){
 // externe : le HTML généré est un rendu fidèle (mêmes couleurs, mêmes badges de classification)
 // de ce qui est affiché à l'écran, comme une vraie capture d'écran imprimable.
 function exportMgColumnsPDF(){
-  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgColRows(gd,col).slice()};});
+  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgLastN(mgColRows(gd,col).slice())};});
   if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
   const btns=document.querySelectorAll('.export-mg-pdf-btn');
   btns.forEach(b=>b.textContent='⏳ Génération...');
@@ -8487,9 +8488,17 @@ function exportMgColumnsPDF(){
 // fichier Excel — utile car certains tirages ne sont pas tous visibles en même temps à l'écran
 // (ex: BENZ, NATIONAL, etc. hors champ selon le défilement). Reprend le mode par défaut
 // (miroir même ligne, miroir superposé, mêmes numéros superposés, repérés) tel qu'affiché à l'écran.
+// N derniers tirages (les plus récents, par n° de tirage) de chaque colonne à l'export ; 0 = tout.
+function mgLastN(rows){
+  const n=parseInt(state.mgExportN)||0;
+  if(n<=0||rows.length<=n)return rows;
+  const ts=rows.map(r=>r.t).sort((a,b)=>b-a);
+  const thr=ts[n-1];
+  return rows.filter(r=>r.t>=thr);
+}
 async function exportMgColumnsExcel(){
   if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
-  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgColRows(gd,col).slice()};});
+  const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);return{colId,key,g,gd,...col,label:mgColLabel(col),rows:mgLastN(mgColRows(gd,col).slice())};});
   if(!cols.length){alert("Sélectionne au moins un jeu à comparer avant d'exporter.");return;}
   const btns=document.querySelectorAll('.export-mg-btn');
   btns.forEach(b=>b.textContent='⏳ Génération...');
@@ -18064,6 +18073,7 @@ function __renderBody(){
         <input id="cmp-search" type="text" oninput="filterCompareGames(this.value)" placeholder="🔎 Filtrer les jeux (ex: ng, ghana, matinal, diamant…)" style="flex:1;min-width:150px;padding:4px 8px;border:1.5px solid #1F2D3D;border-radius:6px;font-size:11px">
         <span id="cmp-count" style="font-size:9px;color:#888;font-weight:500">${Object.keys(GAMES).length} jeux</span>
         <button onclick="state.selGames=[];render()" style="padding:2px 7px;font-size:9px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider la sélection</button>
+        <label style="display:inline-flex;align-items:center;gap:3px;font-size:9px;color:#5B21B6;font-weight:600" title="Limite l'export (Excel et PDF) aux N derniers tirages de chaque colonne. 0 = tout">Derniers <input type="number" min="0" max="5000" value="${state.mgExportN||0}" onchange="state.mgExportN=Math.max(0,parseInt(this.value)||0);try{localStorage.setItem('mgExportN',state.mgExportN)}catch(_){}" style="width:46px;padding:1px 3px;font-size:10px;border:1px solid #7C3AED;border-radius:5px"> tirages (0 = tout)</label>
         <button class="export-mg-btn" onclick="exportMgColumnsExcel()" title="Génère un fichier Excel avec TOUS les tirages de chaque colonne comparée (miroir + superposition + repérés inclus), même ceux qui ne sont pas visibles à l'écran" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#7C3AED;color:#fff;cursor:pointer;font-weight:600">📤 Exporter tout le tableau (toutes les colonnes)</button>
         <button class="export-mg-pdf-btn" onclick="exportMgColumnsPDF()" title="Ouvre l'aperçu d'impression avec TOUTES les colonnes comparées, mêmes couleurs qu'à l'écran — choisis « Enregistrer en PDF » comme imprimante" style="padding:2px 9px;font-size:9px;border-radius:8px;border:none;background:#B91C1C;color:#fff;cursor:pointer;font-weight:600">📄 Exporter en PDF</button>
         <span style="display:inline-flex;gap:0;border-radius:8px;overflow:hidden;border:1px solid #999" title="Épaisseur du contour (numéros en miroir/superposition, sans repéré) dans les exports Excel et PDF">

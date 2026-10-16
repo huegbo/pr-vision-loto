@@ -2039,7 +2039,7 @@ function tirageJourHTML(){
         <div style="font-size:12.5px;font-weight:800;color:#78350F">${dLabel} ${fmtDM(day.baseDate)}</div>
         <div style="font-size:9.5px;color:#92400E;opacity:.85">${day.entries.length} prévus · ${dDone} tirés</div>
       </div>
-      ${tirageJourDayBodyHTML(day.entries,day.todayK,dLabel)}
+      ${tirageJourDayBodyHTML(day.entries.map(e=>Object.assign({},e,{label:e.label+' · '+String(day.baseDate.getDate()).padStart(2,'0')+'/'+String(day.baseDate.getMonth()+1).padStart(2,'0')})),day.todayK,dLabel)}
     </div>`;
   }).join(''):tirageJourDayBodyHTML(days[0].entries,days[0].todayK,CI_DAY_NAMES[days[0].wd])}
   </div>

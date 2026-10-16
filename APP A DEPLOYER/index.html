@@ -18300,7 +18300,15 @@ function __renderBody(){
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
       const _ctx2=anCalc(); // couches "toujours actives" (miroir, superposition, répétés, élément, alignement, repérés) — utilisé aussi pour colorer les numéros machine (M1-M5), sinon ils restaient sans aucune couleur en Mode Excel
-      html+=`<div id="col-exnav" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav')">
+      // Double vue en Mode Excel : le même tableau est rendu deux fois (AVEC repérés / SANS repérés),
+      // côte à côte, avec coloriage manuel indépendant par volet (mêmes mécanismes que la double vue Navigation).
+      const _exTable=(dv,idn)=>{
+        let html='';
+        const _sRA=state.repereAlways,_sRA2=state.repere2Always,_sSup=_DV_SUPPRESS;
+        if(dv==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
+        else if(dv==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
+        try{
+      html+=`<div id="col-exnav${idn}" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav${idn}')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=isLightBg(c.color);
@@ -18336,7 +18344,7 @@ function __renderBody(){
           row.n.forEach((n,ni)=>{
             const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
             const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
-            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{pane2:(dv==='norep'),isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
           });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
@@ -18346,7 +18354,7 @@ function __renderBody(){
           html+=GAME.xtra?`<td style="${fz(ci,7)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`:`<td style="${fz(ci,7)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
           if(GAME.hasM){
             const _bmk2=row.m?anMarkBonus(row,_ctx2):null;
-            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
+            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,pane2:(dv==='norep'),an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
             if(GAME.xtra){
               html+=`<td style="background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
             }else{
@@ -18359,6 +18367,19 @@ function __renderBody(){
         html+=`</tr>`;
       }
       html+=`</tbody></table></div>`;
+        }finally{state.repereAlways=_sRA;state.repere2Always=_sRA2;_DV_SUPPRESS=_sSup;}
+        return html;
+      };
+      if(state.dualViewOn){
+        const _bar=(t)=>`<div style="font-size:10px;font-weight:700;color:#0F766E;margin:2px 0 3px">${t}</div>`;
+        html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%">`;
+        if(state.dualViewLeftOn)html+=`<div style="flex:1;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','')}</div>`;
+        if(state.dualViewRightOn)html+=`<div style="flex:1;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep',state.dualViewLeftOn?'2':'')}</div>`;
+        if(!state.dualViewLeftOn&&!state.dualViewRightOn)html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px">Réafficher</button></div>`;
+        html+=`</div>`;
+      }else{
+        html+=_exTable(undefined,'');
+      }
     }else{
       const fS=state.excelFontSize,fN=state.excelFontSize+1,rP=state.excelRowPad;
       html+=settingsPanelHTML();

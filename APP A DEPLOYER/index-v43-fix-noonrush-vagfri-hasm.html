@@ -8390,7 +8390,8 @@ function exportMgColumnsPDF(){
       const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
       const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TOT.M']:[])];
       let rowsHtml='';
-      c.rows.forEach(r=>{
+      c.rows.forEach((r,_ri)=>{
+        const _k3=c.rows.length-1-_ri;const _rc3=(state.excelColor3&&_k3<3)?[['#E53935','#FFFFFF'],['#2979FF','#FFFFFF'],['#E6A700','#FFFFFF']][_k3]:null;
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
         rowsHtml+=`<tr><td class="idc">${r.t}</td><td class="idc">${r.d}</td>`;
@@ -8404,6 +8405,7 @@ function exportMgColumnsPDF(){
           else if(repC)hs=hlStyle(repC);
           else if(rep2C)hs=hlStyle(rep2C);
           else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
+          if(state.excelColor3){hs=_rc3?{mode:'fill',color:_rc3[0],text:_rc3[1]}:null;} // rendu « 3 derniers tirages » : couleur par ligne, rien ailleurs
           let sty='',symHtml='';
           if(hs){
             if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
@@ -8431,6 +8433,7 @@ function exportMgColumnsPDF(){
             else if(repC)hs=hlStyle(repC);
             else if(rep2C)hs=hlStyle(rep2C);
             else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
+            if(state.excelColor3)hs=null;
             let sty='',symHtml='';
             if(hs){
               if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
@@ -8566,8 +8569,12 @@ async function exportMgColumnsExcel(){
     for(let ri=0;ri<maxRows;ri++){
       const row=ws.addRow([]);
       cols.forEach((c,ci)=>{
-        const startCol=colOffsets[ci],r=c.rows[ri];
+        const startCol=colOffsets[ci];
+        const _ri=ri-(state.mgAlignEnd?maxRows-c.rows.length:0); // derniers tirages alignés en bas (comme à l'écran)
+        const r=_ri>=0?c.rows[_ri]:null;
         if(!r)return;
+        const _k3=c.rows.length-1-_ri;
+        const _rc3=(state.excelColor3&&_k3>=0&&_k3<3)?[['#E53935','#FFFFFF'],['#2979FF','#FFFFFF'],['#E6A700','#FFFFFF']][_k3]:null;
         const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // mode par défaut calculé sur les données DE CE jeu
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
@@ -8588,6 +8595,7 @@ async function exportMgColumnsExcel(){
           else if(repC)hs=hlStyle(repC);
           else if(rep2C)hs=hlStyle(rep2C);
           else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
+          if(state.excelColor3){hs=_rc3?{mode:'fill',color:_rc3[0],text:_rc3[1]}:null;} // rendu « 3 derniers tirages » : couleur par ligne, rien ailleurs
           const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
           const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
@@ -8629,6 +8637,7 @@ async function exportMgColumnsExcel(){
             else if(repC)hs=hlStyle(repC);
             else if(rep2C)hs=hlStyle(rep2C);
             else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
+            if(state.excelColor3)hs=null;
             const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
             const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
             const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
@@ -18204,7 +18213,7 @@ function __renderBody(){
             if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
             const _k3=c.rows.length-1-_ri; // 0 = dernier tirage de CE jeu, 1 = avant-dernier, 2 = antépénultième
-            const _rc3=(state.excelColor3&&_k3>=0&&_k3<3)?[['#EC4899','#fff'],['#14B8A6','#fff'],['#F97316','#fff']][_k3]:null;
+            const _rc3=(state.excelColor3&&_k3>=0&&_k3<3)?[['#E53935','#fff'],['#2979FF','#fff'],['#E6A700','#fff']][_k3]:null;
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;

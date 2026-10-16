@@ -5033,7 +5033,7 @@ let state={
     }catch(_){return true;}
   })(),
   mgExportN:parseInt(localStorage.getItem('mgExportN'))||0,
-  mgAlignEnd:(function(){try{return localStorage.getItem('mgAlignEnd')!=='0';}catch(_){return true;}})(),
+  mgAlignEnd:(function(){try{return localStorage.getItem('mgAlignEnd')==='1';}catch(_){return false;}})(),
   excelColor3:(function(){try{return localStorage.getItem('excelColor3')!=='0';}catch(_){return true;}})(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -8385,14 +8385,14 @@ function exportMgColumnsPDF(){
   try{
     const ctx=anCalc();
     const _pdfBw={thin:1,medium:2,thick:3}[state.mgBorderStyle]||2;
-    const _mgC3p=mgLast3ColorMap(cols);
+    const _mgC3po=mgLast3ColorMap(cols,0,false);const _mgC3p=_mgC3po.map,_mgL3p=_mgC3po.last;
     let blocks='';
     cols.forEach(c=>{
       const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
       const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TOT.M']:[])];
       let rowsHtml='';
       c.rows.forEach((r,_ri)=>{
-        const _in3=(c.rows.length-1-_ri)<3;
+        const _in3=_ri>=_mgL3p-2&&_ri<=_mgL3p;
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
         rowsHtml+=`<tr><td class="idc">${r.t}</td><td class="idc">${r.d}</td>`;
@@ -8567,7 +8567,7 @@ async function exportMgColumnsExcel(){
     });
 
     const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
-    const _mgC3=mgLast3ColorMap(cols);
+    const _mgC3o=mgLast3ColorMap(cols,maxRows,state.mgAlignEnd);const _mgC3=_mgC3o.map,_mgL3=_mgC3o.last;
     for(let ri=0;ri<maxRows;ri++){
       const row=ws.addRow([]);
       cols.forEach((c,ci)=>{
@@ -8575,8 +8575,7 @@ async function exportMgColumnsExcel(){
         const _ri=ri-(state.mgAlignEnd?maxRows-c.rows.length:0); // derniers tirages alignés en bas (comme à l'écran)
         const r=_ri>=0?c.rows[_ri]:null;
         if(!r)return;
-        const _k3=c.rows.length-1-_ri;
-        const _in3=_k3>=0&&_k3<3;
+        const _in3=ri>=_mgL3-2&&ri<=_mgL3;
         const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // mode par défaut calculé sur les données DE CE jeu
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
@@ -16107,12 +16106,14 @@ function moveMgColumnFirst(colId){
 // de référence (jeu actif s'il est dans la comparaison, sinon 1re colonne visible) sont colorés PAR VALEUR
 // (dernier tirage rouge, avant-dernier bleu, 3e or ; le plus récent l'emporte), et UNIQUEMENT sur les 3
 // dernières lignes de chaque colonne (lignes alignées horizontalement). Partout ailleurs : aucun coloriage.
-function mgLast3ColorMap(cols){
+function mgLast3ColorMap(cols,maxRows,align){
   const anchor=cols.find(c=>!c.hid&&c.key===GAME.key)||cols.find(c=>!c.hid);
-  const map={};if(!anchor)return map;
+  const map={};if(!anchor)return {map,last:-1};
   const PAL=['#E53935','#2979FF','#E6A700'];
   for(let k=2;k>=0;k--){const r=anchor.rows[anchor.rows.length-1-k];if(!r)continue;(r.n||[]).forEach(v=>{if(v!=null&&!isNaN(v))map[v]=PAL[k];});}
-  return map;
+  // Les 3 lignes « alignées » sont les 3 DERNIÈRES lignes de la colonne de référence ; les autres colonnes sont
+  // colorées sur ces mêmes 3 lignes horizontales.
+  return {map,last:align?(maxRows-1):(anchor.rows.length-1)};
 }
 // Retourne les tirages (ordre chronologique croissant, comme BY_YEAR) pour une colonne, selon son mode.
 function mgColRows(gd,col){
@@ -18038,7 +18039,7 @@ function __renderBody(){
       ${state.excelMode?`<div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid #1F2D3D">
         ${[['compact','Compact',9.5,3],['normal','Normal',12,5],['large','Grand',16,8]].map(([k,lbl,fs,pad])=>`<button onclick="state.excelTextSize='${k}';state.excelFontSize=${fs};state.excelRowPad=${pad};localStorage.setItem('excelTextSize','${k}');localStorage.setItem('excelFontSize','${fs}');localStorage.setItem('excelRowPad','${pad}');render()" style="padding:3px 7px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.excelTextSize===k?'#1F2D3D':'#fff'};color:${state.excelTextSize===k?'#fff':'#1F2D3D'}">${lbl}</button>`).join('')}
       </div>`:''}
-      ${(state.excelMode&&state.navMode==='games')?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.mgAlignEnd?'#1D4ED8':'#aaa'}" title="Comparaison de lotos en Mode Excel : les derniers tirages de tous les lotos sont alignés sur les mêmes lignes (en bas), au lieu d'être alignés par le haut."><input type="checkbox" ${state.mgAlignEnd?'checked':''} onchange="state.mgAlignEnd=this.checked;try{localStorage.setItem('mgAlignEnd',this.checked?'1':'0')}catch(_){};render()">⇩ derniers tirages alignés</label>`:''}
+      ${(state.excelMode&&state.navMode==='games')?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.mgAlignEnd?'#1D4ED8':'#aaa'}" title="Option : aligne le BAS de toutes les colonnes (leurs derniers tirages sur les mêmes lignes). Décoché (défaut) : colonnes alignées par le haut, les 3 lignes colorées étant les 3 derniers tirages de la colonne de référence."><input type="checkbox" ${state.mgAlignEnd?'checked':''} onchange="state.mgAlignEnd=this.checked;try{localStorage.setItem('mgAlignEnd',this.checked?'1':'0')}catch(_){};render()">⇩ derniers tirages alignés</label>`:''}
       ${state.excelMode?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.excelColor3?'#B91C1C':'#aaa'}" title="Mode Excel : le coloriage (manuel, repérés, miroirs, répétés…) n'est affiché que sur les 3 dernières lignes de chaque tableau."><input type="checkbox" ${state.excelColor3?'checked':''} onchange="state.excelColor3=this.checked;try{localStorage.setItem('excelColor3',this.checked?'1':'0')}catch(_){};render()">🎨 3 dernières lignes</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
@@ -18196,7 +18197,7 @@ function __renderBody(){
         const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);const hid=!!(state.mgHidden&&state.mgHidden[colId]);return{colId,key,g,gd,hid,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
         const _fv=cols.findIndex(c=>!c.hid); // 1re colonne VISIBLE = celle figée à gauche
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
-        const _mgC3=mgLast3ColorMap(cols);
+        const _mgC3o=mgLast3ColorMap(cols,maxRows,state.mgAlignEnd);const _mgC3=_mgC3o.map,_mgL3=_mgC3o.last;
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
         const mgWidthsOf=g=>{
@@ -18226,8 +18227,7 @@ function __renderBody(){
             const _ri=state.mgAlignEnd?ri-(maxRows-c.rows.length):ri;const g=c.g,row=_ri>=0?c.rows[_ri]:undefined,nCells=g.hasM?14:8;
             if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
-            const _k3=c.rows.length-1-_ri; // 0 = dernier tirage de CE jeu
-            const _in3=_k3>=0&&_k3<3;
+            const _in3=ri>=_mgL3-2&&ri<=_mgL3; // les 3 lignes alignées sur les 3 derniers tirages de la colonne de référence
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;

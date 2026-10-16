@@ -750,6 +750,9 @@ function openFiltreAsGame(rows,opts){
   // Un seul format de tirage possible par jeu dans l'appli (5 ou 6 numéros) : si la sélection
   // mélange les deux (ex: Italie Lotto 5 numéros + SuperEnalotto 6 numéros), on garde le format
   // majoritaire et on prévient des tirages exclus plutôt que de fabriquer un jeu incohérent.
+  // Super4 (4 numéros) : complété à 5 par un vide, comme dans Tirage du jour, pour ne pas être exclu ni déclencher l'alerte.
+  rows=rows.map(r=>(r.n&&r.n.length===4)?Object.assign({},r,{n:[...r.n,NaN]}):r);
+  window._ofgNotice=null;
   const counts={};
   rows.forEach(r=>{counts[r.n.length]=(counts[r.n.length]||0)+1;});
   const lens=Object.keys(counts).map(Number);
@@ -758,7 +761,7 @@ function openFiltreAsGame(rows,opts){
     mainLen=lens.reduce((a,b)=>counts[b]>counts[a]?b:a);
     filtered=rows.filter(r=>r.n.length===mainLen);
     if(!filtered.length){alert('Sélection incompatible : formats de tirage mélangés (5 et 6 numéros), aucun format majoritaire exploitable.');return;}
-    alert(`⚠ ${rows.length-filtered.length} tirage(s) à un autre nombre de numéros ont été exclus — l'appli ne peut ouvrir qu'un seul format à la fois (ici : ${mainLen} numéros, le plus fréquent dans ta sélection).`);
+    window._ofgNotice=`⚠ ${rows.length-filtered.length} tirage(s) à un autre nombre de numéros exclus (format retenu : ${mainLen} numéros).`;
   }
   const ordered=filtered.slice().reverse(); // parse*All() est le plus récent en premier ; on veut l'inverse pour numéroter les IDs du plus ancien (1) au plus récent, comme tous les autres jeux de l'appli.
   const lines=ordered.map((r,i)=>{
@@ -820,6 +823,7 @@ function openFiltreAsGame(rows,opts){
   if(opts.closeFlag)state[opts.closeFlag]=false;
   state.tab=0;state.navMode='years';state.excelMode=false;
   render();
+  if(window._ofgNotice){try{const d=document.createElement('div');d.textContent=window._ofgNotice;d.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1f2937;color:#fff;padding:8px 14px;border-radius:10px;font-size:12px;z-index:99999;box-shadow:0 2px 8px rgba(0,0,0,.3)';document.body.appendChild(d);setTimeout(()=>d.remove(),5000);}catch(_){}window._ofgNotice=null;}
 }
 function openBeninFiltreAsGame(){
   const rows=parseBeninAll().filter(r=>state.beninJours.includes(r.jour)&&state.beninJeux.includes(r.jeu)

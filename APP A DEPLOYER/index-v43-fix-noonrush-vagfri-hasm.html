@@ -18321,6 +18321,8 @@ function __renderBody(){
       // ── MODE EXCEL : 1re année entièrement figée à gauche, scroll vertical commun ──
       const cols=state.selYears.map(yr=>({yr,color:YC[yr]||'1F2D3D',rows:rowsForYear(yr).slice(-3000)}));  // Analyses : non virtualisé, on borne large pour couvrir une année complète (jeux combinés type TOUT BENIN PLUS DIGITAL) — slice(-3000) garde les PLUS RÉCENTS
       const maxRows=Math.max(...cols.map(c=>c.rows.length));
+      // Coloriage « 3 dernières lignes » : couleurs par valeur des 3 derniers tirages de la 1re colonne (année), appliquées sur ces 3 lignes horizontales dans toutes les colonnes.
+      const _yc3o=mgLast3ColorMap(cols,maxRows,false);const _yc3=_yc3o.map,_yL3=_yc3o.last;
       // largeurs fixes (px) : N°, DATE, puis chaque numéro, TOT, [machine..., TOTM]
       const SZ_PRESETS={compact:{W_T:18,W_D:22,W_N:17,W_TOT:20},normal:{W_T:22,W_D:26,W_N:20,W_TOT:24},large:{W_T:30,W_D:34,W_N:30,W_TOT:34}};
       const SZ=SZ_PRESETS[state.excelTextSize]||SZ_PRESETS.normal;
@@ -18392,7 +18394,7 @@ function __renderBody(){
           row.n.forEach((n,ni)=>{
             const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
             const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
-            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{plain:(state.excelColor3&&ri<c.rows.length-3),pane2:(dv==='norep'),isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{plain:!!state.excelColor3,rowCol:(state.excelColor3&&ri>=_yL3-2&&ri<=_yL3&&mgCell3(row,n,_yc3))?[mgCell3(row,n,_yc3),'#fff']:null,pane2:(dv==='norep'),isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
           });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
@@ -18402,7 +18404,7 @@ function __renderBody(){
           html+=GAME.xtra?`<td style="${fz(ci,7)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`:`<td style="${fz(ci,7)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
           if(GAME.hasM){
             const _bmk2=row.m?anMarkBonus(row,_ctx2):null;
-            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,plain:(state.excelColor3&&ri<c.rows.length-3),pane2:(dv==='norep'),an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
+            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,plain:!!state.excelColor3,rowCol:(state.excelColor3&&ri>=_yL3-2&&ri<=_yL3&&mgCell3(row,row.m[mi],_yc3))?[mgCell3(row,row.m[mi],_yc3),'#fff']:null,pane2:(dv==='norep'),an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
             if(GAME.xtra){
               html+=`<td style="background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
             }else{

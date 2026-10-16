@@ -5033,6 +5033,7 @@ let state={
     }catch(_){return true;}
   })(),
   mgExportN:parseInt(localStorage.getItem('mgExportN'))||0,
+  excelColor3:(function(){try{return localStorage.getItem('excelColor3')!=='0';}catch(_){return true;}})(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -5965,8 +5966,11 @@ function numSpan(n, extra, cid){
   // Volet "vierge" de la double vue : AUCUNE couche automatique (miroirs, superposés, répétés,
   // éléments, alignements, analyses, repérés) — uniquement son propre coloriage manuel.
   if(pane2&&extra){extra=Object.assign({},extra,{an:null,isMirNav:false,mirP:false,superpos:false,repMult:false,elmDup:false,align:false,vert:false,isComm:false,commBg:null,clKey:null,pair:null});}
-  const colC=cid?(pane2?state.coloredCells2[cid]:state.coloredCells[cid]):null;
-  const col=pane2?state.colored2[n]:state.colored[n];
+  // plain : numéro SANS aucun coloriage (Mode Excel « coloriage sur les 3 dernières lignes seulement »).
+  const _plain=!!(extra&&extra.plain);
+  if(_plain){extra=Object.assign({},extra,{an:null,isSrc:false,isMirNav:false,mirP:false,superpos:false,repMult:false,elmDup:false,align:false,vert:false,isComm:false,commBg:null,clKey:null,pair:null});}
+  const colC=(cid&&!_plain)?(pane2?state.coloredCells2[cid]:state.coloredCells[cid]):null;
+  const col=_plain?null:(pane2?state.colored2[n]:state.colored[n]);
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{
@@ -5978,8 +5982,8 @@ function numSpan(n, extra, cid){
   };
   // Numéro repéré (prédéfini, actif) : couleur pleine par défaut (comme un coloriage manuel),
   // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
-  const repereMark=(!_DV_SUPPRESS&&state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
-  const repere2Mark=(!_DV_SUPPRESS&&state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
+  const repereMark=(!_plain&&!_DV_SUPPRESS&&state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
+  const repere2Mark=(!_plain&&!_DV_SUPPRESS&&state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
   // Priorité à la vue par défaut : les 3 couches toujours actives (miroir même
   // ligne, miroir superposé, mêmes numéros superposés) passent maintenant devant
   // le coloriage manuel/repérés, pour que les deux numéros d'une même paire
@@ -18009,6 +18013,7 @@ function __renderBody(){
       ${state.excelMode?`<div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid #1F2D3D">
         ${[['compact','Compact',9.5,3],['normal','Normal',12,5],['large','Grand',16,8]].map(([k,lbl,fs,pad])=>`<button onclick="state.excelTextSize='${k}';state.excelFontSize=${fs};state.excelRowPad=${pad};localStorage.setItem('excelTextSize','${k}');localStorage.setItem('excelFontSize','${fs}');localStorage.setItem('excelRowPad','${pad}');render()" style="padding:3px 7px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.excelTextSize===k?'#1F2D3D':'#fff'};color:${state.excelTextSize===k?'#fff':'#1F2D3D'}">${lbl}</button>`).join('')}
       </div>`:''}
+      ${state.excelMode?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.excelColor3?'#B91C1C':'#aaa'}" title="Mode Excel : le coloriage (manuel, repérés, miroirs, répétés…) n'est affiché que sur les 3 dernières lignes de chaque tableau."><input type="checkbox" ${state.excelColor3?'checked':''} onchange="state.excelColor3=this.checked;try{localStorage.setItem('excelColor3',this.checked?'1':'0')}catch(_){};render()">🎨 3 dernières lignes</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.dualViewOn?'#0F766E':'#aaa'}" title="Affiche 2 colonnes par année, côte à côte : une AVEC les listes de repères, une SANS. Le coloriage manuel reste indépendant dans chaque volet."><input type="checkbox" ${state.dualViewOn?'checked':''} onchange="state.dualViewOn=this.checked;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}render()">🪟 double vue</label>
@@ -18347,7 +18352,7 @@ function __renderBody(){
           row.n.forEach((n,ni)=>{
             const _mirP2=!!(MIR[n]&&((_prevR2&&_prevR2.n[ni]===MIR[n])||(_nextR2&&_nextR2.n[ni]===MIR[n])));
             const _superpos2=!!((_olderR2&&_olderR2.n[ni]===n)||(_newerR2&&_newerR2.n[ni]===n));
-            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{pane2:(dv==='norep'),isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
+            html+=`<td style="${fz(ci,2+ni)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${numSpan(n,{plain:(state.excelColor3&&ri<c.rows.length-3),pane2:(dv==='norep'),isSrc:isSearchHit(n,ni),an:_e[ni],isMirNav:!_e[ni]&&MIR[n]&&_ns2.has(MIR[n]),mirP:_mirP2,superpos:_superpos2,repMult:_rmHits2.has(n),elmDup:_edHits2.has(ni),align:_alHits2.has(ni),vert:_vHits2.has(ni),fs:fNum},row.t+'_'+ni)}</td>`;
           });
           if(GAME.n6){
             html+=`<td style="${fz(ci,totIdx2)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
@@ -18357,7 +18362,7 @@ function __renderBody(){
           html+=GAME.xtra?`<td style="${fz(ci,7)}background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[0]:'·'}</td>`:`<td style="${fz(ci,7)}background:${tc[0]};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${tc[1]};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.s}</td>`;
           if(GAME.hasM){
             const _bmk2=row.m?anMarkBonus(row,_ctx2):null;
-            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,pane2:(dv==='norep'),an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
+            [0,1,2,3,4].forEach(mi=>{html+=`<td style="background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${W_N}px;min-width:${W_N}px">${row.m?numSpan(row.m[mi],{isM:true,plain:(state.excelColor3&&ri<c.rows.length-3),pane2:(dv==='norep'),an:_bmk2&&_bmk2[mi]},row.t+'_m'+mi):'·'}</td>`;});
             if(GAME.xtra){
               html+=`<td style="background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
             }else{

@@ -5962,6 +5962,9 @@ function numSpan(n, extra, cid){
   // colored2/coloredCells2, jamais masqués (contrairement à avant où _DV_SUPPRESS
   // cachait tout le coloriage manuel dans le volet "sans").
   const pane2=!!(extra&&extra.pane2);
+  // Volet "vierge" de la double vue : AUCUNE couche automatique (miroirs, superposés, répétés,
+  // éléments, alignements, analyses, repérés) — uniquement son propre coloriage manuel.
+  if(pane2&&extra){extra=Object.assign({},extra,{an:null,isMirNav:false,mirP:false,superpos:false,repMult:false,elmDup:false,align:false,vert:false,isComm:false,commBg:null,clKey:null,pair:null});}
   const colC=cid?(pane2?state.coloredCells2[cid]:state.coloredCells[cid]):null;
   const col=pane2?state.colored2[n]:state.colored[n];
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';

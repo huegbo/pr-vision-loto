@@ -8385,13 +8385,14 @@ function exportMgColumnsPDF(){
   try{
     const ctx=anCalc();
     const _pdfBw={thin:1,medium:2,thick:3}[state.mgBorderStyle]||2;
+    const _mgC3p=mgLast3ColorMap(cols);
     let blocks='';
     cols.forEach(c=>{
       const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX;
       const heads=['N°','Date','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TOT.M']:[])];
       let rowsHtml='';
       c.rows.forEach((r,_ri)=>{
-        const _k3=c.rows.length-1-_ri;const _rc3=(state.excelColor3&&_k3<3)?[['#E53935','#FFFFFF'],['#2979FF','#FFFFFF'],['#E6A700','#FFFFFF']][_k3]:null;
+        const _in3=(c.rows.length-1-_ri)<3;
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
         rowsHtml+=`<tr><td class="idc">${r.t}</td><td class="idc">${r.d}</td>`;
@@ -8405,7 +8406,7 @@ function exportMgColumnsPDF(){
           else if(repC)hs=hlStyle(repC);
           else if(rep2C)hs=hlStyle(rep2C);
           else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
-          if(state.excelColor3){hs=_rc3?{mode:'fill',color:_rc3[0],text:_rc3[1]}:null;} // rendu « 3 derniers tirages » : couleur par ligne, rien ailleurs
+          if(state.excelColor3){hs=(_in3&&_mgC3p[v])?{mode:'fill',color:_mgC3p[v],text:'#FFFFFF'}:null;}
           let sty='',symHtml='';
           if(hs){
             if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
@@ -8433,7 +8434,7 @@ function exportMgColumnsPDF(){
             else if(repC)hs=hlStyle(repC);
             else if(rep2C)hs=hlStyle(rep2C);
             else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
-            if(state.excelColor3)hs=null;
+            if(state.excelColor3)hs=(_in3&&_mgC3p[v])?{mode:'fill',color:_mgC3p[v],text:'#FFFFFF'}:null;
             let sty='',symHtml='';
             if(hs){
               if(hs.mode==='fill')sty=`background:${hs.color};color:${hs.text}`;
@@ -8566,6 +8567,7 @@ async function exportMgColumnsExcel(){
     });
 
     const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
+    const _mgC3=mgLast3ColorMap(cols);
     for(let ri=0;ri<maxRows;ri++){
       const row=ws.addRow([]);
       cols.forEach((c,ci)=>{
@@ -8574,7 +8576,7 @@ async function exportMgColumnsExcel(){
         const r=_ri>=0?c.rows[_ri]:null;
         if(!r)return;
         const _k3=c.rows.length-1-_ri;
-        const _rc3=(state.excelColor3&&_k3>=0&&_k3<3)?[['#E53935','#FFFFFF'],['#2979FF','#FFFFFF'],['#E6A700','#FFFFFF']][_k3]:null;
+        const _in3=_k3>=0&&_k3<3;
         const _T0=T,_IDX0=IDX;T=c.gd.T;IDX=c.gd.IDX; // mode par défaut calculé sur les données DE CE jeu
         const mk=anMark(r,ctx);
         const bmk=r.m?anMarkBonus(r,ctx):null;
@@ -8595,7 +8597,7 @@ async function exportMgColumnsExcel(){
           else if(repC)hs=hlStyle(repC);
           else if(rep2C)hs=hlStyle(rep2C);
           else if(mk&&mk[ni])hs={mode:'box',color:mk[ni][0],text:mk[ni][0]};
-          if(state.excelColor3){hs=_rc3?{mode:'fill',color:_rc3[0],text:_rc3[1]}:null;} // rendu « 3 derniers tirages » : couleur par ligne, rien ailleurs
+          if(state.excelColor3){hs=(_in3&&_mgC3[v])?{mode:'fill',color:_mgC3[v],text:'#FFFFFF'}:null;} // couleurs par valeur des 3 derniers tirages, sur les 3 lignes alignées seulement
           const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
           const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
           const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
@@ -8637,7 +8639,7 @@ async function exportMgColumnsExcel(){
             else if(repC)hs=hlStyle(repC);
             else if(rep2C)hs=hlStyle(rep2C);
             else if(bmk&&bmk[mi])hs={mode:'box',color:bmk[mi][0],text:bmk[mi][0]};
-            if(state.excelColor3)hs=null;
+            if(state.excelColor3)hs=(_in3&&_mgC3[v])?{mode:'fill',color:_mgC3[v],text:'#FFFFFF'}:null;
             const isRep=state.repereAlways!==false&&state.repereShowClass!==false&&repC;
             const isRep2=!isRep&&state.repere2Always!==false&&state.repere2ShowClass!==false&&rep2C;
             const clLbl=(isRep||isRep2)?repereClassLabel(v):'';
@@ -16101,6 +16103,17 @@ function moveMgColumnFirst(colId){
   state.mgColOrder=ids;
   render();
 }
+// Coloriage « 3 derniers tirages » en comparaison Excel : les numéros gagnants des 3 derniers tirages du jeu
+// de référence (jeu actif s'il est dans la comparaison, sinon 1re colonne visible) sont colorés PAR VALEUR
+// (dernier tirage rouge, avant-dernier bleu, 3e or ; le plus récent l'emporte), et UNIQUEMENT sur les 3
+// dernières lignes de chaque colonne (lignes alignées horizontalement). Partout ailleurs : aucun coloriage.
+function mgLast3ColorMap(cols){
+  const anchor=cols.find(c=>!c.hid&&c.key===GAME.key)||cols.find(c=>!c.hid);
+  const map={};if(!anchor)return map;
+  const PAL=['#E53935','#2979FF','#E6A700'];
+  for(let k=2;k>=0;k--){const r=anchor.rows[anchor.rows.length-1-k];if(!r)continue;(r.n||[]).forEach(v=>{if(v!=null&&!isNaN(v))map[v]=PAL[k];});}
+  return map;
+}
 // Retourne les tirages (ordre chronologique croissant, comme BY_YEAR) pour une colonne, selon son mode.
 function mgColRows(gd,col){
   if(col.mode==='range'){
@@ -18183,6 +18196,7 @@ function __renderBody(){
         const cols=mgColumns().map(col=>{const {colId,key}=col;const g=GAMES[key],gd=gameData(key);const hid=!!(state.mgHidden&&state.mgHidden[colId]);return{colId,key,g,gd,hid,...col,label:mgColLabel(col),color:mgColColor(col),rows:mgColRows(gd,col)};});
         const _fv=cols.findIndex(c=>!c.hid); // 1re colonne VISIBLE = celle figée à gauche
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
+        const _mgC3=mgLast3ColorMap(cols);
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
         const mgWidthsOf=g=>{
@@ -18212,8 +18226,8 @@ function __renderBody(){
             const _ri=state.mgAlignEnd?ri-(maxRows-c.rows.length):ri;const g=c.g,row=_ri>=0?c.rows[_ri]:undefined,nCells=g.hasM?14:8;
             if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
-            const _k3=c.rows.length-1-_ri; // 0 = dernier tirage de CE jeu, 1 = avant-dernier, 2 = antépénultième
-            const _rc3=(state.excelColor3&&_k3>=0&&_k3<3)?[['#E53935','#fff'],['#2979FF','#fff'],['#E6A700','#fff']][_k3]:null;
+            const _k3=c.rows.length-1-_ri; // 0 = dernier tirage de CE jeu
+            const _in3=_k3>=0&&_k3<3;
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:#${c.color};background:${bg};${mgFz(ci,0)}">${row.t}</td>`;
             html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="color:#555;background:${bg};${mgFz(ci,1)}">${row.d}</td>`;
@@ -18221,10 +18235,10 @@ function __renderBody(){
             const _mk=anMark(row,_mgCtx);
             const _bmk=row.m?anMarkBonus(row,_mgCtx):null;
             T=_T0;IDX=_IDX0;
-            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{plain:(state.excelColor3&&_ri<c.rows.length-3),rowCol:_rc3,isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{plain:!!state.excelColor3,rowCol:(state.excelColor3&&_in3&&_mgC3[n])?[_mgC3[n],'#fff']:null,isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
             html+=g.xtra?`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
-              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,plain:(state.excelColor3&&_ri<c.rows.length-3),rowCol:_rc3,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
+              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,plain:!!state.excelColor3,rowCol:(state.excelColor3&&_in3&&_mgC3[row.m[mi]])?[_mgC3[row.m[mi]],'#fff']:null,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
               if(g.xtra){
                 html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
               }else{

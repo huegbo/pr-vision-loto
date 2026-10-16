@@ -5033,6 +5033,7 @@ let state={
     }catch(_){return true;}
   })(),
   mgExportN:parseInt(localStorage.getItem('mgExportN'))||0,
+  mgAlignEnd:(function(){try{return localStorage.getItem('mgAlignEnd')!=='0';}catch(_){return true;}})(),
   excelColor3:(function(){try{return localStorage.getItem('excelColor3')!=='0';}catch(_){return true;}})(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
@@ -18013,6 +18014,7 @@ function __renderBody(){
       ${state.excelMode?`<div style="display:flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid #1F2D3D">
         ${[['compact','Compact',9.5,3],['normal','Normal',12,5],['large','Grand',16,8]].map(([k,lbl,fs,pad])=>`<button onclick="state.excelTextSize='${k}';state.excelFontSize=${fs};state.excelRowPad=${pad};localStorage.setItem('excelTextSize','${k}');localStorage.setItem('excelFontSize','${fs}');localStorage.setItem('excelRowPad','${pad}');render()" style="padding:3px 7px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.excelTextSize===k?'#1F2D3D':'#fff'};color:${state.excelTextSize===k?'#fff':'#1F2D3D'}">${lbl}</button>`).join('')}
       </div>`:''}
+      ${(state.excelMode&&state.navMode==='games')?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.mgAlignEnd?'#1D4ED8':'#aaa'}" title="Comparaison de lotos en Mode Excel : les derniers tirages de tous les lotos sont alignés sur les mêmes lignes (en bas), au lieu d'être alignés par le haut."><input type="checkbox" ${state.mgAlignEnd?'checked':''} onchange="state.mgAlignEnd=this.checked;try{localStorage.setItem('mgAlignEnd',this.checked?'1':'0')}catch(_){};render()">⇩ derniers tirages alignés</label>`:''}
       ${state.excelMode?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.excelColor3?'#B91C1C':'#aaa'}" title="Mode Excel : le coloriage (manuel, repérés, miroirs, répétés…) n'est affiché que sur les 3 dernières lignes de chaque tableau."><input type="checkbox" ${state.excelColor3?'checked':''} onchange="state.excelColor3=this.checked;try{localStorage.setItem('excelColor3',this.checked?'1':'0')}catch(_){};render()">🎨 3 dernières lignes</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.compactMode?'#5D4037':'#aaa'}" title="Tableau dense : colonnes étroites, chiffres nus, fond gris alterné par colonne. Permet 2-3 années côte à côte sur téléphone."><input type="checkbox" ${state.compactMode?'checked':''} onchange="state.compactMode=this.checked;localStorage.setItem('compactMode',this.checked?'1':'0');render()">▦ compact</label>
@@ -18196,7 +18198,7 @@ function __renderBody(){
         for(let ri=0;ri<maxRows;ri++){
           html+=`<tr>`;
           cols.forEach((c,ci)=>{
-            const g=c.g,row=c.rows[ri],nCells=g.hasM?14:8;
+            const _ri=state.mgAlignEnd?ri-(maxRows-c.rows.length):ri;const g=c.g,row=_ri>=0?c.rows[_ri]:undefined,nCells=g.hasM?14:8;
             if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
             const tc=tC(row.s);const bg=ri%2===0?'#fff':'#f7f7f7';
@@ -18206,14 +18208,14 @@ function __renderBody(){
             const _mk=anMark(row,_mgCtx);
             const _bmk=row.m?anMarkBonus(row,_mgCtx):null;
             T=_T0;IDX=_IDX0;
-            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{plain:(state.excelColor3&&_ri<c.rows.length-3),isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
             html+=g.xtra?`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
-              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
+              [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,plain:(state.excelColor3&&_ri<c.rows.length-3),an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});
               if(g.xtra){
                 html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,13)}">${row.x?row.x[1]:'·'}</td>`;
               }else{
-                const ms=row.m?row.m.reduce((a,b)=>a+b,0):0;const mc=tC(ms);
+                const ms=row.m?row.m.reduce((a,b)=>a+(b||0),0):0;const mc=tC(ms);
                 html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${row.m?mc[1]:'#ccc'};background:${row.m?mc[0]:bg};${mgFz(ci,13)}">${row.m?ms:'·'}</td>`;
               }
             }
@@ -18251,7 +18253,7 @@ function __renderBody(){
                   ${(()=>{const _mk=anMark(row,_mgCtx2);return row.n.map((n,ni)=>numSpan(n,{isSrc:isSearchHit(n,ni),an:_mk[ni]},key+'_'+row.t+'_'+ni)).join('');})()}
                   ${g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[0]:'·'}</div>`:`<div style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:2px;font-size:8px">${row.s}</div>`}
                   ${g.hasM?(()=>{const _bmk4=row.m?anMarkBonus(row,_mgCtx2):null;return [0,1,2,3,4].map(mi=>row.m?numSpan(row.m[mi],{isM:true,isSrc:isSearchHit(row.m[mi],5+mi),an:_bmk4&&_bmk4[mi]},key+'_'+row.t+'_m'+mi):'<div style="color:#ddd;font-size:8px">·</div>').join('');})():''}
-                  ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+b,0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
+                  ${g.hasM?(g.xtra?`<div style="font-weight:700;color:#B71C1C;background:#FFEBEE;border-radius:2px;font-size:8px">${row.x?row.x[1]:'·'}</div>`:(row.m?(()=>{const ms=row.m.reduce((a,b)=>a+(b||0),0);const mc=tC(ms);return`<div style="font-weight:500;color:${mc[1]};background:${mc[0]};border-radius:2px;font-size:8px">${ms}</div>`;})():'<div style="color:#ddd;font-size:8px">·</div>')):''}
                 </div>`;
               }).join(''):`<div style="text-align:center;color:#ccc;padding:20px;font-size:10px">Aucun tirage ${colLbl} pour ce jeu</div>`}
               ${col.mode==='year'&&String(col.year)===String(new Date().getFullYear())?remainingWeeklyDrawsFor(gd,state.mgPredCount&&state.mgPredCount[colId]||0).map(ph=>{
@@ -18366,7 +18368,7 @@ function __renderBody(){
             if(GAME.xtra){
               html+=`<td style="background:#FFEBEE;padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:700;color:#B71C1C;font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.x?row.x[1]:'·'}</td>`;
             }else{
-              const ms=row.m?row.m.reduce((a,b)=>a+b,0):0;const mc=tC(ms);
+              const ms=row.m?row.m.reduce((a,b)=>a+(b||0),0):0;const mc=tC(ms);
               html+=`<td style="background:${row.m?mc[0]:bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:${row.m?mc[1]:'#ccc'};font-size:${fTot}px;width:${W_TOT}px;min-width:${W_TOT}px">${row.m?ms:'·'}</td>`;
             }
           }

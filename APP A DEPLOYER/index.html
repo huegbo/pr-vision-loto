@@ -99,7 +99,7 @@ html{max-width:100%;overflow-x:hidden;}
 .excel-frozen{position:sticky;z-index:7;box-shadow:2px 0 5px rgba(31,45,61,.12);transform:translateZ(0);-webkit-transform:translateZ(0);}
 th.excel-frozen{z-index:9;}
 .excel-td.excel-frozen{background:#fff;}
-.col-body{overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;touch-action:none;}
+.col-body{overflow-anchor:none;overflow-y:auto;overflow-x:hidden;max-height:calc(100dvh - 200px);overscroll-behavior:contain;touch-action:none;}
 .col-hdr{text-align:center;padding:6px 3px;font-weight:600;font-size:12px;position:sticky;top:0;z-index:2;letter-spacing:.3px;}
 .popup{position:fixed;z-index:999;background:rgba(24,30,38,.72);color:#fff;border-radius:8px;padding:4px 7px;min-width:80px;max-width:190px;box-shadow:0 6px 22px rgba(0,0,0,.35);pointer-events:none;backdrop-filter:blur(4px);}
 .popup-overlay{position:fixed;inset:0;z-index:998;}
@@ -14724,7 +14724,7 @@ function restoreFreeze(){
   if(!state.freezeOn||!state.freezeOffsets)return;
   Object.entries(state.freezeOffsets).forEach(([id,v])=>{
     const el=document.getElementById('col-'+id);
-    if(el&&Math.abs(el.scrollTop-v)>0.5)el.scrollTop=v;
+    if(el&&Math.abs(el.scrollTop-v)>0.5){_progScroll[id]=true;el.scrollTop=v;}
   });
 }
 function freezeBarHTML(){
@@ -18509,9 +18509,9 @@ function __renderBody(){
         if(state.pin){const[pd,pm]=state.pin.split('/');pinIdx=rows.findIndex(r=>{const[rd,rm]=r.d.split('/');return Math.abs(parseInt(rm)-parseInt(pm))*31+Math.abs(parseInt(rd)-parseInt(pd))<20;});}
         // Contenu partagé entre les deux volets en double vue (mêmes lignes, même
         // liste virtualisée) : on ne le construit qu'une fois par année.
-        let ph0='';
+        let ph0='';const _phRows=[];
         precedingWeeklyPlaceholders(yr).forEach(ph=>{
-          ph0+=`<div class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Avant le début de l'historique">
+          {const _h=`<div class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:repeating-linear-gradient(45deg,#fafafa,#fafafa 6px,#f0f0f0 6px,#f0f0f0 12px);border-bottom:1px dashed #ddd" title="Avant le début de l'historique">
             <div style="font-weight:500;color:#ccc;font-size:8px">—</div>
             <div style="font-size:8px;color:#bbb">${ph.d}</div>
             ${(GAME.n6?[0,1,2,3,4,5]:[0,1,2,3,4]).map(()=>'<div style="color:#ddd;font-size:9px;text-align:center">·</div>').join('')}
@@ -18519,10 +18519,10 @@ function __renderBody(){
             ${GAME.n6?'<div style="color:#ccc;font-size:8px">·</div><div style="color:#ccc;font-size:8px">·</div>':''}
             ${GAME.hasM?[0,1,2,3,4].map(()=>'<div style="color:#ddd;font-size:8px">·</div>').join(''):''}
             ${GAME.hasM?'<div style="color:#ccc;font-size:8px">·</div>':''}
-          </div>`;
+          </div>`;ph0+=_h;_phRows.push(_h);}
         });
         const _items=[];
-        if(ph0)_items.push({t:'ph',h:ph0});
+        _phRows.forEach(h=>_items.push({t:'ph',h}));
         vItems(yr,rows,gapNumbersFor(yr)).forEach(x=>_items.push(x));
         let predsHTML='';
         remainingWeeklyDraws(yr).forEach(ph=>{

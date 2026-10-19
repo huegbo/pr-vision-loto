@@ -14659,6 +14659,66 @@ function freezeCols(){
   if(n<2){alert('Il faut au moins deux colonnes affichées.');return;}
   state.freezeOffsets=o;state.freezeOn=true;render();
 }
+// ══════ ALIGNER TOUTES LES COLONNES SUR UNE DATE (ex: 1re semaine de juillet) ══════
+// Paramétrable : jour + mois (défaut 1 / 7). Pour chaque colonne, on repère la 1re ligne
+// dont la date est >= jour/mois (dans l'année de la colonne), on la cale à la même hauteur
+// à l'écran dans toutes les colonnes, puis on fige (les colonnes bougent ensemble).
+if(typeof state!=='undefined'){if(state.alignDay==null)state.alignDay=parseInt((function(){try{return localStorage.getItem('alignDay')}catch(_){return null}})())||1;if(state.alignMonth==null)state.alignMonth=parseInt((function(){try{return localStorage.getItem('alignMonth')}catch(_){return null}})())||7;}
+function setAlignDate(f,v){const n=parseInt(v);if(isNaN(n))return;if(f==='d')state.alignDay=Math.max(1,Math.min(31,n));else state.alignMonth=Math.max(1,Math.min(12,n));try{localStorage.setItem('alignDay',state.alignDay);localStorage.setItem('alignMonth',state.alignMonth);}catch(_){}}
+function alignDateCtlHTML(){
+  const st='width:30px;padding:2px;font-size:10px;text-align:center;border:1px solid #CBD5E1;border-radius:4px';
+  return `<span style="display:inline-flex;align-items:center;gap:2px;font-size:9px;color:#334155" title="Aligne horizontalement la 1re ligne à partir de cette date dans toutes les colonnes, puis fige.">📅 <input type="number" min="1" max="31" value="${state.alignDay||1}" onchange="setAlignDate('d',this.value)" style="${st}">/<input type="number" min="1" max="12" value="${state.alignMonth||7}" onchange="setAlignDate('m',this.value)" style="${st}"><button onclick="alignColsOnDate()" style="padding:4px 8px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:9px;background:#FEF3C7;color:#92400E">aligner</button></span>`;
+}
+function alignColsOnDate(){
+  const dd=state.alignDay||1, mm=state.alignMonth||7;
+  const ids=freezeColIds().filter(id=>VCOL[id]);
+  if(ids.length<2){alert('Il faut au moins deux colonnes affichées.');return;}
+  const key=d=>{const a=String(d).split('/');return (parseInt(a[1])||0)*100+(parseInt(a[0])||0);};
+  const target=mm*100+dd;
+  const info={},skipped=[];
+  ids.forEach(id=>{
+    const V=VCOL[id];
+    const idx=V.items.findIndex(it=>it.t==='row'&&key(it.r.d)>=target&&Math.floor(key(it.r.d)/100)===mm);
+    if(idx<0){skipped.push(id);return;}
+    info[id]={idx,d:V.items[idx].r.d};
+  });
+  const ok=Object.keys(info);
+  if(ok.length<2){alert('Date '+String(dd).padStart(2,'0')+'/'+String(mm).padStart(2,'0')+' introuvable dans au moins deux colonnes.');return;}
+  const locate=id=>{ // position (px) de la ligne cible dans le contenu de la colonne
+    const body=document.getElementById('col-'+id),rowsEl=document.getElementById('vrows-'+id);
+    if(!body||!rowsEl)return null;
+    const d=info[id].d;
+    const el=Array.from(rowsEl.children).find(c=>c.children&&c.children[1]&&c.children[1].textContent.trim()===d);
+    return el?(el.offsetTop-body.offsetTop):null;
+  };
+  const pos={};
+  // 1) amène la ligne cible dans la fenêtre rendue, puis mesure sa vraie position
+  ok.forEach(id=>{
+    const body=document.getElementById('col-'+id);if(!body)return;
+    const h=VH[id]||26;
+    _progScroll[id]=true;body.scrollTop=Math.max(0,info[id].idx*h-3*h);vFill(id);
+    let p=locate(id);
+    if(p==null){_progScroll[id]=true;body.scrollTop=Math.max(0,info[id].idx*h);vFill(id);p=locate(id);}
+    pos[id]=p;
+  });
+  const have=ok.filter(id=>pos[id]!=null);
+  if(have.length<2){alert('Alignement impossible (lignes non rendues).');return;}
+  const hh=Math.max(...have.map(id=>VH[id]||26));
+  const Y=Math.min(3*hh,...have.map(id=>pos[id])); // hauteur commune à l'écran
+  const o={};
+  have.forEach(id=>{
+    const body=document.getElementById('col-'+id);
+    const want=Math.max(0,pos[id]-Y);
+    _progScroll[id]=true;body.scrollTop=want;vFill(id);
+    // re-mesure (les lignes vides du début peuvent changer la mise en page)
+    const p2=locate(id);
+    if(p2!=null){const w2=Math.max(0,p2-Y);if(Math.abs(w2-body.scrollTop)>0.5){_progScroll[id]=true;body.scrollTop=w2;vFill(id);}}
+    o[id]=body.scrollTop;
+  });
+  state.freezeOffsets=o;state.freezeOn=true;
+  if(skipped.length)setTimeout(()=>alert('Colonnes sans ligne à cette date (non alignées) : '+skipped.join(', ')),50);
+  render();
+}
 function unfreezeCols(){state.freezeOn=false;state.freezeOffsets=null;render();}
 function restoreFreeze(){
   if(!state.freezeOn||!state.freezeOffsets)return;
@@ -17682,7 +17742,7 @@ function anRender(){
       <button onclick="state.selYears=[];render()" style="padding:1px 5px;font-size:9px;border-radius:3px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">✕</button>
       <label style="margin-left:auto;font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.excelMode?'#2E7D32':'#aaa'}"><input type="checkbox" ${state.excelMode?'checked':''} onchange="state.excelMode=this.checked;render()">📊 Excel</label>
       ${state.excelMode?`<button onclick="scrollExcelBottom('col-exan')" title="Va directement au dernier tirage (en bas du tableau)" style="padding:2px 8px;font-size:9px;border-radius:5px;border:none;background:#2E7D32;color:#fff;cursor:pointer;font-weight:600">⬇ Dernier tirage</button>`:''}
-      ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 9px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:9px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
+      ${alignDateCtlHTML()}${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 9px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:9px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 8px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">🎨 Exporter avec couleurs</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 8px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:9px">⚡ Export rapide</button>
       <label style="font-size:9px;cursor:pointer;display:flex;align-items:center;gap:2px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige</label>
@@ -18066,7 +18126,7 @@ function __renderBody(){
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.repereAlways!==false?'#C2410C':'#aaa'}" title="Affiche tes repérés (liste 1) directement dans la vue normale."><input type="checkbox" ${state.repereAlways!==false?'checked':''} onchange="state.repereAlways=this.checked;render()">🎯 vue repérés</label>
       ${state.sideBySide?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.freezeCol?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.freezeCol?'checked':''} onchange="state.freezeCol=this.checked;render()">📌 fige 1<sup>re</sup> col</label>
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:500;color:${state.sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${state.sync?'checked':''} onchange="state.sync=this.checked">🔗</label>`:''}
-      ${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 10px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:10px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
+      ${alignDateCtlHTML()}${(()=>{const on=state.freezeOn&&state.freezeOffsets;return `<button onclick="${on?'unfreezeCols()':'freezeCols()'}" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':"Fais coulisser chaque colonne où tu veux, puis clique ici : elles bougeront ensemble."}" style="padding:4px 10px;border-radius:5px;border:none;cursor:pointer;font-weight:700;font-size:10px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>${!on&&state.sync?`<span style="font-size:8px;color:#B45309;font-weight:600" title="Avec 🔗 coché, toutes les colonnes défilent ensemble : tu ne peux pas leur donner des positions différentes.">décoche 🔗 pour les régler séparément</span>`:''}`;})()}
       <button class="export-colored-btn" onclick="openExportPanel()" style="padding:4px 9px;background:#7C3AED;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">🎨 Exporter avec couleurs</button>
       <button onclick="exportQuickDefault()" title="Exporte tout de suite avec les paramètres par défaut, sans ouvrir le panneau" style="padding:4px 9px;background:#EDE9FE;color:#5B21B6;border:1px solid #7C3AED;border-radius:5px;cursor:pointer;font-weight:500;font-size:10px">⚡ Export rapide</button>
       ${state.search.length&&state.searchPosMode==='same'?`<div style="width:100%;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${state.search.map((n,i)=>{const idx=(state.searchPosIdx&&state.searchPosIdx[i]!=null)?state.searchPosIdx[i]:i;return `<span onclick="removeSearchNumAt(${i})" title="Retirer ce numéro" style="font-size:9px;color:#F59E0B;font-weight:600;background:#FFF7ED;border:1px solid #FDBA74;border-radius:10px;padding:1px 6px;cursor:pointer">📍 ${n}→D${idx+1} ✕</span>`;}).join('')}</div>`:''}

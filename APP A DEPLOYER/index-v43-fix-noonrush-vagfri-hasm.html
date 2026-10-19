@@ -1425,10 +1425,10 @@ const GAME_SCHEDULE=[
 {k:"ci_emergence",w:[2],h:"12:55"},{k:"ci_sika",w:[2],h:"15:55"},{k:"ci_premiere_heure",w:[3],h:"09:55"},
 {k:"ci_fortune",w:[3],h:"12:55"},{k:"ci_baraka",w:[3],h:"15:55"},{k:"ci_kado",w:[4],h:"09:55"},
 {k:"ci_privilege",w:[4],h:"12:55"},{k:"ci_monni",w:[4],h:"15:55"},{k:"ci_cash",w:[5],h:"09:55"},
-{k:"ci_solution",w:[5],h:"12:55"},{k:"ci_wari",w:[0,1,2,3,4,5,6],h:"17:45"},{k:"ci_monday_special",w:[1],h:"20:00"},
+{k:"ci_solution",w:[5],h:"12:55"},{k:"ci_wari",w:[5],h:"15:55"},{k:"ci_monday_special",w:[1],h:"20:00"},
 {k:"ci_lucky_tuesday",w:[2],h:"20:00"},{k:"ci_midweek",w:[3],h:"20:00"},{k:"ci_fortune_thursday",w:[4],h:"20:00"},
-{k:"ci_friday_bonanza",w:[5],h:"20:00"},{k:"ci_national",w:[6],h:"20:00"},{k:"ci_dayoff",w:[1,4,5],h:null},
-{k:"ci_nuit_etoilee",w:[0,2,3],h:null},{k:"bf_nekre",w:[1],h:null},{k:"bf_kounandia",w:[3],h:null},
+{k:"ci_friday_bonanza",w:[5],h:"20:00"},{k:"ci_national",w:[6],h:"20:00"},
+{k:"bf_nekre",w:[1],h:null},{k:"bf_kounandia",w:[3],h:null},
 {k:"bf_welhy",w:[5],h:null},{k:"it_palermo",w:[2,4,5,6],h:"20"},{k:"it_roma",w:[2,4,5,6],h:"20"},
 {k:"it_torino",w:[2,4,5,6],h:"20"},{k:"it_venezia",w:[2,4,5,6],h:"20"},{k:"it_nazionale",w:[2,4,5,6],h:"20"},
 {k:"ng_enugu",w:[0,3],h:null},{k:"ng_06",w:[2,6],h:null},{k:"ng_bingo",w:[1,4],h:null},
@@ -1447,6 +1447,11 @@ const GAME_SCHEDULE=[
 // d'où le format "HH:MM" au lieu de "HH" comme les autres jeux) — voir hourSortKey()/hourLabel().
 // SUPER 4 CAGNOTTE (20:00) — confirmé par l'utilisateur le 27/09/2026 (auparavant estimé à 22h,
 // lui-même ajusté depuis ~21h le 15/09/2026 ; ces versions précédentes étaient provisoires).
+// Côte d'Ivoire — calendrier officiel LONACI du 04/09/2026 appliqué le 17/10/2026 : WARI = vendredi
+// uniquement (auparavant tous les jours à tort ; 314/314 tirages historiques tombent un vendredi),
+// heure 15:55 déduite du créneau (3e jeu du jour comme Akwaba/Sika/Baraka/Monni/Moaye/Awalé).
+// DAY OFF et NUIT ÉTOILÉE retirés du programme (absents du calendrier ; derniers tirages 03/07/2026
+// et 2022) — leurs données historiques restent consultables.
 const GH_ALPHA_KEYS=new Set(['precise','alpha','delta','omega','excel','prime','kenstar',
   'alpha_express_mon','alpha_express_tue','alpha_express_wed','alpha_express_thu','alpha_express_fri',
   'alpha_express_sat','alpha_express_sun','alpha_one_mon','alpha_one_tue','alpha_one_wed','alpha_one_thu',

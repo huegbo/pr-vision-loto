@@ -1875,11 +1875,8 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   // strong=true (numéro faisant partie d'une "double correspondance" entre 2 tirages précis) prend
   // le pas sur common=true (simple numéro qui revient quelque part) — rouge plus fort que doré.
   const miniBall=(n,c1,c2,common,strong)=>{
-    let fg='#fff';
-    if(strong){c1='#F87171';c2='#DC2626';}
-    else if(common){c1='#FDE047';c2='#F59E0B';fg='#111';}
-    const on=common||strong;
-    return`<span style="width:${on?23:21}px;height:${on?23:21}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:${fg};font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${on?`box-shadow:0 0 0 2px ${strong?'#991B1B':'#B45309'};border:1px solid #fff`:''}">${n}</span>`;
+    const ring=strong?'#DC2626':common?'#FACC15':null;
+    return`<span style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:9.5px;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;margin:${ring?2:0}px;${ring?`box-shadow:0 0 0 1.5px #fff,0 0 0 3.5px ${ring}`:''}">${n}</span>`;
   };
   const row=(e)=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151';
@@ -1935,11 +1932,10 @@ function tirageJourDayBodyHTML(entries,todayK,dayLabel){
   // Idem : un numéro commun devient une boule dorée à part entière (pas juste un liseré), pour
   // qu'il saute vraiment aux yeux dans la liste, même en scrollant vite.
   const roundBall=(n,c1,c2,common,strong)=>{
-    let fg='#fff';
-    if(strong){c1='#F87171';c2='#DC2626';}
-    else if(common){c1='#FDE047';c2='#F59E0B';fg='#111';}
-    const on=common||strong;
-    return`<span style="width:${on?31:28}px;height:${on?31:28}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:${fg};font-size:${on?'13px':'12px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${on?`,0 0 0 2px ${strong?'#991B1B':'#B45309'}`:''};border:${on?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
+    // La boule garde TOUJOURS la couleur vive du pays ; répété/double = anneau externe seulement
+    // (avant : la boule changeait de couleur → presque tout devenait rouge/doré, illisible).
+    const ring=strong?'#DC2626':common?'#FACC15':null;
+    return`<span style="width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:12.5px;font-weight:800;text-shadow:0 1px 1px rgba(0,0,0,.35);display:inline-flex;align-items:center;justify-content:center;margin:${ring?3:0}px;box-shadow:${ring?`0 0 0 2px #fff,0 0 0 5px ${ring}`:'0 2px 4px rgba(0,0,0,.25)'};flex-shrink:0">${n}</span>`;
   };
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
   const strongPairs=tirageJourStrongPairs(entries);

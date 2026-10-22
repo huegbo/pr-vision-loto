@@ -1473,7 +1473,8 @@ function tirageJourCountry(key,icon){
   const M={'🇹🇬':'Togo','🇧🇯':'Bénin','🇨🇮':"Côte d'Ivoire",'🇨🇲':'Cameroun','🇮🇹':'Italie','🇳🇬':'Nigeria','🇧🇫':'Burkina Faso','🇲🇹':'Malte'};
   return M[icon]||'Autres';
 }
-const TIRAGE_JOUR_COUNTRY_COLOR={'Bénin':'#111F33','Togo':'#4A2E1A',"Côte d'Ivoire":'#7C2D12','Cameroun':'#2E7D32','Ghana':'#0B2A1E','GH Alpha':'#4C1D95','Italie':'#006341','Nigeria':'#14532D','Burkina Faso':'#9A3412','Malte':'#1F2D3D','Autres':'#374151'};
+// Couleurs VIVES (23/10/2026 : "couleur visible tel le vert etc") — remplace les bruns/marine très sombres.
+const TIRAGE_JOUR_COUNTRY_COLOR={'Bénin':'#2563EB','Togo':'#D97706',"Côte d'Ivoire":'#F97316','Cameroun':'#16A34A','Ghana':'#E11D48','GH Alpha':'#7C3AED','Italie':'#059669','Nigeria':'#0D9488','Burkina Faso':'#DB2777','Malte':'#0891B2','Autres':'#475569'};
 const TIRAGE_JOUR_COUNTRY_ORDER=['Bénin','Togo',"Côte d'Ivoire",'Cameroun','Ghana','GH Alpha','Italie','Nigeria','Burkina Faso','Malte','Autres'];
 // Parse indépendant de l'état global GAME/T (qui pilote le jeu affiché à l'écran) — sinon consulter
 // "en coulisses" l'historique de ~180 jeux à la fois écraserait GAME/T pendant qu'on le fait.
@@ -1874,10 +1875,11 @@ function tirageJourChronoHTML(entries,roundBall,commonSet,strongSet,super4Last3)
   // strong=true (numéro faisant partie d'une "double correspondance" entre 2 tirages précis) prend
   // le pas sur common=true (simple numéro qui revient quelque part) — rouge plus fort que doré.
   const miniBall=(n,c1,c2,common,strong)=>{
-    if(strong){c1='#FCA5A5';c2='#B91C1C';}
-    else if(common){c1='#78350F';c2='#78350F';}
+    let fg='#fff';
+    if(strong){c1='#F87171';c2='#DC2626';}
+    else if(common){c1='#FDE047';c2='#F59E0B';fg='#111';}
     const on=common||strong;
-    return`<span style="width:${on?21:19}px;height:${on?21:19}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:8.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${on?`box-shadow:0 0 0 2px ${strong?'#7F1D1D':'#92400E'};border:1px solid #fff`:''}">${n}</span>`;
+    return`<span style="width:${on?23:21}px;height:${on?23:21}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:${fg};font-size:9.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;${on?`box-shadow:0 0 0 2px ${strong?'#991B1B':'#B45309'};border:1px solid #fff`:''}">${n}</span>`;
   };
   const row=(e)=>{
     const col=TIRAGE_JOUR_COUNTRY_COLOR[e.country]||'#374151';
@@ -1933,10 +1935,11 @@ function tirageJourDayBodyHTML(entries,todayK,dayLabel){
   // Idem : un numéro commun devient une boule dorée à part entière (pas juste un liseré), pour
   // qu'il saute vraiment aux yeux dans la liste, même en scrollant vite.
   const roundBall=(n,c1,c2,common,strong)=>{
-    if(strong){c1='#FCA5A5';c2='#B91C1C';}
-    else if(common){c1='#78350F';c2='#78350F';}
+    let fg='#fff';
+    if(strong){c1='#F87171';c2='#DC2626';}
+    else if(common){c1='#FDE047';c2='#F59E0B';fg='#111';}
     const on=common||strong;
-    return`<span style="width:${on?29:25}px;height:${on?29:25}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:#fff;font-size:${on?'12.5px':'11px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${on?`,0 0 0 3px ${strong?'#7F1D1D':'#92400E'}`:''};border:${on?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
+    return`<span style="width:${on?31:28}px;height:${on?31:28}px;border-radius:50%;background:radial-gradient(circle at 32% 28%,${c1},${c2});color:${fg};font-size:${on?'13px':'12px'};font-weight:800;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 2px 4px rgba(0,0,0,.25)${on?`,0 0 0 2px ${strong?'#991B1B':'#B45309'}`:''};border:${on?'2px solid #fff':'none'};flex-shrink:0">${n}</span>`;
   };
   const commonSet=new Set(tirageJourCommonNumbers(entries).map(c=>c.n));
   const strongPairs=tirageJourStrongPairs(entries);

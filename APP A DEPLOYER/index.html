@@ -14698,6 +14698,10 @@ function alignColsOnDate(){
     _progScroll[id]=true;body.scrollTop=Math.max(0,info[id].idx*h-3*h);vFill(id);
     let p=locate(id);
     if(p==null){_progScroll[id]=true;body.scrollTop=Math.max(0,info[id].idx*h);vFill(id);p=locate(id);}
+    // Repli (23/10/2026, alerte "Alignement impossible (lignes non rendues)") : si la ligne n'est
+    // toujours pas mesurable dans le DOM, on utilise sa position théorique (index × hauteur de ligne,
+    // les lignes virtualisées ayant toutes la même hauteur VH) au lieu d'abandonner.
+    if(p==null)p=info[id].idx*h;
     pos[id]=p;
   });
   const have=ok.filter(id=>pos[id]!=null);

@@ -6992,29 +6992,67 @@ function journalHTML(){
 async function exportClassifTable(){
   try{
     const wb=new ExcelJS.Workbook();
-    const ws=wb.addWorksheet('Classification');
-    ws.columns=[
-      {header:'N°',key:'n',width:6},
-      {header:'Counter',key:'counter',width:10},
-      {header:'Bonanza',key:'bonanza',width:10},
-      {header:'Malta',key:'malta',width:10},
-      {header:'Key',key:'key',width:10},
-      {header:'Turning',key:'turning',width:10},
-      {header:'Partner',key:'partner',width:10},
-      {header:'Shadow',key:'shadow',width:10},
-      {header:'Equiv',key:'equiv',width:10},
-      {header:'Code',key:'code',width:10},
-      {header:'Miroir',key:'miroir',width:10},
-    ];
-    const headerRow=ws.getRow(1);
-    headerRow.eachCell(cell=>{
-      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB('#6A1B9A')}};
-      cell.font={color:{argb:hexToARGB('#FFFFFF')},bold:true};
+    // Mise en forme soignée (23/10/2026 : "exportation bien designée et propre") : bandeau titre,
+    // en-têtes colorés (une couleur par élément), valeurs centrées en VRAIS nombres (plus de
+    // triangles verts), lignes zébrées, bordures fines, volets figés, filtre, impression A4 paysage.
+    const ws=wb.addWorksheet('Classification',{views:[{state:'frozen',xSplit:1,ySplit:3,showGridLines:false}]});
+    const COLS=[['counter','Counter','#6A1B9A'],['bonanza','Bonanza','#1565C0'],['malta','Malta','#00838F'],['key','Key','#2E7D32'],['turning','Turning','#EF6C00'],['partner','Partner','#C62828'],['shadow','Shadow','#455A64'],['equiv','Equiv','#AD1457'],['code','Code','#5D4037'],['miroir','Miroir','#283593']];
+    const NC=COLS.length+1;
+    ws.columns=[{width:7},...COLS.map(()=>({width:11.5}))];
+    const lineC={argb:'FFD5D9E0'};
+    const border={top:{style:'thin',color:lineC},left:{style:'thin',color:lineC},bottom:{style:'thin',color:lineC},right:{style:'thin',color:lineC}};
+    // Ligne 1 : titre
+    ws.mergeCells(1,1,1,NC);
+    const t=ws.getCell(1,1);
+    t.value='TABLEAU DE CLASSIFICATION  ·  numéros 1 à 90';
+    t.font={name:'Calibri',size:16,bold:true,color:{argb:'FFFFFFFF'}};
+    t.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB('#3B1E6B')}};
+    t.alignment={horizontal:'center',vertical:'middle'};
+    ws.getRow(1).height=32;
+    // Ligne 2 : sous-titre
+    ws.mergeCells(2,1,2,NC);
+    const st=ws.getCell(2,1);
+    st.value='Counter · Bonanza · Malta · Key · Turning · Partner · Shadow · Equiv · Code · Miroir   —   exporté le '+new Date().toLocaleDateString('fr-FR');
+    st.font={name:'Calibri',size:10,italic:true,color:{argb:'FF5B6472'}};
+    st.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEDE7F6'}};
+    st.alignment={horizontal:'center',vertical:'middle'};
+    ws.getRow(2).height=20;
+    // Ligne 3 : en-têtes
+    const hr=ws.getRow(3);hr.height=24;
+    const heads=[['N°','#3B1E6B'],...COLS.map(c=>[c[1],c[2]])];
+    heads.forEach(([txt,col],i)=>{
+      const c=hr.getCell(i+1);
+      c.value=txt;
+      c.font={name:'Calibri',size:11,bold:true,color:{argb:'FFFFFFFF'}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToARGB(col)}};
+      c.alignment={horizontal:'center',vertical:'middle'};
+      c.border=border;
     });
+    // Lignes 4..93 : données
     for(let n=1;n<=90;n++){
       const c=getCL(n);
-      ws.addRow([n,c.counter||'',c.bonanza||'',c.malta||'',c.key||'',c.turning||'',c.partner||'',c.shadow||'',c.equiv||'',c.code||'',MIR[n]||'']);
+      const vals=[n,c.counter,c.bonanza,c.malta,c.key,c.turning,c.partner,c.shadow,c.equiv,c.code,MIR[n]];
+      const row=ws.getRow(3+n);row.height=19;
+      const zebra=n%2===0;
+      vals.forEach((v,i)=>{
+        const cell=row.getCell(i+1);
+        const has=v!=null&&v!==''&&!isNaN(Number(v));
+        if(has){cell.value=Number(v);}
+        else{cell.value='—';}
+        if(i===9&&has)cell.numFmt='00'; // Code : 2 chiffres (00, 01…) mais valeur numérique
+        cell.alignment={horizontal:'center',vertical:'middle'};
+        cell.border=border;
+        if(i===0){
+          cell.font={name:'Calibri',size:11,bold:true,color:{argb:'FF3B1E6B'}};
+          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFEDE7F6'}};
+        }else{
+          cell.font={name:'Calibri',size:11,color:{argb:has?'FF1F2D3D':'FFB0B6C0'}};
+          cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:zebra?'FFF6F7FA':'FFFFFFFF'}};
+        }
+      });
     }
+    ws.autoFilter={from:{row:3,column:1},to:{row:93,column:NC}};
+    ws.pageSetup={orientation:'portrait',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,printTitlesRow:'3:3'};
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');

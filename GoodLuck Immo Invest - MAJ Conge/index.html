@@ -414,6 +414,36 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
           </div>
         </div>
       </div></div>
+      <div class="pgc" style="padding-top:0"><div class="row g-3">
+        <div class="col-lg-7">
+          <div class="tw p-3 mb-2" style="border-left:4px solid #0D9488">
+            <h6 class="fw-bold mb-0" style="color:#0D9488"><i class="bi bi-person-vcard me-2"></i>Identité secondaire — Nom propre</h6>
+            <div class="pgsu" style="margin:4px 0 0">Permet d'émettre certaines quittances en votre nom personnel plutôt qu'au nom de la société (ex : bail signé en votre nom propre). Choix à faire au moment de générer le document, dans « Quittances &amp; Avis ».</div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;border:1px solid #d1d5db;border-radius:8px;overflow:hidden">
+            <tbody>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px;width:38%;border-bottom:1px solid #d1d5db">Nom propre</td><td style="background:#FEFCE8;padding:10px 14px;border-bottom:1px solid #d1d5db;font-weight:600" id="bvp-nom">—</td></tr>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px;border-bottom:1px solid #d1d5db">Adresse</td><td style="background:#fff;padding:10px 14px;border-bottom:1px solid #d1d5db" id="bvp-adr">—</td></tr>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px;border-bottom:1px solid #d1d5db">Code postal / ville</td><td style="background:#fff;padding:10px 14px;border-bottom:1px solid #d1d5db" id="bvp-cp">—</td></tr>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px;border-bottom:1px solid #d1d5db">Pays</td><td style="background:#fff;padding:10px 14px;border-bottom:1px solid #d1d5db" id="bvp-pays">—</td></tr>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px;border-bottom:1px solid #d1d5db">Téléphone</td><td style="background:#fff;padding:10px 14px;border-bottom:1px solid #d1d5db" id="bvp-tel">—</td></tr>
+              <tr><td style="background:#ECFDF9;color:#0D9488;font-weight:700;padding:10px 14px">E-mail</td><td style="background:#fff;padding:10px 14px" id="bvp-email">—</td></tr>
+            </tbody>
+          </table>
+          <button class="bg mt-3 no-print" onclick="toggleBailPersoEdit()" style="background:#0D9488;border-color:#0D9488"><i class="bi bi-pencil me-1"></i>Modifier</button>
+        </div>
+        <div class="col-lg-5" id="bep" style="display:none">
+          <div class="tw p-4">
+            <div class="mb-3"><label class="fl" style="color:#0D9488;font-weight:700">Nom propre</label><input class="fi" id="bp-nom" style="background:#FEFCE8;border-color:#D4A843" placeholder="Ex : Follyvi Tettegah"></div>
+            <div class="mb-3"><label class="fl" style="color:#0D9488;font-weight:700">Adresse</label><input class="fi" id="bp-adr"></div>
+            <div class="row g-2 mb-3"><div class="col-5"><label class="fl" style="color:#0D9488;font-weight:700">Code postal</label><input class="fi" id="bp-cp"></div><div class="col-7"><label class="fl" style="color:#0D9488;font-weight:700">Ville</label><input class="fi" id="bp-ville"></div></div>
+            <div class="mb-3"><label class="fl" style="color:#0D9488;font-weight:700">Pays</label><input class="fi" id="bp-pays"></div>
+            <div class="mb-3"><label class="fl" style="color:#0D9488;font-weight:700">Téléphone</label><input class="fi" id="bp-tel"></div>
+            <div class="mb-3"><label class="fl" style="color:#0D9488;font-weight:700">E-mail</label><input class="fi" id="bp-email"></div>
+            <div class="d-flex gap-2"><button class="bg flex-fill" onclick="saveBailleurPerso()" style="background:#0D9488;border-color:#0D9488"><i class="bi bi-save me-1"></i>Enregistrer</button><button class="bgr" onclick="toggleBailPersoEdit()">Annuler</button></div>
+          </div>
+        </div>
+      </div></div>
     </div>
 
     <!-- LOCATAIRES -->
@@ -761,6 +791,7 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
         <div class="d-flex gap-3 mb-4 no-print flex-wrap align-items-end">
           <div><label class="fl">Locataire</label><select class="fs" id="q-loc" onchange="updateQuitt();if(curQTab==='bail')updateBail();if(curQTab==='edl')window.updateEdl&&window.updateEdl();if(curQTab==='apurement')window.updateApurement&&window.updateApurement();" style="width:260px;position:relative;z-index:50"><option value="">Choisir...</option></select></div>
           <div><label class="fl">Période</label><select class="fs" id="q-per" onchange='updateQuitt()' style="width:140px"><option>JAN 2025</option><option>FEV 2025</option><option>MAR 2025</option><option>AVR 2025</option><option>MAI 2025</option><option>JUN 2025</option><option>JUL 2025</option><option>AOU 2025</option><option>SEP 2025</option><option>OCT 2025</option><option>NOV 2025</option><option>DEC 2025</option><option>JAN 2026</option><option>FEV 2026</option><option selected>MAR 2026</option><option>AVR 2026</option><option>MAI 2026</option><option>JUN 2026</option><option>JUL 2026</option><option>AOU 2026</option><option>SEP 2026</option><option>OCT 2026</option><option>NOV 2026</option><option>DEC 2026</option><option>JAN 2027</option><option>FEV 2027</option><option>MAR 2027</option><option>AVR 2027</option><option>MAI 2027</option><option>JUN 2027</option><option>JUL 2027</option><option>AOU 2027</option><option>SEP 2027</option><option>OCT 2027</option><option>NOV 2027</option><option>DEC 2027</option><option>JAN 2028</option><option>FEV 2028</option><option>MAR 2028</option><option>AVR 2028</option><option>MAI 2028</option><option>JUN 2028</option><option>JUL 2028</option><option>AOU 2028</option><option>SEP 2028</option><option>OCT 2028</option><option>NOV 2028</option><option>DEC 2028</option></select> </div>
+          <div><label class="fl">Bailleur</label><select class="fs" id="q-bailleur-mode" onchange="onBailleurModeChange()" style="width:160px"><option value="perso" selected>Nom propre</option><option value="societe">Société</option></select></div>
           <div class="tp">
             <button class="active" onclick="qTab('quit',this)">Quittance</button>
             <button onclick="qTab('avis',this)">Avis d'échéance</button>
@@ -2194,6 +2225,7 @@ function load(){
   if(!D.paiements || typeof D.paiements!=='object') D.paiements={};
   if(!D.archives)D.archives=[];
   if(!D.conges)D.conges=[];
+  if(!D.bailleur_perso)D.bailleur_perso={nom:'',adresse:'',code_postal:'',ville:'',pays:'',telephone:'',email:''};
   if(!D.listes)D.listes=clone(INIT.listes);
   if(!D.config)D.config=clone(INIT.config);
   if(!D.charges)D.charges={};
@@ -2424,6 +2456,7 @@ function initApp(){
   const pan=document.getElementById('p-appnom');if(pan)pan.value=nom;
   if(cfg.app_logo){['ll-ico','lb-ico','sb-ico'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=`<img src="${cfg.app_logo}">`;});}
   updateBailleurView();
+  updateBailleurPersoView();
 }
 function renderAll(){
   initApp();renderDashboard();renderLocataires();renderSaisie();
@@ -3218,6 +3251,37 @@ function saveBailleur(){
   D.bailleur.email=g('b-email');D.bailleur.iban=g('b-iban');D.bailleur.siret=g('b-siret');
   save();updateBailleurView();document.getElementById('be').style.display='none';
   alert('✅ Informations enregistrées !');
+}
+function updateBailleurPersoView(){
+  const b=D.bailleur_perso||{};
+  const el=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v||'—';};
+  el('bvp-nom',b.nom);el('bvp-adr',b.adresse);
+  el('bvp-cp',((b.code_postal||'')+' '+(b.ville||'')).trim());
+  el('bvp-pays',b.pays);el('bvp-tel',b.telephone);el('bvp-email',b.email);
+}
+function toggleBailPersoEdit(){
+  const be=document.getElementById('bep');
+  if(!be)return;
+  if(be.style.display==='none'){
+    be.style.display='block';
+    const b=D.bailleur_perso||{};
+    document.getElementById('bp-nom').value=b.nom||'';
+    document.getElementById('bp-adr').value=b.adresse||'';
+    document.getElementById('bp-cp').value=b.code_postal||'';
+    document.getElementById('bp-ville').value=b.ville||'';
+    document.getElementById('bp-pays').value=b.pays||'';
+    document.getElementById('bp-tel').value=b.telephone||'';
+    document.getElementById('bp-email').value=b.email||'';
+  }else be.style.display='none';
+}
+function saveBailleurPerso(){
+  const g=id=>document.getElementById(id).value;
+  if(!D.bailleur_perso)D.bailleur_perso={};
+  D.bailleur_perso.nom=g('bp-nom');D.bailleur_perso.adresse=g('bp-adr');D.bailleur_perso.code_postal=g('bp-cp');
+  D.bailleur_perso.ville=g('bp-ville');D.bailleur_perso.pays=g('bp-pays');D.bailleur_perso.telephone=g('bp-tel');
+  D.bailleur_perso.email=g('bp-email');
+  save();updateBailleurPersoView();document.getElementById('bep').style.display='none';
+  alert('✅ Identité personnelle enregistrée !');
 }
 function uploadLogo(inp){
   const f=inp.files[0];if(!f)return;
@@ -5525,7 +5589,19 @@ function renderAlertes(){
     </tr>`;
   }).join('');
 }
-function getB(){return D.bailleur;}
+function getB(){
+  try{
+    var sel=document.getElementById('q-bailleur-mode');
+    if(sel&&sel.value==='perso'&&D.bailleur_perso&&D.bailleur_perso.nom)return D.bailleur_perso;
+  }catch(e){}
+  return D.bailleur;
+}
+function onBailleurModeChange(){
+  updateQuitt();
+  if(curQTab==='bail'&&typeof updateBail==='function')updateBail();
+  if(curQTab==='edl'&&window.updateEdl)window.updateEdl();
+  if(curQTab==='apurement'&&window.updateApurement)window.updateApurement();
+}
 function buildQDoc(l,per){
   const b=getB(),date=new Date().toLocaleDateString('fr-FR');
   const cp=(b.code_postal||'81336')+' '+(b.ville||'Lomé');
@@ -8465,7 +8541,13 @@ window.addEventListener('error', function(e){
     var url = makeQrDataURL(text);
     if(url){ el.src = url; el.title = text; }
   }
-  function getB(){ return (window.D && D.bailleur) ? D.bailleur : {}; }
+  function getB(){
+    try{
+      var sel=document.getElementById('q-bailleur-mode');
+      if(sel&&sel.value==='perso'&&D.bailleur_perso&&D.bailleur_perso.nom)return D.bailleur_perso;
+    }catch(e){}
+    return (window.D && D.bailleur) ? D.bailleur : {};
+  }
   function fmtAmount(n){ var v=Math.round(Number(n||0)); return String(v); }
 
   function payloadQuit(l, per){

@@ -13660,7 +13660,7 @@ function doBankerChain(){
 }
 function bcWindowHTML(res,v,h){
   const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
-  const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,mn-8);
+  const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,mx-35);
   const rows=[];for(let i=lo;i>=hi;i--)rows.push({i,r:R[i]});
   const nb=Math.min(6,Math.max(4,...rows.map(x=>x.r.n.length)));
   const cols=`40px 46px 38px repeat(${nb},1fr) 40px`;
@@ -13673,9 +13673,9 @@ function bcWindowHTML(res,v,h){
     const hl=hlOf(i),tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.slice(0,nb).reduce((a,b)=>a+(isNaN(b)?0:b),0);
     const date=String(r.d||'');
     html+=`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${hl?'#FFFBEB':'#fff'}">
-      <b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px">${date}</span><span style="text-align:center;color:#555;font-size:9px">${r.y||''}</span>
-      ${Array.from({length:nb},(_,q)=>{const x=r.n[q];const on=hl&&hl.has(q);return`<span style="text-align:center;padding:3px 0;${on?'background:#FDE047;color:#111;font-weight:700;':(q%2?'background:#F3F4F6;':'')}">${x==null||isNaN(x)?'·':x}</span>`;}).join('')}
-      <span style="text-align:center;font-size:10px;color:#92400E;background:#FEF3C7">${r.n.length?tot:'·'}</span></div>`;
+      <b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px;background:#E5E7EB">${date}</span><span style="text-align:center;color:#555;font-size:9px;background:#D1D5DB">${r.y||''}</span>
+      ${Array.from({length:nb},(_,q)=>{const x=r.n[q];const on=hl&&hl.has(q);return`<span style="text-align:center;padding:3px 0;${on?'background:#FFEB00;color:#111;font-weight:700;':(q%2?'background:#E5E7EB;':'')}">${x==null||isNaN(x)?'·':x}</span>`;}).join('')}
+      <span style="text-align:center;font-size:10px;color:#333;background:#E5E7EB">${r.n.length?tot:'·'}</span></div>`;
   });
   return html+'</div>';
 }
@@ -15356,7 +15356,7 @@ function collesResHTML(){
   const sel=rows[hi],si=hitIdx(sel);
   let table='';
   if(si>=0){
-    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-8),win=[];
+    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-35),win=[];
     for(let i=lo;i>=hiI;i--)win.push(R[i]);
     const nbN=Math.max(...win.map(r=>r.n.length)),nbM=Math.max(0,...win.map(r=>(r.m||[]).length));
     const cols=`40px 46px 38px repeat(${nbN+nbM},1fr) 40px`;
@@ -15366,8 +15366,8 @@ function collesResHTML(){
     ${win.map(r=>{
       const adj=hitT.has(r.t)?adjOf(r):new Set();
       const tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.reduce((a,b)=>a+(isNaN(b)?0:b),0);
-      const cell=(v,q,isM)=>`<span style="text-align:center;padding:3px 0;${adj.has(q)?'background:#FDE047;color:#111;font-weight:700;':(isM?'color:#7B1FA2;':(q%2?'background:#F3F4F6;':''))}">${v==null||isNaN(v)?'·':v}</span>`;
-      return`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${r.t===sel.t?'#FFFBEB':'#fff'}"><b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px">${r.d||''}</span><span style="text-align:center;color:#555;font-size:9px">${r.y||''}</span>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q,false)).join('')}${Array.from({length:nbM},(_,q)=>cell((r.m||[])[q],5+q,true)).join('')}<span style="text-align:center;font-size:10px;color:#92400E;background:#FEF3C7">${tot}</span></div>`;}).join('')}</div>`;
+      const cell=(v,q,isM)=>`<span style="text-align:center;padding:3px 0;${adj.has(q)?'background:#FFEB00;color:#111;font-weight:700;':(isM?'color:#7B1FA2;':(q%2?'background:#E5E7EB;':''))}">${v==null||isNaN(v)?'·':v}</span>`;
+      return`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${r.t===sel.t?'#FFFBEB':'#fff'}"><b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px;background:#E5E7EB">${r.d||''}</span><span style="text-align:center;color:#555;font-size:9px;background:#D1D5DB">${r.y||''}</span>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q,false)).join('')}${Array.from({length:nbM},(_,q)=>cell((r.m||[])[q],5+q,true)).join('')}<span style="text-align:center;font-size:10px;color:#333;background:#E5E7EB">${tot}</span></div>`;}).join('')}</div>`;
   }
   return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:12px;font-weight:700;color:${col}">Résultat (${rows.length})</div><button onclick="exportCollesSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${rows.slice().reverse().slice(0,150).map(r=>{const ri=rows.indexOf(r);return`<button onclick="state.collesHit=${ri};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${ri===hi?'#12263F':'#9CA3AF'};color:#fff">${r.t}</button>`;}).join('')}</div>

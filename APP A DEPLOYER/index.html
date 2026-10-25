@@ -20172,15 +20172,13 @@ function __renderBody(){
         // Double vue = UNE année par vue : pour chaque année, un volet AVEC repères et un volet SANS repères, collés côte à côte.
         const _bar=(t)=>`<div style="font-size:10px;font-weight:700;color:#0F766E;margin:2px 0 3px">${t}</div>`;
         if(!state.dualViewLeftOn&&!state.dualViewRightOn)html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px">Réafficher</button></div>`;
-        else{
-          // UNE année par vue : un seul tableau AVEC repères + le même SANS repères, collés. Plusieurs années sélectionnées → boutons pour choisir laquelle afficher.
-          let yi=cols.findIndex(c=>String(c.yr)===String(state.dualYear));if(yi<0)yi=0;const c=cols[yi];
-          if(cols.length>1)html+=`<div style="display:flex;gap:4px;align-items:center;margin:2px 0 4px;font-size:10px;font-weight:700;color:#0F766E">Année :${cols.map((x,i)=>`<button onclick="state.dualYear='${x.yr}';render()" style="padding:2px 9px;border-radius:8px;cursor:pointer;font-weight:700;font-size:10px;border:1px solid #0F766E;background:${i===yi?'#0F766E':'#fff'};color:${i===yi?'#fff':'#0F766E'}">${x.yr}</button>`).join('')}</div>`;
-          html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%">`;
-          if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','y'+yi+'a',yi)}</div>`;
-          if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep','y'+yi+'b',yi)}</div>`;
+        else cols.forEach((c,yi)=>{
+          // UNE année par vue : pour chaque année sélectionnée, une paire AVEC / SANS repères collée, les paires étant empilées.
+          html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%;margin-bottom:14px">`;
+          if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères — '+c.yr)}${_exTable('rep','y'+yi+'a',yi)}</div>`;
+          if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères — '+c.yr)}${_exTable('norep','y'+yi+'b',yi)}</div>`;
           html+=`</div>`;
-        }
+        });
       }else{
         html+=_exTable(undefined,'');
       }

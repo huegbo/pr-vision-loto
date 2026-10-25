@@ -13618,6 +13618,26 @@ function lvList(res,col,itemFn){
     res.list.slice(0,200).map(x=>`<div style="border:1.5px solid #0F766E;border-radius:6px;margin-top:5px;overflow-x:auto;background:#fff">${lvHdr(!!res.useM)}${itemFn(x)}</div>`).join('');
 }
 // ══════ Plusieurs Bankers sur Différentes Lignes — Avec Position (modèle Cybetcast) ══════
+// Tableau de jeu commun (style Navigation / Comparer 2 plages) : N°, DATE, N1..Nn, TOT (coloré), M1..M5, TOT.M
+function gameTableHTML(items,title,col){
+  const nbN=Math.max(4,...items.map(x=>x.r.n.length));
+  const hasM=items.some(x=>x.r.m&&x.r.m.some(v=>!isNaN(v)));
+  const hdr=['N°','DATE'].concat(Array.from({length:nbN},(_,k)=>'N'+(k+1)),['TOT'],hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
+  const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
+  const sumOf=a=>a&&a.length&&a.every(v=>!isNaN(v))?a.reduce((s,v)=>s+v,0):null;
+  const body=items.map(({r,hl,sel},ri)=>{
+    const set=hl||new Set();
+    const tot=r.s!=null&&!isNaN(r.s)?r.s:sumOf(r.n.slice(0,nbN));
+    const tc=tot!=null?tC(tot):['#fff','#999'];
+    const totM=hasM?sumOf((r.m||[]).slice(0,5)):null;
+    const tcm=totM!=null?tC(totM):['#fff','#999'];
+    const bg=sel?'#FFFBEB':(ri%2?'#F9FAFB':'#fff');
+    const nc=(v,q)=>{const on=set.has(q);return`<td style="text-align:center;padding:2px 0;font-weight:${on?700:500};${on?'background:#FFEB00;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
+    const mc=(v,q)=>{const on=set.has(5+q);return`<td style="text-align:center;font-size:10px;font-weight:600;${on?'background:#FFEB00;color:#111;':'color:#7B1FA2;'}">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;};
+    return`<tr style="border-bottom:1px solid #E5E7EB;background:${bg}"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:700;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d||''}${r.y?'/'+String(r.y).slice(-2):''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-weight:600;font-size:11px;background:${tc[0]};color:${tc[1]}">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-weight:600;font-size:11px;background:${tcm[0]};color:${tcm[1]}">${totM==null?'·':totM}</td>`:''}</tr>`;
+  }).join('');
+  return`<div style="overflow-x:auto;border:1.5px solid ${col};border-radius:8px;margin-top:5px"><div style="background:${col};color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${title}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
 function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}
 function bcVariantRows(key,machine){
@@ -13660,25 +13680,15 @@ function doBankerChain(){
   render();
 }
 function bcWindowHTML(res,v,h){
-  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
+  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs);
   const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,mx-35);
-  const rows=[];for(let i=lo;i>=hi;i--)rows.push({i,r:R[i]});
-  const nb=Math.min(6,Math.max(4,...rows.map(x=>x.r.n.length)));
-  const cols=`40px 46px 38px repeat(${nb},1fr) 40px`;
-  const hlOf=i=>{const j=hit.idxs.indexOf(i);if(j<0)return null;const p=res.pos[j],val=res.vals[j],r=R[i];
-    const s=new Set();r.n.forEach((x,q)=>{if(x===val&&(p<0||p===q))s.add(q);});return s;};
-  const head=['L','D','Y'].concat(Array.from({length:nb},(_,k)=>'D'+(k+1))).concat(['To']);
-  let html=`<div style="font-size:10px;font-weight:600;color:#B45309;margin:6px 0 3px">${v.icon} ${v.name} T ${R[lo].t} - ${R[hi].t}</div>
-  <div style="overflow-x:auto;border:1.5px solid #B45309;border-radius:6px"><div style="display:grid;grid-template-columns:${cols};background:#12263F;color:#fff;font-size:9px;font-weight:700;text-align:center;padding:3px 0">${head.map(t=>`<span>${t}</span>`).join('')}</div>`;
-  rows.forEach(({i,r})=>{
-    const hl=hlOf(i),tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.slice(0,nb).reduce((a,b)=>a+(isNaN(b)?0:b),0);
-    const date=String(r.d||'');
-    html+=`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${hl?'#FFFBEB':'#fff'}">
-      <b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px;background:#E5E7EB">${date}</span><span style="text-align:center;color:#555;font-size:9px;background:#D1D5DB">${r.y||''}</span>
-      ${Array.from({length:nb},(_,q)=>{const x=r.n[q];const on=hl&&hl.has(q);return`<span style="text-align:center;padding:3px 0;${on?'background:#FFEB00;color:#111;font-weight:700;':(q%2?'background:#E5E7EB;':'')}">${x==null||isNaN(x)?'·':x}</span>`;}).join('')}
-      <span style="text-align:center;font-size:10px;color:#333;background:#E5E7EB">${r.n.length?tot:'·'}</span></div>`;
-  });
-  return html+'</div>';
+  const items=[];
+  for(let i=lo;i>=hi;i--){
+    const r=R[i],j=hit.idxs.indexOf(i);let hl=null;
+    if(j>=0){hl=new Set();const p=res.pos[j],val=res.vals[j];r.n.forEach((x,q)=>{if(x===val&&(p<0||p===q))hl.add(q);});}
+    items.push({r,hl,sel:j>=0});
+  }
+  return gameTableHTML(items,`${v.icon} ${v.name} · T ${R[lo].t} – ${R[hi].t} · ${items.length} tirages`,'#B45309');
 }
 function exportBankerChainCSV(){
   const res=state.bcRes;
@@ -15357,18 +15367,9 @@ function collesResHTML(){
   const sel=rows[hi],si=hitIdx(sel);
   let table='';
   if(si>=0){
-    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-35),win=[];
-    for(let i=lo;i>=hiI;i--)win.push(R[i]);
-    const nbN=Math.max(...win.map(r=>r.n.length)),nbM=Math.max(0,...win.map(r=>(r.m||[]).length));
-    const cols=`40px 46px 38px repeat(${nbN+nbM},1fr) 40px`;
-    const head=['L','D','Y'].concat(Array.from({length:nbN},(_,k)=>'D'+(k+1))).concat(Array.from({length:nbM},(_,k)=>'M'+(k+1))).concat(['To']);
-    table=`<div style="font-size:10px;font-weight:600;color:${col};margin:6px 0 3px">${GAME.icon||''} ${GAME.name} T ${win[0].t} - ${win[win.length-1].t}</div>
-    <div style="overflow-x:auto;border:1.5px solid ${col};border-radius:6px"><div style="display:grid;grid-template-columns:${cols};background:#12263F;color:#fff;font-size:9px;font-weight:700;text-align:center;padding:3px 0">${head.map(t=>`<span>${t}</span>`).join('')}</div>
-    ${win.map(r=>{
-      const adj=hitT.has(r.t)?adjOf(r):new Set();
-      const tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.reduce((a,b)=>a+(isNaN(b)?0:b),0);
-      const cell=(v,q,isM)=>`<span style="text-align:center;padding:3px 0;${adj.has(q)?'background:#FFEB00;color:#111;font-weight:700;':(isM?'color:#7B1FA2;':(q%2?'background:#E5E7EB;':''))}">${v==null||isNaN(v)?'·':v}</span>`;
-      return`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${r.t===sel.t?'#FFFBEB':'#fff'}"><b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px;background:#E5E7EB">${r.d||''}</span><span style="text-align:center;color:#555;font-size:9px;background:#D1D5DB">${r.y||''}</span>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q,false)).join('')}${Array.from({length:nbM},(_,q)=>cell((r.m||[])[q],5+q,true)).join('')}<span style="text-align:center;font-size:10px;color:#333;background:#E5E7EB">${tot}</span></div>`;}).join('')}</div>`;
+    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-35),items=[];
+    for(let i=lo;i>=hiI;i--){const r=R[i];items.push({r,hl:hitT.has(r.t)?adjOf(r):null,sel:r.t===sel.t});}
+    table=gameTableHTML(items,`${GAME.icon||''} ${GAME.name} · T ${items[0].r.t} – ${items[items.length-1].r.t} · ${items.length} tirages`,col);
   }
   return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:12px;font-weight:700;color:${col}">Résultat (${rows.length})</div><button onclick="exportCollesSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${rows.slice().reverse().slice(0,150).map(r=>{const ri=rows.indexOf(r);return`<button onclick="state.collesHit=${ri};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${ri===hi?'#12263F':'#9CA3AF'};color:#fff">${r.t}</button>`;}).join('')}</div>

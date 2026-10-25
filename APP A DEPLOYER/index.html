@@ -12380,6 +12380,8 @@ const SEARCH_SECTIONS=[
   {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
   {key:'dig',icon:'🔢',title:'Chiffre contenu',desc:"Le chiffre apparaît n'importe où dans le nombre (dizaine ou unité)",color:'#0891B2',html:digSectionHTML},
   {key:'oblique',icon:'🔀',title:'Pickin | Oblique',desc:'Comparer deux jeux, alignés par date',color:'#7C3AED',html:pickinObliqueCardHTML},
+  {key:'simi',icon:'🧬',title:'Similarité (Pickin oblique / vertical)',desc:'Dernières lignes du jeu A retrouvées dans le jeu B, avec la suite',color:'#0F766E',html:simiCardHTML},
+  {key:'cmp3',icon:'⚖️',title:'Comparer 3 plages de tirages',desc:'Trois jeux, alignés par N° de tirage',color:'#D97706',html:cmp3CardHTML},
   {key:'cmp2',icon:'⚖️',title:'Comparer 2 plages de tirages',desc:'Deux jeux, alignés par N° de tirage',color:'#D97706',html:cmp2CardHTML},
   {key:'posPicking',icon:'📍',title:'Picking par Position',desc:'Après un numéro pivot, que sort-il à telle position ?',color:'#EA580C',html:posPickingCardHTML},
   {key:'compteur',icon:'➕',title:'Compteur',desc:'Additions sur plusieurs tirages (numéros chauds)',color:'#059669',html:compteurCardHTML},
@@ -13768,6 +13770,75 @@ function pickinObliqueCardHTML(){
     ${pickinOResHTML()}
   </div>`;
 }
+// ══════ Similarité (Pickin Oblique / Vertical) — les K dernières lignes du jeu A vs K lignes successives du jeu B ══════
+// Référence = les K dernières lignes de A (K=2 ou 3), lues du plus ancien (1ère ligne) au plus récent.
+// Chaque fenêtre de K lignes successives de B est retenue si, ligne par ligne, elle partage au moins
+// « min » numéros avec la ligne correspondante de la référence.
+// Vertical : 1ère↔1ère, 2e↔2e… — Oblique : appariement en diagonale (1ère↔dernière, 2e↔avant-dernière…).
+function simiCompute(){
+  const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
+  const K=state.simK||3, mode=state.simMode||'oblique';
+  const mins=Array.from({length:K},(_,i)=>{const v=(state.simMin||[])[i];return Math.max(0,v===undefined||v===''?1:(parseInt(v)||0));});
+  const samePos=!!state.simSamePos;
+  const dA=gameData(keyA), dB=gameData(keyB);
+  if(dA.T.length<K||dB.T.length<K+1){alert('Pas assez de tirages.');return;}
+  const ref=[];for(let i=0;i<K;i++)ref.push(dA.T[K-1-i]); // chrono : ancien → récent
+  const same=keyA===keyB, out=[];
+  for(let j=0;j+K-1<dB.T.length;j++){
+    if(same&&j<K)continue;
+    const win=[];for(let i=0;i<K;i++)win.push(dB.T[j+K-1-i]);
+    const tryPair=pair=>{const cs=[];for(let w=0;w<K;w++){
+      const rr=ref[pair(w)];
+      const c=samePos?win[w].n.filter((x,xi)=>rr.n[xi]===x):win[w].n.filter(x=>rr.n.includes(x));
+      if(c.length<mins[pair(w)]&&!(state.simOrPos&&win[w].n.some((x,xi)=>rr.n[xi]===x)))return null;cs.push(c);}return cs;};
+    // Vertical d'abord ; Oblique = vertical OU appariement diagonal (inversé).
+    let pr=w=>w, commons=tryPair(pr);
+    if(!commons&&mode==='oblique'){pr=w=>K-1-w;commons=tryPair(pr);}
+    const ok=!!commons;
+    if(ok)out.push({win,next:j>0?dB.T[j-1]:null,commons,diag:mode==='oblique'&&pr(0)!==0});
+  }
+  state.simResult={keyA,keyB,K,mode,ref,rows:out};
+  render();
+}
+function simiResHTML(){
+  const res=state.simResult;
+  if(!res)return'';
+  const line=(r,label,color,hl)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
+    <span style="font-weight:700;color:${color};min-width:70px">${label} ${r.t}</span><span style="color:#888;font-size:8px;width:52px">${r.d}/${r.y}</span>
+    ${r.n.map(n=>`<span style="display:inline-block;min-width:20px;text-align:center;padding:1px 3px;border-radius:4px;font-weight:700;background:${hl&&hl.includes(n)?'#FDE047':'#F3F4F6'};color:#111">${n}</span>`).join('')}
+    <span style="font-size:9px;color:#888;margin-left:4px">${r.s}</span></div>`;
+  const pair=w=>w;
+  const refHtml=`<div style="border:1.5px solid #0F766E;background:#F0FDFA;border-radius:6px;padding:5px 8px;margin-bottom:6px">
+    <div style="font-size:9px;font-weight:600;color:#0F766E">Référence — ${GAMES[res.keyA].name}</div>
+    ${res.ref.map(r=>line(r,'Réf.','#0F766E',null)).join('')}</div>`;
+  const rows=res.rows.slice(0,200).map(x=>`<div style="border:1px solid #CCFBF1;background:#fff;border-radius:6px;padding:5px 8px">
+    ${x.win.map((r,w)=>line(r,GAMES[res.keyB].name.slice(0,9),'#0891B2',res.ref[x.diag?res.K-1-w:w].n)).join('')}${x.diag?'<div style="font-size:8px;color:#0F766E">↘ diagonal</div>':''}
+    ${x.next?`<div style="border-top:1px dashed #86EFAC;margin-top:2px;padding-top:2px">${line(x.next,'▶ Suite','#059669',null)}</div>`:'<div style="font-size:8px;color:#999">(dernier tirage : pas de suite)</div>'}
+  </div>`).join('');
+  return`<div style="margin-top:8px">${refHtml}
+    <div style="font-size:10px;font-weight:500;color:#0F766E;margin-bottom:4px">${res.rows.length} fenêtre(s) trouvée(s)${res.rows.length>200?' (200 affichées)':''} — ${res.mode==='oblique'?'Oblique':'Vertical'}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">${rows||'<div style="font-size:10px;color:#999">Aucun résultat</div>'}</div></div>`;
+}
+function simiCardHTML(){
+  const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
+  const K=state.simK||3, mode=state.simMode||'oblique', mins=state.simMin||[];
+  const opts=sel=>Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${sel===k?'selected':''}>${g.icon} ${g.name}</option>`).join('');
+  const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${on?'#0F766E':'#ddd'};background:${on?'#CCFBF1':'#fff'};color:${on?'#0F766E':'#888'}">${txt}</button>`;
+  return`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🧬 Similarité — les dernières lignes du Jeu A vs lignes successives du Jeu B</div>
+    <div class="row" style="margin-top:0"><span style="font-size:9px;color:#777">Jeu A (référence) :</span><select onchange="state.simA=this.value;render()">${opts(keyA)}</select></div>
+    <div class="row"><span style="font-size:9px;color:#777">Jeu B (recherche) :</span><select onchange="state.simB=this.value;render()">${opts(keyB)}</select></div>
+    <div class="row"><span style="font-size:9px;color:#777">Nb de lignes :</span>${[1,2,3,4,5].map(k=>pill(K===k,`state.simK=${k};render()`,k)).join('')}
+      <span style="font-size:9px;color:#777;margin-left:8px">Sens :</span>${pill(mode==='oblique',"state.simMode='oblique';render()",'Oblique')}${pill(mode==='vertical',"state.simMode='vertical';render()",'Vertical')}</div>
+    <div class="row"><span style="font-size:9px;color:#777">Numéros communs min. :</span>
+      ${Array.from({length:K},(_,i)=>`<span style="font-size:9px;color:#777">L${i+1}</span><input type="number" min="0" max="5" value="${mins[i]??1}" oninput="state.simMin=state.simMin||[];state.simMin[${i}]=this.value" style="width:40px;padding:3px 5px;border:1.5px solid #0F766E;border-radius:5px;font-size:12px">`).join(' ')}</div>
+    <div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simSamePos?'checked':''} onchange="state.simSamePos=this.checked"> Même position (N1↔N1, N2↔N2…)</label></div>
+    <div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simOrPos?'checked':''} onchange="state.simOrPos=this.checked"> …OU au moins 1 numéro à la même position (variante « 1 ligne » : 2 communs OU 1 à la même position)</label></div>
+    <button onclick="simiCompute()" style="padding:4px 12px;background:#0F766E;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔍 Chercher</button>
+    <div style="font-size:8px;color:#888;margin-top:3px">L1 = ligne la plus ancienne des K dernières. Vertical : L1↔L1, L2↔L2… Oblique : L1↔dernière, L2↔avant-dernière… Jaune = numéros communs. La ligne verte en dessous = ce qui est sorti ensuite.</div>
+    ${simiResHTML()}
+  </div>`;
+}
 // ══════ Comparer 2 Plages de Tirages — deux jeux (éventuellement différents), alignés par N° de tirage ══════
 // Contrairement à Pickin|Oblique (aligné par DATE), ici on choisit un N° de tirage de départ dans
 // chaque jeu ("Ligne 1"/"Ligne 2") et on avance en parallèle du même nombre de crans dans les deux —
@@ -13973,6 +14044,54 @@ function cmp2CardHTML(){
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
+  </div>`;
+}
+// ══════ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage (même logique que 2 plages) ══════
+function doCmp3(){
+  const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
+  const ds=ks.map(k=>gameData(k));
+  const ln=state.cmp3L||['','',''];
+  const ts=ln.map((v,i)=>(v===''||v==null)?(i===0&&ds[0].T[0]?ds[0].T[0].t:NaN):parseInt(v));
+  const idx=ts.map((t,i)=>ds[i].T.findIndex(r=>r.t===t));
+  for(let i=0;i<3;i++){if(isNaN(ts[i])||idx[i]<0){alert('Ligne '+(i+1)+' introuvable dans '+GAMES[ks[i]].name+'.');return;}}
+  const n=Math.max(1,parseInt(state.cmp3N)||30);
+  const m=Math.min(n,...idx.map((x,i)=>ds[i].T.length-1-x));
+  const rows=[0,1,2].map(i=>{const a=[];for(let k=0;k<=m;k++)a.push(ds[i].T[idx[i]+m-k]);return a;});
+  const withMirror=state.cmp3Mirror!==false;
+  const marks=rows.map(()=>rows[0].map(()=>({})));
+  for(let r=0;r<=m;r++)for(let a=0;a<3;a++)rows[a][r].n.forEach((x,xi)=>{
+    let t=null;
+    for(let b=0;b<3&&t!=='exact';b++){if(b===a)continue;
+      for(const y of rows[b][r].n){if(y===x){t='exact';break;}if(withMirror&&!t&&(MIR[x]===y||MIR[y]===x))t='mirror';}}
+    if(t)marks[a][r][xi]=t;
+  });
+  state.cmp3Result={ks,rows,marks};
+  render();
+}
+function cmp3ResHTML(){
+  const res=state.cmp3Result;if(!res)return'';
+  const cell=(num,t)=>`<td style="text-align:center;padding:1px 0;font-weight:${t?700:500};${t?`background:${t==='exact'?'#EAB308':'#16A34A'};color:${t==='exact'?'#111':'#fff'};`:''}">${num}</td>`;
+  const tbl=(a)=>{const rs=res.rows[a];
+    const hasM=rs.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
+    const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5']:[]);
+    const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F">${h}</th>`).join('');
+    const body=rs.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap">${r.d}</td>${r.n.map((x,xi)=>cell(x,res.marks[a][i][xi])).join('')}<td style="text-align:center;font-size:10px;color:#92400E">${r.s}</td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(x=>`<td style="text-align:center;color:#7B1FA2;font-weight:600">${isNaN(x)?'·':x}</td>`).join(''):''}</tr>`).join('');
+    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[res.ks[a]].name} <span style="font-weight:400;font-size:9px">· T ${rs[0].t} – ${rs[rs.length-1].t}</span></div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;};
+  return`<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
+}
+function cmp3CardHTML(){
+  const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
+  const ln=state.cmp3L||['','',''];
+  const opts=sel=>Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${sel===k?'selected':''}>${g.icon} ${g.name}</option>`).join('');
+  return`<div style="background:#fff;border:1.5px solid #D97706;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage</div>
+    ${[0,1,2].map(i=>`<div class="row" ${i?'':'style="margin-top:0"'}><span style="font-size:9px;color:#777">Jeu ${'ABC'[i]} :</span><select onchange="state.cmp3K=state.cmp3K||[];state.cmp3K[${i}]=this.value;render()">${opts(ks[i])}</select>
+      <span style="font-size:9px;color:#777">Ligne :</span><input type="number" placeholder="${i?'N° tirage':'dernier'}" value="${ln[i]}" oninput="state.cmp3L=state.cmp3L||['','',''];state.cmp3L[${i}]=this.value" style="width:80px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px"></div>`).join('')}
+    <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+      <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label></div>
+    <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
+    <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes. 🟡 = numéro présent aussi dans une autre plage sur la même ligne. 🟢 = miroir.</div>
+    ${cmp3ResHTML()}
   </div>`;
 }
 // ══════ Picking par Position — après l'apparition d'un numéro pivot, que sort-il à telle position ? ══════

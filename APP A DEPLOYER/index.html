@@ -20442,4 +20442,33 @@ try{
 })();
 </script>
 
+<script>
+/* Correctif « silences » (Lovable, relu) : message clair quand un champ obligatoire est vide. */
+(function(){
+  function lvVal(id,fb){const el=document.getElementById(id);if(el)return String(el.value||'').trim();return String(fb==null?'':fb).trim();}
+  function toN(v){const n=parseInt(v,10);return isNaN(n)?null:n;}
+  function filled(v){return toN(v)!==null;}
+  function slots(a,count,asDigit){const n=Math.min(count,(a||[]).length);if(!n)return false;
+    for(let i=0;i<n;i++){const s=a[i];const raw=(s&&typeof s==='object')?s.digit:s;if(String(raw==null?'':raw).trim()==='')return false;const v=parseInt(raw,10);if(isNaN(v))return false;if(asDigit&&(v<0||v>9))return false;}return true;}
+  const C={
+    doPassLookup(){if(state.passMode==='year'){if(!filled(lvVal('passYearInput',state.passYearInput)))return'Indique une année (ex. 2026).';}else if(!filled(lvVal('passTirageInput',state.passTirageInput)))return'Indique un numéro de tirage (ex. 132).';return null;},
+    doTotalSearch(){return filled(lvVal('tsi',state.totalSearch))?null:'Indique un total à trouver (ex. 200).';},
+    doCQ(){return lvVal('cq-input',state.cqInput)===''?'Écris une requête (ex. 33P3, *P2, T120).':null;},
+    doTotalNearSearch(){return(filled(lvVal('tns-tot',state.totalNearTot))&&filled(lvVal('tns-num',state.totalNearNum)))?null:'Indique le total et le nombre de numéros (ex. 200 et 5).';},
+    doSeqSearch(){const lv=state.seqLevels||[],f=lv[0]||{vals:[]};const ok=(f.vals||[]).some(v=>String(v==null?'':v).trim()!==''&&!isNaN(parseInt(v,10)));return(!lv.length||!ok)?'Renseigne au moins une case de la première ligne.':null;},
+    doTermSearch(){return slots(state.termSlots,state.termCount,true)?null:'Renseigne le chiffre de chaque case (position facultative).';},
+    doDigSearch(){return slots(state.digSlots,state.digCount,true)?null:'Renseigne le chiffre de chaque case (position facultative).';},
+    doCollesSearch(){return slots(state.collesSlots,state.collesCount,false)?null:'Remplis chaque case avec un numéro (1 à 90).';},
+    doTermCollesSearch(){return slots(state.termCollesSlots,state.termCollesCount,true)?null:'Remplis chaque case avec un chiffre (0 à 9).';},
+    doPosPicking(){return filled(state.posPivot)?null:'Indique le numéro pivot (1 à 90).';},
+    runVtt(){return((state.vttMode||'same')==='diff'&&!filled(state.vttTarget))?'Mode « différent de » : indique la valeur cible.':null;}
+  };
+  Object.keys(C).forEach(function(name){
+    if(typeof window[name]!=='function')return;
+    const orig=window[name];if(orig.__lvSays)return;
+    const w=function(){const m=C[name]();if(m){alert(m);return;}return orig.apply(this,arguments);};
+    w.__lvSays=true;window[name]=w;
+  });
+})();
+</script>
 </body></html>

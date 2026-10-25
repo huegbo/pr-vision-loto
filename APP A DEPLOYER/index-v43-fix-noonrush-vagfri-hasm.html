@@ -13019,7 +13019,7 @@ function bottomNavHTML(){
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
   ];
-  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;bottom:calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 -4px 22px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;z-index:900">
+  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:62px;text-align:center;padding:5px 6px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
@@ -13030,12 +13030,12 @@ function bottomNavHTML(){
   </div>`;
 }
 function downloadAppButtonHTML(){
-  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
+  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(92px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
 }
 function fabHTML(){
   let h='';
   if(GAMES[GAME.key]&&GAMES[GAME.key]._virtual){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>🔀 Jeu virtuel (Conversion) — numéros convertis, pas les tirages officiels</span>
       <button onclick="returnFromConvVirtual()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#7E22CE;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">↩ Retour à Conversion</button>
     </div>`;
@@ -13045,7 +13045,7 @@ function fabHTML(){
   // sources ensuite, ce jeu ne les affiche pas tant qu'il n'est pas rouvert. Bouton de rafraîchissement
   // en un clic pour éviter d'avoir à retourner dans le filtre d'origine et recocher les mêmes options.
   if(GAMES[GAME.key]&&GAMES[GAME.key]._reopenFn){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>📸 Jeu "ouvert comme un jeu" — instantané figé au moment de l'ouverture, pas mis à jour automatiquement</span>
       <button onclick="window['${GAMES[GAME.key]._reopenFn}']()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#0E7490;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">🔄 Rafraîchir (derniers tirages)</button>
     </div>`;
@@ -14721,7 +14721,7 @@ function cmp2CardHTML(){
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
-    ${!state.cmp2Result?'':`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:740px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:5px 8px;box-shadow:0 2px 10px rgba(0,0,0,.25)">
+    ${!state.cmp2Result?'':`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:740px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:5px 8px;box-shadow:0 2px 10px rgba(0,0,0,.25)">
     <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin:0">
       <span style="font-size:9px;color:#777">Décaler de :</span>
       <input type="number" min="1" value="${state.cmp2Step||1}" oninput="state.cmp2Step=this.value" style="width:50px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
@@ -18952,7 +18952,7 @@ function __renderBody(){
   ${gamePickerHTML()}
   ${state.tab===0?elmHLBarHTML():''}
   ${state.tab===0?multiJeuBarHTML():''}
-  <div style="padding-bottom:calc(96px + env(safe-area-inset-bottom))">  ${state.showSearchHub?searchHubHTML():''}`;
+  <div style="padding-bottom:calc(20px + env(safe-area-inset-bottom))">  ${state.showSearchHub?searchHubHTML():''}`;
 
   html+=addFormHTML();
 

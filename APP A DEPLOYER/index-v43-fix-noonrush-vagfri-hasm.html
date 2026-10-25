@@ -12835,6 +12835,7 @@ const SEARCH_SECTIONS=[
   {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
+  {key:'auto4',icon:'🤖',title:'Recherche Automatique 4 (module 33)',desc:'Fenêtres de 4 lignes de plusieurs lotos qui partagent les mêmes numéros avec les 2 tirages de référence — numéros qui suivent en jaune (approx.)',color:'#0F766E',html:auto4CardHTML},
   {key:'dblop',icon:'➗',title:'Double Opération (module 24)',desc:'Deux opérations (+ − × ÷) sur 4 numéros, positions et décalages réglables — modèle Cybetcast',color:'#9333EA',html:doubleOpCardHTML},
   {key:'transfsimple',icon:'🔁',title:'Transformation simple (module 19)',desc:'Deux numéros inconnus (draws) liés par une transformation, avec bankers et filtres — modèle Cybetcast',color:'#0E7490',html:transfSimpleCardHTML},
   ...bankersLigneSections(),
@@ -13851,14 +13852,14 @@ function gameTableHTML(items,title,col){
   const hdr=['N°','DATE'].concat(Array.from({length:nbN},(_,k)=>'N'+(k+1)),['TOT'],hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
   const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
   const sumOf=a=>a&&a.length&&a.every(v=>!isNaN(v))?a.reduce((s,v)=>s+v,0):null;
-  const body=items.map(({r,hl,sel,red},ri)=>{
-    const set=hl||new Set();
+  const body=items.map(({r,hl,sel,red,g},ri)=>{
+    const set=hl||new Set();const gs=g||new Set();
     const tot=r.s!=null&&!isNaN(r.s)?r.s:sumOf(r.n.slice(0,nbN));
     const tc=tot!=null?tC(tot):['#fff','#999'];
     const totM=hasM?sumOf((r.m||[]).slice(0,5)):null;
     const tcm=totM!=null?tC(totM):['#fff','#999'];
     const bg=red?'#FEE2E2':sel?'#FFFBEB':(ri%2?'#F9FAFB':'#fff');
-    const nc=(v,q)=>{const on=set.has(q);return`<td style="text-align:center;padding:2px 0;font-weight:${on||red?700:500};${red?'background:#EF4444;color:#fff;':on?'background:#FFEB00;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
+    const nc=(v,q)=>{const on=set.has(q);return`<td style="text-align:center;padding:2px 0;font-weight:${on||red||gs.has(q)?700:500};${red?'background:#EF4444;color:#fff;':on?'background:#FFEB00;color:#111;':gs.has(q)?'background:#86EFAC;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
     const mc=(v,q)=>{const on=set.has(5+q);return`<td style="text-align:center;font-size:10px;font-weight:600;${on?'background:#FFEB00;color:#111;':'color:#7B1FA2;'}">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;};
     return`<tr style="border-bottom:1px solid #E5E7EB;background:${bg}"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:700;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d||''}${r.y?'/'+String(r.y).slice(-2):''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-weight:600;font-size:11px;background:${tc[0]};color:${tc[1]}">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-weight:600;font-size:11px;background:${tcm[0]};color:${tcm[1]}">${totM==null?'·':totM}</td>`:''}</tr>`;
   }).join('');
@@ -13918,6 +13919,69 @@ function nextStatsHTML(res,key,col){
   <div style="margin:4px 0">${tabBtn('ban','Banker')}${tabBtn('two','Two Sure')}${tabBtn('thr','Three Nap')}</div>${body}
   ${gameTableHTML(items,`Lignes sauvegardées (${Math.min(80,st.lines.length)} sur ${st.lines.length})${sel?' — '+sel.replace(/-/g,' · ')+' en jaune':''}`,col)}`;
   return h+'</div>';
+}
+
+// ══════ Module 33 — Recherche Automatique 4 (Cybetcast, approximation) ══════
+function doAuto4(){
+  const key=GAME.key,T0=gameData(key).T;
+  const ex=lvNum('as4Ex',T0[0].t);state.as4Ex=ex;
+  const older=T0.filter(r=>r.t<ex);
+  if(older.length<2){alert('Pas assez de tirages avant le tirage exclu.');return;}
+  const ref2=older[0],ref1=older[1];
+  const r1=new Set(ref1.n.filter(x=>!isNaN(x))),r2=new Set(ref2.n.filter(x=>!isNaN(x)));
+  const groups=new Map();
+  Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)).forEach(k=>{
+    const R=gameData(k).T;
+    for(let i=0;i+3<R.length;i++){
+      const a=R[i+3],b=R[i+2],c=R[i+1],e=R[i];
+      if(k===key&&a.t>=ref1.t)continue;
+      const s1=a.n.filter(x=>r1.has(x)),s2=b.n.filter(x=>r2.has(x));
+      if(!s1.length||!s2.length)continue;
+      const gk=s1.slice().sort((x,y)=>x-y).join(',')+'|'+s2.slice().sort((x,y)=>x-y).join(',');
+      if(!groups.has(gk))groups.set(gk,{s1,s2,ws:[],sig:new Set()});
+      const g=groups.get(gk),sig=[a,b,c,e].map(r=>r.n.join('.')).join('/');
+      if(g.sig.has(sig))continue;g.sig.add(sig);
+      g.ws.push({k,name:GAMES[k].name,rows:[a,b,c,e]});
+    }
+  });
+  const list=[];
+  groups.forEach((g,gk)=>{
+    if(g.ws.length<2)return;
+    let c3=new Set(g.ws[0].rows[2].n),c4=new Set(g.ws[0].rows[3].n);
+    g.ws.slice(1).forEach(w=>{c3=new Set([...c3].filter(x=>w.rows[2].n.includes(x)));c4=new Set([...c4].filter(x=>w.rows[3].n.includes(x)));});
+    c3=[...c3].filter(x=>!isNaN(x)).sort((x,y)=>x-y);c4=[...c4].filter(x=>!isNaN(x)).sort((x,y)=>x-y);
+    if(!c3.length)return;
+    list.push({gk,s1:g.s1,s2:g.s2,ws:g.ws,c3,c4});
+  });
+  list.sort((x,y)=>y.ws.length-x.ws.length||x.c3[0]-y.c3[0]);
+  state.as4Res={game:key,ex,ref1,ref2,list};state.as4Sel=0;render();
+}
+function auto4CardHTML(){
+  const col='#0F766E',res=state.as4Res;let body='';
+  if(res&&res.game!==GAME.key)body='<p>Jeu changé : relancez la recherche.</p>';
+  else if(res){
+    body='<p>'+res.list.length+' résultat(s) · référence : T'+res.ref1.t+' et T'+res.ref2.t+' (tirage T'+res.ex+' exclu) <span style="color:#B45309">— règle approchée</span></p>';
+    if(res.list.length){
+      const sel=Math.min(state.as4Sel||0,res.list.length-1),g=res.list[sel];
+      body+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">'+res.list.map((x,i)=>`<span onclick="state.as4Sel=${i};render()" style="cursor:pointer;padding:3px 10px;border-radius:6px;font-size:12px;font-weight:700;background:${i===sel?'#1E3A5F':'#94A3B8'};color:#fff">${x.c3.join(' - ')}</span>`).join('')+'</div>';
+      body+='<div style="font-size:10px;color:#555;margin:3px 0">Fenêtres de 4 lignes de '+g.ws.length+' lotos : la ligne 1 partage '+g.s1.join(',')+' avec T'+res.ref1.t+', la ligne 2 partage '+g.s2.join(',')+' avec T'+res.ref2.t+'. En jaune : numéros communs des lignes suivantes.</div>';
+      g.ws.forEach(w=>{
+        const items=w.rows.map((r,i)=>{
+          const g1=new Set();
+          if(i<2){const ref=i===0?res.ref1:res.ref2;r.n.forEach((v,q)=>{if(ref.n.includes(v))g1.add(q);});}
+          const hl=new Set();
+          if(i===2)r.n.forEach((v,q)=>{if(g.c3.includes(v))hl.add(q);});
+          if(i===3)r.n.forEach((v,q)=>{if(g.c4.includes(v))hl.add(q);});
+          return{r,hl,g:g1,sel:false};
+        });
+        body+=gameTableHTML(items,w.name+' · T '+w.rows[0].t+' – '+w.rows[3].t,col);
+      });
+      const rg=[res.ref1,res.ref2].map((r,i)=>{const hl=null,g1=new Set();const ws=g.ws[0].rows[i];r.n.forEach((v,q)=>{if(g.ws.every(w=>w.rows[i].n.includes(v)))g1.add(q);});return{r,hl,g:g1,sel:false};});
+      body+=gameTableHTML(rg,GAME.name+' (référence) · T '+res.ref1.t+' – '+res.ref2.t,'#7C3AED');
+    }else body+='<p>Aucune fenêtre commune trouvée pour cette référence.</p>';
+  }
+  return lvBox(col,'Recherche Automatique 4 (module 33) — '+GAME.name,
+    '<div class="row" style="gap:5px;flex-wrap:wrap">'+lvInp('Exclure à partir du tirage N° :','as4Ex',gameData(GAME.key).T[0].t,70,col)+lvBtn('doAuto4()',col)+'</div>'+body);
 }
 function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}

@@ -4642,9 +4642,10 @@ function getExtras(key){
 function saveExtras(key,lines){
   if(!lsSet('loto_extra_'+key,lines.join('\n')))alert('Impossible d\'enregistrer (stockage indisponible)');
 }
-function parseLines(lines){
-  const n4=GAME&&GAME.n4;
-  const n6=GAME&&GAME.n6;
+function parseLines(lines,gdef){
+  const g0=gdef||GAME;
+  const n4=g0&&g0.n4;
+  const n6=g0&&g0.n6;
   return lines.map(line=>{
     const p=line.split('|');
     const r=n6?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7],+p[8]],s:+p[9]}:n4?{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6]],s:+p[7]}:{t:+p[0],d:p[1],y:p[2],n:[+p[3],+p[4],+p[5],+p[6],+p[7]],s:+p[8]};
@@ -6521,8 +6522,8 @@ function suggestFromDraws(draws){
 function drawsForGame(key){
   try{
     const g=GAMES[key];
-    const base=parseLines(g.raw.trim().split('\n'));
-    const extras=parseLines(getExtras(key));
+    const base=parseLines(g.raw.trim().split('\n'),g);
+    const extras=parseLines(getExtras(key),g);
     const byT={};base.forEach(r=>byT[r.t]=r);extras.forEach(r=>byT[r.t]=r);
     return Object.values(byT).sort((a,b)=>b.t-a.t);
   }catch(e){return[];}
@@ -17288,8 +17289,8 @@ function repereGlobalHTML(){
 function gameData(key){
   const g=GAMES[key];
   if(!g._d){
-    const base=parseLines(g.raw.trim().split('\n'));
-    const extras=parseLines(getExtras(key));
+    const base=parseLines(g.raw.trim().split('\n'),g);
+    const extras=parseLines(getExtras(key),g);
     const byT={};base.forEach(r=>byT[r.t]=r);extras.forEach(r=>byT[r.t]=r);
     const TT=Object.values(byT).sort((a,b)=>b.t-a.t);
     const BY={};TT.forEach(r=>{if(!BY[r.y])BY[r.y]=[];BY[r.y].push(r);});

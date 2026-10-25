@@ -12353,6 +12353,176 @@ function ticPanelHTML(){
   </div>`;
 }
 
+// ══════ Numéros collés — statistiques (Lovable lot colles, intégré) ══════
+function collesStatsRun(k,len,keyPrefix){
+  const nb=GAME.n4?4:(GAME.n6?6:5);
+  const N=Math.max(0,lvNum(k+'N',100)), Y=Math.max(0,lvNum(k+'Y',0));
+  const order=state[k+'Order']==='exact'?'exact':'any';
+  state[k+'N']=N; state[k+'Y']=Y; state[k+'Order']=order;
+  let W=gameData(GAME.key).T;
+  if(Y>0)W=W.filter(r=>parseInt(r.y,10)===Y);
+  if(N>0)W=W.slice(0,N);
+  const groups=new Map();
+  W.forEach((r,i)=>{
+    const n=Array.from({length:nb},(_,j)=>Number(r.n[j]));
+    for(let p=0;p<=nb-len;p++){
+      const vals=n.slice(p,p+len);
+      if(!vals.every(v=>Number.isInteger(v)&&v>=1&&v<=90))continue;
+      const nums=order==='exact'?vals:vals.slice().sort((a,b)=>a-b);
+      const key=nums.join('-');
+      if(!groups.has(key))groups.set(key,{nums,hits:[],draws:new Set(),last:r});
+      const g=groups.get(key);
+      g.hits.push({row:r,pos:p}); g.draws.add(i);
+    }
+  });
+  const list=Array.from(groups.values()).map(g=>({
+    nums:g.nums,hits:g.hits,count:g.hits.length,drawCount:g.draws.size,last:g.last
+  })).sort((a,b)=>b.count-a.count||b.drawCount-a.drawCount||
+    b.last.t-a.last.t||a.nums.join('-').localeCompare(b.nums.join('-'),'fr',{numeric:true}));
+  state[k+'Res']={game:GAME.key,nb,N,Y,order,n:W.length,list,
+    occurrences:list.reduce((s,g)=>s+g.count,0)};
+  render();
+}
+function collesStatsCard(k,len,title,doFn,exFn){
+  const col='#4338CA',res=state[k+'Res'];
+  let body='';
+  if(res&&res.game!==GAME.key)body='<p>Jeu changé : relancez la recherche.</p>';
+  else if(res){
+    body='<p>'+res.n+' tirages · '+res.list.length+' combinaisons · '+res.occurrences+
+      ' occurrences · '+(res.order==='exact'?'ordre exact':'ordre indifférent')+
+      lvXBtn(exFn+'()')+'</p>';
+    if(!res.list.length)body+='<p>Aucun résultat pour ces filtres.</p>';
+    body+=res.list.slice(0,200).map((g,i)=>{
+      const rows=g.hits.map(h=>{
+        const n=Array.from({length:res.nb},(_,j)=>h.row.n[j]??NaN);
+        return lvRow({...h.row,n},new Set(Array.from({length:len},(_,j)=>h.pos+j)));
+      }).join('');
+      return '<details><summary>'+(i+1)+'. '+g.nums.join(' – ')+
+        ' · '+g.count+' occurrence(s) / '+g.drawCount+' tirage(s) · dernier T '+g.last.t+
+        ' ('+(g.last.d||'')+'/'+(g.last.y||'')+')</summary>'+
+        '<div style="overflow-x:auto;max-height:300px;overflow-y:auto">'+lvHdr(false)+rows+'</div></details>';
+    }).join('')+(res.list.length>200?'<div style="font-size:9px;color:#999">… 200 premières combinaisons affichées (export Excel = tout)</div>':'');
+  }
+  return lvBox(col,title+' — '+GAME.name,
+    '<div class="row" style="gap:5px;flex-wrap:wrap">'+
+    lvInp('Derniers tirages (0 = tous) :',k+'N',100,60,col)+
+    lvInp('Année (0 = toutes) :',k+'Y',0,70,col)+
+    lvSel('Ordre :',k+'Order',[['any','Indifférent'],['exact','Exact']],'any',col)+
+    lvBtn(doFn+'()',col)+'</div>'+body);
+}
+function collesStatsExport(k,len,name){
+  const res=state[k+'Res'];
+  if(!res||res.game!==GAME.key){alert('Lancez d\'abord la recherche.');return;}
+  const header=['Jeu','Fenetre','Annee','Ordre','Rang','Combinaison',
+    'Occurrences','Tirages','Dernier N°','Derniere date','N°','DATE'];
+  for(let j=0;j<res.nb;j++)header.push('N'+(j+1));
+  header.push('TOT','Colonnes trouvees','Numeros trouves dans l ordre');
+  const rows=[];
+  res.list.forEach((g,i)=>g.hits.forEach(h=>{
+    const n=Array.from({length:res.nb},(_,j)=>h.row.n[j]??NaN);
+    const total=n.every(v=>Number.isFinite(Number(v)))?n.reduce((s,v)=>s+Number(v),0):'';
+    rows.push([GAME.name,res.n,res.Y||'Toutes',res.order==='exact'?'Exact':'Indifferent',
+      i+1,g.nums.join(' – '),g.count,g.drawCount,g.last.t,
+      (g.last.d||'')+'/'+(g.last.y||''),h.row.t,(h.row.d||'')+'/'+(h.row.y||''),
+      ...n.map(v=>Number.isFinite(Number(v))?v:''),total,
+      Array.from({length:len},(_,j)=>'N'+(h.pos+j+1)).join(' – '),
+      n.slice(h.pos,h.pos+len).join(' – ')]);
+  }));
+  lvExport(name,header,rows);
+}
+function doColles2Stats(){collesStatsRun('c2s',2);}
+function colles2StatsCardHTML(){return collesStatsCard('c2s',2,'2 numéros collés — statistiques','doColles2Stats','exportColles2StatsCSV');}
+function exportColles2StatsCSV(){collesStatsExport('c2s',2,'colles2_statistiques');}
+function doColles3Stats(){collesStatsRun('c3s',3);}
+function colles3StatsCardHTML(){return collesStatsCard('c3s',3,'3 numéros collés — statistiques','doColles3Stats','exportColles3StatsCSV');}
+function exportColles3StatsCSV(){collesStatsExport('c3s',3,'colles3_statistiques');}
+
+function doVoisinsColles(){
+  const nb=GAME.n4?4:(GAME.n6?6:5);
+  const N=Math.max(0,lvNum('vclsN',100)),Y=Math.max(0,lvNum('vclsY',0));
+  const x=Math.min(90,Math.max(1,lvNum('vclsX',29)));
+  const side=['before','after'].includes(state.vclsSide)?state.vclsSide:'both';
+  state.vclsN=N; state.vclsY=Y; state.vclsX=x; state.vclsSide=side;
+  let W=gameData(GAME.key).T;
+  if(Y>0)W=W.filter(r=>parseInt(r.y,10)===Y);
+  if(N>0)W=W.slice(0,N);
+  const groups=new Map(); let pivotDraws=0,pivotOccurrences=0;
+  W.forEach((r,i)=>{
+    const n=Array.from({length:nb},(_,j)=>Number(r.n[j]));
+    if(n.includes(x))pivotDraws++;
+    n.forEach((v,p)=>{
+      if(v!==x)return;
+      pivotOccurrences++;
+      [-1,1].forEach(step=>{
+        const dir=step<0?'before':'after',q=p+step;
+        if(side!=='both'&&side!==dir)return;
+        if(q<0||q>=nb||!Number.isInteger(n[q])||n[q]<1||n[q]>90)return;
+        if(!groups.has(n[q]))groups.set(n[q],{num:n[q],hits:[],before:0,after:0,draws:new Set(),last:r});
+        const g=groups.get(n[q]); g[dir]++;g.draws.add(i);
+        g.hits.push({row:r,pivot:p,pos:q,dir});
+      });
+    });
+  });
+  const list=Array.from(groups.values()).map(g=>({num:g.num,hits:g.hits,
+    before:g.before,after:g.after,count:g.hits.length,drawCount:g.draws.size,last:g.last}))
+    .sort((a,b)=>b.count-a.count||b.drawCount-a.drawCount||b.last.t-a.last.t||a.num-b.num);
+  state.vclsRes={game:GAME.key,nb,N,Y,x,side,n:W.length,pivotDraws,pivotOccurrences,list};
+  render();
+}
+function voisinsCollesCardHTML(){
+  const col='#0E7490',res=state.vclsRes;let body='';
+  if(res&&res.game!==GAME.key)body='<p>Jeu changé : relancez la recherche.</p>';
+  else if(res){
+    body='<p>'+res.n+' tirages · numéro '+res.x+' : '+res.pivotOccurrences+
+      ' sortie(s) / '+res.pivotDraws+' tirage(s) · '+
+      ({before:'Avant',after:'Après',both:'Avant et après'})[res.side]+
+      lvXBtn('exportVoisinsCollesCSV()')+'</p>';
+    if(!res.list.length)body+='<p>Aucun voisin pour ces filtres.</p>';
+    body+=res.list.map((g,i)=>{
+      const rate=res.pivotDraws?Math.round(1000*g.drawCount/res.pivotDraws)/10:0;
+      const rows=g.hits.map(h=>lvRow({...h.row,
+        n:Array.from({length:res.nb},(_,j)=>h.row.n[j]??NaN)},new Set([h.pivot,h.pos]))).join('');
+      return '<details><summary>'+(i+1)+'. '+g.num+' · '+g.count+' occurrence(s) · avant '+
+        g.before+' / après '+g.after+' · '+g.drawCount+' tirage(s), '+rate+
+        '% des tirages contenant '+res.x+' · dernier T '+g.last.t+
+        '</summary><div style="overflow-x:auto;max-height:300px;overflow-y:auto">'+
+        lvHdr(false)+rows+'</div></details>';
+    }).join('');
+  }
+  return lvBox(col,'Voisins collés — '+GAME.name,
+    '<div class="row" style="gap:5px;flex-wrap:wrap">'+
+    lvInp('Numéro (1–90) :','vclsX',29,55,col)+
+    lvInp('Derniers tirages (0 = tous) :','vclsN',100,60,col)+
+    lvInp('Année (0 = toutes) :','vclsY',0,70,col)+
+    lvSel('Voisin :','vclsSide',[['both','Avant et après'],['before','Avant'],['after','Après']],'both',col)+
+    lvBtn('doVoisinsColles()',col)+'</div>'+body);
+}
+function exportVoisinsCollesCSV(){
+  const res=state.vclsRes;
+  if(!res||res.game!==GAME.key){alert('Lancez d\'abord la recherche.');return;}
+  const header=['Jeu','Fenetre','Annee','Pivot','Filtre','Tirages avec pivot','Rang',
+    'Voisin','Occurrences','Avant','Apres','Tirages','Frequence % des tirages avec pivot',
+    'Dernier N°','N°','DATE'];
+  for(let j=0;j<res.nb;j++)header.push('N'+(j+1));
+  header.push('TOT','Colonne pivot','Colonne voisin','Sens');
+  const rows=[];
+  res.list.forEach((g,i)=>g.hits.forEach(h=>{
+    const n=Array.from({length:res.nb},(_,j)=>h.row.n[j]??NaN);
+    const total=n.every(v=>Number.isFinite(Number(v)))?n.reduce((s,v)=>s+Number(v),0):'';
+    const rate=res.pivotDraws?Math.round(1000*g.drawCount/res.pivotDraws)/10:0;
+    rows.push([GAME.name,res.n,res.Y||'Toutes',res.x,res.side,res.pivotDraws,i+1,g.num,
+      g.count,g.before,g.after,g.drawCount,rate,g.last.t,h.row.t,
+      (h.row.d||'')+'/'+(h.row.y||''),...n.map(v=>Number.isFinite(Number(v))?v:''),total,
+      'N'+(h.pivot+1),'N'+(h.pos+1),h.dir==='before'?'Avant':'Apres']);
+  }));
+  lvExport('voisins_colles',header,rows);
+}
+function collesStatsSections(){return [
+  {key:'colles2stats',icon:'🔗',title:'2 collés — statistiques',desc:'Classement des paires adjacentes, sorties et dernier tirage',color:'#4338CA',html:colles2StatsCardHTML},
+  {key:'colles3stats',icon:'🔗',title:'3 collés — statistiques',desc:'Classement des triplets adjacents, sorties et dernier tirage',color:'#4338CA',html:colles3StatsCardHTML},
+  {key:'voisinscolles',icon:'↔️',title:'Voisins collés d’un numéro',desc:'Numéros immédiatement avant ou après un numéro, avec fréquence',color:'#0E7490',html:voisinsCollesCardHTML}
+];}
+
 const SEARCH_SECTIONS=[
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
@@ -12386,6 +12556,7 @@ const SEARCH_SECTIONS=[
   {key:'resume',icon:'📋',title:'Résumé du jeu',desc:'Derniers tirages, chauds/froids, plus gros écarts, en une page',color:'#059669',html:resumeCardHTML},
   {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
+  ...collesStatsSections(),
   {key:'cmpwin',icon:'⚖️',title:'Comparer deux fenêtres',desc:'Deux périodes du même jeu : sorties de chaque numéro dans A et B, différence',color:'#7C3AED',html:cmpWinCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
@@ -12473,7 +12644,7 @@ function searchHubHTML(){
     const groups=[
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['simi','oblique']],
-      ['🔗 Numéros collés',['colles2','colles3','termColles','termVert']],
+      ['🔗 Numéros collés',['colles2','colles3','colles2stats','colles3stats','voisinscolles','termColles','termVert']],
       ['📍 Alignements verticaux',['bankers','bchain','vadd','vtan','planf','totx']],
       ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
       ['🛠️ Outils',['imp']],
@@ -13015,10 +13186,10 @@ function bottomNavHTML(){
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
   ];
-  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;z-index:900">
+  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
-      return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:62px;text-align:center;padding:5px 6px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
+      return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
       </div>`;
@@ -13026,12 +13197,12 @@ function bottomNavHTML(){
   </div>`;
 }
 function downloadAppButtonHTML(){
-  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(92px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
+  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(150px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
 }
 function fabHTML(){
   let h='';
   if(GAMES[GAME.key]&&GAMES[GAME.key]._virtual){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(140px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>🔀 Jeu virtuel (Conversion) — numéros convertis, pas les tirages officiels</span>
       <button onclick="returnFromConvVirtual()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#7E22CE;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">↩ Retour à Conversion</button>
     </div>`;
@@ -13041,7 +13212,7 @@ function fabHTML(){
   // sources ensuite, ce jeu ne les affiche pas tant qu'il n'est pas rouvert. Bouton de rafraîchissement
   // en un clic pour éviter d'avoir à retourner dans le filtre d'origine et recocher les mêmes options.
   if(GAMES[GAME.key]&&GAMES[GAME.key]._reopenFn){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(140px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>📸 Jeu "ouvert comme un jeu" — instantané figé au moment de l'ouverture, pas mis à jour automatiquement</span>
       <button onclick="window['${GAMES[GAME.key]._reopenFn}']()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#0E7490;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">🔄 Rafraîchir (derniers tirages)</button>
     </div>`;

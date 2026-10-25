@@ -12382,6 +12382,10 @@ const SEARCH_SECTIONS=[
   {key:'vtan',icon:'🔗⬇️',title:'Tandem / Triplet alignés',desc:'Paire ou trio qui revient : collés aux mêmes colonnes, ou empilés en colonne',color:'#4338CA',html:vtanCardHTML},
   {key:'totx',icon:'🧮',title:'Totaux (simple / de ligne / constante)',desc:'Total de 2 numéros, total de ligne, total qui revient ou différence constante',color:'#F59E0B',html:totxCardHTML},
   {key:'abs90',icon:'⛔',title:'Numéros pas encore sortis',desc:'Absents sur N tirages ou une année, avec écart, option par position',color:'#DC2626',html:absentCardHTML},
+  {key:'imp',icon:'📥',title:'Importer des tirages',desc:'Ajouter des tirages depuis un fichier (format |), remplace les saisies manuelles du même N°',color:'#0E7490',html:impCardHTML},
+  {key:'freq',icon:'📊',title:'Fréquences',desc:'Sorties de chaque numéro ou position, tri par sorties, n° ou écart',color:'#0E6272',html:freqCardHTML},
+  {key:'gaps',icon:'⏳',title:"Écarts d'absence",desc:'Écart courant, maximum et moyenne de chaque numéro, seuil réglable',color:'#B45309',html:gapCardHTML},
+  {key:'pairs',icon:'👥',title:'Paires qui sortent ensemble',desc:'Deux numéros sur la même ligne, répétitions, machine en option',color:'#4338CA',html:pairCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
   {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
@@ -13552,6 +13556,158 @@ function planFCardHTML(){
     ${lvBtn('doPlanF()',col)}</div>
     <div style="font-size:8px;color:#888">Formule : ${f} sur 3 numéros de la même colonne ; le résultat est cherché sur la ligne suivante. Lecture supposée (non vérifiée dans Cybetcast).</div>
     ${lvList(res,col,x=>x.L.map((r,i)=>lvRow(r,i<3?new Set([x.p]):new Set([x.q]))).join('')+`<div style="font-size:9px;color:${col}">N${x.p+1} : A=${x.a}, B=${x.b}, C=${x.c} → ${x.raw}${x.raw!==x.v?' → '+x.v:''} trouvé en N${x.q+1}</div>`)}`);
+}
+// ══════ Importer des tirages ══════
+function importTirageFile(inp){
+  const f=inp.files&&inp.files[0];
+  if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{importTirageText(String(rd.result));inp.value='';};
+  rd.readAsText(f,'UTF-8');
+}
+function importTirageText(txt){
+  const need=GAME.n4?4:5;
+  const lines=txt.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+  if(!lines.length){alert('Fichier vide.');return;}
+  const seen={},valid=[],bad=[];
+  lines.forEach(l=>{
+    let r=null;try{r=parseLines([l])[0];}catch(_){}
+    const ok=r&&r.t>=1&&r.n&&r.n.length>=need&&r.n.slice(0,need).every(n=>!isNaN(n)&&n>=1&&n<=90);
+    if(ok&&!seen[r.t]){seen[r.t]=1;valid.push(l);}else bad.push(l);
+  });
+  if(!valid.length){alert('Aucune ligne valide.\nFormat attendu : N°|JJ/MM|AAAA|n1|n2|n3|n4|n5|total|machine1|…');return;}
+  const map={};
+  getExtras(GAME.key).forEach(l=>{const t=parseInt(l.split('|')[0]);if(t)map[t]=l;});
+  let added=0,replaced=0;
+  valid.forEach(l=>{const t=parseInt(l.split('|')[0]);if(map[t])replaced++;else added++;map[t]=l;});
+  saveExtras(GAME.key,Object.values(map).sort((a,b)=>parseInt(b.split('|')[0])-parseInt(a.split('|')[0])));
+  delete GAMES[GAME.key]._d;
+  loadGame(GAME.key);
+  state.impRes={added,replaced,bad:bad.length,total:lines.length};
+  render();
+  alert('Import terminé : '+added+' ajouté(s), '+replaced+' remplacé(s), '+bad.length+' ignoré(s).');
+}
+function impCardHTML(){
+  const col='#0E7490',res=state.impRes;
+  return lvBox(col,`📥 Importer des tirages — ${GAME.name}`,`
+    <div style="font-size:9.5px;color:#777;margin-bottom:4px">Une ligne par tirage, séparateur <b>|</b> : <b>N°|JJ/MM|AAAA|n1|n2|n3|n4|n5|total</b> puis les numéros machine s'il y en a (même format que loto-data.js). Le fichier est importé dans le jeu affiché en haut du module.</div>
+    <input type="file" accept=".csv,.txt" onchange="importTirageFile(this)" style="font-size:11px">
+    ${res?`<div style="font-size:10px;color:${col};margin-top:4px">Dernier import : ${res.added} ajouté(s), ${res.replaced} remplacé(s), ${res.bad} ignoré(s) sur ${res.total} ligne(s).</div>`:''}
+    <div style="font-size:9px;color:#888;margin-top:3px">Un N° déjà saisi à la main est remplacé par la nouvelle ligne ; les tirages de la base d'origine ne sont jamais touchés.</div>`);
+}
+// ══════ Fréquences détaillées ══════
+function doFreq(){
+  const all=gameData(GAME.key).T,Y=parseInt(state.fqY),N=(state.fqN===undefined||state.fqN==='')?100:(parseInt(state.fqN)||0),byPos=!!state.fqPos;
+  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const s0=all.indexOf(W[0]),pos=byPos?[0,1,2,3,4]:[-1],out=[];
+  pos.forEach(p=>{
+    const items=[];
+    for(let x=1;x<=90;x++){
+      const hit=r=>p<0?r.n.includes(x):r.n[p]===x;
+      const cnt=W.filter(hit).length;
+      let i=s0;while(i<all.length&&!hit(all[i]))i++;
+      const found=i<all.length,inWin=found&&W.includes(all[i]);
+      items.push({x,cnt,ecart:found?i-s0:null,inWin});
+    }
+    const sort=state.fqSort||'freq';
+    items.sort(sort==='num'?(a,b)=>a.x-b.x:sort==='ecart'?(a,b)=>(b.ecart??-1)-(a.ecart??-1):(a,b)=>b.cnt-a.cnt||a.x-b.x);
+    out.push({p,items});
+  });
+  state.fqRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],out};render();
+}
+function exportFreqCSV(){
+  const res=state.fqRes;
+  if(!res){alert('Lancez d\'abord la recherche.');return;}
+  let csv='Jeu;Fenetre;Position;Numero;Sorties;Ecart actuel\n';
+  res.out.forEach(b=>b.items.forEach(i=>csv+=`${GAMES[res.game].name};${res.n};${b.p<0?'toutes':'N'+(b.p+1)};${i.x};${i.cnt};${i.ecart==null?'jamais':i.ecart}\n`));
+  downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_frequences.csv');
+}
+function freqCardHTML(){
+  const col='#0E6272',res=state.fqRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res)body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t}) <button onclick="exportFreqCSV()" style="margin-left:6px;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:9px">📊 Excel</button></div>`+
+    res.out.map(b=>`<div style="margin-top:4px"><div style="font-size:9px;font-weight:600;color:${col}">${b.p<0?'Toutes positions':'Position N'+(b.p+1)}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${b.items.map(i=>`<span title="écart actuel : ${i.ecart==null?'jamais sorti':i.ecart+' tirage(s)'}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:${i.ecart==null?'#FEE2E2':'#F3F4F6'};color:#111"><b>${i.x}</b> ×${i.cnt} <span style="color:#888;font-size:8px">${i.ecart==null?'jamais':'éc. '+i.ecart}</span></span>`).join('')}</div></div>`).join('');
+  return lvBox(col,`📊 Fréquences — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','fqN',100,60,col)}${lvInp('Année (vide = toutes) :','fqY','',70,col)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+      <label><input type="checkbox" ${state.fqPos?'checked':''} onchange="state.fqPos=this.checked"> Par position (N1…N5)</label>
+      ${lvSel('Tri :','fqSort',[['freq','sorties ↓'],['num','n° 1→90'],['ecart','écart ↓']],'freq',col)}
+      ${lvBtn('doFreq()',col)}</div>${body}`);
+}
+// ══════ Écarts d'absence (courant / max / moyenne) ══════
+function doGaps(){
+  const all=gameData(GAME.key).T,Y=parseInt(state.gpY),N=(state.gpN===undefined||state.gpN==='')?100:(parseInt(state.gpN)||0),byPos=!!state.gpPos,minG=parseInt(state.gpMin)||0;
+  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const s0=all.indexOf(W[0]),pos=byPos?[0,1,2,3,4]:[-1],out=[];
+  pos.forEach(p=>{
+    const items=[];
+    for(let x=1;x<=90;x++){
+      const hit=r=>p<0?r.n.includes(x):r.n[p]===x;
+      const idxs=[];W.forEach((r,i)=>{if(hit(r))idxs.push(i);});
+      let i0=s0;while(i0<all.length&&!hit(all[i0]))i0++;
+      const found=i0<all.length;
+      let maxG=null,avgG=null;
+      if(idxs.length>1){
+        const gs=[];for(let k=1;k<idxs.length;k++)gs.push(idxs[k]-idxs[k-1]);
+        maxG=Math.max(...gs);avgG=Math.round(gs.reduce((a,b)=>a+b,0)/gs.length*10)/10;
+      }
+      const ecart=found?i0-s0:null;
+      if(minG>0&&(ecart!=null&&ecart<minG))continue;
+      items.push({x,ecart,maxG,avgG,cnt:idxs.length});
+    }
+    items.sort((a,b)=>(b.ecart??1e9)-(a.ecart??1e9));
+    out.push({p,items});
+  });
+  state.gpRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],out};render();
+}
+function gapCardHTML(){
+  const col='#B45309',res=state.gpRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res)body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t})</div>`+
+    res.out.map(b=>`<div style="margin-top:4px"><div style="font-size:9px;font-weight:600;color:${col}">${b.p<0?'Toutes positions':'Position N'+(b.p+1)}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${b.items.map(i=>`<span title="sorti ${i.cnt} fois dans la fenêtre" style="font-size:10px;padding:1px 5px;border-radius:4px;background:#FEF3C7;color:#111"><b>${i.x}</b> <span style="color:#888;font-size:8px">${i.ecart==null?'jamais':'éc. '+i.ecart}</span> <span style="color:#B45309;font-size:8px">max ${i.maxG??'·'} moy ${i.avgG??'·'}</span></span>`).join('')}</div></div>`).join('');
+  return lvBox(col,`⏳ Écarts d'absence (courant / max / moyenne) — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','gpN',100,60,col)}${lvInp('Année (vide = toutes) :','gpY','',70,col)}${lvInp('Écart courant ≥ :','gpMin',0,50,col)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+      <label><input type="checkbox" ${state.gpPos?'checked':''} onchange="state.gpPos=this.checked"> Par position (N1…N5)</label>
+      ${lvBtn('doGaps()',col)}</div>${body}`);
+}
+// ══════ Paires qui sortent ensemble ══════
+function doPairs(){
+  const all=gameData(GAME.key).T,Y=parseInt(state.prY),N=(state.prN===undefined||state.prN==='')?100:(parseInt(state.prN)||0);
+  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const useM=!!state.prM,minC=(state.prMin===undefined||state.prMin==='')?2:(parseInt(state.prMin)||0),top=Math.max(1,(state.prTop===undefined||state.prTop==='')?20:(parseInt(state.prTop)||20));
+  const cnt={};
+  W.forEach(r=>{
+    const arr=useM?(r.m||[]):r.n;
+    for(let i=0;i<arr.length;i++)for(let j=i+1;j<arr.length;j++){
+      if(isNaN(arr[i])||isNaN(arr[j]))continue;
+      const a=Math.min(arr[i],arr[j]),b=Math.max(arr[i],arr[j]),k=a+'-'+b;
+      if(!cnt[k])cnt[k]={a,b,c:0,last:null};
+      cnt[k].c++;if(!cnt[k].last)cnt[k].last=r;
+    }
+  });
+  const kept=Object.values(cnt).filter(x=>x.c>=minC).sort((a,b)=>b.c-a.c||a.a-b.a||a.b-b.b);
+  state.prRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],total:kept.length,items:kept.slice(0,top)};render();
+}
+function pairCardHTML(){
+  const col='#4338CA',res=state.prRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res)body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t}) — ${res.total} paire(s) au-dessus du seuil${res.total?'':' — aucune'}</div>`+
+    `<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px;max-height:260px;overflow-y:auto">`+
+    res.items.map(i=>`<div style="font-size:10px;display:flex;align-items:center;gap:6px"><span style="font-weight:700;color:${col};min-width:52px">${i.a} · ${i.b}</span><span>×${i.c}</span><span style="color:#888;font-size:8px">dernier : T ${i.last.t} (${i.last.d}/${i.last.y})</span></div>`).join('')+`</div>`;
+  return lvBox(col,`👥 Paires qui sortent ensemble — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','prN',100,60,col)}${lvInp('Année (vide = toutes) :','prY','',70,col)}${lvInp('Minimum :','prMin',2,40,col)}${lvInp('Top :','prTop',20,40,col)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+      <label><input type="checkbox" ${state.prM?'checked':''} onchange="state.prM=this.checked"> Paires de la machine (au lieu des numéros)</label>
+      ${lvBtn('doPairs()',col)}</div>${body}`);
 }
 function triggerBankerMulti(){doBankerSearch(state.bankerK||2);}
 function bankerPairRowRenderer(){

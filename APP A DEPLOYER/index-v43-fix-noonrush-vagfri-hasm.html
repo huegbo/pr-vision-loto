@@ -12377,6 +12377,10 @@ const SEARCH_SECTIONS=[
   {key:'date',icon:'📅',title:'Tirages à une date donnée',desc:'Un jour/mois précis, ou toutes les années pour une date',color:'#0891B2',html:dateSectionHTML},
   {key:'bankers',icon:'📍',title:'Bankers alignés',desc:"Numéros stables d'une ligne à l'autre, écart réglable",color:'#B45309',html:bankersSectionHTML},
   {key:'bchain',icon:'📍⬇️',title:'Plusieurs bankers verticalement alignés',desc:'1 à 10 bankers, même position, sur 2 à 10 lignes, écart réglable',color:'#B45309',html:bankerChainCardHTML},
+  {key:'vadd',icon:'➕⬇️',title:'Addition de 2 numéros alignés verticalement',desc:'a + b dans la même colonne → total sur la ligne suivante (2 lectures, règle des 90)',color:'#7C3AED',html:vaddCardHTML},
+  {key:'vtan',icon:'🔗⬇️',title:'Tandem / Triplet alignés',desc:'Paire ou trio qui revient : collés aux mêmes colonnes, ou empilés en colonne',color:'#4338CA',html:vtanCardHTML},
+  {key:'totx',icon:'🧮',title:'Totaux (simple / de ligne / constante)',desc:'Total de 2 numéros, total de ligne, total qui revient ou différence constante',color:'#F59E0B',html:totxCardHTML},
+  {key:'abs90',icon:'⛔',title:'Numéros pas encore sortis',desc:'Absents sur N tirages ou une année, avec écart, option par position',color:'#DC2626',html:absentCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
   {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
   {key:'dig',icon:'🔢',title:'Chiffre contenu',desc:"Le chiffre apparaît n'importe où dans le nombre (dizaine ou unité)",color:'#0891B2',html:digSectionHTML},
@@ -13327,10 +13331,25 @@ function doBankerSearch(k){
   render();
 }
 
+// ══════ Outils communs des modules "lv*" (Lovable) ══════
+function lvTot(r){return(r.s!=null&&!isNaN(r.s))?r.s:r.n.reduce((a,b)=>a+(isNaN(b)?0:b),0);}
+function lvInp(lbl,key,def,w,col){return`<span style="font-size:9px;color:#777">${lbl}</span><input type="number" value="${state[key]??def}" oninput="state.${key}=this.value" style="width:${w}px;padding:4px 6px;border:1.5px solid ${col};border-radius:5px;font-size:12px">`;}
+function lvSel(lbl,key,opts,def,col){const v=state[key]??def;return`<span style="font-size:9px;color:#777">${lbl}</span><select onchange="state.${key}=this.value" style="padding:3px 6px;border:1.5px solid ${col};border-radius:5px;font-size:11px">${opts.map(([k,t])=>`<option value="${k}" ${String(v)===String(k)?'selected':''}>${t}</option>`).join('')}</select>`;}
+function lvBtn(fn,col){return`<button onclick="${fn}" style="padding:4px 10px;background:${col};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px">Rechercher</button>`;}
+function lvBox(col,title,body){return`<div style="background:#fff;border:1.5px solid ${col};border-radius:8px;padding:8px;margin-bottom:8px"><div style="font-size:11px;font-weight:500;color:${col};margin-bottom:5px">${title}</div>${body}</div>`;}
+function lvRow(r,hl){return`<div style="font-size:10px;white-space:nowrap"><b style="color:#0F766E;display:inline-block;width:46px">${r.t}</b><span style="color:#888;display:inline-block;width:52px">${r.d||'·'}${r.y?'/'+String(r.y).slice(-2):''}</span>${r.n.map((v,p)=>`<span style="display:inline-block;width:22px;text-align:center;border-radius:4px;${hl&&hl.has(p)?'background:#FDE047;font-weight:700':''}">${isNaN(v)?'·':v}</span>`).join('')}<span style="color:#92400E;margin-left:4px">${lvTot(r)}</span></div>`;}
+function lvList(res,col,itemFn){
+  if(!res)return'';
+  if(res.game!==GAME.key)return`<div style="font-size:9px;color:#B91C1C;margin-top:4px">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  return`<div style="font-size:10px;color:${col};margin-top:4px">${res.list.length} résultat(s)${res.list.length>200?' — 200 affichés':''}</div>`+
+    res.list.slice(0,200).map(x=>`<div style="border:1px solid #E5E7EB;border-radius:6px;padding:3px 6px;margin-top:3px;overflow-x:auto">${itemFn(x)}</div>`).join('');
+}
+// ══════ Plusieurs bankers verticalement alignés (version corrigée) ══════
 function bankerChain(k,L,gap,withPos,useM){
+  const T=gameData(GAME.key).T; // toujours le jeu affiché
   const g=Math.max(1,gap||1),out=[];
   for(let i=0;i+(L-1)*g<T.length;i++){
-    const rows=[];for(let w=0;w<L;w++)rows.push(T[i+w*g]); // rows[0] = le plus récent
+    const rows=[];for(let w=0;w<L;w++)rows.push(T[i+w*g]);
     const V=rows.map(r=>useM?r.n.concat(r.m||[]):r.n.slice());
     const hits=[];
     if(withPos){
@@ -13339,33 +13358,154 @@ function bankerChain(k,L,gap,withPos,useM){
     }else{
       V[0].forEach((x,p)=>{if(!isNaN(x)&&V.every(v=>v.includes(x))&&!hits.some(h=>h.val===x))hits.push({idx:p,val:x});});
     }
-    if(hits.length>=k)out.push({rows:rows.slice().reverse(),hits}); // affichage ancien → récent
+    if(hits.length>=k)out.push({rows:rows.slice().reverse(),hits});
   }
   return out;
 }
 function doBankerChain(){
   const k=Math.min(10,Math.max(1,parseInt(state.bcK)||2));
   const L=Math.min(10,Math.max(2,parseInt(state.bcL)||2));
-  state.bcRes={k,L,list:bankerChain(k,L,parseInt(state.bcGap)||1,state.bcPos!==false,!!state.bcM)};
+  const withPos=state.bcPos!==false, useM=!!state.bcM;
+  state.bcRes={game:GAME.key,k,L,withPos,useM,list:bankerChain(k,L,parseInt(state.bcGap)||1,withPos,useM)};
   render();
 }
 function bankerChainCardHTML(){
-  const inp=(lbl,key,def,w)=>`<span style="font-size:9px;color:#777">${lbl}</span><input type="number" min="1" value="${state[key]??def}" oninput="state.${key}=this.value" style="width:${w}px;padding:4px 6px;border:1.5px solid #B45309;border-radius:5px;font-size:12px">`;
-  const res=state.bcRes;
-  const list=res?res.list.slice(0,200).map(x=>{
+  const col='#B45309', res=state.bcRes;
+  const body=res?lvList(res,col,x=>{
     const vals=new Set(x.hits.map(h=>h.val));
-    return`<div style="border:1px solid #FDE4B8;border-radius:6px;padding:3px 6px;margin-top:3px">${x.rows.map(r=>`<div style="font-size:10px;white-space:nowrap;overflow-x:auto"><b style="color:#0F766E">${r.t}</b> <span style="color:#888">${r.d||'·'}</span> ${r.n.concat(state.bcM?(r.m||[]):[]).map((v,p)=>`<span style="display:inline-block;min-width:20px;text-align:center;border-radius:4px;${vals.has(v)&&(state.bcPos===false||x.hits.some(h=>h.idx===p))?'background:#FDE047;font-weight:700':''}">${isNaN(v)?'·':v}</span>`).join('')}</div>`).join('')}</div>`;
-  }).join(''):'';
-  return`<div style="background:#fff;border:1.5px solid #B45309;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">📍⬇️ Plusieurs bankers verticalement alignés — ${GAME.name}</div>
-    <div class="row" style="gap:5px;flex-wrap:wrap">${inp('Bankers (1-10) :','bcK',2,50)}${inp('Lignes (2-10) :','bcL',2,50)}${inp('Écart :','bcGap',1,50)}</div>
+    return x.rows.map(r=>{const v=r.n.concat(res.useM?(r.m||[]):[]);
+      const hl=new Set();v.forEach((y,p)=>{if(vals.has(y)&&(!res.withPos||x.hits.some(h=>h.idx===p)))hl.add(p);});
+      return lvRow({...r,n:v},hl);}).join('');
+  }):'';
+  return lvBox(col,`📍⬇️ Plusieurs bankers verticalement alignés — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Bankers (1-10) :','bcK',2,50,col)}${lvInp('Lignes (2-10) :','bcL',2,50,col)}${lvInp('Écart :','bcGap',1,50,col)}</div>
     <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
       <label><input type="checkbox" ${state.bcPos!==false?'checked':''} onchange="state.bcPos=this.checked"> Même position</label>
       <label><input type="checkbox" ${state.bcM?'checked':''} onchange="state.bcM=this.checked"> Inclure numéros machine</label>
-      <button onclick="doBankerChain()" style="padding:4px 10px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px">Rechercher</button>
-    </div>
-    ${res?`<div style="font-size:10px;color:#B45309;margin-top:4px">${res.list.length} résultat(s)${res.list.length>200?' — 200 affichés':''}</div>${list}`:''}
-  </div>`;
+      ${lvBtn('doBankerChain()',col)}</div>${body}`);
+}
+// ══════ Addition de 2 numéros alignés verticalement ══════
+function doVadd(){
+  const T0=gameData(GAME.key).T, g=Math.max(1,parseInt(state.vaGap)||1);
+  const mode=state.vaMode||'any', r90=state.va90||'keep', list=[];
+  const fix=s=>r90==='mod'?((s-1)%90)+1:s;
+  for(let j=g+1;j<T0.length;j++){
+    const A=T0[j],B=T0[j-g],C=T0[j-g-1]; // A ancien, B = A + écart, C = tirage suivant B
+    for(let p=0;p<5;p++){
+      const a=A.n[p],b=B.n[p];if(isNaN(a)||isNaN(b))continue;
+      const raw=a+b,s=fix(raw);
+      const q=mode==='col'?(C.n[p]===s?p:-1):C.n.indexOf(s);
+      if(q>=0)list.push({A,B,C,p,q,a,b,raw,s});
+    }
+  }
+  list.sort((x,y)=>y.C.t-x.C.t);
+  state.vaRes={game:GAME.key,list};render();
+}
+function vaddCardHTML(){
+  const col='#7C3AED';
+  return lvBox(col,`➕⬇️ Addition de 2 numéros alignés verticalement — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Écart :','vaGap',1,50,col)}
+    ${lvSel('Total cherché :','vaMode',[['any','n’importe où sur la ligne suivante'],['col','même colonne sur la ligne suivante']],'any',col)}
+    ${lvSel('Règle des 90 :','va90',[['keep','garder le total tel quel'],['mod','ramener entre 1 et 90']],'keep',col)}
+    ${lvBtn('doVadd()',col)}</div>
+    ${lvList(state.vaRes,col,x=>lvRow(x.A,new Set([x.p]))+lvRow(x.B,new Set([x.p]))+lvRow(x.C,new Set([x.q]))+
+      `<div style="font-size:9px;color:${col}">N${x.p+1} : ${x.a} + ${x.b} = ${x.raw}${x.raw!==x.s?' → '+x.s:''} → trouvé en N${x.q+1}</div>`)}`);
+}
+// ══════ Tandem / Triplet alignés ══════
+function doVtan(){
+  const T0=gameData(GAME.key).T, s=parseInt(state.vtSize)===3?3:2, g=Math.max(1,parseInt(state.vtGap)||1);
+  const mode=state.vtMode||'colle', map={};
+  const add=(k,o)=>{(map[k]=map[k]||[]).push(o);};
+  for(let j=0;j<T0.length;j++){
+    if(mode==='colle'){
+      for(let p=0;p+s<=5;p++){const v=T0[j].n.slice(p,p+s);if(v.some(x=>isNaN(x)))continue;add('N'+(p+1)+'|'+v.join('-'),{j,p});}
+    }else{
+      if(j+(s-1)*g>=T0.length)break;
+      for(let p=0;p<5;p++){const v=[];for(let w=s-1;w>=0;w--)v.push(T0[j+w*g].n[p]);if(v.some(x=>isNaN(x)))continue;add(v.join('/'),{j,p});}
+    }
+  }
+  const list=Object.entries(map).filter(([k,o])=>o.length>=2).map(([k,occ])=>({k,occ}));
+  list.sort((a,b)=>a.occ[0].j-b.occ[0].j); // le plus récent d'abord
+  state.vtRes={game:GAME.key,s,g,mode,list};render();
+}
+function vtanCardHTML(){
+  const col='#4338CA',res=state.vtRes,T0=gameData(GAME.key).T;
+  const item=x=>{
+    const head=`<div style="font-size:9px;color:${col};font-weight:600">${res.mode==='colle'?'Collés '+x.k.replace('|',' : '):'Empilés (ancien→récent) : '+x.k} — ${x.occ.length} fois · écarts : ${x.occ.slice(1).map((o,i)=>o.j-x.occ[i].j).join(', ')}</div>`;
+    return head+x.occ.slice(0,6).map(o=>res.mode==='colle'
+      ?lvRow(T0[o.j],new Set(Array.from({length:res.s},(_,i)=>o.p+i)))
+      :`<div style="border-left:2px solid ${col};padding-left:4px;margin-top:2px">${Array.from({length:res.s},(_,i)=>lvRow(T0[o.j+(res.s-1-i)*res.g],new Set([o.p]))).join('')}</div>`).join('')+(x.occ.length>6?'<div style="font-size:8px;color:#999">…</div>':'');
+  };
+  return lvBox(col,`🔗⬇️ Tandem / Triplet alignés — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">
+    ${lvSel('Taille :','vtSize',[['2','Tandem (2)'],['3','Triplet (3)']],'2',col)}
+    ${lvSel('Lecture :','vtMode',[['colle','paire collée, mêmes colonnes'],['pile','empilés en colonne']],'colle',col)}
+    ${lvInp('Écart (empilés) :','vtGap',1,50,col)}${lvBtn('doVtan()',col)}</div>
+    ${res?lvList(res,col,item):''}`);
+}
+// ══════ Totaux (simple / de ligne / constante) ══════
+function doTotx(){
+  const T0=gameData(GAME.key).T, type=state.txType||'const', cm=state.txConst||'same', list=[];
+  const V=parseInt(state.txV), X=Math.max(1,parseInt(state.txX)||1);
+  if((type==='simple'||type==='ligne')&&isNaN(V)){alert('Indique le total V.');return;}
+  if(type==='simple'){
+    T0.forEach(r=>{for(let a=0;a<5;a++)for(let b=a+1;b<5;b++)if(r.n[a]+r.n[b]===V)list.push({rows:[r],hl:new Set([a,b]),txt:`N${a+1} + N${b+1} = ${V}`});});
+  }else if(type==='ligne'){
+    T0.forEach(r=>{if(lvTot(r)===V)list.push({rows:[r],hl:null,txt:'Total de ligne = '+V});});
+  }else if(cm==='same'){
+    for(let j=0;j+X<T0.length;j++){const a=T0[j+X],b=T0[j],t=lvTot(a);
+      if(t===lvTot(b)&&(isNaN(V)||t===V))list.push({rows:[a,b],hl:null,txt:`Même total ${t} à ${X} tirage(s) d’écart`});}
+  }else{
+    for(let j=0;j+2*X<T0.length;j++){const a=T0[j+2*X],b=T0[j+X],c=T0[j];
+      const d1=lvTot(b)-lvTot(a),d2=lvTot(c)-lvTot(b);
+      if(d1===d2&&d1!==0&&(isNaN(V)||Math.abs(d1)===V))list.push({rows:[a,b,c],hl:null,txt:`Différence constante ${d1>0?'+':''}${d1}`});}
+  }
+  state.txRes={game:GAME.key,list};render();
+}
+function totxCardHTML(){
+  const col='#F59E0B';
+  return lvBox(col,`🧮 Totaux (simple / de ligne / constante) — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">
+    ${lvSel('Type :','txType',[['simple','Total simple (2 numéros)'],['ligne','Total de ligne'],['const','Constante']],'const',col)}
+    ${lvInp('V (total / différence, vide = tous) :','txV','',60,col)}</div>
+    <div class="row" style="gap:5px;flex-wrap:wrap">
+    ${lvSel('Constante :','txConst',[['same','même total tous les X tirages'],['diff','différence constante entre totaux']],'same',col)}
+    ${lvInp('X (écart) :','txX',1,50,col)}${lvBtn('doTotx()',col)}</div>
+    ${lvList(state.txRes,col,x=>x.rows.map(r=>lvRow(r,x.hl)).join('')+`<div style="font-size:9px;color:${col}">${x.txt}</div>`)}`);
+}
+// ══════ Numéros pas encore sortis ══════
+function doAbsent(){
+  const all=gameData(GAME.key).T, Y=parseInt(state.abY), N=parseInt(state.abN)||0, byPos=!!state.abPos, showAll=!!state.abAll;
+  let W=isNaN(Y)?all:all.filter(r=>r.y===Y); if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const s0=all.indexOf(W[0]), inW=new Set(W), out=[];
+  (byPos?[0,1,2,3,4]:[-1]).forEach(p=>{
+    const items=[];
+    for(let x=1;x<=90;x++){
+      const hit=r=>p<0?r.n.includes(x):r.n[p]===x;
+      let i=s0;while(i<all.length&&!hit(all[i]))i++;
+      const found=i<all.length, inWin=found&&inW.has(all[i]);
+      if(inWin&&!showAll)continue;
+      items.push({x,ecart:found?i-s0:null,last:found?all[i]:null,inWin});
+    }
+    items.sort((a,b)=>(b.ecart??1e9)-(a.ecart??1e9));
+    out.push({p,items});
+  });
+  state.abRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],out};render();
+}
+function absentCardHTML(){
+  const col='#DC2626',res=state.abRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res)body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t})</div>`+
+    res.out.map(b=>`<div style="margin-top:4px"><div style="font-size:9px;font-weight:600;color:${col}">${b.p<0?'Toutes positions':'Position N'+(b.p+1)} — ${b.items.filter(i=>!i.inWin).length} absent(s)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${b.items.map(i=>`<span title="${i.last?'dernier : T '+i.last.t+' ('+i.last.d+'/'+i.last.y+')':'jamais sorti'}" style="font-size:10px;padding:1px 5px;border-radius:4px;background:${i.inWin?'#F3F4F6':'#FEE2E2'};color:#111"><b>${i.x}</b> <span style="color:#888;font-size:8px">${i.ecart==null?'jamais':i.ecart}</span></span>`).join('')}</div></div>`).join('');
+  return lvBox(col,`⛔ Numéros pas encore sortis — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','abN',20,60,col)}${lvInp('Année (vide = toutes) :','abY','',70,col)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+      <label><input type="checkbox" ${state.abPos?'checked':''} onchange="state.abPos=this.checked"> Par position (N1…N5)</label>
+      <label><input type="checkbox" ${state.abAll?'checked':''} onchange="state.abAll=this.checked"> Afficher les 90 numéros</label>
+      ${lvBtn('doAbsent()',col)}</div>${body}`);
 }
 function triggerBankerMulti(){doBankerSearch(state.bankerK||2);}
 function bankerPairRowRenderer(){
@@ -14210,7 +14350,7 @@ function cmp3CardHTML(){
   return`<div style="background:#fff;border:1.5px solid #D97706;border-radius:8px;padding:8px;margin-bottom:8px">
     <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage</div>
     ${[0,1,2].map(i=>`<div class="row" ${i?'':'style="margin-top:0"'}><span style="font-size:9px;color:#777">Jeu ${'ABC'[i]} :</span><select onchange="state.cmp3K=state.cmp3K||[];state.cmp3K[${i}]=this.value;render()">${opts(ks[i])}</select>
-      <span style="font-size:9px;color:#777">Ligne :</span><input type="number" placeholder="${i?'N° tirage':'dernier'}" value="${ln[i]}" oninput="state.cmp3L=state.cmp3L||['','',''];state.cmp3L[${i}]=this.value" style="width:80px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px"></div>`).join('')}
+      <span style="font-size:9px;color:#777">Ligne :</span><input type="number" placeholder="dernier" value="${ln[i]}" oninput="state.cmp3L=state.cmp3L||['','',''];state.cmp3L[${i}]=this.value" style="width:80px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px"></div>`).join('')}
     <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
       <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label></div>
     <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>

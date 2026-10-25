@@ -13901,10 +13901,14 @@ function cmp2ResHTML(){
     const fg=col?(type==='exact'?'#111':'#fff'):'#111';
     return`<td style="text-align:center;padding:1px 0;font-weight:${col?700:500};${col?`background:${col};color:${fg};`:''}">${num}</td>`;
   };
+  // Même style que les tableaux de jeu de l'appli : N°, DATE, N1..N5, TOT (+ M1..M5, TOT.M si le jeu a une machine).
   const tbl=(keyG,rows,mm,color)=>{
-    const th=['L','D','Y','D1','D2','D3','D4','D5','To'].map(h=>`<th style="font-size:8.5px;color:${color};padding:1px 0;border-bottom:2px solid ${color}">${h}</th>`).join('');
-    const body=rows.map((r,i)=>`<tr style="border-bottom:1px solid #F3E3C0"><td style="font-size:8px;color:#555;text-align:center;padding:1px 0">${r.t}</td><td style="font-size:8px;color:#555;text-align:center">${r.d}</td><td style="font-size:8px;color:#888;text-align:center">${String(r.y).slice(-2)}</td>${r.n.map((num,ni)=>cell(num,mm[i][ni])).join('')}<td style="font-size:9px;color:#666;text-align:center">${r.s}</td></tr>`).join('');
-    return`<table style="width:100%;border-collapse:collapse;table-layout:fixed;font-size:11px"><colgroup><col style="width:13%"><col style="width:12%"><col style="width:6%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:10%"></colgroup><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+    const hasM=rows.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
+    const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
+    const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
+    const mc=n=>(n==null||isNaN(n))?'<td style="text-align:center;color:#ccc">·</td>':`<td style="text-align:center;color:#7B1FA2;font-weight:600">${n}</td>`;
+    const body=rows.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d}${rows.length&&rows[0].y!==rows[rows.length-1].y?'/'+String(r.y).slice(-2):''}</td>${r.n.map((num,ni)=>cell(num,mm[i][ni])).join('')}<td style="text-align:center"><span style="background:#FEF3C7;color:#92400E;border-left:3px solid #F97316;padding:0 3px;font-size:10px">${r.s}</span></td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(mc).join('')+`<td style="text-align:center;font-size:10px;color:#6B21A8">${r.m&&r.m.every(x=>!isNaN(x))?r.m.reduce((a,b)=>a+b,0):'·'}</td>`:''}</tr>`).join('');
+    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[keyG].name} <span style="font-weight:400;font-size:9px">· T ${rows[0].t} – ${rows[rows.length-1].t} · ${rows.length} tirages</span></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   };
   const badges=Object.entries(res.counts).filter(([t,c])=>c>0).map(([t,c])=>
     `<span style="font-size:9px;color:${cmp2Color(t)};font-weight:600">■ ${c} ${cmp2ClLabel(t)}</span>`).join('');
@@ -13914,8 +13918,8 @@ function cmp2ResHTML(){
     <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">
-    <div style="min-width:0"><div style="font-size:9.5px;font-weight:700;color:#B45309;padding:2px 2px 3px">${GAMES[res.keyA].name} · T ${res.rowsA[0].t} – ${res.rowsA[res.rowsA.length-1].t}</div>${tbl(res.keyA,res.rowsA,res.matchA,'#B45309')}</div>
-    <div style="min-width:0"><div style="font-size:9.5px;font-weight:700;color:#0891B2;padding:2px 2px 3px">${GAMES[res.keyB].name} · T ${res.rowsB[0].t} – ${res.rowsB[res.rowsB.length-1].t}</div>${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2')}</div>
+    <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309')}</div>
+    <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2')}</div>
   </div></div>`;
 }
 function cmp2CardHTML(){

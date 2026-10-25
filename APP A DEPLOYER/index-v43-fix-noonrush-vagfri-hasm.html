@@ -12458,17 +12458,37 @@ function searchHubHTML(){
   h+=`<div style="margin-bottom:8px;position:relative">
     <input type="text" value="${(state.searchModuleQuery||'').replace(/"/g,'&quot;')}" oninput="setSearchModuleQuery(this.value)" placeholder="🔍 Rechercher un module de recherche…" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1.5px solid #6D28D9;border-radius:8px;font-size:12px;outline:none">
   </div>`;
-  h+=`<div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden;margin-bottom:8px">
-    ${filtered.map(s=>`<div onclick="openSearchModule('${s.key}')" style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #F0EEF9;background:#fff" onmouseover="this.style.background='#F5F3FF'" onmouseout="this.style.background='#fff'">
+  const rowHTML=s=>`<div onclick="openSearchModule('${s.key}')" style="display:flex;align-items:center;gap:9px;padding:8px 10px;cursor:pointer;border-bottom:1px solid #F0EEF9;background:#fff" onmouseover="this.style.background='#F5F3FF'" onmouseout="this.style.background='#fff'">
       <span style="width:30px;height:30px;border-radius:50%;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto">${s.icon}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:12px;font-weight:600;color:#1F2D3D">${s.title}</div>
         <div style="font-size:9.5px;color:#888">${s.desc}</div>
       </div>
       <span style="color:#bbb;font-size:16px;flex:0 0 auto">›</span>
-    </div>`).join('')}
+    </div>`;
+  const revue=state.hubView==='revue';
+  const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:4px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #6D28D9;background:${on?'#6D28D9':'#fff'};color:${on?'#fff':'#6D28D9'}">${txt}</button>`;
+  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}</div>`;
+  if(revue){
+    const groups=[
+      ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
+      ['🧬 Similarité',['simi','oblique']],
+      ['📍 Alignements verticaux',['bankers','bchain','vadd','vtan','planf','totx']],
+      ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
+      ['🛠️ Outils',['imp']],
+    ];
+    h+=groups.map(([titre,keys])=>{
+      const list=keys.map(k=>filtered.find(x=>x.key===k)).filter(Boolean);
+      if(!list.length)return'';
+      return`<div style="font-size:11px;font-weight:700;color:#6D28D9;margin:8px 0 3px">${titre}</div>
+      <div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">${list.map(rowHTML).join('')}</div>`;
+    }).join('')+(filtered.length?'':`<div style="padding:14px;text-align:center;font-size:11px;color:#999">Aucun module ne correspond à "${state.searchModuleQuery}"</div>`);
+  }else{
+  h+=`<div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden;margin-bottom:8px">
+    ${filtered.map(rowHTML).join('')}
     ${!filtered.length?`<div style="padding:14px;text-align:center;font-size:11px;color:#999">Aucun module ne correspond à "${state.searchModuleQuery}"</div>`:''}
   </div>`;
+  }
   h+=historySectionHTML();
   h+=`</div>`;
   return h;

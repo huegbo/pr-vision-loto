@@ -7449,7 +7449,7 @@ function runHist(e){
   else if(e.type==='cq'){state.cqInput=e.query;state.cqRes=cqRun(e.query);render();}
   else if(e.type==='total'){state.totalK=e.k;state.totalSearch=String(e.val);render();doTotalSearch();}
   else if(e.type==='formula'){state.formInput=e.expr;state.formTerms=e.terms;render();doFormula();}
-  else if(e.type==='date'){state.dateInput=e.val;render();doDateSearch();}
+  else if(e.type==='date'){state.dt2V=e.val;state.dt2Game=e.game==='multi'?'all':(e.game||GAME.key);doDate2();}
   else if(e.type==='bankers'){state.bankerGap=e.gap;render();doBankerSearch(e.k);}
   else if(e.type==='totalNear'){state.totalNearTot=String(e.tot);state.totalNearNum=String(e.num);state.totalNearDir=e.dir;state.totalNearLines=e.lines;state.totalNearK=e.k;render();doTotalNearSearch();}
   else if(e.type==='seq'){state.seqLevels=JSON.parse(JSON.stringify(e.levels));render();doSeqSearch();}
@@ -11895,43 +11895,100 @@ function formuleSectionHTML(){
   </div>`;
 }
 
+// ══════ Moteur "cas par cas" Cybetcast (pastilles par jeu → par cas → fenêtre de tirages → statistiques) ══════
+function cybWindowHTML(v,h,col,before,after){
+  const R=v.R,hit=v.hits[h],i0=Math.max(...hit.idxs),i1=Math.min(...hit.idxs);
+  const lo=Math.min(R.length-1,i0+(before==null?10:before)),hi=Math.max(0,i1-(after==null?35:after));
+  const items=[];
+  for(let i=lo;i>=hi;i--){const j=hit.idxs.indexOf(i);items.push({r:R[i],hl:j>=0?(hit.hl&&hit.hl[j]):null,sel:j>=0});}
+  return gameTableHTML(items,`${v.icon} ${v.name} · T ${R[lo].t} – ${R[hi].t} · ${items.length} tirages`,col);
+}
+function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
+  if(!res)return'';
+  if(!res.total)return`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun cas trouvé.</div>`;
+  const vi=Math.min(state[p+'Var']||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state[p+'Hit']||0,v.hits.length-1);
+  return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
+  <div style="margin:3px 0">${lvXBtn(exFn+'()')}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,120).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
+  ${cybWindowHTML(v,hi,col,before,after)}
+  ${nsKey?nextStatsHTML(res,nsKey,col):''}`;
+}
+function cybScopeKeys(sel){return sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];}
+function cybScopeSel(selKey,col){return lvSel('Loto :',selKey,[['all','Toutes les lotos'],[GAME.key,'Jeu courant — '+GAME.name]].concat(Object.entries(GAMES).filter(([k])=>k!==GAME.key).map(([k,g])=>[k,g.icon+' '+g.name])),'all',col);}
+// ══════ Numéros + Total (même ligne) — modèle Cybetcast (2 à 5 Nap) ══════
+function doCombo2(){
+  const nums=[...new Set((state.cb2N||'').split(/[^0-9]+/).filter(Boolean).map(Number).filter(v=>v>=1&&v<=90))];
+  const tr=String(state.cb2T==null?'':state.cb2T).trim(),tot=tr===''?null:parseInt(tr);
+  if(!nums.length&&(tot==null||isNaN(tot))){alert('Entre au moins un numéro (ex : 13 31) ou un total.');return;}
+  const sel=state.cb2Game||'all',incM=state.cb2M!==false,variants=[];let total=0;
+  const sum=r=>r.s!=null&&!isNaN(r.s)?r.s:(r.n.every(x=>!isNaN(x))?r.n.reduce((a,b)=>a+b,0):NaN);
+  cybScopeKeys(sel).forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&(!incM||!GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      R.forEach((r,i)=>{
+        if(nums.length&&!nums.every(v=>r.n.includes(v)))return;
+        if(tot!=null&&!isNaN(tot)&&sum(r)!==tot)return;
+        const hs=new Set();r.n.forEach((x,q)=>{if(nums.includes(x))hs.add(q);});
+        hits.push({idxs:[i],hl:[hs]});
+      });
+      if(hits.length){total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  variants.sort((a,b)=>b.hits.length-a.hits.length);
+  state.cb2Var=0;state.cb2Hit=0;state.cb2Res={nums,tot,variants,total};render();
+}
+function exportCombo2CSV(){
+  const res=state.cb2Res;if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];res.variants.forEach(v=>v.hits.forEach(h=>{const r=v.R[h.idxs[0]];rows.push([v.name,r.t,(r.d||'')+'/'+(r.y||''),...r.n]);}));
+  lvExport('numeros_total',['Jeu','N°','DATE','N1','N2','N3','N4','N5','N6'],rows);
+}
 function comboSectionHTML(){
-  return `<div style="background:#fff;border:1.5px solid #6D28D9;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#6D28D9;margin-bottom:5px">🔗 Recherche numéros + total (même ligne)</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <input id="cs-nums" type="text" placeholder="Numéros: 13 31" style="padding:4px 8px;border:1.5px solid #6D28D9;border-radius:5px;font-size:12px;width:130px;outline:none">
-      <input id="cs-tot" type="number" placeholder="Total: 219" style="padding:4px 8px;border:1.5px solid #6D28D9;border-radius:5px;font-size:12px;width:100px;outline:none">
-      <button onclick="doComboSearch()" style="padding:4px 12px;background:#6D28D9;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
-      ${(state.comboRes||state.comboMultiRes)?`<button onclick="comboSearchClear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>`:''}
-    </div>
-    <div style="font-size:8px;color:#888;margin-top:3px">Laisse un champ vide pour ne chercher que l'autre critère</div>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#6D28D9;margin-top:6px"><input type="checkbox" ${state.comboMulti?'checked':''} onchange="state.comboMulti=this.checked;render()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
-    ${state.comboMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;padding:5px;background:#F5F3FF;border-radius:6px">
-      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.comboMultiGames||[]).includes(k);return`<button onclick="toggleComboMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#6D28D9':'#ccc'};background:${sel?'#6D28D9':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
-      <button onclick="state.comboMultiGames=Object.keys(GAMES);render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
-      <button onclick="state.comboMultiGames=[];render()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
-    </div>`:''}
-    ${state.comboRes?comboResHTML():''}
-    ${comboMultiResultHTML()}
-  </div>`;
+  const col='#6D28D9';
+  return lvBox(col,'🔗 Numéros + Total (même ligne) — 2 à 5 Nap',
+    `<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">
+      <span style="font-size:9px;color:#777">Numéros :</span><input id="cs-nums" type="text" value="${state.cb2N||''}" oninput="state.cb2N=this.value" onkeydown="if(event.key==='Enter')doCombo2()" placeholder="ex : 13 31" style="width:130px;padding:4px 6px;border:1.5px solid ${col};border-radius:5px;font-size:12px">
+      ${lvInp('Total :','cb2T','',70,col)}${cybScopeSel('cb2Game',col)}
+      <label style="font-size:10px"><input type="checkbox" ${state.cb2M!==false?'checked':''} onchange="state.cb2M=this.checked"> numéros machine</label>
+      <button onclick="doCombo2()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>
+    <div style="font-size:8.5px;color:#888;margin-top:3px">Tous les numéros saisis doivent être sur la même ligne (2 à 5 Nap). Total facultatif. Cas par cas : pastille du jeu, pastille du tirage, puis la fenêtre autour du cas.</div>`
+    +cybCasesHTML(state.cb2Res,'cb2',col,'cb','exportCombo2CSV'));
 }
 
+function doDate2(){
+  const val=String(state.dt2V||'').trim();
+  if(!val){alert('Entre une date : jj/mm, /mm ou jj/mm/aaaa.');return;}
+  const parts=val.split('/').map(x=>x.trim());
+  const day=parts[0]?parseInt(parts[0]):null,month=parts[1]?parseInt(parts[1]):null,year=parts[2]||null;
+  if((parts[0]&&isNaN(day))||(parts[1]&&isNaN(month))){alert('Format : 25/12, /6 ou 25/12/2024.');return;}
+  const sel=state.dt2Game||'all',variants=[];let total=0;
+  cybScopeKeys(sel).forEach(k=>{
+    const R=gameData(k).T,hits=[];
+    R.forEach((r,i)=>{
+      const[rd,rm]=String(r.d||'').split('/').map(x=>parseInt(x));
+      if(day!=null&&rd!==day)return;if(month!=null&&rm!==month)return;if(year!=null&&String(r.y)!==String(year))return;
+      hits.push({idxs:[i],hl:[null]});
+    });
+    if(hits.length){total+=hits.length;variants.push({key:k,machine:false,name:GAMES[k].name,icon:GAMES[k].icon,R,hits});}
+  });
+  variants.sort((x,y)=>y.hits.length-x.hits.length);
+  state.dt2Var=0;state.dt2Hit=0;state.dt2Res={val,variants,total};render();
+}
+function exportDate2CSV(){
+  const res=state.dt2Res;if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];res.variants.forEach(v=>v.hits.forEach(h=>{const r=v.R[h.idxs[0]];rows.push([v.name,r.t,(r.d||'')+'/'+(r.y||''),...r.n]);}));
+  lvExport('tirages_date',['Jeu','N°','DATE','N1','N2','N3','N4','N5','N6'],rows);
+}
 function dateSectionHTML(){
-  return `<div style="background:#fff;border:1.5px solid #0891B2;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#0891B2;margin-bottom:5px">📅 Tirages à un mois ou une date donnée</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-      <input id="dsi" type="text" value="${state.dateInput||''}" placeholder="jj/mm ou jj/mm/aaaa" onkeydown="if(event.key==='Enter')doDateSearch()" style="padding:4px 8px;border:1.5px solid #0891B2;border-radius:5px;font-size:12px;width:150px;outline:none">
-      <button onclick="doDateSearch()" style="padding:4px 12px;background:#0891B2;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
-    </div>
-    <div style="font-size:8px;color:#888;margin-top:3px">Ex: <b>25/12</b> = tous les 25 décembre, toutes années · <b>/6</b> = tout le mois de juin · <b>25/12/2024</b> = date exacte</div>
-    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#0891B2;margin:5px 0"><input type="checkbox" ${state.dateMulti?'checked':''} onchange="state.dateMulti=this.checked;if(state.dateMulti&&(!state.dateMultiGames||!state.dateMultiGames.length))state.dateMultiGames=Object.keys(GAMES);doDateSearch()">🎰 Chercher dans tous les jeux à la fois (tout loto)</label>
-    ${state.dateMulti?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:5px;padding:5px;background:#E0F7FA;border-radius:6px">
-      ${Object.entries(GAMES).map(([k,g])=>{const sel=(state.dateMultiGames||[]).includes(k);return`<button onclick="toggleDateMultiGame('${k}')" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?'#0891B2':'#ccc'};background:${sel?'#0891B2':'#fff'};color:${sel?'#fff':'#777'}">${g.icon} ${g.name}</button>`;}).join('')}
-      <button onclick="state.dateMultiGames=Object.keys(GAMES);doDateSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:500">Tous</button>
-      <button onclick="state.dateMultiGames=[];doDateSearch()" style="padding:2px 7px;font-size:8px;border-radius:8px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Aucun</button>
-    </div>`:''}
-    ${state.dateMulti?dateMultiResultHTML():dateResHTML()}
-  </div>`;
+  const col='#0891B2';
+  return lvBox(col,'📅 Tirages à un mois ou une date donnée',
+    `<div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">
+      <input id="dsi" type="text" value="${state.dt2V||''}" oninput="state.dt2V=this.value" onkeydown="if(event.key==='Enter')doDate2()" placeholder="jj/mm ou jj/mm/aaaa" style="width:150px;padding:4px 6px;border:1.5px solid ${col};border-radius:5px;font-size:12px">
+      ${cybScopeSel('dt2Game',col)}
+      <button onclick="doDate2()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>
+    <div style="font-size:8.5px;color:#888;margin-top:3px">Ex : <b>25/12</b> = tous les 25 décembre · <b>/6</b> = tout juin · <b>25/12/2024</b> = date exacte. Cas par cas : pastille du jeu, pastille du tirage, fenêtre autour du cas.</div>`
+    +cybCasesHTML(state.dt2Res,'dt2',col,'dt','exportDate2CSV',3,5));
 }
 
 // ══════ Calendrier — jour de semaine + N-ième occurrence dans le mois, ou N-ième tirage du mois ══════
@@ -12922,8 +12979,25 @@ function searchHubHTML(){
     </div>`;
   const revue=state.hubView==='revue';
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:4px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #6D28D9;background:${on?'#6D28D9':'#fff'};color:${on?'#fff':'#6D28D9'}">${txt}</button>`;
-  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}</div>`;
-  if(revue){
+  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Cybetcast 1–41')}</div>`;
+  if(state.hubView==='cyb'){
+    const CYB=[
+      ['Une Ligne de Tirages','main'],['Plusieurs Lignes de Tirages','main'],['Dernière Ligne de Tirages','main'],
+      ['2 Nap','combo'],['3 Nap','combo'],['4 Nap','combo'],['5 Nap','combo'],
+      ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
+      ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['4 Bankers sur Différentes Lignes - Avec Position','bchain'],['5 Bankers sur Différentes Lignes - Avec Position','bchain'],
+      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','vadd'],['Addition sur Plusieurs Lignes - Avec Position','vadd'],
+      ['Transformation Simple (Counter, Turning…)','transfsimple'],['Module 20 (nom à confirmer)',null],['Module 21 (nom à confirmer)',null],['Module 22 (nom à confirmer)',null],['Module 23 (nom à confirmer)',null],
+      ['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning…) & Operation','transfsimple'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Operation (Draws & Résultats) - Avec Positions','dblop'],
+      ['Numéros Non Tirés dans l’Année','abs90'],
+      ['Recherche Automatique 0',null],['Recherche Automatique 1',null],['Recherche Automatique 2',null],['Recherche Automatique 3',null],['Recherche Automatique 4','auto4'],['Recherche Automatique 5',null],['Recherche Automatique 6',null],['Recherche Automatique 7',null],
+      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin','oblique'],['Numéros de Chance',null],['Module 41 (nom à confirmer)',null]];
+    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Même numérotation que l’appli Cybetcast. Grisé = pas encore reproduit. Rattachements 15–19, 25–27 : à vérifier.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
+      const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
+      const act=ok?`openSearchModule('${k}')`:(main?`goNav(0)`:'');
+      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?'›':(main?'tableau':'à venir')}</span></div>`;
+    }).join('')+'</div>';
+  }else if(revue){
     const groups=[
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['simi','oblique']],

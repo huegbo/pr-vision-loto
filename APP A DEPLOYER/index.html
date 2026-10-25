@@ -12894,6 +12894,7 @@ const SEARCH_SECTIONS=[
   {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
+  {key:'schema',icon:'🧩',title:'Recherche par schéma (lignes + positions)',desc:'Dessine plusieurs lignes avec des numéros à des positions précises : retrouve le même schéma dans tous les lotos, cas par cas',color:'#7C3AED',html:schemaCardHTML},
   {key:'auto4',icon:'🤖',title:'Recherche Automatique 4 (module 33)',desc:'Fenêtres de 4 lignes de plusieurs lotos qui partagent les mêmes numéros avec les 2 tirages de référence — numéros qui suivent en jaune (approx.)',color:'#0F766E',html:auto4CardHTML},
   {key:'dblop',icon:'➗',title:'Double Opération (module 24)',desc:'Deux opérations (+ − × ÷) sur 4 numéros, positions et décalages réglables — modèle Cybetcast',color:'#9333EA',html:doubleOpCardHTML},
   {key:'transfsimple',icon:'🔁',title:'Transformation simple (module 19)',desc:'Deux numéros inconnus (draws) liés par une transformation, avec bankers et filtres — modèle Cybetcast',color:'#0E7490',html:transfSimpleCardHTML},
@@ -13001,7 +13002,7 @@ function searchHubHTML(){
   }else if(revue){
     const groups=[
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
-      ['🧬 Similarité',['simi','oblique']],
+      ['🧬 Similarité',['schema','simi','oblique']],
       ['🔗 Numéros collés',['colles2','colles3','colles2stats','colles3stats','voisinscolles','termColles','termVert']],
       ['🔁 Transformations',['transfsimple','dblop']],
       ['📍 Alignements verticaux',['bankersligne','bankers','bchain','vadd','vtan','planf','totx']],
@@ -14058,6 +14059,66 @@ function auto4CardHTML(){
   }
   return lvBox(col,'Recherche Automatique 4 (module 33) — '+GAME.name,
     '<div class="row" style="gap:5px;flex-wrap:wrap">'+lvInp('Exclure à partir du tirage N° :','as4Ex',gameData(GAME.key).T[0].t,70,col)+lvBtn('doAuto4()',col)+'</div>'+body);
+}
+
+// ══════ Recherche par schéma (ligne par ligne, avec positions) — cas par cas Cybetcast ══════
+const SC_EXAMPLE="38 _ _ _ 83\n_ _ 26 _ _\n_ 71 _ _ _\n_ _ _ _ _\n_ 17 26 _ _\n_ _ _ _ _\n_ _ 26 _ _";
+function scParse(txt){
+  const L=String(txt||'').split('\n').map(l=>l.trim().split(/[\s,;]+/).filter(Boolean).map(t=>{const n=/^\d{1,2}$/.test(t)?parseInt(t,10):NaN;return n>=1&&n<=90?n:null;}));
+  while(L.length&&L[0].every(v=>v==null)&&String(txt).trim()==='')L.shift();
+  while(L.length&&L[L.length-1].length===0)L.pop();
+  while(L.length&&L[0].length===0)L.shift();
+  return L;
+}
+function doSchema(){
+  const L=scParse(state.sc2P==null?SC_EXAMPLE:state.sc2P);
+  const cells=[];L.forEach((row,j)=>row.forEach((v,p)=>{if(v!=null)cells.push({j,p,v});}));
+  if(L.length<1||!cells.length){alert('Dessine le schéma : une ligne de tirage par ligne, 5 cases séparées par des espaces, « _ » pour une case vide (ex : 38 _ _ _ 83).');return;}
+  const strict=(state.sc2Pos||'strict')==='strict';
+  let need=parseInt(state.sc2Min);if(isNaN(need)||need<=0||need>cells.length)need=cells.length;
+  const sel=state.sc2Game||'all',incM=state.sc2M===true,variants=[];let total=0;
+  cybScopeKeys(sel).forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&(!incM||!GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      for(let i=L.length-1;i<R.length;i++){          // i = ligne la plus ancienne du schéma (R : plus récent d'abord)
+        let ok=0;const hl=[];
+        for(let j=0;j<L.length;j++){
+          const r=R[i-j];const set=new Set();hl.push(set);
+          if(!r)continue;
+          L[j].forEach((v,p)=>{if(v==null)return;
+            if(strict){if(r.n[p]===v){ok++;set.add(p);}}
+            else{const q=r.n.indexOf(v);if(q>=0){ok++;set.add(q);}}
+          });
+        }
+        if(ok>=need)hits.push({idxs:Array.from({length:L.length},(_,j)=>i-j),hl,score:ok});
+      }
+      if(hits.length){hits.sort((a,b)=>b.score-a.score||a.idxs[0]-b.idxs[0]);total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  variants.sort((a,b)=>b.hits.length-a.hits.length);
+  state.sc2Var=0;state.sc2Hit=0;state.sc2Res={L,cells:cells.length,need,variants,total};render();
+}
+function exportSchemaCSV(){
+  const res=state.sc2Res;if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];res.variants.forEach(v=>v.hits.forEach(h=>{const r=v.R[h.idxs[0]];rows.push([v.name,r.t,(r.d||'')+'/'+(r.y||''),h.score+'/'+res.cells]);}));
+  lvExport('schema',['Jeu','N° (1re ligne)','DATE','Cases retrouvées'],rows);
+}
+function schemaCardHTML(){
+  const col='#7C3AED',res=state.sc2Res;
+  const txt=state.sc2P==null?SC_EXAMPLE:state.sc2P;
+  const form=`<div style="font-size:10px;color:#555;margin-bottom:3px">Une ligne par tirage (du plus ancien en haut au plus récent en bas, comme dans le tableau). 5 cases par ligne, <b>_</b> = case libre. Ligne sans numéro : <b>_ _ _ _ _</b>.</div>
+  <textarea oninput="state.sc2P=this.value" rows="8" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px;padding:6px;border:1.5px solid ${col};border-radius:6px">${txt}</textarea>
+  <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-top:5px">
+    ${lvSel('Position :','sc2Pos',[['strict','Exacte (D1…D5)'],['free','Libre (n’importe où)']],'strict',col)}
+    ${lvInp('Cases à retrouver (0 = toutes) :','sc2Min',0,50,col)}
+    ${cybScopeSel('sc2Game',col)}
+    <label style="font-size:10px"><input type="checkbox" ${state.sc2M===true?'checked':''} onchange="state.sc2M=this.checked"> numéros machine</label>
+    <button onclick="state.sc2P=SC_EXAMPLE;render()" style="padding:4px 8px;font-size:10px;border:1px solid ${col};background:#fff;color:${col};border-radius:6px;cursor:pointer">Exemple (Diamant 1333–1339)</button>
+    <button onclick="doSchema()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>`;
+  let note='';
+  if(res)note=`<div style="font-size:10px;color:#555;margin-top:4px">${res.L.length} ligne(s), ${res.cells} case(s) à retrouver${res.need<res.cells?' (au moins '+res.need+')':''}. Les cases retrouvées sont en jaune dans chaque cas.</div>`;
+  return lvBox(col,'🧩 Recherche par schéma — lignes + positions',form+note+cybCasesHTML(res,'sc2',col,'sc','exportSchemaCSV',5,15));
 }
 function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}
@@ -20045,7 +20106,7 @@ function __renderBody(){
         if(dv==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
         else if(dv==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
         try{
-      html+=`<div id="col-exnav${idn}" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav${idn}')">
+      html+=`<div id="col-exnav${idn}" data-scrollkeep="1" style="max-height:72vh;width:${dv?'fit-content':'100%'};max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav${idn}')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       cols.forEach((c,ci)=>{
         const light=isLightBg(c.color);
@@ -20110,8 +20171,8 @@ function __renderBody(){
       if(state.dualViewOn){
         const _bar=(t)=>`<div style="font-size:10px;font-weight:700;color:#0F766E;margin:2px 0 3px">${t}</div>`;
         html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%">`;
-        if(state.dualViewLeftOn)html+=`<div style="flex:1;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','')}</div>`;
-        if(state.dualViewRightOn)html+=`<div style="flex:1;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep',state.dualViewLeftOn?'2':'')}</div>`;
+        if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','')}</div>`;
+        if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep',state.dualViewLeftOn?'2':'')}</div>`;
         if(!state.dualViewLeftOn&&!state.dualViewRightOn)html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px">Réafficher</button></div>`;
         html+=`</div>`;
       }else{

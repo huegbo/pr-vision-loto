@@ -20099,25 +20099,25 @@ function __renderBody(){
       const _ctx2=anCalc(); // couches "toujours actives" (miroir, superposition, répétés, élément, alignement, repérés) — utilisé aussi pour colorer les numéros machine (M1-M5), sinon ils restaient sans aucune couleur en Mode Excel
       // Double vue en Mode Excel : le même tableau est rendu deux fois (AVEC repérés / SANS repérés),
       // côte à côte, avec coloriage manuel indépendant par volet (mêmes mécanismes que la double vue Navigation).
-      const _exTable=(dv,idn)=>{
-        let html='';
+      const _exTable=(dv,idn,only)=>{
+        let html='';const _cs=only!=null?[cols[only]]:cols;const _mr=only!=null?Math.max(_cs[0].rows.length+_cs[0].off,0):maxRows;
         const _sRA=state.repereAlways,_sRA2=state.repere2Always,_sSup=_DV_SUPPRESS;
         if(dv==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
         else if(dv==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
         try{
       html+=`<div id="col-exnav${idn}" data-scrollkeep="1" style="max-height:72vh;width:${dv?'fit-content':'100%'};max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exnav${idn}')">
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
-      cols.forEach((c,ci)=>{
+      _cs.forEach((c,ci)=>{
         const light=isLightBg(c.color);
         html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?`left:0;`:''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:${fTitle}px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
       });
       html+=`</tr><tr>`;
       const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
-      cols.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${ci===0?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:${fHead}px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
+      _cs.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${ci===0?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:${fHead}px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
       html+=`</tr></thead><tbody>`;
-      for(let ri=0;ri<maxRows;ri++){
+      for(let ri=0;ri<_mr;ri++){
         html+=`<tr>`;
-        cols.forEach((c,ci)=>{
+        _cs.forEach((c,ci)=>{
           const row=(ri>=c.off)?c.rows[ri-c.off]:undefined;const bg=ri%2===0?'#fff':'#f7f7f7';
           if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;return;}
           const tc=tC(row.s);
@@ -20168,12 +20168,18 @@ function __renderBody(){
         return html;
       };
       if(state.dualViewOn){
+        // Double vue = UNE année par vue : pour chaque année, un volet AVEC repères et un volet SANS repères, collés côte à côte.
         const _bar=(t)=>`<div style="font-size:10px;font-weight:700;color:#0F766E;margin:2px 0 3px">${t}</div>`;
-        html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%">`;
-        if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','')}</div>`;
-        if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep',state.dualViewLeftOn?'2':'')}</div>`;
         if(!state.dualViewLeftOn&&!state.dualViewRightOn)html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px">Réafficher</button></div>`;
-        html+=`</div>`;
+        else{
+          // UNE année par vue : un seul tableau AVEC repères + le même SANS repères, collés. Plusieurs années sélectionnées → boutons pour choisir laquelle afficher.
+          let yi=cols.findIndex(c=>String(c.yr)===String(state.dualYear));if(yi<0)yi=0;const c=cols[yi];
+          if(cols.length>1)html+=`<div style="display:flex;gap:4px;align-items:center;margin:2px 0 4px;font-size:10px;font-weight:700;color:#0F766E">Année :${cols.map((x,i)=>`<button onclick="state.dualYear='${x.yr}';render()" style="padding:2px 9px;border-radius:8px;cursor:pointer;font-weight:700;font-size:10px;border:1px solid #0F766E;background:${i===yi?'#0F766E':'#fff'};color:${i===yi?'#fff':'#0F766E'}">${x.yr}</button>`).join('')}</div>`;
+          html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%">`;
+          if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères')}${_exTable('rep','y'+yi+'a',yi)}</div>`;
+          if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères')}${_exTable('norep','y'+yi+'b',yi)}</div>`;
+          html+=`</div>`;
+        }
       }else{
         html+=_exTable(undefined,'');
       }

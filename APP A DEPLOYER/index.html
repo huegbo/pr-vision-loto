@@ -7552,20 +7552,22 @@ function simpleRowRenderer(color){
 function genericMultiResultHTML(mr,opts){
   if(!mr)return'';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
+  const hits=mr.results.filter(r=>r.count),miss=mr.results.filter(r=>!r.count);
   return`<div style="margin-top:6px">
-    <div style="font-size:10px;font-weight:600;color:${opts.color};margin-bottom:4px">${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
-    <div style="display:flex;flex-direction:column;gap:3px;max-height:320px;overflow-y:auto">
-    ${mr.results.map(res=>`<div style="border:1px solid #E5E9F0;border-radius:6px;padding:4px 7px;background:${res.count?opts.bgHit:'#fafafa'}">
+    <div style="font-size:11px;font-weight:700;color:#fff;background:${opts.color};border-radius:6px;padding:4px 8px;margin-bottom:5px">✅ ${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} dans ${hits.length} jeu${hits.length>1?'x':''} (sur ${mr.results.length} cherchés)</div>
+    <div style="display:flex;flex-direction:column;gap:5px;max-height:420px;overflow-y:auto">
+    ${hits.map(res=>`<div style="border:2px solid ${opts.color};border-radius:8px;padding:5px 8px;background:${opts.bgHit};box-shadow:0 1px 6px rgba(0,0,0,.12)">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <span style="font-size:11px;font-weight:500;color:${opts.color}">${res.icon} ${res.gameName}</span>
-        <span style="font-size:11px;font-weight:700;color:${res.count?opts.color:'#bbb'}">${res.count} résultat${res.count>1?'s':''}</span>
+        <span style="font-size:12px;font-weight:700;color:${opts.color}">${res.icon} ${res.gameName}</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:${opts.color};border-radius:10px;padding:0 8px">${res.count} résultat${res.count>1?'s':''}</span>
       </div>
-      ${res.count?`<div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
+      <div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
         ${res.rows.slice(0,10).map(r=>opts.rowRenderer(r)).join('')}
         ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
-      </div>`:''}
+      </div>
     </div>`).join('')}
     </div>
+    ${miss.length&&hits.length?`<details style="margin-top:5px"><summary style="font-size:9px;color:#888;cursor:pointer">Sans résultat (${miss.length} jeux)</summary><div style="font-size:9px;color:#aaa;padding:3px 0">${miss.map(r=>r.icon+' '+r.gameName).join(' · ')}</div></details>`:''}
     ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun tirage trouvé dans aucun des jeux sélectionnés.</div>`:''}
   </div>`;
 }

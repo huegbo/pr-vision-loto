@@ -15321,6 +15321,7 @@ function doCollesSearch(){
     saveHist({type:'colles',game:'multi',gameName:'Multi',vals,order:state.collesOrder});
   }else{
     state.collesMatches=T.filter(pred);
+    state.collesHit=0;
     state.collesMultiRes=null;
     saveHist({type:'colles',game:GAME.key,gameName:GAME.name,vals,order:state.collesOrder});
   }
@@ -15340,24 +15341,38 @@ function collesResHTML(){
   if(!rows)return'';
   if(!rows.length)return`<div style="font-size:10px;color:#999;margin-top:5px">Aucun tirage trouvé</div>`;
   const vals=state.collesSlots.slice(0,state.collesCount).map(v=>parseInt(v));
-  const n=vals.length;
-  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:10px;font-weight:500;color:#4338CA">${rows.length} tirage(s) trouvé(s)</div><button onclick="exportCollesSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
-    <div style="display:flex;flex-direction:column;gap:2px;max-height:240px;overflow-y:auto">
-    ${rows.slice(0,60).map(r=>{const tc=tC(r.s);
-      const all=r.n.concat(r.m||[]);
-      const adjIdx=new Set();
-      for(let i=0;i<=all.length-n;i++){
-        const window=all.slice(i,i+n);
-        const match=state.collesOrder==='exact'?window.every((v,k)=>v===vals[k]):window.slice().sort((a,b)=>a-b).join(',')===vals.slice().sort((a,b)=>a-b).join(',');
-        if(match){for(let k=0;k<n;k++)adjIdx.add(i+k);}
-      }
-      return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:10px;border-bottom:1px solid #f0f0f0;padding:2px 0">
-      <span style="font-weight:700;color:#4338CA">${GAME.name} ${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
-      ${r.n.map((v,ni)=>numSpan(v,adjIdx.has(ni)?{an:['#4338CA']}:{})).join('')}
-      ${r.m?r.m.map((v,mi)=>numSpan(v,adjIdx.has(5+mi)?{isM:true,an:['#4338CA']}:{isM:true})).join(''):''}
-      <span style="font-weight:500;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
-    </div>`;}).join('')}
-    </div>${rows.length>60?`<div style="font-size:8px;color:#999">… et ${rows.length-60} autres</div>`:''}</div>`;
+  const n=vals.length,col='#4338CA';
+  const R=gameData(GAME.key).T;
+  const hi=Math.min(Math.max(0,state.collesHit||0),rows.length-1);
+  const hitIdx=r=>R.findIndex(x=>x.t===r.t);const hitT=new Set(rows.map(x=>x.t));
+  const adjOf=r=>{
+    const all=r.n.concat(r.m||[]),adj=new Set();
+    for(let i=0;i<=all.length-n;i++){
+      const w=all.slice(i,i+n);
+      const match=state.collesOrder==='exact'?w.every((v,k)=>v===vals[k]):w.slice().sort((a,b)=>a-b).join(',')===vals.slice().sort((a,b)=>a-b).join(',');
+      if(match){for(let k=0;k<n;k++)adj.add(i+k);}
+    }
+    return adj;
+  };
+  const sel=rows[hi],si=hitIdx(sel);
+  let table='';
+  if(si>=0){
+    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-8),win=[];
+    for(let i=lo;i>=hiI;i--)win.push(R[i]);
+    const nbN=Math.max(...win.map(r=>r.n.length)),nbM=Math.max(0,...win.map(r=>(r.m||[]).length));
+    const cols=`40px 46px 38px repeat(${nbN+nbM},1fr) 40px`;
+    const head=['L','D','Y'].concat(Array.from({length:nbN},(_,k)=>'D'+(k+1))).concat(Array.from({length:nbM},(_,k)=>'M'+(k+1))).concat(['To']);
+    table=`<div style="font-size:10px;font-weight:600;color:${col};margin:6px 0 3px">${GAME.icon||''} ${GAME.name} T ${win[0].t} - ${win[win.length-1].t}</div>
+    <div style="overflow-x:auto;border:1.5px solid ${col};border-radius:6px"><div style="display:grid;grid-template-columns:${cols};background:#12263F;color:#fff;font-size:9px;font-weight:700;text-align:center;padding:3px 0">${head.map(t=>`<span>${t}</span>`).join('')}</div>
+    ${win.map(r=>{
+      const adj=hitT.has(r.t)?adjOf(r):new Set();
+      const tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.reduce((a,b)=>a+(isNaN(b)?0:b),0);
+      const cell=(v,q,isM)=>`<span style="text-align:center;padding:3px 0;${adj.has(q)?'background:#FDE047;color:#111;font-weight:700;':(isM?'color:#7B1FA2;':(q%2?'background:#F3F4F6;':''))}">${v==null||isNaN(v)?'·':v}</span>`;
+      return`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${r.t===sel.t?'#FFFBEB':'#fff'}"><b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px">${r.d||''}</span><span style="text-align:center;color:#555;font-size:9px">${r.y||''}</span>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q,false)).join('')}${Array.from({length:nbM},(_,q)=>cell((r.m||[])[q],5+q,true)).join('')}<span style="text-align:center;font-size:10px;color:#92400E;background:#FEF3C7">${tot}</span></div>`;}).join('')}</div>`;
+  }
+  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:12px;font-weight:700;color:${col}">Résultat (${rows.length})</div><button onclick="exportCollesSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${rows.slice().reverse().slice(0,150).map(r=>{const ri=rows.indexOf(r);return`<button onclick="state.collesHit=${ri};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${ri===hi?'#12263F':'#9CA3AF'};color:#fff">${r.t}</button>`;}).join('')}</div>
+    ${table}</div>`;
 }
 function collesCardHTML(){
   return`<div style="background:#fff;border:1.5px solid #4338CA;border-radius:8px;padding:8px;margin-bottom:8px">

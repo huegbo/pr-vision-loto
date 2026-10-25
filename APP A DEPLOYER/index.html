@@ -14100,8 +14100,8 @@ function doBankerChain(){
   render();
 }
 function bcWindowHTML(res,v,h){
-  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs);
-  const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,mx-35);
+  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
+  const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,Math.min(mx-35,mn-1));
   const items=[];
   for(let i=lo;i>=hi;i--){
     const r=R[i],j=hit.idxs.indexOf(i);let hl=null;

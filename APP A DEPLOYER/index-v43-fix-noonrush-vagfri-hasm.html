@@ -12388,6 +12388,8 @@ const SEARCH_SECTIONS=[
   {key:'fiche',icon:'🪪',title:"Fiche d'un numéro",desc:'Toutes ses sorties, positions, écarts entre sorties',color:'#0E6272',html:ficheCardHTML},
   {key:'tdist',icon:'🎯',title:'Distribution des totaux de ligne',desc:'Totaux les plus fréquents, fenêtre et tranche réglables',color:'#D97706',html:tdistCardHTML},
   {key:'resume',icon:'📋',title:'Résumé du jeu',desc:'Derniers tirages, chauds/froids, plus gros écarts, en une page',color:'#059669',html:resumeCardHTML},
+  {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
+  {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   {key:'cmpwin',icon:'⚖️',title:'Comparer deux fenêtres',desc:'Deux périodes du même jeu : sorties de chaque numéro dans A et B, différence',color:'#7C3AED',html:cmpWinCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
@@ -12473,6 +12475,7 @@ function searchHubHTML(){
     const groups=[
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['simi','oblique']],
+      ['🔗 Numéros collés',['colles2','colles3','termColles','termVert']],
       ['📍 Alignements verticaux',['bankers','bchain','vadd','vtan','planf','totx']],
       ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
       ['🛠️ Outils',['imp']],
@@ -14697,13 +14700,6 @@ function cmp2CardHTML(){
       <span style="font-size:9px;color:#777">Nombre de lignes :</span>
       <input type="number" min="1" value="${state.cmp2Lines}" oninput="state.cmp2Lines=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
     </div>
-    <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center">
-      <span style="font-size:9px;color:#777">Décaler de :</span>
-      <input type="number" min="1" value="${state.cmp2Step||1}" oninput="state.cmp2Step=this.value" style="width:50px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
-      <span style="font-size:9px;color:#777">tirage(s)</span>
-      ${[['A','Jeu A'],['B','Jeu B'],['AB','Les 2']].map(([w,l])=>`<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid #D97706;border-radius:5px;padding:1px 4px;background:#FFFBEB"><span style="font-size:9px;color:#B45309;font-weight:600">${l}</span><button onclick="cmp2Shift('${w}',1)" title="Monter : vers les tirages plus anciens" style="padding:1px 7px;font-size:11px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▲</button><button onclick="cmp2Shift('${w}',-1)" title="Descendre : vers les tirages plus récents" style="padding:1px 7px;font-size:11px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▼</button></span>`).join('')}
-    </div>
-    <div style="font-size:8.5px;color:#888;margin:-2px 0 4px">▲ = monter vers les tirages plus anciens · ▼ = descendre vers les plus récents (met à jour Ligne 1/2 et relance la comparaison)</div>
     <div class="row" style="gap:10px">
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Inversee?'checked':''} onchange="state.cmp2Inversee=this.checked;render()">Inversée</label>
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Colorier!==false?'checked':''} onchange="state.cmp2Colorier=this.checked;render()">🏷️ Colorier</label>
@@ -14723,6 +14719,15 @@ function cmp2CardHTML(){
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
+    <div style="position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:800;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:5px 8px;margin-top:6px;box-shadow:0 2px 10px rgba(0,0,0,.18)">
+    <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin:0">
+      <span style="font-size:9px;color:#777">Décaler de :</span>
+      <input type="number" min="1" value="${state.cmp2Step||1}" oninput="state.cmp2Step=this.value" style="width:50px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+      <span style="font-size:9px;color:#777">tirage(s)</span>
+      ${[['A','Jeu A'],['B','Jeu B'],['AB','Les 2']].map(([w,l])=>`<span style="display:inline-flex;align-items:center;gap:2px;border:1px solid #D97706;border-radius:5px;padding:1px 4px;background:#FFFBEB"><span style="font-size:9px;color:#B45309;font-weight:600">${l}</span><button onclick="cmp2Shift('${w}',1)" title="Monter : vers les tirages plus anciens" style="padding:4px 12px;font-size:14px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▲</button><button onclick="cmp2Shift('${w}',-1)" title="Descendre : vers les tirages plus récents" style="padding:4px 12px;font-size:14px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▼</button></span>`).join('')}
+    </div>
+    <div style="font-size:8.5px;color:#888;margin-top:2px">▲ = vers les tirages plus anciens · ▼ = vers les plus récents (met à jour Ligne 1/2 et relance)</div>
+    </div>
   </div>`;
 }
 // ══════ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage (même logique que 2 plages) ══════

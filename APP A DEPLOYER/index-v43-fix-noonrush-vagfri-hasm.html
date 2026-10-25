@@ -12577,6 +12577,230 @@ function exportBankersLigneCSV(){
 }
 function bankersLigneSections(){return [{key:'bankersligne',icon:'📍↔️',title:'Plusieurs bankers sur une ligne',desc:'Bankers saisis qui sortent ensemble, positions libres, gagnants uniquement',color:'#0F766E',html:bankersLigneCardHTML}];}
 
+// ══════ Module 19 Cybetcast — Transformation simple : 2 numéros inconnus (draws) liés par une transformation ══════
+const TF_TRANS=[['rep','Répétition (même numéro)'],['counter','Counter'],['partner','Partner'],['turning','Turning'],['key','Key'],['bonanza','Bonanza'],['malta','Malta'],['shadow','Shadow'],['equiv','Equiv'],['miroir','Miroir']];
+function tfGroup(n){let s=n;while(s>9)s=String(s).split('').reduce((a,c)=>a+parseInt(c),0);return s;}
+function tfFilterOK(n,type,val){
+  if(!type||type==='none')return true;
+  if(type==='groupe')return tfGroup(n)===val;
+  if(type==='term')return n%10===val;
+  if(type==='single')return n>=1&&n<=9;
+  if(type==='double')return n>=11&&n<=88&&n%11===0;
+  return true;
+}
+function tfRel(a,b,t){
+  if(t==='rep')return a===b;
+  const da=getDerivsByType(a),db=getDerivsByType(b);
+  return da[t]===b||db[t]===a;
+}
+function tfGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
+function doTransfSimple(){
+  const cnt=Math.min(5,Math.max(0,tfGet('tfCnt',0)));
+  const gap=Math.max(1,tfGet('tfGap',3)),t=state.tfT||'counter';
+  const p1=tfGet('tfP1',-1),p2=tfGet('tfP2',-1);
+  const f1=[state.tfF1||'none',tfGet('tfV1',0)],f2=[state.tfF2||'none',tfGet('tfV2',0)];
+  const bk=[];
+  for(let i=0;i<cnt;i++){
+    const v=parseInt(state['tfB'+i]);
+    if(isNaN(v)||v<1||v>90){alert('Banker '+(i+1)+' : entre un numéro entre 1 et 90.');return;}
+    bk.push({v,p:tfGet('tfBP'+i,-1),g:Math.max(1,tfGet('tfBG'+i,1)),s:state['tfBS'+i]||(i===0?'before':'after')});
+  }
+  const sel=state.tfGame||'all',incM=state.tfM!==false;
+  const keys=sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];
+  const at=(r,v,p)=>p<0?r.n.includes(v):r.n[p]===v;
+  const variants=[];let total=0;
+  keys.forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&!(incM&&GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      for(let i1=0;i1<R.length;i1++){
+        const i2=i1-gap;
+        if(i2<0)continue;
+        const A=R[i1].n,B=R[i2].n;
+        for(let q1=0;q1<A.length;q1++){
+          if(p1>=0&&q1!==p1)continue;
+          const a=A[q1];if(isNaN(a)||!tfFilterOK(a,f1[0],f1[1]))continue;
+          for(let q2=0;q2<B.length;q2++){
+            if(p2>=0&&q2!==p2)continue;
+            const b=B[q2];if(isNaN(b)||!tfFilterOK(b,f2[0],f2[1]))continue;
+            if(!tfRel(a,b,t))continue;
+            const marks={};marks[i1]=new Set([q1]);(marks[i2]=marks[i2]||new Set()).add(q2);
+            let ok=true,idx=i1;const idxs=[i1,i2];
+            for(const b0 of bk){
+              idx=b0.s==='before'?idx+b0.g:idx-b0.g;
+              if(idx<0||idx>=R.length||!at(R[idx],b0.v,b0.p)){ok=false;break;}
+              const st=marks[idx]=marks[idx]||new Set();
+              R[idx].n.forEach((x,q)=>{if(x===b0.v&&(b0.p<0||b0.p===q))st.add(q);});
+              idxs.push(idx);
+            }
+            if(ok)hits.push({idxs,marks,i1,a,b});
+          }
+        }
+      }
+      if(hits.length){hits.reverse();total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  state.tfVar=0;state.tfHit=0;
+  state.tfRes={game:GAME.key,total,variants,t,gap};
+  render();
+}
+function tfWindowHTML(v,h){
+  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
+  const lo=Math.min(R.length-1,mx+10),hi=Math.min(mn,Math.max(0,mx-35));
+  const items=[];
+  for(let i=lo;i>=hi;i--)items.push({r:R[i],hl:hit.marks[i]||null,sel:!!hit.marks[i]});
+  return gameTableHTML(items,`${v.icon} ${v.name} · T ${items[0].r.t} – ${items[items.length-1].r.t} · ${hit.a} → ${hit.b}`,'#0E7490');
+}
+function exportTransfSimpleCSV(){
+  const res=state.tfRes;
+  if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];
+  res.variants.forEach(v=>v.hits.forEach((h,n)=>h.idxs.forEach((i,j)=>{const r=v.R[i];
+    rows.push([v.name,n+1,j===0?'Draw 1 ('+h.a+')':j===1?'Draw 2 ('+h.b+')':'Banker '+(j-1),r.t,(r.d||'')+'/'+(r.y||''),...Array.from({length:6},(_,q)=>r.n[q]==null?'':r.n[q])]);})));
+  lvExport('transformation_simple',['Jeu','Cas','Rôle','N°','Date','D1','D2','D3','D4','D5','D6'],rows);
+}
+function transfSimpleCardHTML(){
+  const col='#0E7490',res=state.tfRes,cnt=Math.min(5,Math.max(0,tfGet('tfCnt',0)));
+  const posO=bcPosOpts();
+  const fo=[['none','Aucun filtre'],['groupe','Groupe (1-9)'],['term','Terminaison (0-9)'],['single','Single nombre'],['double','Double nombre']];
+  let form=`<div class="row" style="gap:5px;flex-wrap:wrap;align-items:center"><b style="font-size:10px;color:${col}">Draw 1</b>${lvSel('Position :','tfP1',posO,'-1',col)}${lvSel('Filtre :','tfF1',fo,'none',col)}${lvInp('Valeur :','tfV1',0,40,col)}</div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvInp('Écart (lignes) :','tfGap',3,40,col)}${lvSel('Transformation :','tfT',TF_TRANS,'counter',col)}</div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px"><b style="font-size:10px;color:${col}">Draw 2</b>${lvSel('Position :','tfP2',posO,'-1',col)}${lvSel('Filtre :','tfF2',fo,'none',col)}${lvInp('Valeur :','tfV2',0,40,col)}</div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:5px"><span style="font-size:9px;color:#777">Avec combien de bankers :</span><select onchange="state.tfCnt=this.value;render()" style="padding:3px 6px;border:1.5px solid ${col};border-radius:5px;font-size:11px">${[0,1,2,3,4,5].map(k=>`<option value="${k}" ${cnt===k?'selected':''}>${k===0?'Sans banker':k===1?'Avec un banker':'Avec '+k+' bankers'}</option>`).join('')}</select></div>`;
+  for(let i=0;i<cnt;i++)form+=`<div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvInp('Écart :','tfBG'+i,1,40,col)}${lvSel('','tfBS'+i,[['before','avant '+(i===0?'le Draw 1':'le banker '+i)],['after','après '+(i===0?'le Draw 1':'le banker '+i)]],i===0?'before':'after',col)}${lvInp('Banker '+(i+1)+' :','tfB'+i,'',50,col)}${lvSel('','tfBP'+i,posO,'-1',col)}</div>`;
+  form+=`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:5px;font-size:10px"><label><input type="checkbox" ${state.tfM!==false?'checked':''} onchange="state.tfM=this.checked"> Inclure les numéros machine</label></div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvSel('Loto :','tfGame',[['all','Toutes les lotos']].concat(Object.entries(GAMES).map(([k,g])=>[k,g.icon+' '+g.name])),'all',col)}
+  <button onclick="doTransfSimple()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>
+  <div style="font-size:8.5px;color:#888;margin-top:3px">Draw = numéro de valeur inconnue. Draw 2 est cherché « Écart » lignes plus tard (plus récent) que le Draw 1 et doit être lié à lui par la transformation choisie (dans un sens ou dans l'autre). Banker 1 est situé « Écart » lignes avant/après le Draw 1, les suivants par rapport au banker précédent.</div>`;
+  let body='';
+  if(res){
+    if(!res.total)body=`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun cas trouvé.</div>`;
+    else{
+      const vi=Math.min(state.tfVar||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state.tfHit||0,v.hits.length-1);
+      body=`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
+      <div style="margin:3px 0">${lvXBtn('exportTransfSimpleCSV()')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.tfVar=${i};state.tfHit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,150).map((h,i)=>`<button onclick="state.tfHit=${i}; render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.i1].t}</button>`).join('')}</div>
+      ${tfWindowHTML(v,hi)}
+      ${nextStatsHTML(res,'tf','#0E7490')}`;
+    }
+  }
+  return lvBox(col,`🔁 Transformation simple (module 19) — draws liés par une transformation`,form+body);
+}
+
+// ══════ Module 24 Cybetcast — Double Opération (avec 4 numéros) ══════
+// Opération A : (numéro en position A1 de la ligne L) ⊕ opérande A = numéro en position A2 de la ligne L+Week A.
+// Opération B : (numéro en position B1 de la ligne L+Inter) ⊕ opérande B = numéro en position B2 de la ligne (B1)+Week B.
+// Décalages positifs = tirages plus récents. Exemple vérifié sur captures : Week A=0, Inter=0, Week B=3.
+const DOP_OPS=[['-','− soustraction'],['+','+ addition'],['*','× multiplication'],['/','÷ division']];
+function dopApply(a,op,k){
+  if(op==='+')return a+k;
+  if(op==='-')return a-k;
+  if(op==='*')return a*k;
+  if(op==='/')return k!==0&&a%k===0?a/k:null;
+  return null;
+}
+function dopGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
+function doDoubleOp(){
+  const wA=dopGet('dpWA',0),wI=dopGet('dpWI',0),wB=dopGet('dpWB',3);
+  const opA=state.dpOpA||'-',opB=state.dpOpB||'/';
+  const kA=parseInt(state.dpKA),kB=parseInt(state.dpKB);
+  if(isNaN(kA)||isNaN(kB)){alert('Indique les deux opérandes (A et B).');return;}
+  const pA1=dopGet('dpA1',-1),pA2=dopGet('dpA2',-1),pB1=dopGet('dpB1',-1),pB2=dopGet('dpB2',-1);
+  const sel=state.dpGame||'all',incM=state.dpM!==false;
+  const keys=sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];
+  const variants=[];let total=0;
+  keys.forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&!(incM&&GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      for(let i=0;i<R.length;i++){
+        const iA2=i-wA,iB1=i-wI;
+        if(iA2<0||iA2>=R.length||iB1<0||iB1>=R.length)continue;
+        const iB2=iB1-wB;
+        if(iB2<0||iB2>=R.length)continue;
+        const L=R[i].n;
+        for(let qa=0;qa<L.length;qa++){
+          if(pA1>=0&&qa!==pA1)continue;
+          const a1=L[qa];if(isNaN(a1))continue;
+          const ta=dopApply(a1,opA,kA);
+          if(ta==null||ta<1||ta>90)continue;
+          const RA2=R[iA2].n;
+          for(let qa2=0;qa2<RA2.length;qa2++){
+            if(pA2>=0&&qa2!==pA2)continue;
+            if(RA2[qa2]!==ta)continue;
+            if(iA2===i&&qa2===qa)continue;
+            const RB1=R[iB1].n;
+            for(let qb=0;qb<RB1.length;qb++){
+              if(pB1>=0&&qb!==pB1)continue;
+              const b1=RB1[qb];if(isNaN(b1))continue;
+              const tb=dopApply(b1,opB,kB);
+              if(tb==null||tb<1||tb>90)continue;
+              const RB2=R[iB2].n;
+              for(let qb2=0;qb2<RB2.length;qb2++){
+                if(pB2>=0&&qb2!==pB2)continue;
+                if(RB2[qb2]!==tb)continue;
+                if(iB2===iB1&&qb2===qb)continue;
+                const marks={};
+                const add=(ix,q)=>{(marks[ix]=marks[ix]||new Set()).add(q);};
+                add(i,qa);add(iA2,qa2);add(iB1,qb);add(iB2,qb2);
+                hits.push({idxs:[i,iA2,iB1,iB2],marks,i1:i,a1,ta,b1,tb});
+              }
+            }
+          }
+        }
+      }
+      if(hits.length){hits.reverse();total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  state.dpVar=0;state.dpHit=0;
+  state.dpRes={game:GAME.key,total,variants,opA,opB,kA,kB};
+  render();
+}
+function dopWindowHTML(res,v,h){
+  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
+  const lo=Math.min(R.length-1,mx+5),hi=Math.min(mn,Math.max(0,mx-50));
+  const items=[];
+  for(let i=lo;i>=hi;i--)items.push({r:R[i],hl:hit.marks[i]||null,sel:!!hit.marks[i]});
+  const sym={'-':'−','+':'+','*':'×','/':'÷'};
+  return `<div style="font-size:10px;color:#444;margin-top:5px">A : ${hit.a1} ${sym[res.opA]} ${res.kA} = ${hit.ta} &nbsp;·&nbsp; B : ${hit.b1} ${sym[res.opB]} ${res.kB} = ${hit.tb}</div>`+
+    gameTableHTML(items,`${v.icon} ${v.name} · ligne ${items[0].r.t} à ${items[items.length-1].r.t}`,'#9333EA');
+}
+function exportDoubleOpCSV(){
+  const res=state.dpRes;
+  if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];
+  res.variants.forEach(v=>v.hits.forEach((h,n)=>{
+    ['A1','A2','B1','B2'].forEach((role,j)=>{const r=v.R[h.idxs[j]];
+      rows.push([v.name,n+1,role,r.t,(r.d||'')+'/'+(r.y||''),...Array.from({length:6},(_,q)=>r.n[q]==null?'':r.n[q]),j===0?h.a1+'→'+h.ta:j===2?h.b1+'→'+h.tb:'']);});
+  }));
+  lvExport('double_operation',['Jeu','Cas','Rôle','N°','Date','D1','D2','D3','D4','D5','D6','Opération'],rows);
+}
+function doubleOpCardHTML(){
+  const col='#9333EA',res=state.dpRes,posO=bcPosOpts();
+  const form=`<div class="row" style="gap:5px;flex-wrap:wrap;align-items:center"><b style="font-size:10px;color:${col}">Opération A</b>${lvSel('Position A1 :','dpA1',posO,'-1',col)}${lvSel('Opération :','dpOpA',DOP_OPS,'-',col)}${lvInp('Opérande A :','dpKA',1,40,col)}${lvSel('Position A2 :','dpA2',posO,'-1',col)}</div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px"><b style="font-size:10px;color:${col}">Opération B</b>${lvSel('Position B1 :','dpB1',posO,'-1',col)}${lvSel('Opération :','dpOpB',DOP_OPS,'/',col)}${lvInp('Opérande B :','dpKB',2,40,col)}${lvSel('Position B2 :','dpB2',posO,'-1',col)}</div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvInp('Week A :','dpWA',0,40,col)}${lvInp('Inter :','dpWI',0,40,col)}${lvInp('Week B :','dpWB',3,40,col)}</div>
+  <div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:10px"><label><input type="checkbox" ${state.dpM!==false?'checked':''} onchange="state.dpM=this.checked"> Inclure les numéros machine</label></div>
+  <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvSel('Loto :','dpGame',[['all','Toutes les lotos']].concat(Object.entries(GAMES).map(([k,g])=>[k,g.icon+' '+g.name])),'all',col)}
+  <button onclick="doDoubleOp()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>
+  <div style="font-size:8.5px;color:#888;margin-top:3px">A1 ⊕ opérande A = A2 (ligne + Week A) · B1 (ligne + Inter) ⊕ opérande B = B2 (ligne B1 + Week B). Décalage positif = tirages suivants (plus récents). Exemple Cybetcast : A1 − 1 = A2 sur la même ligne, B1 ÷ 2 = B2 trois lignes plus tard (Week A 0, Inter 0, Week B 3).</div>`;
+  let body='';
+  if(res){
+    if(!res.total)body=`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun cas trouvé.</div>`;
+    else{
+      const vi=Math.min(state.dpVar||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state.dpHit||0,v.hits.length-1);
+      body=`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
+      <div style="margin:3px 0">${lvXBtn('exportDoubleOpCSV()')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.dpVar=${i};state.dpHit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,150).map((h,i)=>`<button onclick="state.dpHit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.i1].t}</button>`).join('')}</div>
+      ${dopWindowHTML(res,v,hi)}
+      ${nextStatsHTML(res,'dp','#9333EA')}`;
+    }
+  }
+  return lvBox(col,`➗ Double Opération (module 24) — 4 numéros`,form+body);
+}
+
 const SEARCH_SECTIONS=[
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
@@ -12611,6 +12835,8 @@ const SEARCH_SECTIONS=[
   {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
+  {key:'dblop',icon:'➗',title:'Double Opération (module 24)',desc:'Deux opérations (+ − × ÷) sur 4 numéros, positions et décalages réglables — modèle Cybetcast',color:'#9333EA',html:doubleOpCardHTML},
+  {key:'transfsimple',icon:'🔁',title:'Transformation simple (module 19)',desc:'Deux numéros inconnus (draws) liés par une transformation, avec bankers et filtres — modèle Cybetcast',color:'#0E7490',html:transfSimpleCardHTML},
   ...bankersLigneSections(),
   {key:'cmpwin',icon:'⚖️',title:'Comparer deux fenêtres',desc:'Deux périodes du même jeu : sorties de chaque numéro dans A et B, différence',color:'#7C3AED',html:cmpWinCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
@@ -12700,6 +12926,7 @@ function searchHubHTML(){
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['simi','oblique']],
       ['🔗 Numéros collés',['colles2','colles3','colles2stats','colles3stats','voisinscolles','termColles','termVert']],
+      ['🔁 Transformations',['transfsimple','dblop']],
       ['📍 Alignements verticaux',['bankersligne','bankers','bchain','vadd','vtan','planf','totx']],
       ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
       ['🛠️ Outils',['imp']],
@@ -13637,6 +13864,61 @@ function gameTableHTML(items,title,col){
   }).join('');
   return`<div style="overflow-x:auto;border:1.5px solid ${col};border-radius:8px;margin-top:5px"><div style="background:${col};color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${title}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
+// ══════ Statistiques des lignes qui suivent chaque résultat (Banker / Two Sure / Three Nap — modèle Cybetcast) ══════
+function nextStatsCompute(res,N){
+  N=Math.max(1,N||1);
+  const lines=[];
+  (res.variants||[]).forEach(v=>v.hits.forEach(h=>{
+    const nx=Math.min(...h.idxs)-1;
+    for(let k=0;k<N;k++){const i=nx-k;if(i<0)break;const r=v.R[i];const n=(r.n||[]).filter(x=>!isNaN(x));if(n.length)lines.push({v,r,n});}
+  }));
+  const ban={},two={},thr={};
+  lines.forEach(({n})=>{
+    const u=[...new Set(n)].sort((a,b)=>a-b);
+    u.forEach(x=>{ban[x]=(ban[x]||0)+1;});
+    for(let i=0;i<u.length;i++)for(let j=i+1;j<u.length;j++){const k=u[i]+'-'+u[j];two[k]=(two[k]||0)+1;
+      for(let l=j+1;l<u.length;l++){const k3=u[i]+'-'+u[j]+'-'+u[l];thr[k3]=(thr[k3]||0)+1;}}
+  });
+  const srt=(o,f)=>Object.entries(o).filter(([k,c])=>f(c)).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'fr',{numeric:true}));
+  return{lines,ban,two,thr,banL:srt(ban,c=>true),nTwo:Object.keys(two).length,nThr:Object.keys(thr).length};
+}
+function nextStatsHTML(res,key,col){
+  if(!res||!res.total)return'';
+  const open=!!state['ns_'+key];
+  let h=`<div style="margin-top:8px"><button onclick="state.ns_${key}=!state.ns_${key};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;border:1.5px solid ${col};background:${open?col:'#fff'};color:${open?'#fff':col};cursor:pointer;font-weight:600">📊 Statistiques des lignes qui suivent chaque résultat</button>`;
+  if(!open)return h+'</div>';
+  const N=Math.max(1,parseInt(state['nsN_'+key])||1);
+  const tab=state['nsT_'+key]||'ban', once=!!state['nsO_'+key], sel=state['nsS_'+key]||'';
+  const st=nextStatsCompute(res,N);
+  const tabBtn=(t,l)=>`<button onclick="state.nsT_${key}='${t}';state.nsS_${key}='';render()" style="padding:3px 9px;font-size:11px;border-radius:12px;border:1px solid ${col};background:${tab===t?col:'#fff'};color:${tab===t?'#fff':col};cursor:pointer;margin-right:4px">${l}</button>`;
+  const badge=(k,c,on)=>`<span onclick="state.nsS_${key}='${on?'':k}';render()" style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:12px;background:${on?'#2563EB':'#F3F4F6'};color:${on?'#fff':'#111'};border:1px solid #E5E7EB"><b>${k.replace(/-/g,' - ')}</b> <span style="background:#FDBA74;color:#7C2D12;border-radius:8px;padding:0 5px;font-size:10px;font-weight:700">${c}</span></span>`;
+  let body='';
+  if(tab==='ban'){
+    body=`<div style="font-size:11px;font-weight:700;color:${col}">${st.banL.length} Bankers au total</div><div style="font-size:10px;color:#666">Le badge = nombre de fois que ce Banker revient.</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">${st.banL.map(([k,c])=>badge(k,c,sel===k)).join('')}</div>`;
+  }else{
+    const o=tab==='two'?st.two:st.thr, nm=tab==='two'?'2Nap':'3Nap';
+    const arr=Object.entries(o).filter(([k,c])=>once?c===1:c>=2).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'fr',{numeric:true}));
+    body=`<div style="font-size:11px;font-weight:700;color:${col}">${Object.keys(o).length} ${nm} au total</div>
+    <label style="font-size:10px;color:#555"><input type="checkbox" ${once?'checked':''} onchange="state.nsO_${key}=this.checked;state.nsS_${key}='';render()"> Afficher les ${nm} apparus une seule fois (sinon ≥ 2 fois)</label>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">${arr.length?arr.slice(0,300).map(([k,c])=>badge(k,c,sel===k)).join(''):'<span style="font-size:10px;color:#999">aucun</span>'}</div>`;
+    if(tab==='two'&&!once){
+      const rep=st.two?Object.entries(st.two).filter(([k,c])=>c>=2):[];
+      const as={};rep.forEach(([k])=>k.split('-').forEach(x=>{as[x]=(as[x]||0)+1;}));
+      const al=Object.entries(as).sort((a,b)=>b[1]-a[1]||(+a[0])-(+b[0]));
+      if(al.length)body+=`<div style="font-size:11px;font-weight:700;color:${col};margin-top:6px">Statistiques basées sur l'association des 2Sure</div><div style="font-size:10px;color:#666">Bleu = nombre de fois du Banker, orange = présences dans les 2Sure.</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0">${al.map(([x,c])=>`<span style="font-size:11px;padding:2px 6px;border-radius:12px;background:#F3F4F6;border:1px solid #E5E7EB"><span style="background:#1E3A5F;color:#fff;border-radius:8px;padding:0 5px;font-size:10px">${st.ban[x]}</span> <b>${x}</b> <span style="background:#FDBA74;color:#7C2D12;border-radius:8px;padding:0 5px;font-size:10px">${c}</span></span>`).join('')}</div>`;
+    }
+  }
+  const selNums=sel?sel.split('-').map(Number):[];
+  const items=st.lines.slice(0,80).map(x=>{
+    let hl=null;
+    if(selNums.length){hl=new Set();(x.r.n||[]).forEach((v,i)=>{if(selNums.includes(v))hl.add(i);});if(hl.size<selNums.length)hl=null;}
+    return{r:x.r,hl,sel:!!hl};
+  });
+  h+=`<div style="font-size:10px;color:#555;margin:5px 0">${st.lines.length} ligne(s) sauvegardées · lignes par cas : <input type="number" min="1" max="20" value="${N}" style="width:46px" onchange="state.nsN_${key}=this.value;render()"> (par défaut 1 = la ligne juste après la plus récente)</div>
+  <div style="margin:4px 0">${tabBtn('ban','Banker')}${tabBtn('two','Two Sure')}${tabBtn('thr','Three Nap')}</div>${body}
+  ${gameTableHTML(items,`Lignes sauvegardées (${Math.min(80,st.lines.length)} sur ${st.lines.length})${sel?' — '+sel.replace(/-/g,' · ')+' en jaune':''}`,col)}`;
+  return h+'</div>';
+}
 function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}
 function bcVariantRows(key,machine){
@@ -13654,7 +13936,7 @@ function doBankerChain(){
     if(i>0)gaps.push(Math.max(1,bcGet('bcG'+i,1)));
   }
   const inv=!!state.bcInv,incM=state.bcM!==false,sel=state.bcGame||'all';
-  const keys=sel==='all'?Object.keys(GAMES):[sel];
+  const keys=sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];
   const at=(r,v,p)=>p<0?r.n.includes(v):r.n[p]===v;
   const variants=[];let total=0;
   keys.forEach(k=>{
@@ -13718,7 +14000,8 @@ function bankerChainCardHTML(){
       <div style="margin:3px 0">${lvXBtn('exportBankerChainCSV()')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.bcVar=${i};state.bcHit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,120).map((h,i)=>`<button onclick="state.bcHit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
-      ${bcWindowHTML(res,v,hi)}`;
+      ${bcWindowHTML(res,v,hi)}
+      ${nextStatsHTML(res,'bc','#B45309')}`;
     }
   }
   return lvBox(col,`📍⬇️ Plusieurs Bankers sur Différentes Lignes — Avec Position`,form+body);
@@ -14583,12 +14866,12 @@ function digResHTML(){
     </div>${rows.length>60?`<div style="font-size:8px;color:#999">… et ${rows.length-60} autres</div>`:''}</div>`;
 }
 // ══════ Pickin | Oblique — comparaison croisée entre deux jeux différents, alignés par date ══════
-function setPickA(v){state.pickA=v;render();}
+function setPickA(v){state.pickA=v;state.pickTirageRef='';render();}
 function setPickB(v){state.pickB=v;render();}
 function doPickinOblique(){
   const keyA=state.pickA||GAME.key, keyB=state.pickB||Object.keys(GAMES).find(k=>k!==keyA);
   const dA=gameData(keyA),dB=gameData(keyB);
-  const refT=parseInt(state.pickTirageRef);
+  const refT=(String(state.pickTirageRef).trim()===''&&dA.T[0])?dA.T[0].t:parseInt(state.pickTirageRef);
   const idxA=dA.T.findIndex(r=>r.t===refT);
   if(isNaN(refT)||idxA<0){alert('Tirage de référence introuvable pour '+GAMES[keyA].name);return;}
   const lines=state.pickLines;
@@ -14626,25 +14909,23 @@ function pickinOResHTML(){
   const res=state.pickResult;
   if(!res)return'';
   if(!res.rows.length)return`<div style="font-size:10px;color:#999;margin-top:6px">Aucun résultat</div>`;
-  return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-    <span style="font-size:10px;font-weight:500;color:#7C3AED">Résultat (${res.rows.length})</span>
+  const nm=res.rows.reduce((s,x)=>s+x.matches.length,0);
+  const itemsA=[],itemsB=[];
+  res.rows.forEach(({rowA,rowB,matches})=>{
+    const hl=new Set(matches.map(m=>m.idx));
+    itemsA.push({r:rowA,hl,sel:matches.length>0});
+    itemsB.push({r:rowB||{t:'—',d:rowA.d,y:rowA.y,n:[],s:null},hl:rowB?hl:null,sel:matches.length>0});
+  });
+  const nbm=res.rows.filter(x=>x.matches.length).length;
+  return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+    <span style="font-size:11px;font-weight:700;color:#7C3AED">Résultat (${res.rows.length} lignes · ${nm} correspondance${nm>1?'s':''} sur ${nbm} ligne${nbm>1?'s':''})</span>
     <button onclick="exportPickinOblique()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
-  <div style="display:flex;flex-direction:column;gap:6px;max-height:320px;overflow-y:auto">
-    ${res.rows.map(({rowA,rowB,matches})=>{
-      const mset=new Set(matches.map(m=>m.idx));
-      const rowHtml=(r,label,color)=>!r?`<div style="font-size:9px;color:#bbb">${label} — aucun tirage à cette date</div>`:`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
-        <span style="font-weight:700;color:${color};width:80px">${label} ${r.t}</span><span style="color:#888;font-size:8px;width:52px">${r.d}/${r.y}</span>
-        ${r.n.map((n,ni)=>numSpan(n,mset.has(ni)?{an:['#7C3AED']}:{})).join('')}
-        <span style="font-size:9px;color:#888;margin-left:4px">${r.s}</span>
-      </div>`;
-      return`<div style="border:1px solid #DDD6F5;background:#F5F3FF;border-radius:6px;padding:5px 8px">
-        ${rowHtml(rowA,GAMES[res.keyA].name,'#7C3AED')}
-        ${rowHtml(rowB,GAMES[res.keyB].name,'#0891B2')}
-        ${rowB?`<div style="font-size:8px;color:#6D28D9;margin-top:2px">${matches.length} correspondance(s) à la même position</div>`:''}
-      </div>`;
-    }).join('')}
-  </div></div>`;
+  <div class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#F5F3FF;border:1px solid #DDD6F5;border-radius:6px;padding:4px">
+    <div style="min-width:0">${gameTableHTML(itemsA,`${GAMES[res.keyA].icon||''} ${GAMES[res.keyA].name} · T ${itemsA[0].r.t} – ${itemsA[itemsA.length-1].r.t}`,'#7C3AED')}</div>
+    <div style="min-width:0">${gameTableHTML(itemsB,`${GAMES[res.keyB].icon||''} ${GAMES[res.keyB].name}`,'#0891B2')}</div>
+  </div>
+  <div style="font-size:8.5px;color:#6D28D9;margin-top:3px">Lignes alignées par date. Jaune = même numéro à la même position (D1..D5).</div></div>`;
 }
 function pickinObliqueCardHTML(){
   const keyA=state.pickA||GAME.key;
@@ -14661,7 +14942,7 @@ function pickinObliqueCardHTML(){
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Tirage de référence (Jeu A) :</span>
-      <input type="number" placeholder="Ex: 1851" value="${state.pickTirageRef}" oninput="state.pickTirageRef=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #7C3AED;border-radius:5px;font-size:12px">
+      <input type="number" placeholder="${(()=>{const d=gameData(keyA);return d.T[0]?'dernier : '+d.T[0].t:'Ex: 1851';})()}" value="${state.pickTirageRef!==''?state.pickTirageRef:(()=>{const d=gameData(keyA);return d.T[0]?d.T[0].t:'';})()}" oninput="state.pickTirageRef=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #7C3AED;border-radius:5px;font-size:12px">
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Nombre de lignes :</span>

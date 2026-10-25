@@ -20171,13 +20171,17 @@ function __renderBody(){
         // Double vue = UNE année par vue : pour chaque année, un volet AVEC repères et un volet SANS repères, collés côte à côte.
         const _bar=(t)=>`<div style="font-size:10px;font-weight:700;color:#0F766E;margin:2px 0 3px">${t}</div>`;
         if(!state.dualViewLeftOn&&!state.dualViewRightOn)html+=`<div class="card" style="padding:10px;font-size:11px;color:#888">Les deux volets de la double vue sont masqués. <button onclick="state.dualViewLeftOn=true;state.dualViewRightOn=true;render()" style="margin-left:6px;padding:2px 8px">Réafficher</button></div>`;
-        else cols.forEach((c,yi)=>{
-          // UNE année par vue : pour chaque année sélectionnée, une paire AVEC / SANS repères collée, les paires étant empilées.
-          html+=`<div style="display:flex;gap:8px;align-items:flex-start;width:100%;margin-bottom:14px">`;
-          if(state.dualViewLeftOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 AVEC repères — '+c.yr)}${_exTable('rep','y'+yi+'a',yi)}</div>`;
-          if(state.dualViewRightOn)html+=`<div style="flex:0 1 auto;min-width:0">${_bar('👁 SANS repères — '+c.yr)}${_exTable('norep','y'+yi+'b',yi)}</div>`;
+        else{
+          // UNE année par vue, en HORIZONTAL : [2026 AVEC | 2026 SANS] [2025 AVEC | 2025 SANS] … défilement latéral.
+          html+=`<div style="display:flex;gap:18px;align-items:flex-start;width:100%;overflow-x:auto;padding-bottom:8px">`;
+          cols.forEach((c,yi)=>{
+            html+=`<div style="display:flex;gap:6px;align-items:flex-start;flex:0 0 auto">`;
+            if(state.dualViewLeftOn)html+=`<div style="flex:0 0 auto">${_bar('👁 AVEC repères — '+c.yr)}${_exTable('rep','y'+yi+'a',yi)}</div>`;
+            if(state.dualViewRightOn)html+=`<div style="flex:0 0 auto">${_bar('👁 SANS repères — '+c.yr)}${_exTable('norep','y'+yi+'b',yi)}</div>`;
+            html+=`</div>`;
+          });
           html+=`</div>`;
-        });
+        }
       }else{
         html+=_exTable(undefined,'');
       }

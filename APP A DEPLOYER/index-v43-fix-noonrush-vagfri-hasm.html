@@ -13771,71 +13771,136 @@ function pickinObliqueCardHTML(){
   </div>`;
 }
 // ══════ Similarité (Pickin Oblique / Vertical) — les K dernières lignes du jeu A vs K lignes successives du jeu B ══════
-// Référence = les K dernières lignes de A (K=2 ou 3), lues du plus ancien (1ère ligne) au plus récent.
-// Chaque fenêtre de K lignes successives de B est retenue si, ligne par ligne, elle partage au moins
-// « min » numéros avec la ligne correspondante de la référence.
-// Vertical : 1ère↔1ère, 2e↔2e… — Oblique : appariement en diagonale (1ère↔dernière, 2e↔avant-dernière…).
+// Boutons prêts à l'emploi de Pickin | Oblique. Chaque préréglage fixe : nb de lignes (K), seuils par ligne, options.
+// Le Sens (Vertical / Diagonale / Inversé) n'est PAS modifié par un préréglage.
+const SIMI_PRESETS=[
+  {id:'3L111', txt:'3 lignes 1/1/1',               K:3,mins:[1,1,1]},
+  {id:'2L12',  txt:'2 lignes 1/2',                 K:2,mins:[1,2]},
+  {id:'2L21',  txt:'2 lignes 2/1',                 K:2,mins:[2,1]},
+  {id:'2Lpos', txt:'2 lignes même position',       K:2,mins:[1,1],samePos:true},
+  {id:'2Lalign',txt:'2 lignes alignées verticalement',K:2,mins:[1,1],vAlign:true},
+  {id:'4L',    txt:'4 lignes',                     K:4,mins:[1,1,1,1]},
+  {id:'5L',    txt:'5 lignes',                     K:5,mins:[1,1,1,1,1]},
+  {id:'1L',    txt:'1 ligne (2 communs OU 1 même position)',K:1,mins:[2],orPos:true},
+  {id:'2L22',  txt:'2 lignes 2/2',                 K:2,mins:[2,2]},
+  {id:'3L222', txt:'3 lignes 2/2/2',               K:3,mins:[2,2,2]},
+];
+function simiPreset(id){
+  const p=SIMI_PRESETS.find(x=>x.id===id);if(!p)return;
+  state.simK=p.K;state.simMin=p.mins.slice();
+  state.simSamePos=!!p.samePos;state.simVAlign=!!p.vAlign;state.simOrPos=!!p.orPos;
+  state.simPreset=id;state.simResult=null;render();
+}
+
+// Sens :
+//  'vertical' (défaut) : ligne w du Jeu B ↔ ligne w de la référence (L1↔L1, L2↔L2…)
+//  'diag'  (Diagonale par colonnes) : appariement vertical + il faut un numéro commun qui se décale
+//          d'UNE colonne à chaque ligne, toujours dans le même sens (N2→N3→N4 ou N4→N3→N2).
+//  'inverse' (Ordre inversé, ancien "Oblique") : ligne w de B ↔ ligne K-1-w de la référence.
+// Seuils : mins[w] s'applique TOUJOURS à la ligne w de la fenêtre du Jeu B (L1 = la plus ancienne).
+// "OU même position" : uniquement quand K = 1. "Alignés verticalement" : numéro commun dans la MÊME colonne sur toutes les lignes.
 function simiCompute(){
   const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
-  const K=state.simK||3, mode=state.simMode||'oblique';
+  const K=state.simK||3;
+  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='inverse'; // ancien état sauvegardé
   const mins=Array.from({length:K},(_,i)=>{const v=(state.simMin||[])[i];return Math.max(0,v===undefined||v===''?1:(parseInt(v)||0));});
-  const samePos=!!state.simSamePos;
+  const samePos=!!state.simSamePos, orPos=K===1&&!!state.simOrPos, vAlign=!!state.simVAlign&&K>1;
   const dA=gameData(keyA), dB=gameData(keyB);
   if(dA.T.length<K||dB.T.length<K+1){alert('Pas assez de tirages.');return;}
   const ref=[];for(let i=0;i<K;i++)ref.push(dA.T[K-1-i]); // chrono : ancien → récent
+  const pair=mode==='inverse'?(w=>K-1-w):(w=>w);
+  // Cherche un chemin de colonnes p0, p0+d, p0+2d… (d=+1/-1 diagonale, d=0 vertical)
+  const findPath=(P,dirs)=>{
+    for(const d of dirs)for(let p0=0;p0<5;p0++){
+      const path=[];
+      for(let w=0;w<K;w++){const p=p0+d*w;if(p<0||p>4||!P[w].includes(p))break;path.push(p);}
+      if(path.length===K)return path;
+    }
+    return null;
+  };
   const same=keyA===keyB, out=[];
   for(let j=0;j+K-1<dB.T.length;j++){
-    if(same&&j<K)continue;
+    if(same&&j<K)continue; // ne pas se retrouver soi-même
     const win=[];for(let i=0;i<K;i++)win.push(dB.T[j+K-1-i]);
-    const tryPair=pair=>{const cs=[];for(let w=0;w<K;w++){
-      const rr=ref[pair(w)];
-      const c=samePos?win[w].n.filter((x,xi)=>rr.n[xi]===x):win[w].n.filter(x=>rr.n.includes(x));
-      if(c.length<mins[pair(w)]&&!(state.simOrPos&&win[w].n.some((x,xi)=>rr.n[xi]===x)))return null;cs.push(c);}return cs;};
-    // Vertical d'abord ; Oblique = vertical OU appariement diagonal (inversé).
-    let pr=w=>w, commons=tryPair(pr);
-    if(!commons&&mode==='oblique'){pr=w=>K-1-w;commons=tryPair(pr);}
-    const ok=!!commons;
-    if(ok)out.push({win,next:j>0?dB.T[j-1]:null,commons,diag:mode==='oblique'&&pr(0)!==0});
+    const pos=[];let ok=true;
+    for(let w=0;w<K&&ok;w++){
+      const rr=ref[pair(w)].n, bn=win[w].n;
+      const P=[];bn.forEach((x,xi)=>{if(samePos?rr[xi]===x:rr.includes(x))P.push(xi);});
+      const pass=P.length>=mins[w]||(orPos&&bn.some((x,xi)=>rr[xi]===x));
+      if(!pass)ok=false;
+      // en mode OU même position, on surligne aussi les numéros à la même position
+      if(orPos)bn.forEach((x,xi)=>{if(rr[xi]===x&&!P.includes(xi))P.push(xi);});
+      pos.push(P);
+    }
+    if(!ok)continue;
+    let path=null;
+    if(mode==='diag'&&K>1){path=findPath(pos,[1,-1]);if(!path)continue;}
+    if(vAlign){const vp=findPath(pos,[0]);if(!vp)continue;if(!path)path=vp;}
+    out.push({win,next:j>0?dB.T[j-1]:null,pos,path});
   }
-  state.simResult={keyA,keyB,K,mode,ref,rows:out};
+  state.simResult={keyA,keyB,K,mode,ref,rows:out,mins,samePos,vAlign,orPos};
   render();
 }
+
+// Les numéros de la diagonale (ou de l'alignement vertical) sont entourés et reliés par un trait (SVG).
 function simiResHTML(){
   const res=state.simResult;
   if(!res)return'';
-  const line=(r,label,color,hl)=>`<div style="display:flex;align-items:center;gap:3px;flex-wrap:wrap;font-size:10px">
-    <span style="font-weight:700;color:${color};min-width:70px">${label} ${r.t}</span><span style="color:#888;font-size:8px;width:52px">${r.d}/${r.y}</span>
-    ${r.n.map(n=>`<span style="display:inline-block;min-width:20px;text-align:center;padding:1px 3px;border-radius:4px;font-weight:700;background:${hl&&hl.includes(n)?'#FDE047':'#F3F4F6'};color:#111">${n}</span>`).join('')}
-    <span style="font-size:9px;color:#888;margin-left:4px">${r.s}</span></div>`;
-  const pair=w=>w;
+  const CW=24,GAP=3,RH=20; // largeur case, écart, hauteur ligne — utilisés pour placer le trait
+  const pair=res.mode==='inverse'?(w=>res.K-1-w):(w=>w);
+  const cellsHTML=(r,hlPos,ringPos)=>r.n.map((n,xi)=>{
+    const hl=hlPos&&hlPos.includes(xi), ring=ringPos===xi;
+    return`<span style="display:inline-block;box-sizing:border-box;width:${CW}px;height:${RH-3}px;line-height:${RH-5}px;text-align:center;border-radius:${ring?'50%':'4px'};font-weight:700;font-size:10px;background:${hl?'#FDE047':'#F3F4F6'};color:#111;border:2px solid ${ring?'#DC2626':'transparent'}">${n}</span>`;
+  }).join(`<span style="display:inline-block;width:${GAP}px"></span>`);
+  const label=(r,txt,color)=>`<div style="display:flex;align-items:center;gap:3px;height:${RH}px;font-size:10px;white-space:nowrap">
+    <span style="font-weight:700;color:${color};width:78px;overflow:hidden;text-overflow:ellipsis">${txt} ${r.t}</span><span style="color:#888;font-size:8px;width:52px">${r.d}/${r.y}</span></div>`;
+  // Bloc lignes : colonne étiquettes | grille de numéros (relative) + SVG du chemin | totaux
+  const block=(rows,txt,color,hlArr,path)=>{
+    const svg=path?`<svg width="${5*CW+4*GAP}" height="${rows.length*RH}" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible">
+      <polyline fill="none" stroke="#DC2626" stroke-width="2" stroke-dasharray="3 2" points="${path.map((p,w)=>`${p*(CW+GAP)+CW/2},${w*RH+(RH-3)/2+1}`).join(' ')}"/></svg>`:'';
+    return`<div style="display:flex;align-items:flex-start;gap:4px">
+      <div>${rows.map(r=>label(r,txt,color)).join('')}</div>
+      <div style="position:relative">${rows.map((r,w)=>`<div style="height:${RH}px;display:flex;align-items:center">${cellsHTML(r,hlArr?hlArr[w]:null,path?path[w]:-1)}</div>`).join('')}${svg}</div>
+      <div>${rows.map(r=>`<div style="height:${RH}px;line-height:${RH}px;font-size:9px;color:#888">${r.s}</div>`).join('')}</div>
+    </div>`;
+  };
   const refHtml=`<div style="border:1.5px solid #0F766E;background:#F0FDFA;border-radius:6px;padding:5px 8px;margin-bottom:6px">
     <div style="font-size:9px;font-weight:600;color:#0F766E">Référence — ${GAMES[res.keyA].name}</div>
-    ${res.ref.map(r=>line(r,'Réf.','#0F766E',null)).join('')}</div>`;
+    ${block(res.ref,'Réf.','#0F766E',null,null)}</div>`;
+  const nameB=GAMES[res.keyB].name.slice(0,9);
   const rows=res.rows.slice(0,200).map(x=>`<div style="border:1px solid #CCFBF1;background:#fff;border-radius:6px;padding:5px 8px">
-    ${x.win.map((r,w)=>line(r,GAMES[res.keyB].name.slice(0,9),'#0891B2',res.ref[x.diag?res.K-1-w:w].n)).join('')}${x.diag?'<div style="font-size:8px;color:#0F766E">↘ diagonal</div>':''}
-    ${x.next?`<div style="border-top:1px dashed #86EFAC;margin-top:2px;padding-top:2px">${line(x.next,'▶ Suite','#059669',null)}</div>`:'<div style="font-size:8px;color:#999">(dernier tirage : pas de suite)</div>'}
+    ${block(x.win,nameB,'#0891B2',x.pos,x.path)}
+    <div style="font-size:8px;color:#0F766E">${x.win.map((r,w)=>`L${w+1}↔Réf.L${pair(w)+1} : ${x.pos[w].length} commun(s)`).join(' · ')}${x.path?` · <b style="color:#DC2626">${res.mode==='diag'&&res.K>1?'↘ diagonale N'+x.path.map(p=>p+1).join('→N'):'↓ alignés colonne N'+(x.path[0]+1)}</b>`:''}</div>
+    ${x.next?`<div style="border-top:1px dashed #86EFAC;margin-top:2px;padding-top:2px">${block([x.next],'▶ Suite','#059669',null,null)}</div>`:'<div style="font-size:8px;color:#999">(dernier tirage : pas de suite)</div>'}
   </div>`).join('');
+  const modeTxt={vertical:'Vertical',diag:'Diagonale par colonnes',inverse:'Ordre inversé'}[res.mode];
   return`<div style="margin-top:8px">${refHtml}
-    <div style="font-size:10px;font-weight:500;color:#0F766E;margin-bottom:4px">${res.rows.length} fenêtre(s) trouvée(s)${res.rows.length>200?' (200 affichées)':''} — ${res.mode==='oblique'?'Oblique':'Vertical'}</div>
+    <div style="font-size:10px;font-weight:500;color:#0F766E;margin-bottom:4px">${res.rows.length} fenêtre(s) trouvée(s)${res.rows.length>200?' (200 affichées)':''} — ${modeTxt} · seuils ${res.mins.join('/')}${res.samePos?' · même position':''}${res.vAlign?' · alignés verticalement':''}${res.orPos?' · OU même position':''}</div>
     <div style="display:flex;flex-direction:column;gap:6px">${rows||'<div style="font-size:10px;color:#999">Aucun résultat</div>'}</div></div>`;
 }
+
 function simiCardHTML(){
   const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
-  const K=state.simK||3, mode=state.simMode||'oblique', mins=state.simMin||[];
+  const K=state.simK||3, mins=state.simMin||[];
+  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='inverse';
   const opts=sel=>Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${sel===k?'selected':''}>${g.icon} ${g.name}</option>`).join('');
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${on?'#0F766E':'#ddd'};background:${on?'#CCFBF1':'#fff'};color:${on?'#0F766E':'#888'}">${txt}</button>`;
+  // changer K à la main annule le préréglage affiché
+  const setK=k=>`state.simK=${k};state.simPreset=null;if(${k}===1){}else{state.simOrPos=false;}render()`;
   return`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🧬 Similarité — les dernières lignes du Jeu A vs lignes successives du Jeu B</div>
+    <div style="font-size:11px;font-weight:500;color:#0F766E;margin-bottom:5px">🧬 Pickin | Oblique — les dernières lignes du Jeu A vs lignes successives du Jeu B</div>
     <div class="row" style="margin-top:0"><span style="font-size:9px;color:#777">Jeu A (référence) :</span><select onchange="state.simA=this.value;render()">${opts(keyA)}</select></div>
     <div class="row"><span style="font-size:9px;color:#777">Jeu B (recherche) :</span><select onchange="state.simB=this.value;render()">${opts(keyB)}</select></div>
-    <div class="row"><span style="font-size:9px;color:#777">Nb de lignes :</span>${[1,2,3,4,5].map(k=>pill(K===k,`state.simK=${k};render()`,k)).join('')}
-      <span style="font-size:9px;color:#777;margin-left:8px">Sens :</span>${pill(mode==='oblique',"state.simMode='oblique';render()",'Oblique')}${pill(mode==='vertical',"state.simMode='vertical';render()",'Vertical')}</div>
+    <div class="row" style="flex-wrap:wrap;gap:3px"><span style="font-size:9px;color:#777">Préréglages :</span>${SIMI_PRESETS.map(p=>pill(state.simPreset===p.id,`simiPreset('${p.id}')`,p.txt)).join('')}</div>
+    <div class="row"><span style="font-size:9px;color:#777">Nb de lignes :</span>${[1,2,3,4,5].map(k=>pill(K===k,setK(k),k)).join('')}</div>
+    <div class="row" style="flex-wrap:wrap;gap:3px"><span style="font-size:9px;color:#777">Sens :</span>${pill(mode==='vertical',"state.simMode='vertical';render()",'Vertical')}${pill(mode==='diag',"state.simMode='diag';render()",'Diagonale par colonnes')}${pill(mode==='inverse',"state.simMode='inverse';render()",'Ordre inversé')}</div>
     <div class="row"><span style="font-size:9px;color:#777">Numéros communs min. :</span>
-      ${Array.from({length:K},(_,i)=>`<span style="font-size:9px;color:#777">L${i+1}</span><input type="number" min="0" max="5" value="${mins[i]??1}" oninput="state.simMin=state.simMin||[];state.simMin[${i}]=this.value" style="width:40px;padding:3px 5px;border:1.5px solid #0F766E;border-radius:5px;font-size:12px">`).join(' ')}</div>
-    <div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simSamePos?'checked':''} onchange="state.simSamePos=this.checked"> Même position (N1↔N1, N2↔N2…)</label></div>
-    <div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simOrPos?'checked':''} onchange="state.simOrPos=this.checked"> …OU au moins 1 numéro à la même position (variante « 1 ligne » : 2 communs OU 1 à la même position)</label></div>
+      ${Array.from({length:K},(_,i)=>`<span style="font-size:9px;color:#777">L${i+1}</span><input type="number" min="0" max="5" value="${mins[i]??1}" oninput="state.simMin=state.simMin||[];state.simMin[${i}]=this.value;state.simPreset=null" style="width:40px;padding:3px 5px;border:1.5px solid #0F766E;border-radius:5px;font-size:12px">`).join(' ')}</div>
+    <div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simSamePos?'checked':''} onchange="state.simSamePos=this.checked;state.simPreset=null"> Même position (N1↔N1, N2↔N2…)</label></div>
+    ${K>1?`<div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simVAlign?'checked':''} onchange="state.simVAlign=this.checked;state.simPreset=null"> Numéros alignés verticalement (un numéro commun dans la même colonne sur toutes les lignes)</label></div>`:''}
+    ${K===1?`<div class="row"><label style="font-size:10px;color:#555"><input type="checkbox" ${state.simOrPos?'checked':''} onchange="state.simOrPos=this.checked;state.simPreset=null"> …OU au moins 1 numéro à la même position</label></div>`:''}
     <button onclick="simiCompute()" style="padding:4px 12px;background:#0F766E;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔍 Chercher</button>
-    <div style="font-size:8px;color:#888;margin-top:3px">L1 = ligne la plus ancienne des K dernières. Vertical : L1↔L1, L2↔L2… Oblique : L1↔dernière, L2↔avant-dernière… Jaune = numéros communs. La ligne verte en dessous = ce qui est sorti ensuite.</div>
+    <div style="font-size:8px;color:#888;margin-top:3px">L1 = ligne la plus ancienne. Vertical : L1↔L1, L2↔L2… Diagonale par colonnes : en plus, un numéro commun se décale d'une colonne à chaque ligne (N2→N3→N4 ou N4→N3→N2), entouré en rouge et relié. Ordre inversé : L1↔dernière ligne de référence, L2↔avant-dernière… Le seuil Lx s'applique à la ligne x du Jeu B. Jaune = numéros communs. Ligne verte = ce qui est sorti ensuite.</div>
     ${simiResHTML()}
   </div>`;
 }
@@ -14047,6 +14112,8 @@ function cmp2CardHTML(){
   </div>`;
 }
 // ══════ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage (même logique que 2 plages) ══════
+// Marques : 'exact3' = numéro présent sur la même ligne dans les 3 plages ;
+//           'exact2' = présent dans 2 plages ; 'mirror' = miroir seulement (si pas d'exact).
 function doCmp3(){
   const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
   const ds=ks.map(k=>gameData(k));
@@ -14055,29 +14122,38 @@ function doCmp3(){
   const idx=ts.map((t,i)=>ds[i].T.findIndex(r=>r.t===t));
   for(let i=0;i<3;i++){if(isNaN(ts[i])||idx[i]<0){alert('Ligne '+(i+1)+' introuvable dans '+GAMES[ks[i]].name+'.');return;}}
   const n=Math.max(1,parseInt(state.cmp3N)||30);
+  // ligne de départ + N lignes au-dessus (N+1 lignes au total)
   const m=Math.min(n,...idx.map((x,i)=>ds[i].T.length-1-x));
   const rows=[0,1,2].map(i=>{const a=[];for(let k=0;k<=m;k++)a.push(ds[i].T[idx[i]+m-k]);return a;});
   const withMirror=state.cmp3Mirror!==false;
   const marks=rows.map(()=>rows[0].map(()=>({})));
+  const counts={exact3:0,exact2:0,mirror:0};
   for(let r=0;r<=m;r++)for(let a=0;a<3;a++)rows[a][r].n.forEach((x,xi)=>{
-    let t=null;
-    for(let b=0;b<3&&t!=='exact';b++){if(b===a)continue;
-      for(const y of rows[b][r].n){if(y===x){t='exact';break;}if(withMirror&&!t&&(MIR[x]===y||MIR[y]===x))t='mirror';}}
-    if(t)marks[a][r][xi]=t;
+    let nb=1, mir=false;
+    for(let b=0;b<3;b++){if(b===a)continue;
+      const bn=rows[b][r].n;
+      if(bn.includes(x))nb++;
+      else if(withMirror&&bn.some(y=>MIR[x]===y||MIR[y]===x))mir=true;}
+    const t=nb===3?'exact3':nb===2?'exact2':mir?'mirror':null;
+    if(t){marks[a][r][xi]=t;counts[t]++;}
   });
-  state.cmp3Result={ks,rows,marks};
+  state.cmp3Result={ks,rows,marks,counts};
   render();
 }
 function cmp3ResHTML(){
   const res=state.cmp3Result;if(!res)return'';
-  const cell=(num,t)=>`<td style="text-align:center;padding:1px 0;font-weight:${t?700:500};${t?`background:${t==='exact'?'#EAB308':'#16A34A'};color:${t==='exact'?'#111':'#fff'};`:''}">${num}</td>`;
+  const COL={exact3:['#DC2626','#fff'],exact2:['#EAB308','#111'],mirror:['#16A34A','#fff'],exact:['#EAB308','#111']};
+  const cell=(num,t)=>`<td style="text-align:center;padding:1px 0;font-weight:${t?700:500};${t?`background:${COL[t][0]};color:${COL[t][1]};`:''}">${num}</td>`;
   const tbl=(a)=>{const rs=res.rows[a];
     const hasM=rs.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
     const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5']:[]);
     const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F">${h}</th>`).join('');
     const body=rs.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap">${r.d}</td>${r.n.map((x,xi)=>cell(x,res.marks[a][i][xi])).join('')}<td style="text-align:center;font-size:10px;color:#92400E">${r.s}</td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(x=>`<td style="text-align:center;color:#7B1FA2;font-weight:600">${isNaN(x)?'·':x}</td>`).join(''):''}</tr>`).join('');
     return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[res.ks[a]].name} <span style="font-weight:400;font-size:9px">· T ${rs[0].t} – ${rs[rs.length-1].t}</span></div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;};
-  return`<div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
+  const c=res.counts||{exact3:0,exact2:0,mirror:0};
+  const chip=(t,txt)=>`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${COL[t][0]};color:${COL[t][1]}">${txt}</span>`;
+  return`<div style="margin-top:8px;font-size:9px;color:#555;display:flex;gap:6px;flex-wrap:wrap">${chip('exact3','Dans les 3 plages : '+c.exact3)}${chip('exact2','Dans 2 plages : '+c.exact2)}${chip('mirror','Miroir : '+c.mirror)}</div>
+  <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
 }
 function cmp3CardHTML(){
   const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
@@ -14090,7 +14166,7 @@ function cmp3CardHTML(){
     <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
       <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label></div>
     <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
-    <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes. 🟡 = numéro présent aussi dans une autre plage sur la même ligne. 🟢 = miroir.</div>
+    <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes (N+1 lignes). 🔴 = numéro présent dans les 3 plages sur la même ligne. 🟡 = présent dans 2 plages. 🟢 = miroir.</div>
     ${cmp3ResHTML()}
   </div>`;
 }

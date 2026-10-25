@@ -13778,7 +13778,8 @@ function setCmp2B(v){state.cmp2B=v;render();}
 function doCmp2(){
   const keyA=state.cmp2A||GAME.key, keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
   const dA=gameData(keyA),dB=gameData(keyB);
-  const t1=parseInt(state.cmp2Line1), t2=parseInt(state.cmp2Line2);
+  // Ligne 1 vide = dernier tirage du jeu A (le tirage « en cours »).
+  const t1=(state.cmp2Line1===''||state.cmp2Line1==null)?(dA.T[0]?dA.T[0].t:NaN):parseInt(state.cmp2Line1), t2=parseInt(state.cmp2Line2);
   const idxA0=dA.T.findIndex(r=>r.t===t1);
   const idxB0=dB.T.findIndex(r=>r.t===t2);
   if(isNaN(t1)||idxA0<0){alert('Ligne 1 introuvable dans '+GAMES[keyA].name+' (N° de tirage inconnu).');return;}
@@ -13915,7 +13916,7 @@ function cmp2CardHTML(){
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Ligne 1 (N° tirage, Jeu A) :</span>
-      <input type="number" placeholder="Ex: 167" value="${state.cmp2Line1}" oninput="state.cmp2Line1=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+      <input type="number" placeholder="${(()=>{const d=gameData(keyA);return d.T[0]?'dernier : '+d.T[0].t:'Ex: 167';})()}" value="${state.cmp2Line1!==''?state.cmp2Line1:(()=>{const d=gameData(keyA);return d.T[0]?d.T[0].t:'';})()}" oninput="state.cmp2Line1=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Ligne 2 (N° tirage, Jeu B) :</span>

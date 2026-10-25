@@ -12761,7 +12761,7 @@ function dopGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function doDoubleOp(){
   const wA=dopGet('dpWA',0),wI=dopGet('dpWI',0),wB=dopGet('dpWB',3);
   const opA=state.dpOpA||'-',opB=state.dpOpB||'/';
-  const kA=parseInt(state.dpKA),kB=parseInt(state.dpKB);
+  const kA=dopGet('dpKA',1),kB=dopGet('dpKB',2);
   if(isNaN(kA)||isNaN(kB)){alert('Indique les deux opérandes (A et B).');return;}
   const pA1=dopGet('dpA1',-1),pA2=dopGet('dpA2',-1),pB1=dopGet('dpB1',-1),pB2=dopGet('dpB2',-1);
   const sel=state.dpGame||'all',incM=state.dpM!==false;

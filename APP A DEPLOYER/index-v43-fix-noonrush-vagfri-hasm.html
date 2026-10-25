@@ -12385,6 +12385,9 @@ const SEARCH_SECTIONS=[
   {key:'freq',icon:'📊',title:'Fréquences',desc:'Sorties de chaque numéro ou position, tri par sorties, n° ou écart',color:'#0E6272',html:freqCardHTML},
   {key:'gaps',icon:'⏳',title:"Écarts d'absence",desc:'Écart courant, maximum et moyenne de chaque numéro, seuil réglable',color:'#B45309',html:gapCardHTML},
   {key:'pairs',icon:'👥',title:'Paires qui sortent ensemble',desc:'Deux numéros sur la même ligne, répétitions, machine en option',color:'#4338CA',html:pairCardHTML},
+  {key:'fiche',icon:'🪪',title:"Fiche d'un numéro",desc:'Toutes ses sorties, positions, écarts entre sorties',color:'#0E6272',html:ficheCardHTML},
+  {key:'tdist',icon:'🎯',title:'Distribution des totaux de ligne',desc:'Totaux les plus fréquents, fenêtre et tranche réglables',color:'#D97706',html:tdistCardHTML},
+  {key:'resume',icon:'📋',title:'Résumé du jeu',desc:'Derniers tirages, chauds/froids, plus gros écarts, en une page',color:'#059669',html:resumeCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
   {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
@@ -12990,23 +12993,23 @@ function bottomNavHTML(){
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
   ];
-  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:480px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow:hidden;z-index:900">
+  return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;bottom:calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:8px 4px;box-shadow:0 -4px 22px rgba(15,46,78,.5);display:flex;align-items:stretch;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
-      return`<div onclick="goNav('${id}')" style="flex:1;min-width:0;text-align:center;padding:5px 1px;cursor:pointer;font-size:8px;font-weight:600;letter-spacing:.2px;color:${isActive?'#fff':'#CDE7E2'};overflow:hidden;${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
+      return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:62px;text-align:center;padding:5px 6px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
-        <span style="text-transform:uppercase;word-break:break-word;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
+        <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
       </div>`;
     }).join('')}
   </div>`;
 }
 function downloadAppButtonHTML(){
-  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(92px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
+  return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
 }
 function fabHTML(){
   let h='';
   if(GAMES[GAME.key]&&GAMES[GAME.key]._virtual){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:950;background:#7E22CE;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>🔀 Jeu virtuel (Conversion) — numéros convertis, pas les tirages officiels</span>
       <button onclick="returnFromConvVirtual()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#7E22CE;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">↩ Retour à Conversion</button>
     </div>`;
@@ -13016,7 +13019,7 @@ function fabHTML(){
   // sources ensuite, ce jeu ne les affiche pas tant qu'il n'est pas rouvert. Bouton de rafraîchissement
   // en un clic pour éviter d'avoir à retourner dans le filtre d'origine et recocher les mêmes options.
   if(GAMES[GAME.key]&&GAMES[GAME.key]._reopenFn){
-    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(70px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
+    h+=`<div style="position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:950;background:#0E7490;color:#fff;border-radius:10px;padding:7px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,.3);font-size:11px;font-weight:600;flex-wrap:wrap">
       <span>📸 Jeu "ouvert comme un jeu" — instantané figé au moment de l'ouverture, pas mis à jour automatiquement</span>
       <button onclick="window['${GAMES[GAME.key]._reopenFn}']()" style="margin-left:auto;padding:4px 10px;background:#fff;color:#0E7490;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:10px">🔄 Rafraîchir (derniers tirages)</button>
     </div>`;
@@ -13488,7 +13491,7 @@ function totxCardHTML(){
 // ══════ Numéros pas encore sortis ══════
 function doAbsent(){
   const all=gameData(GAME.key).T, Y=parseInt(state.abY), N=(state.abN===undefined||state.abN==='')?20:(parseInt(state.abN)||0), byPos=!!state.abPos, showAll=!!state.abAll;
-  let W=isNaN(Y)?all:all.filter(r=>r.y===Y); if(N>0)W=W.slice(0,N);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y); if(N>0)W=W.slice(0,N);
   if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
   const s0=all.indexOf(W[0]), inW=new Set(W), out=[];
   (byPos?[0,1,2,3,4]:[-1]).forEach(p=>{
@@ -13597,7 +13600,7 @@ function impCardHTML(){
 // ══════ Fréquences détaillées ══════
 function doFreq(){
   const all=gameData(GAME.key).T,Y=parseInt(state.fqY),N=(state.fqN===undefined||state.fqN==='')?100:(parseInt(state.fqN)||0),byPos=!!state.fqPos;
-  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
   if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
   const s0=all.indexOf(W[0]),pos=byPos?[0,1,2,3,4]:[-1],out=[];
   pos.forEach(p=>{
@@ -13639,7 +13642,7 @@ function freqCardHTML(){
 // ══════ Écarts d'absence (courant / max / moyenne) ══════
 function doGaps(){
   const all=gameData(GAME.key).T,Y=parseInt(state.gpY),N=(state.gpN===undefined||state.gpN==='')?100:(parseInt(state.gpN)||0),byPos=!!state.gpPos,minG=parseInt(state.gpMin)||0;
-  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
   if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
   const s0=all.indexOf(W[0]),pos=byPos?[0,1,2,3,4]:[-1],out=[];
   pos.forEach(p=>{
@@ -13679,7 +13682,7 @@ function gapCardHTML(){
 // ══════ Paires qui sortent ensemble ══════
 function doPairs(){
   const all=gameData(GAME.key).T,Y=parseInt(state.prY),N=(state.prN===undefined||state.prN==='')?100:(parseInt(state.prN)||0);
-  let W=isNaN(Y)?all:all.filter(r=>r.y===Y);if(N>0)W=W.slice(0,N);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
   if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
   const useM=!!state.prM,minC=(state.prMin===undefined||state.prMin==='')?2:(parseInt(state.prMin)||0),top=Math.max(1,(state.prTop===undefined||state.prTop==='')?20:(parseInt(state.prTop)||20));
   const cnt={};
@@ -13707,6 +13710,129 @@ function pairCardHTML(){
     <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
       <label><input type="checkbox" ${state.prM?'checked':''} onchange="state.prM=this.checked"> Paires de la machine (au lieu des numéros)</label>
       ${lvBtn('doPairs()',col)}</div>${body}`);
+}
+// Lit un champ numérique : valeur par défaut si vide (même défaut que le lvInp)
+function lvNum(key,def){const v=parseInt(state[key]);return isNaN(v)?def:v;}
+// ══════ Fiche d'un numéro ══════
+function doFiche(){
+  const x=parseInt(state.fcX);
+  if(isNaN(x)||x<1||x>90){alert('Choisissez un numéro entre 1 et 90.');return;}
+  const all=gameData(GAME.key).T,Y=parseInt(state.fcY),N=lvNum('fcN',0),useM=!!state.fcM;
+  const pos=(state.fcPos==null||state.fcPos==='all')?-1:parseInt(state.fcPos);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const hit=r=>{
+    const arr=useM?r.n.concat(r.m||[]):r.n;
+    if(pos>=0)return pos<r.n.length?r.n[pos]===x:false;
+    return arr.includes(x);
+  };
+  const hits=W.filter(hit);
+  let i0=0;while(i0<all.length&&!hit(all[i0]))i0++;
+  const ecart=i0<all.length?i0:null;
+  const idxs=hits.map(r=>all.indexOf(r));
+  const gaps=[];for(let i=1;i<idxs.length;i++)gaps.push(idxs[i]-idxs[i-1]);
+  const nb=GAME.n4?4:5,posCnt=Array(nb).fill(0);
+  if(pos<0)hits.forEach(r=>{r.n.forEach((v,p)=>{if(v===x&&p<nb)posCnt[p]++;});});
+  state.fcRes={game:GAME.key,x,n:W.length,from:W[W.length-1],to:W[0],hits,ecart,gaps,posCnt,pos,useM};render();
+}
+function ficheCardHTML(){
+  const col='#0E6272',res=state.fcRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res){
+    const g=res.gaps,moy=g.length?Math.round(g.reduce((a,b)=>a+b,0)/g.length*10)/10:null;
+    body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t})</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:10px;margin-top:3px">
+      <span>Sorties : <b>${res.hits.length}</b></span>
+      <span>Écart courant : <b>${res.ecart==null?'jamais sorti':res.ecart}</b></span>
+      <span>Entre sorties — min <b>${g.length?Math.min(...g):'·'}</b> · moy <b>${moy==null?'·':moy}</b> · max <b>${g.length?Math.max(...g):'·'}</b></span>
+    </div>
+    ${res.pos<0?`<div style="font-size:9px;color:#666;margin-top:3px">Par position : ${res.posCnt.map((c,p)=>`N${p+1} : ${c}`).join(' · ')}</div>`:''}
+    ${res.gaps.length?`<div style="font-size:9px;color:#666;margin-top:2px">Écarts (récent → ancien) : ${res.gaps.join(', ')}</div>`:''}
+    <div style="margin-top:4px;max-height:260px;overflow-y:auto;overflow-x:auto;border:1.5px solid #0F766E;border-radius:6px">${lvHdr(false)}${res.hits.slice(0,100).map(r=>{
+      const hl=new Set();r.n.forEach((v,p)=>{if(v===res.x&&(res.pos<0||p===res.pos))hl.add(p);});
+      return lvRow(r,hl);}).join('')}${res.hits.length>100?`<div style="font-size:8px;color:#999">… et ${res.hits.length-100} autres</div>`:''}</div>`;
+  }
+  return lvBox(col,`🪪 Fiche d'un numéro — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Numéro (1-90) :','fcX','',50,col)}${lvInp('Derniers tirages (0 = tous) :','fcN',0,60,col)}${lvInp('Année (vide = toutes) :','fcY','',70,col)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+    ${lvSel('Position :','fcPos',[['all','toutes'],['0','N1'],['1','N2'],['2','N3'],['3','N4'],['4','N5']],'all',col)}
+      <label><input type="checkbox" ${state.fcM?'checked':''} onchange="state.fcM=this.checked"> Inclure numéros machine</label>
+      ${lvBtn('doFiche()',col)}</div>${body}`);
+}
+// ══════ Distribution des totaux de ligne ══════
+function doTdist(){
+  const all=gameData(GAME.key).T,Y=parseInt(state.tdY),N=lvNum('tdN',100),pas=Math.max(1,lvNum('tdPas',10));
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const byTot={},byTr={};
+  W.forEach(r=>{const t=lvTot(r);(byTot[t]=byTot[t]||[]).push(r);const tr=Math.floor(t/pas)*pas;(byTr[tr]=byTr[tr]||[]).push(r);});
+  const tranches=Object.entries(byTr).map(([tr,rows])=>({tr:+tr,c:rows.length,rows})).sort((a,b)=>b.c-a.c||a.tr-b.tr);
+  const totaux=Object.entries(byTot).map(([t,rows])=>({t:+t,c:rows.length})).sort((a,b)=>b.c-a.c||a.t-b.t);
+  const tots=W.map(lvTot);
+  state.tdRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],pas,tranches,totaux,
+    min:Math.min(...tots),max:Math.max(...tots),moy:Math.round(tots.reduce((a,b)=>a+b,0)/tots.length*10)/10};
+  state.tdSel=null;render();
+}
+function tdistCardHTML(){
+  const col='#D97706',res=state.tdRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res){
+    const maxC=res.tranches[0].c;
+    const sel=state.tdSel!=null?res.tranches.find(t=>t.tr===state.tdSel):null;
+    body=`<div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t}) — total min ${res.min} · moyen ${res.moy} · max ${res.max}</div>
+    <div style="margin-top:4px">${res.tranches.map(t=>`<div onclick="state.tdSel=${t.tr};render()" style="cursor:pointer;display:flex;align-items:center;gap:5px;font-size:10px;padding:1px 0;${state.tdSel===t.tr?'font-weight:700':''}">
+      <span style="display:inline-block;width:64px;color:${col}">${t.tr}–${t.tr+res.pas-1}</span>
+      <span style="display:inline-block;height:8px;border-radius:3px;background:${col};width:${Math.max(2,Math.round(t.c/maxC*120))}px"></span>
+      <span>${t.c}</span></div>`).join('')}</div>
+    <div style="font-size:9px;color:#666;margin-top:4px">Totaux exacts les plus fréquents : ${res.totaux.slice(0,8).map(t=>`${t.t} (×${t.c})`).join(' · ')}</div>
+    ${sel?`<div style="margin-top:4px;font-size:9px;font-weight:600;color:${col}">Tirages du total ${sel.tr}–${sel.tr+res.pas-1} (${sel.c}) :</div>
+    <div style="max-height:220px;overflow-y:auto;overflow-x:auto;border:1.5px solid #0F766E;border-radius:6px">${lvHdr(false)}${sel.rows.slice(0,100).map(r=>lvRow(r)).join('')}${sel.rows.length>100?`<div style="font-size:8px;color:#999">… et ${sel.rows.length-100} autres</div>`:''}</div>`
+    :`<div style="font-size:9px;color:#999;margin-top:4px">Cliquez une tranche pour voir ses tirages.</div>`}`;
+  }
+  return lvBox(col,`🎯 Distribution des totaux de ligne — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','tdN',100,60,col)}${lvInp('Année (vide = toutes) :','tdY','',70,col)}${lvInp('Tranche :','tdPas',10,50,col)}${lvBtn('doTdist()',col)}</div>${body}`);
+}
+// ══════ Résumé du jeu ══════
+function doResume(){
+  const all=gameData(GAME.key).T,Y=parseInt(state.rsY),N=lvNum('rsN',100);
+  let W=isNaN(Y)?all:all.filter(r=>parseInt(r.y)===Y);if(N>0)W=W.slice(0,N);
+  if(!W.length){alert('Aucun tirage pour ce filtre.');return;}
+  const items=[];
+  for(let x=1;x<=90;x++){
+    const cnt=W.filter(r=>r.n.includes(x)).length;
+    let i=0;while(i<all.length&&!all[i].n.includes(x))i++;
+    items.push({x,cnt,ecart:i<all.length?i:null});
+  }
+  const chauds=items.slice().sort((a,b)=>b.cnt-a.cnt||a.x-b.x).slice(0,10);
+  const froids=items.slice().sort((a,b)=>a.cnt-b.cnt||a.x-b.x).slice(0,10);
+  const ecarts=items.slice().sort((a,b)=>(b.ecart==null?1e9:b.ecart)-(a.ecart==null?1e9:a.ecart)).slice(0,10);
+  const tots=W.map(lvTot);
+  const byTot={};tots.forEach(t=>byTot[t]=(byTot[t]||0)+1);
+  const topTot=Object.entries(byTot).sort((a,b)=>b[1]-a[1])[0];
+  state.rsRes={game:GAME.key,n:W.length,from:W[W.length-1],to:W[0],last:W.slice(0,10),chauds,froids,ecarts,
+    tMin:Math.min(...tots),tMax:Math.max(...tots),tMoy:Math.round(tots.reduce((a,b)=>a+b,0)/tots.length*10)/10,
+    tFreq:topTot?+topTot[0]:null,tFreqC:topTot?topTot[1]:0};
+  render();
+}
+function resumeCardHTML(){
+  const col='#059669',res=state.rsRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body=`<div style="font-size:9px;color:#B91C1C">Résultat calculé sur ${GAMES[res.game].name} — relance la recherche.</div>`;
+  else if(res)body=`
+    <div style="font-size:10px;color:${col};margin-top:4px">Fenêtre : ${res.n} tirages (T ${res.from.t} → ${res.to.t})</div>
+    <div style="margin-top:4px"><div style="font-size:9px;font-weight:600;color:${col}">10 derniers tirages</div>
+    <div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:6px">${lvHdr(false)}${res.last.map(r=>lvRow(r)).join('')}</div></div>
+    <div style="margin-top:5px"><div style="font-size:9px;font-weight:600;color:${col}">Numéros chauds (les plus sortis)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${res.chauds.map(i=>`<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#FEE2E2"><b>${i.x}</b> <span style="color:#B91C1C;font-size:8px">×${i.cnt}</span></span>`).join('')}</div></div>
+    <div style="margin-top:5px"><div style="font-size:9px;font-weight:600;color:${col}">Numéros froids (les moins sortis)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${res.froids.map(i=>`<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#DBEAFE"><b>${i.x}</b> <span style="color:#1D4ED8;font-size:8px">×${i.cnt}</span></span>`).join('')}</div></div>
+    <div style="margin-top:5px"><div style="font-size:9px;font-weight:600;color:${col}">Plus gros écarts d'absence en cours</div>
+    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:2px">${res.ecarts.map(i=>`<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#FEF3C7"><b>${i.x}</b> <span style="color:#B45309;font-size:8px">${i.ecart==null?'jamais':i.ecart}</span></span>`).join('')}</div></div>
+    <div style="font-size:9px;color:#666;margin-top:5px">Totaux de ligne : min ${res.tMin} · moyen ${res.tMoy} · max ${res.tMax} · le plus fréquent ${res.tFreq} (×${res.tFreqC})</div>`;
+  return lvBox(col,`📋 Résumé du jeu — ${GAME.name}`,`
+    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Derniers tirages (0 = tous) :','rsN',100,60,col)}${lvInp('Année (vide = toutes) :','rsY','',70,col)}${lvBtn('doResume()',col)}</div>${body}`);
 }
 function triggerBankerMulti(){doBankerSearch(state.bankerK||2);}
 function bankerPairRowRenderer(){
@@ -18715,7 +18841,7 @@ function __renderBody(){
   ${gamePickerHTML()}
   ${state.tab===0?elmHLBarHTML():''}
   ${state.tab===0?multiJeuBarHTML():''}
-  <div style="padding-bottom:calc(20px + env(safe-area-inset-bottom))">  ${state.showSearchHub?searchHubHTML():''}`;
+  <div style="padding-bottom:calc(96px + env(safe-area-inset-bottom))">  ${state.showSearchHub?searchHubHTML():''}`;
 
   html+=addFormHTML();
 

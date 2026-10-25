@@ -12376,6 +12376,7 @@ const SEARCH_SECTIONS=[
   {key:'combo',icon:'🔗',title:'Numéros + Total (même ligne)',desc:'Numéros ET total sur la même ligne, multi-jeu possible',color:'#6D28D9',html:comboSectionHTML},
   {key:'date',icon:'📅',title:'Tirages à une date donnée',desc:'Un jour/mois précis, ou toutes les années pour une date',color:'#0891B2',html:dateSectionHTML},
   {key:'bankers',icon:'📍',title:'Bankers alignés',desc:"Numéros stables d'une ligne à l'autre, écart réglable",color:'#B45309',html:bankersSectionHTML},
+  {key:'bchain',icon:'📍⬇️',title:'Plusieurs bankers verticalement alignés',desc:'1 à 10 bankers, même position, sur 2 à 10 lignes, écart réglable',color:'#B45309',html:bankerChainCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
   {key:'term',icon:'🔟',title:'Terminaison',desc:'Dernier chiffre, avec ou sans position, 1 à 3 terminaisons collées',color:'#DB2777',html:termSectionHTML},
   {key:'dig',icon:'🔢',title:'Chiffre contenu',desc:"Le chiffre apparaît n'importe où dans le nombre (dizaine ou unité)",color:'#0891B2',html:digSectionHTML},
@@ -13325,6 +13326,47 @@ function doBankerSearch(k){
   }
   render();
 }
+
+function bankerChain(k,L,gap,withPos,useM){
+  const g=Math.max(1,gap||1),out=[];
+  for(let i=0;i+(L-1)*g<T.length;i++){
+    const rows=[];for(let w=0;w<L;w++)rows.push(T[i+w*g]); // rows[0] = le plus récent
+    const V=rows.map(r=>useM?r.n.concat(r.m||[]):r.n.slice());
+    const hits=[];
+    if(withPos){
+      const len=Math.min(...V.map(v=>v.length));
+      for(let p=0;p<len;p++){const x=V[0][p];if(!isNaN(x)&&V.every(v=>v[p]===x))hits.push({idx:p,val:x});}
+    }else{
+      V[0].forEach((x,p)=>{if(!isNaN(x)&&V.every(v=>v.includes(x))&&!hits.some(h=>h.val===x))hits.push({idx:p,val:x});});
+    }
+    if(hits.length>=k)out.push({rows:rows.slice().reverse(),hits}); // affichage ancien → récent
+  }
+  return out;
+}
+function doBankerChain(){
+  const k=Math.min(10,Math.max(1,parseInt(state.bcK)||2));
+  const L=Math.min(10,Math.max(2,parseInt(state.bcL)||2));
+  state.bcRes={k,L,list:bankerChain(k,L,parseInt(state.bcGap)||1,state.bcPos!==false,!!state.bcM)};
+  render();
+}
+function bankerChainCardHTML(){
+  const inp=(lbl,key,def,w)=>`<span style="font-size:9px;color:#777">${lbl}</span><input type="number" min="1" value="${state[key]??def}" oninput="state.${key}=this.value" style="width:${w}px;padding:4px 6px;border:1.5px solid #B45309;border-radius:5px;font-size:12px">`;
+  const res=state.bcRes;
+  const list=res?res.list.slice(0,200).map(x=>{
+    const vals=new Set(x.hits.map(h=>h.val));
+    return`<div style="border:1px solid #FDE4B8;border-radius:6px;padding:3px 6px;margin-top:3px">${x.rows.map(r=>`<div style="font-size:10px;white-space:nowrap;overflow-x:auto"><b style="color:#0F766E">${r.t}</b> <span style="color:#888">${r.d||'·'}</span> ${r.n.concat(state.bcM?(r.m||[]):[]).map((v,p)=>`<span style="display:inline-block;min-width:20px;text-align:center;border-radius:4px;${vals.has(v)&&(state.bcPos===false||x.hits.some(h=>h.idx===p))?'background:#FDE047;font-weight:700':''}">${isNaN(v)?'·':v}</span>`).join('')}</div>`).join('')}</div>`;
+  }).join(''):'';
+  return`<div style="background:#fff;border:1.5px solid #B45309;border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:#B45309;margin-bottom:5px">📍⬇️ Plusieurs bankers verticalement alignés — ${GAME.name}</div>
+    <div class="row" style="gap:5px;flex-wrap:wrap">${inp('Bankers (1-10) :','bcK',2,50)}${inp('Lignes (2-10) :','bcL',2,50)}${inp('Écart :','bcGap',1,50)}</div>
+    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
+      <label><input type="checkbox" ${state.bcPos!==false?'checked':''} onchange="state.bcPos=this.checked"> Même position</label>
+      <label><input type="checkbox" ${state.bcM?'checked':''} onchange="state.bcM=this.checked"> Inclure numéros machine</label>
+      <button onclick="doBankerChain()" style="padding:4px 10px;background:#B45309;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px">Rechercher</button>
+    </div>
+    ${res?`<div style="font-size:10px;color:#B45309;margin-top:4px">${res.list.length} résultat(s)${res.list.length>200?' — 200 affichés':''}</div>${list}`:''}
+  </div>`;
+}
 function triggerBankerMulti(){doBankerSearch(state.bankerK||2);}
 function bankerPairRowRenderer(){
   return({a,b,matches})=>{
@@ -13802,11 +13844,11 @@ function simiPreset(id){
 function simiCompute(){
   const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
   const K=state.simK||3;
-  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='inverse'; // ancien état sauvegardé
+  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='diag'; // ancien état sauvegardé
   const mins=Array.from({length:K},(_,i)=>{const v=(state.simMin||[])[i];return Math.max(0,v===undefined||v===''?1:(parseInt(v)||0));});
   const samePos=!!state.simSamePos, orPos=K===1&&!!state.simOrPos, vAlign=!!state.simVAlign&&K>1;
   const dA=gameData(keyA), dB=gameData(keyB);
-  if(dA.T.length<K||dB.T.length<K+1){alert('Pas assez de tirages.');return;}
+  if(dA.T.length<K||dB.T.length<K){alert('Pas assez de tirages.');return;}
   const ref=[];for(let i=0;i<K;i++)ref.push(dA.T[K-1-i]); // chrono : ancien → récent
   const pair=mode==='inverse'?(w=>K-1-w):(w=>w);
   // Cherche un chemin de colonnes p0, p0+d, p0+2d… (d=+1/-1 diagonale, d=0 vertical)
@@ -13875,14 +13917,14 @@ function simiResHTML(){
   </div>`).join('');
   const modeTxt={vertical:'Vertical',diag:'Diagonale par colonnes',inverse:'Ordre inversé'}[res.mode];
   return`<div style="margin-top:8px">${refHtml}
-    <div style="font-size:10px;font-weight:500;color:#0F766E;margin-bottom:4px">${res.rows.length} fenêtre(s) trouvée(s)${res.rows.length>200?' (200 affichées)':''} — ${modeTxt} · seuils ${res.mins.join('/')}${res.samePos?' · même position':''}${res.vAlign?' · alignés verticalement':''}${res.orPos?' · OU même position':''}</div>
+    <div style="font-size:10px;font-weight:500;color:#0F766E;margin-bottom:4px">${res.rows.length} fenêtre(s) trouvée(s)${res.rows.length>200?' (200 affichées sur '+res.rows.length+')':''} — ${modeTxt} · seuils ${res.mins.join('/')}${res.samePos?' · même position':''}${res.vAlign?' · alignés verticalement':''}${res.orPos?' · OU même position':''}</div>
     <div style="display:flex;flex-direction:column;gap:6px">${rows||'<div style="font-size:10px;color:#999">Aucun résultat</div>'}</div></div>`;
 }
 
 function simiCardHTML(){
   const keyA=state.simA||GAME.key, keyB=state.simB||Object.keys(GAMES).find(k=>k!==keyA)||keyA;
   const K=state.simK||3, mins=state.simMin||[];
-  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='inverse';
+  let mode=state.simMode||'vertical'; if(mode==='oblique')mode='diag';
   const opts=sel=>Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${sel===k?'selected':''}>${g.icon} ${g.name}</option>`).join('');
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:3px 9px;font-size:11px;border-radius:12px;cursor:pointer;font-weight:500;border:2px solid ${on?'#0F766E':'#ddd'};background:${on?'#CCFBF1':'#fff'};color:${on?'#0F766E':'#888'}">${txt}</button>`;
   // changer K à la main annule le préréglage affiché
@@ -13915,12 +13957,12 @@ function doCmp2(){
   const keyA=state.cmp2A||GAME.key, keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
   const dA=gameData(keyA),dB=gameData(keyB);
   // Ligne 1 vide = dernier tirage du jeu A (le tirage « en cours »).
-  const t1=(state.cmp2Line1===''||state.cmp2Line1==null)?(dA.T[0]?dA.T[0].t:NaN):parseInt(state.cmp2Line1), t2=parseInt(state.cmp2Line2);
+  const t1=(state.cmp2Line1===''||state.cmp2Line1==null)?(dA.T[0]?dA.T[0].t:NaN):parseInt(state.cmp2Line1), t2=(state.cmp2Line2===''||state.cmp2Line2==null)?(dB.T[0]?dB.T[0].t:NaN):parseInt(state.cmp2Line2);
   const idxA0=dA.T.findIndex(r=>r.t===t1);
   const idxB0=dB.T.findIndex(r=>r.t===t2);
   if(isNaN(t1)||idxA0<0){alert('Ligne 1 introuvable dans '+GAMES[keyA].name+' (N° de tirage inconnu).');return;}
   if(isNaN(t2)||idxB0<0){alert('Ligne 2 introuvable dans '+GAMES[keyB].name+' (N° de tirage inconnu).');return;}
-  const n=Math.max(1,parseInt(state.cmp2Lines)||1);
+  const n=Math.min(500,Math.max(1,parseInt(state.cmp2Lines)||1));
   // dA.T / dB.T sont triés du plus récent (index 0) au plus ancien.
   // La « Ligne » donnée est la DERNIÈRE ligne de la plage : la fenêtre remonte de n lignes vers les
   // tirages plus anciens (n+1 lignes au total), affichée du plus ancien au plus récent.
@@ -13976,7 +14018,8 @@ function doCmp2(){
   const counts={};PRIO.forEach(t=>counts[t]=0);
   matchA.forEach(m=>Object.values(m).forEach(t=>counts[t]++));
   const count=Object.values(counts).reduce((a,b)=>a+b,0);
-  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts};
+  const dup=dA.T.filter(r=>r.t===t1).length>1||dB.T.filter(r=>r.t===t2).length>1;
+  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts,asked:n+1,got:m+1,dup};
   saveHist({type:'cmp2',keyA,keyB,line1:t1,line2:t2,lines:n,inversee:state.cmp2Inversee,respectPos});
   render();
 }
@@ -14050,10 +14093,11 @@ function cmp2ResHTML(){
     `<span style="font-size:9px;color:${cmp2Color(t)};font-weight:600">■ ${c} ${cmp2ClLabel(t)}</span>`).join('');
   return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
     <span style="font-size:10px;font-weight:500;color:#D97706">Résultat (${res.rowsA.length} lignes · ${res.count} correspondances)</span>
+    ${res.got<res.asked?`<span style="font-size:9px;color:#B91C1C">⚠ ${res.got}/${res.asked} lignes</span>`:''}${res.dup?'<span style="font-size:9px;color:#B91C1C">⚠ N° en double</span>':''}
     ${badges}
     <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">
+  <div class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">
     <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309')}</div>
     <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2')}</div>
   </div></div>`;
@@ -14117,27 +14161,30 @@ function cmp2CardHTML(){
 function doCmp3(){
   const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
   const ds=ks.map(k=>gameData(k));
+  for(let i=0;i<3;i++)if(!ds[i].T.length){alert(GAMES[ks[i]].name+' : aucun tirage.');return;}
   const ln=state.cmp3L||['','',''];
-  const ts=ln.map((v,i)=>(v===''||v==null)?(i===0&&ds[0].T[0]?ds[0].T[0].t:NaN):parseInt(v));
+  const ts=ln.map((v,i)=>(v===''||v==null)?ds[i].T[0].t:parseInt(v)); // vide = dernier tirage
   const idx=ts.map((t,i)=>ds[i].T.findIndex(r=>r.t===t));
   for(let i=0;i<3;i++){if(isNaN(ts[i])||idx[i]<0){alert('Ligne '+(i+1)+' introuvable dans '+GAMES[ks[i]].name+'.');return;}}
-  const n=Math.max(1,parseInt(state.cmp3N)||30);
-  // ligne de départ + N lignes au-dessus (N+1 lignes au total)
+  const dup=ts.map((t,i)=>ds[i].T.filter(r=>r.t===t).length>1);
+  const n=Math.min(500,Math.max(1,parseInt(state.cmp3N)||30));
   const m=Math.min(n,...idx.map((x,i)=>ds[i].T.length-1-x));
   const rows=[0,1,2].map(i=>{const a=[];for(let k=0;k<=m;k++)a.push(ds[i].T[idx[i]+m-k]);return a;});
   const withMirror=state.cmp3Mirror!==false;
   const marks=rows.map(()=>rows[0].map(()=>({})));
   const counts={exact3:0,exact2:0,mirror:0};
-  for(let r=0;r<=m;r++)for(let a=0;a<3;a++)rows[a][r].n.forEach((x,xi)=>{
-    let nb=1, mir=false;
-    for(let b=0;b<3;b++){if(b===a)continue;
-      const bn=rows[b][r].n;
-      if(bn.includes(x))nb++;
-      else if(withMirror&&bn.some(y=>MIR[x]===y||MIR[y]===x))mir=true;}
-    const t=nb===3?'exact3':nb===2?'exact2':mir?'mirror':null;
-    if(t){marks[a][r][xi]=t;counts[t]++;}
-  });
-  state.cmp3Result={ks,rows,marks,counts};
+  for(let r=0;r<=m;r++){
+    const seen={}; // numéro -> nb de plages qui le contiennent (compté UNE fois par ligne)
+    for(let a=0;a<3;a++)new Set(rows[a][r].n).forEach(x=>{seen[x]=(seen[x]||0)+1;});
+    Object.values(seen).forEach(c=>{if(c===3)counts.exact3++;else if(c===2)counts.exact2++;});
+    for(let a=0;a<3;a++)rows[a][r].n.forEach((x,xi)=>{
+      const nb=seen[x]||1;let mir=false;
+      if(nb<2&&withMirror)for(let b=0;b<3;b++){if(b!==a&&rows[b][r].n.some(y=>MIR[x]===y||MIR[y]===x))mir=true;}
+      const t=nb===3?'exact3':nb===2?'exact2':mir?'mirror':null;
+      if(t){marks[a][r][xi]=t;if(t==='mirror')counts.mirror++;}
+    });
+  }
+  state.cmp3Result={ks,rows,marks,counts,asked:n+1,got:m+1,dup};
   render();
 }
 function cmp3ResHTML(){
@@ -14152,8 +14199,9 @@ function cmp3ResHTML(){
     return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[res.ks[a]].name} <span style="font-weight:400;font-size:9px">· T ${rs[0].t} – ${rs[rs.length-1].t}</span></div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;};
   const c=res.counts||{exact3:0,exact2:0,mirror:0};
   const chip=(t,txt)=>`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${COL[t][0]};color:${COL[t][1]}">${txt}</span>`;
-  return`<div style="margin-top:8px;font-size:9px;color:#555;display:flex;gap:6px;flex-wrap:wrap">${chip('exact3','Dans les 3 plages : '+c.exact3)}${chip('exact2','Dans 2 plages : '+c.exact2)}${chip('mirror','Miroir : '+c.mirror)}</div>
-  <div style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
+  const warn=(res.got<res.asked?`<div style="font-size:9px;color:#B91C1C">⚠ ${res.got} lignes au lieu de ${res.asked} (pas assez de tirages anciens)</div>`:'')+((res.dup||[]).some(Boolean)?`<div style="font-size:9px;color:#B91C1C">⚠ N° de tirage en double : la plus récente est utilisée</div>`:'');
+  return warn+`<div style="margin-top:8px;font-size:9px;color:#555;display:flex;gap:6px;flex-wrap:wrap">${chip('exact3','Dans les 3 plages : '+c.exact3)}${chip('exact2','Dans 2 plages : '+c.exact2)}${chip('mirror','Miroir : '+c.mirror)}</div>
+  <div class="cmpGrid" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
 }
 function cmp3CardHTML(){
   const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);

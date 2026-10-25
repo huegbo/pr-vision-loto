@@ -12524,6 +12524,59 @@ function collesStatsSections(){return [
   {key:'voisinscolles',icon:'↔️',title:'Voisins collés d’un numéro',desc:'Numéros immédiatement avant ou après un numéro, avec fréquence',color:'#0E7490',html:voisinsCollesCardHTML}
 ];}
 
+// ══════ Plusieurs bankers sur une ligne (Lovable, intégré) ══════
+function doBankersLigne(){
+  const nb=GAME.n4?4:(GAME.n6?6:5),nums=[];
+  for(let p=0;p<nb;p++){
+    const key='blB'+(p+1),raw=state[key];
+    if(raw==null||String(raw).trim()===''||String(raw).trim()==='0')continue;
+    const x=Number(raw);
+    if(!Number.isInteger(x)||x<1||x>90){alert('Banker '+(p+1)+' : saisissez un entier de 1 à 90, ou 0 pour ignorer ce champ.');return;}
+    if(nums.includes(x)){alert('Le banker '+x+' est saisi plusieurs fois.');return;}
+    nums.push(x);
+  }
+  if(nums.length<2){alert('Saisissez au moins deux bankers différents.');return;}
+  const N=Math.max(0,lvNum('blN',100)),Y=Math.max(0,lvNum('blY',0));
+  state.blN=N;state.blY=Y;
+  for(let p=0;p<nb;p++)if(state['blB'+(p+1)]==null||String(state['blB'+(p+1)]).trim()==='')state['blB'+(p+1)]=0;
+  let W=gameData(GAME.key).T;
+  if(Y>0)W=W.filter(r=>parseInt(r.y,10)===Y);
+  if(N>0)W=W.slice(0,N);
+  const list=[];
+  W.forEach(r=>{
+    const n=Array.from({length:nb},(_,p)=>r.n[p]==null?NaN:Number(r.n[p]));
+    const positions=nums.map(x=>n.indexOf(x));
+    if(positions.every(p=>p>=0)){
+      const total=n.every(x=>Number.isInteger(x)&&x>=1&&x<=90)?n.reduce((a,b)=>a+b,0):NaN;
+      list.push({row:{...r,n,s:total},positions});
+    }
+  });
+  state.blRes={game:GAME.key,nb,nums:nums.slice(),N,Y,n:W.length,list};
+  render();
+}
+function bankersLigneCardHTML(){
+  const col='#0F766E',nb=GAME.n4?4:(GAME.n6?6:5),res=state.blRes;
+  let body='';
+  if(res&&res.game!==GAME.key)body='<p>Jeu changé : relancez la recherche.</p>';
+  else if(res){
+    body='<p>'+res.n+' tirages analysés · Bankers : '+res.nums.join(' – ')+' · '+res.list.length+' sortie(s) ensemble'+lvXBtn('exportBankersLigneCSV()')+'</p>';
+    if(!res.list.length)body+='<p>Aucun tirage trouvé.</p>';
+    else body+='<div style="overflow-x:auto;max-height:420px;overflow-y:auto">'+lvHdr(false)+res.list.slice(0,200).map(x=>lvRow(x.row,new Set(x.positions))).join('')+'</div>'+(res.list.length>200?'<p>200 affichés sur '+res.list.length+' ; export complet disponible.</p>':'');
+  }
+  const fields=Array.from({length:nb},(_,p)=>lvInp('Banker '+(p+1)+' :','blB'+(p+1),0,52,col)).join('');
+  return lvBox(col,'Plusieurs bankers sur une ligne — '+GAME.name,'<div class="row" style="gap:5px;flex-wrap:wrap">'+fields+'</div><div class="row" style="gap:5px;flex-wrap:wrap">'+lvInp('Derniers tirages (0 = tous) :','blN',100,65,col)+lvInp('Année (0 = toutes) :','blY',0,65,col)+lvBtn('doBankersLigne()',col)+'</div>'+body);
+}
+function exportBankersLigneCSV(){
+  const res=state.blRes;
+  if(!res||res.game!==GAME.key){alert('Relancez la recherche sur le jeu affiché avant d’exporter.');return;}
+  const header=['Jeu','Bankers','Année filtrée','Fenêtre demandée','Tirages analysés','N°','DATE','ANNÉE'];
+  for(let p=0;p<res.nb;p++)header.push('N'+(p+1));
+  header.push('TOT','Positions des bankers');
+  const rows=res.list.map(x=>[GAME.name,res.nums.join(' '),res.Y||'Toutes',res.N||'Tous',res.n,x.row.t,x.row.d,x.row.y].concat(x.row.n.map(v=>Number.isFinite(v)?v:''),[Number.isFinite(x.row.s)?x.row.s:'',res.nums.map((v,i)=>v+'=N'+(x.positions[i]+1)).join(' ')]));
+  lvExport('bankers_sur_une_ligne',header,rows);
+}
+function bankersLigneSections(){return [{key:'bankersligne',icon:'📍↔️',title:'Plusieurs bankers sur une ligne',desc:'Bankers saisis qui sortent ensemble, positions libres, gagnants uniquement',color:'#0F766E',html:bankersLigneCardHTML}];}
+
 const SEARCH_SECTIONS=[
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
@@ -12543,7 +12596,7 @@ const SEARCH_SECTIONS=[
   {key:'combo',icon:'🔗',title:'Numéros + Total (même ligne)',desc:'Numéros ET total sur la même ligne, multi-jeu possible',color:'#6D28D9',html:comboSectionHTML},
   {key:'date',icon:'📅',title:'Tirages à une date donnée',desc:'Un jour/mois précis, ou toutes les années pour une date',color:'#0891B2',html:dateSectionHTML},
   {key:'bankers',icon:'📍',title:'Bankers alignés',desc:"Numéros stables d'une ligne à l'autre, écart réglable",color:'#B45309',html:bankersSectionHTML},
-  {key:'bchain',icon:'📍⬇️',title:'Plusieurs bankers verticalement alignés',desc:'1 à 10 bankers, même position, sur 2 à 10 lignes, écart réglable',color:'#B45309',html:bankerChainCardHTML},
+  {key:'bchain',icon:'📍⬇️',title:'Plusieurs Bankers sur Différentes Lignes',desc:'Avec position (modèle Cybetcast) : jusqu\'à 10 bankers, écarts réglables, recherche inversée, tous les lotos',color:'#B45309',html:bankerChainCardHTML},
   {key:'vadd',icon:'➕⬇️',title:'Addition de 2 numéros alignés verticalement',desc:'a + b dans la même colonne → total sur la ligne suivante (2 lectures, règle des 90)',color:'#7C3AED',html:vaddCardHTML},
   {key:'vtan',icon:'🔗⬇️',title:'Tandem / Triplet alignés',desc:'Paire ou trio qui revient : collés aux mêmes colonnes, ou empilés en colonne',color:'#4338CA',html:vtanCardHTML},
   {key:'totx',icon:'🧮',title:'Totaux (simple / de ligne / constante)',desc:'Total de 2 numéros, total de ligne, total qui revient ou différence constante',color:'#F59E0B',html:totxCardHTML},
@@ -12558,6 +12611,7 @@ const SEARCH_SECTIONS=[
   {key:'colles2',icon:'🔗',title:'2 numéros collés',desc:'Deux numéros côte à côte sur la ligne (ex : 13 + 31), dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==2)state.collesCount=2;return collesCardHTML();}},
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
+  ...bankersLigneSections(),
   {key:'cmpwin',icon:'⚖️',title:'Comparer deux fenêtres',desc:'Deux périodes du même jeu : sorties de chaque numéro dans A et B, différence',color:'#7C3AED',html:cmpWinCardHTML},
   {key:'planf',icon:'🧩',title:'Plans 1 / 2 / 10 (formule verticale)',desc:'A−(B−C) ou (A−B)−C sur 3 lignes, résultat cherché à la 4e ligne',color:'#0E7490',html:planFCardHTML},
   {key:'totalNear',icon:'🔢➡️',title:"Total précédé/succédé d'un numéro",desc:"Un total exact précédé ou suivi d'un numéro dans les lignes voisines",color:'#7C3AED',html:totalNearSectionHTML},
@@ -12646,7 +12700,7 @@ function searchHubHTML(){
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['simi','oblique']],
       ['🔗 Numéros collés',['colles2','colles3','colles2stats','colles3stats','voisinscolles','termColles','termVert']],
-      ['📍 Alignements verticaux',['bankers','bchain','vadd','vtan','planf','totx']],
+      ['📍 Alignements verticaux',['bankersligne','bankers','bchain','vadd','vtan','planf','totx']],
       ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
       ['🛠️ Outils',['imp']],
     ];
@@ -13562,45 +13616,102 @@ function lvList(res,col,itemFn){
   return`<div style="font-size:10px;color:${col};margin-top:4px">${res.list.length} résultat(s)${res.list.length>200?' — 200 affichés':''}</div>`+
     res.list.slice(0,200).map(x=>`<div style="border:1.5px solid #0F766E;border-radius:6px;margin-top:5px;overflow-x:auto;background:#fff">${lvHdr(!!res.useM)}${itemFn(x)}</div>`).join('');
 }
-// ══════ Plusieurs bankers verticalement alignés (version corrigée) ══════
-function bankerChain(k,L,gap,withPos,useM){
-  const T=gameData(GAME.key).T; // toujours le jeu affiché
-  const g=Math.max(1,gap||1),out=[];
-  for(let i=0;i+(L-1)*g<T.length;i++){
-    const rows=[];for(let w=0;w<L;w++)rows.push(T[i+w*g]);
-    const V=rows.map(r=>useM?r.n.concat(r.m||[]):r.n.slice());
-    const hits=[];
-    if(withPos){
-      const len=Math.min(...V.map(v=>v.length));
-      for(let p=0;p<len;p++){const x=V[0][p];if(!isNaN(x)&&V.every(v=>v[p]===x))hits.push({idx:p,val:x});}
-    }else{
-      V[0].forEach((x,p)=>{if(!isNaN(x)&&V.every(v=>v.includes(x))&&!hits.some(h=>h.val===x))hits.push({idx:p,val:x});});
-    }
-    if(hits.length>=k)out.push({rows:rows.slice().reverse(),hits});
-  }
-  return out;
+// ══════ Plusieurs Bankers sur Différentes Lignes — Avec Position (modèle Cybetcast) ══════
+function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
+function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}
+function bcVariantRows(key,machine){
+  const T=gameData(key).T;
+  if(!machine)return T;
+  return T.map(r=>({t:r.t,d:r.d,y:r.y,n:(r.m||[]).filter(v=>!isNaN(v)),s:null}));
 }
 function doBankerChain(){
-  const k=Math.min(10,Math.max(1,parseInt(state.bcK)||2));
-  const L=Math.min(10,Math.max(2,parseInt(state.bcL)||2));
-  const withPos=state.bcPos!==false, useM=!!state.bcM;
-  state.bcRes={game:GAME.key,k,L,withPos,useM,list:bankerChain(k,L,parseInt(state.bcGap)||1,withPos,useM)};
+  const cnt=Math.min(9,Math.max(0,bcGet('bcCnt',1))),nbk=cnt+1;
+  const vals=[],pos=[],gaps=[0];
+  for(let i=0;i<nbk;i++){
+    const v=parseInt(state['bcV'+i]);
+    if(isNaN(v)||v<1||v>90){alert('Banker '+(i+1)+' : entre un numéro entre 1 et 90.');return;}
+    vals.push(v);pos.push(bcGet('bcP'+i,-1));
+    if(i>0)gaps.push(Math.max(1,bcGet('bcG'+i,1)));
+  }
+  const inv=!!state.bcInv,incM=state.bcM!==false,sel=state.bcGame||'all';
+  const keys=sel==='all'?Object.keys(GAMES):[sel];
+  const at=(r,v,p)=>p<0?r.n.includes(v):r.n[p]===v;
+  const variants=[];let total=0;
+  keys.forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&!(incM&&GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      for(let i1=0;i1<R.length;i1++){
+        if(!at(R[i1],vals[0],pos[0]))continue;
+        const idxs=[i1];let idx=i1,ok=true;
+        for(let j=1;j<nbk;j++){
+          idx=inv?idx+gaps[j]:idx-gaps[j];
+          if(idx<0||idx>=R.length||!at(R[idx],vals[j],pos[j])){ok=false;break;}
+          idxs.push(idx);
+        }
+        if(ok)hits.push({idxs});
+      }
+      if(hits.length){hits.reverse();total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  state.bcVar=0;state.bcHit=0;
+  state.bcRes={game:GAME.key,vals,pos,gaps,inv,total,variants};
   render();
 }
+function bcWindowHTML(res,v,h){
+  const R=v.R,hit=v.hits[h],mx=Math.max(...hit.idxs),mn=Math.min(...hit.idxs);
+  const lo=Math.min(R.length-1,mx+10),hi=Math.max(0,mn-8);
+  const rows=[];for(let i=lo;i>=hi;i--)rows.push({i,r:R[i]});
+  const nb=Math.min(6,Math.max(4,...rows.map(x=>x.r.n.length)));
+  const cols=`40px 46px 38px repeat(${nb},1fr) 40px`;
+  const hlOf=i=>{const j=hit.idxs.indexOf(i);if(j<0)return null;const p=res.pos[j],val=res.vals[j],r=R[i];
+    const s=new Set();r.n.forEach((x,q)=>{if(x===val&&(p<0||p===q))s.add(q);});return s;};
+  const head=['L','D','Y'].concat(Array.from({length:nb},(_,k)=>'D'+(k+1))).concat(['To']);
+  let html=`<div style="font-size:10px;font-weight:600;color:#B45309;margin:6px 0 3px">${v.icon} ${v.name} T ${R[lo].t} - ${R[hi].t}</div>
+  <div style="overflow-x:auto;border:1.5px solid #B45309;border-radius:6px"><div style="display:grid;grid-template-columns:${cols};background:#12263F;color:#fff;font-size:9px;font-weight:700;text-align:center;padding:3px 0">${head.map(t=>`<span>${t}</span>`).join('')}</div>`;
+  rows.forEach(({i,r})=>{
+    const hl=hlOf(i),tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.slice(0,nb).reduce((a,b)=>a+(isNaN(b)?0:b),0);
+    const date=String(r.d||'');
+    html+=`<div style="display:grid;grid-template-columns:${cols};font-size:11px;align-items:center;border-bottom:1px solid #E5E7EB;background:${hl?'#FFFBEB':'#fff'}">
+      <b style="text-align:center;color:#0F766E;font-size:10px">${r.t}</b><span style="text-align:center;color:#555;font-size:9px">${date}</span><span style="text-align:center;color:#555;font-size:9px">${r.y||''}</span>
+      ${Array.from({length:nb},(_,q)=>{const x=r.n[q];const on=hl&&hl.has(q);return`<span style="text-align:center;padding:3px 0;${on?'background:#FDE047;color:#111;font-weight:700;':(q%2?'background:#F3F4F6;':'')}">${x==null||isNaN(x)?'·':x}</span>`;}).join('')}
+      <span style="text-align:center;font-size:10px;color:#92400E;background:#FEF3C7">${r.n.length?tot:'·'}</span></div>`;
+  });
+  return html+'</div>';
+}
+function exportBankerChainCSV(){
+  const res=state.bcRes;
+  if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];
+  res.variants.forEach(v=>v.hits.forEach((h,n)=>h.idxs.forEach((i,j)=>{const r=v.R[i];
+    rows.push([v.name,n+1,'Banker '+(j+1)+' ('+res.vals[j]+')',r.t,(r.d||'')+'/'+(r.y||''),...Array.from({length:6},(_,q)=>r.n[q]==null?'':r.n[q])]);})));
+  lvExport('bankers',['Jeu','Cas','Banker','N°','Date','D1','D2','D3','D4','D5','D6'],rows);
+}
 function bankerChainCardHTML(){
-  const col='#B45309', res=state.bcRes;
-  const body=res?lvList(res,col,x=>{
-    const vals=new Set(x.hits.map(h=>h.val));
-    return x.rows.map(r=>{const v=r.n.concat(res.useM?(r.m||[]):[]);
-      const hl=new Set();v.forEach((y,p)=>{if(vals.has(y)&&(!res.withPos||x.hits.some(h=>h.idx===p)))hl.add(p);});
-      return lvRow({...r,n:v},hl);}).join('');
-  }):'';
-  return lvBox(col,`📍⬇️ Plusieurs bankers verticalement alignés — ${GAME.name}`,`
-    <div class="row" style="gap:5px;flex-wrap:wrap">${lvInp('Bankers (1-10) :','bcK',2,50,col)}${lvInp('Lignes (2-10) :','bcL',2,50,col)}${lvInp('Écart :','bcGap',1,50,col)}</div>
-    <div class="row" style="gap:10px;flex-wrap:wrap;font-size:10px">
-      <label><input type="checkbox" ${state.bcPos!==false?'checked':''} onchange="state.bcPos=this.checked"> Même position</label>
-      <label><input type="checkbox" ${state.bcM?'checked':''} onchange="state.bcM=this.checked"> Inclure numéros machine</label>
-      ${lvBtn('doBankerChain()',col)}</div>${body}`);
+  const col='#B45309',res=state.bcRes,cnt=Math.min(9,Math.max(0,bcGet('bcCnt',1)));
+  let form=`<div class="row" style="gap:5px;flex-wrap:wrap;align-items:center">${lvInp('Banker 1 :','bcV0','',50,col)}${lvSel('','bcP0',bcPosOpts(),'-1',col)}</div>
+    <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px"><span style="font-size:9px;color:#777">Avec combien d'autres Bankers :</span>
+    <select onchange="state.bcCnt=this.value;render()" style="padding:3px 6px;border:1.5px solid ${col};border-radius:5px;font-size:11px">${Array.from({length:9},(_,i)=>i+1).map(k=>`<option value="${k}" ${cnt===k?'selected':''}>${k===1?'Avec un Banker':'Avec '+k+' Bankers'}</option>`).join('')}</select></div>`;
+  for(let i=1;i<=cnt;i++)form+=`<div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvInp('Écart '+i+' :','bcG'+i,1,40,col)}${lvInp('Banker '+(i+1)+' :','bcV'+i,'',50,col)}${lvSel('','bcP'+i,bcPosOpts(),'-1',col)}</div>`;
+  form+=`<div class="row" style="gap:10px;flex-wrap:wrap;align-items:center;margin-top:5px;font-size:10px">
+    <label><input type="checkbox" ${state.bcInv?'checked':''} onchange="state.bcInv=this.checked"> Faire une recherche inversée</label>
+    <label><input type="checkbox" ${state.bcM!==false?'checked':''} onchange="state.bcM=this.checked"> Inclure les numéros machine</label></div>
+    <div class="row" style="gap:5px;flex-wrap:wrap;align-items:center;margin-top:4px">${lvSel('Loto :','bcGame',[['all','Toutes les lotos']].concat(Object.entries(GAMES).map(([k,g])=>[k,g.icon+' '+g.name])),'all',col)}
+    <button onclick="doBankerChain()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>
+    <div style="font-size:8.5px;color:#888;margin-top:3px">Banker 2 est cherché sur la ligne plus récente de « Écart » lignes (ligne plus ancienne si recherche inversée) ; Banker 3 par rapport à la ligne du Banker 2, etc. Position « Qu’importe » = n’importe quelle colonne.</div>`;
+  let body='';
+  if(res){
+    if(!res.total)body=`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun cas trouvé.</div>`;
+    else{
+      const vi=Math.min(state.bcVar||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state.bcHit||0,v.hits.length-1);
+      body=`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
+      <div style="margin:3px 0">${lvXBtn('exportBankerChainCSV()')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.bcVar=${i};state.bcHit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,120).map((h,i)=>`<button onclick="state.bcHit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
+      ${bcWindowHTML(res,v,hi)}`;
+    }
+  }
+  return lvBox(col,`📍⬇️ Plusieurs Bankers sur Différentes Lignes — Avec Position`,form+body);
 }
 // ══════ Addition de 2 numéros alignés verticalement ══════
 function doVadd(){

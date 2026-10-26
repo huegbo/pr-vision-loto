@@ -13181,6 +13181,40 @@ function modTabClose(key){
   render();
 }
 try{if(state.cybMode===undefined)state.cybMode=!!localStorage.getItem('cybMode');}catch(e){}
+const CYB44=[
+      ['Une Ligne de Tirages','main'],['Voir les Pass','pass'],['Dernière Ligne de Tirages','main'],['Tirages à un mois ou date donnée','cal'],
+      ['2 Nap sur une Ligne','combo'],['3 Nap sur une Ligne','combo'],['4 Nap sur une Ligne','combo'],['5 Nap sur une Ligne','combo'],
+      ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
+      ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['Plusieurs Bankers sur Différentes Lignes - Avec Position','bchain'],
+      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','addligne'],['Addition sur Plusieurs Lignes – Avec Position','vadd'],
+      ['Transformation Simple (Counter, Turning...)','transfsimple'],['Double Transformation (Counter, Turning...)','dblop~'],['Opération Simple (+, -, x, /)','opsimple'],['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning...) & Opération (+, -, x, /)','dblop~'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Opération (Draws & Résultats) - Avec Positions','dblop'],
+      ['Addition & Transformation avec Bankers','vadd~'],['Addition & Opération avec Bankers','vadd~'],
+      ['Numéros Non Tirés dans l’Année','abs90'],
+      ['Recherche Automatique 0','auto4~'],['Recherche Automatique 1','auto4~'],['Recherche Automatique 2','auto4~'],['Recherche Automatique 3','auto4~'],['Recherche Automatique 4','auto4'],['Recherche Automatique 5','auto4~'],['Recherche Automatique 6','auto4~'],['Recherche Automatique 7','auto4~'],['Recherche Automatique 8','auto4~'],['Recherche Automatique 9','auto4~'],
+      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance','freq~'],['Combinaison de Numéros','combo~']];
+function openCyb(n){
+  const e=CYB44[n-1];if(!e)return;let k=e[1];
+  state.cybN=n;
+  if(k==='main'){state.cybN=null;goNav(0);return;}
+  if(k==='pass'){state.cybN=null;goNav(0);state.showPass=true;render();return;}
+  if(!k){state.searchModuleOpen=null;render();return;}
+  const apx=k.endsWith('~');if(apx)k=k.slice(0,-1);
+  if(!SEARCH_SECTIONS.some(x=>x.key===k))return;
+  state.cybApx=apx;
+  openSearchModule(k);
+}
+function cybStep(d){
+  let n=(state.cybN||0)+d;
+  while(n>=1&&n<=44&&(!CYB44[n-1][1]||CYB44[n-1][1]==='main'||CYB44[n-1][1]==='pass'))n+=d;
+  if(n<1||n>44)return;openCyb(n);
+}
+function cybHeadHTML(openKey,sec){
+  const n=state.cybN;const e=n?CYB44[n-1]:null;
+  const ok=e&&e[1]&&e[1].replace('~','')===openKey;
+  if(!ok){state.cybN=null;return `<div style="font-size:16px;font-weight:600;color:#1F2D3D;margin:4px 0 8px;text-align:center">${sec.title}</div>`;}
+  const bt=(d,t)=>`<button onclick="cybStep(${d})" style="padding:8px 14px;font-size:16px;border-radius:10px;border:1.5px solid #6D28D9;background:#fff;color:#6D28D9;cursor:pointer">${t}</button>`;
+  return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0 6px">${bt(-1,'◀')}<div style="flex:1;text-align:center;font-size:15px;font-weight:600;color:#1F2D3D">${n}-) ${e[0]}<div style="font-size:10px;font-weight:400;color:#888">module ${n} / 44</div></div>${bt(1,'▶')}</div>`+(state.cybApx?`<div style="font-size:11px;background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:8px;padding:6px 8px;margin-bottom:8px">≈ Module ${n} pas encore reproduit à l’identique — en attendant, voici le module le plus proche (« ${sec.title} »).</div>`:'');
+}
 function modTabsHTML(){
   state.openMods=state.openMods||[];
   if(state.searchModuleOpen&&!state.openMods.includes(state.searchModuleOpen))state.openMods.push(state.searchModuleOpen);
@@ -13209,8 +13243,7 @@ function searchHubHTML(){
   if(openKey){
     const sec=SEARCH_SECTIONS.find(s=>s.key===openKey);
     h+=`<button onclick="closeSearchModule()" style="padding:5px 12px;background:#fff;border:1.5px solid #6D28D9;color:#6D28D9;border-radius:20px;cursor:pointer;font-weight:600;font-size:11px;margin-bottom:8px">◀ Retour aux modules</button>`;
-    const CYB_NUM={combo:'5',vadd:'15',addligne:'18',transfsimple:'20',opsimple:'22',dblop:'23',abs90:'29',auto4:'34',cmp2:'40',cmp3:'41',oblique:'42'};
-    h+= sec ? `<div style="font-size:16px;font-weight:600;color:#1F2D3D;margin:4px 0 8px;text-align:center">${CYB_NUM[openKey]?CYB_NUM[openKey]+'-) ':''}${sec.title} ▾</div>` + sec.html() : `<div style="font-size:11px;color:#C62828">Module introuvable.</div>`;
+    h+= sec ? cybHeadHTML(openKey,sec)+sec.html() : `<div style="font-size:11px;color:#C62828">Module introuvable.</div>`;
     h+=`</div>`;
     return h;
   }
@@ -13250,20 +13283,10 @@ function searchHubHTML(){
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:4px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #6D28D9;background:${on?'#6D28D9':'#fff'};color:${on?'#fff':'#6D28D9'}">${txt}</button>`;
   h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(state.hubView==='all',"state.hubView='all';render()",'Tous (A–Z)')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Les 44 modules')}</div>`;
   if(state.hubView==='cyb'){
-    const CYB=[
-      ['Une Ligne de Tirages','main'],['Voir les Pass','pass'],['Dernière Ligne de Tirages','main'],['Tirages à un mois ou date donnée','cal'],
-      ['2 Nap sur une Ligne','combo'],['3 Nap sur une Ligne','combo'],['4 Nap sur une Ligne','combo'],['5 Nap sur une Ligne','combo'],
-      ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
-      ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['Plusieurs Bankers sur Différentes Lignes - Avec Position','bchain'],
-      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','addligne'],['Addition sur Plusieurs Lignes – Avec Position','vadd'],
-      ['Transformation Simple (Counter, Turning...)','transfsimple'],['Double Transformation (Counter, Turning...)','dblop~'],['Opération Simple (+, -, x, /)','opsimple'],['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning...) & Opération (+, -, x, /)','dblop~'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Opération (Draws & Résultats) - Avec Positions','dblop'],
-      ['Addition & Transformation avec Bankers','vadd~'],['Addition & Opération avec Bankers','vadd~'],
-      ['Numéros Non Tirés dans l’Année','abs90'],
-      ['Recherche Automatique 0','auto4~'],['Recherche Automatique 1','auto4~'],['Recherche Automatique 2','auto4~'],['Recherche Automatique 3','auto4~'],['Recherche Automatique 4','auto4'],['Recherche Automatique 5','auto4~'],['Recherche Automatique 6','auto4~'],['Recherche Automatique 7','auto4~'],['Recherche Automatique 8','auto4~'],['Recherche Automatique 9','auto4~'],
-      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance','freq~'],['Combinaison de Numéros','combo~']];
+    const CYB=CYB44;
     h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Numérotation et titres des 44 modules confirmés d’après l’appli Cybetcast (menu « Choisir un Module »). « ≈ » = module le plus proche en attendant ta capture.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
       const apx=!!(k&&k.endsWith('~'));if(apx)k=k.slice(0,-1);const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
-      const act=ok?`openSearchModule('${k}')`:(main?`goNav(0)`:(k==='pass'?`goNav(0);state.showPass=true;render()`:''));
+      const act=(ok||main||k==='pass')?`openCyb(${n})`:'';
       return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?(apx?'≈ ›':'›'):((main||k==='pass')?'tableau':'à venir')}</span></div>`;
     }).join('')+'</div>';
   }else if(revue){
@@ -20891,7 +20914,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, openCyb, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

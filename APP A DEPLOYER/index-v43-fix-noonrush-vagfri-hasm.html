@@ -11965,6 +11965,84 @@ function cybSetSave(k,v){
   state.cybSet=state.cybSet||{};state.cybSet[k]=v;
   try{localStorage.setItem('cybSet',JSON.stringify(Object.assign({},JSON.parse(localStorage.getItem('cybSet')||'{}'),state.cybSet)));}catch(e){}
 }
+function cybSelOf(p,vi,n){const k=p+'|'+vi;const s=state.preSel&&state.preSel[k];return s?s.filter(i=>i<n):Array.from({length:n},(_,i)=>i);}
+function cybPre(p,vi,i,n){state.preSel=state.preSel||{};const k=p+'|'+vi;const cur=cybSelOf(p,vi,n).slice();const j=cur.indexOf(i);if(j>=0)cur.splice(j,1);else{cur.push(i);cur.sort((a,b)=>a-b);}state.preSel[k]=cur;render();}
+function cybPreAll(p,vi,n,on){state.preSel=state.preSel||{};state.preSel[p+'|'+vi]=on?Array.from({length:n},(_,i)=>i):[];render();}
+function cybJuxt(p){state.juxt=state.juxt||{};state.juxt[p]=!state.juxt[p];render();}
+function cybExcelFromSel(p,vi){
+  const r=(window._cybRes||{})[p];if(!r)return;
+  const v=r.variants[vi];const sel=cybSelOf(p,vi,v.hits.length);
+  state[p+'Var']=vi;state[p+'Hit']=sel.length?sel[0]:0;
+  state.excelMode=true;state.caseExcelOff=false;
+  cybOpenNav(p);
+}
+
+// ── Export Excel des cas (juxtaposés, alignés sur la ligne du cas, couleurs conservées) ──
+async function cybBuildCasesXlsx(list,fname){
+  if(!list.length){alert('Aucun cas sélectionné.');return;}
+  try{
+    const SS=cybSet();const pend=Math.min(10,SS.pend||0);
+    const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet('Cas');
+    const argb=c=>'FF'+String(c).replace('#','').toUpperCase();
+    const blocks=list.map(({v,h,letter})=>{
+      const R=v.R,i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
+      const lo=Math.min(R.length-1,i0+SS.before),hi=Math.max(0,i1-SS.after);
+      const piv=new Set();h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
+      const pivs=[...piv].slice(0,8);
+      const rows=[];
+      for(let i=lo;i>=hi;i--){const j=h.idxs.indexOf(i);rows.push({r:R[i],hl:j>=0&&h.hl?h.hl[j]:null,isCase:j>=0});}
+      if(hi===0&&pend>0){const last=R[0];for(let k=1;k<=pend;k++)rows.push({r:{t:last.t+k,d:'à venir',y:'',n:[],s:null,m:[]},hl:null,isCase:false,pending:true});}
+      const ci=rows.findIndex(x=>x.isCase);
+      return{v,h,letter,rows,ci,pivs,hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),nbN:Math.max(5,...rows.map(x=>x.r.n.length))};
+    });
+    const maxCi=Math.max(...blocks.map(b=>b.ci));
+    let col=1;
+    blocks.forEach(b=>{
+      const heads=['L','D','Y',...Array.from({length:b.nbN},(_,i)=>'D'+(i+1)),'To',...(b.hasM?['M1','M2','M3','M4','M5']:[])];
+      const w=heads.length;
+      const top=maxCi-b.ci;
+      const rw=b.rows[b.ci].r;
+      const hc=ws.getCell(1,col);hc.value=`${b.letter} · ${b.v.name} · T${rw.t} (${rw.d}/${rw.y})`;
+      ws.mergeCells(1,col,1,col+w-1);
+      hc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF12263F'}};hc.font={bold:true,color:{argb:'FFFFFFFF'},size:12};hc.alignment={horizontal:'center'};
+      heads.forEach((t,k)=>{const c=ws.getCell(2,col+k);c.value=t;c.font={bold:true};c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE8ECF4'}};c.alignment={horizontal:'center'};});
+      b.rows.forEach((x,ri)=>{
+        const rr=3+top+ri,r=x.r;
+        const vals=[r.t,r.d,r.y,...Array.from({length:b.nbN},(_,q)=>r.n[q]==null||isNaN(r.n[q])?null:r.n[q]),r.s!=null&&!isNaN(r.s)?r.s:(r.n.length?r.n.reduce((a,z)=>a+z,0):null),...(b.hasM?Array.from({length:5},(_,q)=>(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:null):[])];
+        vals.forEach((val,k)=>{
+          const c=ws.getCell(rr,col+k);c.value=val;c.alignment={horizontal:'center'};
+          if(x.isCase)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF2E3'}};
+          if(x.pending)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF7ED'}};
+          if(k>=3&&k<3+b.nbN){
+            const q=k-3;
+            if(x.hl&&x.hl.has(q)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF69F0AE'}};c.font={bold:true};}
+            else if(val!=null&&b.pivs.length){for(const pv of b.pivs){const t=cybRelType(val,pv);if(t){const cc=cmp2Color(t);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:argb(cc)}};c.font={bold:true,color:{argb:t==='exact'?'FF111111':'FFFFFFFF'}};break;}}}
+          }
+        });
+      });
+      for(let k=0;k<w;k++)ws.getColumn(col+k).width=k===1?9:(k===2?6:5.5);
+      ws.getColumn(col+w).width=3;
+      col+=w+1;
+    });
+    ws.views=[{state:'frozen',ySplit:2}];
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/octet-stream'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=(fname||'cas')+'_'+new Date().toISOString().slice(0,10)+'.xlsx';
+    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  }catch(err){alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));}
+}
+function cybExportCasesXlsx(p,vi){
+  const r=(window._cybRes||{})[p];if(!r)return;
+  const v=r.variants[vi];const off=r.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);
+  const sel=cybSelOf(p,vi,v.hits.length);
+  cybBuildCasesXlsx(sel.map(i=>({v,h:v.hits[i],letter:cnLetter(off+i)})),(v.name||'cas').replace(/[^A-Za-z0-9]/g,'')+'_cas');
+}
+function cnExportXlsx(){
+  const f=cnFlat();if(!f.length)return;
+  const pins=(state.pins&&state.pins.length?state.pins:[state.caseNav.k]).filter(k=>k<f.length);
+  cybBuildCasesXlsx(pins.map(k=>({v:f[k].v,h:f[k].h,letter:cnLetter(k)})),(f[state.caseNav.k].v.name||'cas').replace(/[^A-Za-z0-9]/g,'')+'_cas');
+}
 function cybSaveLines(p){
   const r=(window._cybRes||{})[p];if(!r||!r.total){alert('Aucune ligne à sauvegarder.');return;}
   const cases=[];r.variants.forEach(v=>v.hits.forEach(h=>cases.push({game:v.key,name:v.name,t:h.idxs.map(i=>v.R[i].t)})));
@@ -12007,7 +12085,15 @@ function cybOpenNav(pfx){
   let k=0;const vi=Math.min(state[pfx+'Var']||0,r.variants.length-1),hi=state[pfx+'Hit']||0;
   for(let i=0;i<vi;i++)k+=r.variants[i].hits.length;k+=hi;
   state.caseNav={pfx,k};
-  { const _f=cnFlat();const _c=_f[k];state.pins=_c?_f.map((x,i)=>x.v===_c.v?i:-1).filter(i=>i>=0).slice(0,12):[]; if(_c&&state.pins.indexOf(k)<0)state.pins.push(k); }
+  { const _f=cnFlat();const _c=_f[k];
+    if(_c){
+      const _vi=_f[k].vi;const _off=_f.findIndex(x=>x.vi===_vi);
+      const _sel=state.preSel&&state.preSel[pfx+'|'+_vi];
+      state.pins=_sel?_sel.map(i=>_off+i).slice(0,12):_f.map((x,i)=>x.v===_c.v?i:-1).filter(i=>i>=0).slice(0,12);
+      if(state.pins.indexOf(k)<0)state.pins.push(k);
+      state.pins.sort((a,b)=>a-b);
+    }else state.pins=[];
+  }
   state.tab=0;state.showSearchHub=false;cnPrepare();render();
   setTimeout(cnScroll,80);
 }
@@ -12023,6 +12109,8 @@ function cnPrepare(){if(!state.caseView)state.caseView='nav';
   const cur=f[cn.k];
   if(GAME.key!==cur.v.key){setGame(cur.v.key);}
   state.navMode='years';if(!state.caseExcelOff)state.excelMode=true;
+  if(state.dualViewOn&&state.caseDualWas==null){state.caseDualWas=true;}
+  state.dualViewOn=false; // vue simple pendant le parcours des cas (pas de double AVEC/SANS repères)
   // cas affichés EN PARALLÈLE dans la Navigation : les cas épinglés (lettres) du même jeu + le cas courant
   const pins=(state.pins||[]).filter(k=>k<f.length&&f[k].v.key===cur.v.key&&f[k].v===cur.v);
   const ks=[...new Set([...pins,cn.k])].sort((x,y)=>x-y);
@@ -12030,8 +12118,7 @@ function cnPrepare(){if(!state.caseView)state.caseView='nav';
   ks.forEach(k=>{
     const {v,h}=f[k],R=v.R,row=R[h.idxs[0]];
     ys.add(String(row.y));
-    const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);
-    for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));
+    if(ks.length===1&&!state.excelMode){const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));}
     h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
     letters[row.t]=cnLetter(k);
     targets.push({t:row.t,y:String(row.y),cur:k===cn.k});
@@ -12102,7 +12189,7 @@ function caseParHTML(){
     <div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">${cols||'<div style="font-size:11px;color:#888">Choisis au moins une lettre.</div>'}</div>
     <div style="height:110px"></div></div>`;
 }
-function cnClose(){state.caseNav=null;state.caseHL=null;state.caseRows=null;state.caseLetters=null;state.caseTargets=null;state.pins=[];render();}
+function cnClose(){if(state.caseDualWas){state.dualViewOn=true;state.caseDualWas=null;}state.caseNav=null;state.caseHL=null;state.caseRows=null;state.caseLetters=null;state.caseTargets=null;state.pins=[];render();}
 function caseNavHTML(onlyBar){
   const cn=state.caseNav,f=cnFlat();
   if(!f.length){return`<div class="card" style="padding:12px;font-size:12px">Plus de résultats à parcourir. <button onclick="cnClose()" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid #999;background:#fff;cursor:pointer">Fermer</button></div>`;}
@@ -12151,7 +12238,7 @@ function caseNavHTML(onlyBar){
       <span style="font-size:9px;color:#777">Hauteur</span><input type="number" min="14" value="${rowH}" onchange="cybSetSave('rowH',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>
     </div></div>`;
-  if(onlyBar){const bt=(a,t)=>`<button onclick="${a}" style="padding:5px 9px;font-size:11px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">${t}</button>`;const _pn=(state.pins||[]);const sw=bt('cnExcelToggle()',(state.excelMode?'📊 Excel ✓':'📊 Excel'))+bt('cnPinAll()','Tout')+bt('cnPinNone()','Aucun')+bt('cnPin()',(_pn.indexOf(cn.k)>=0?'📌 Retirer ':'📌 Épingler ')+cnLetter(cn.k))+_pn.map(k=>`<button onclick="cnPin(${k})" title="Retirer" style="padding:3px 8px;font-size:11px;font-weight:800;border-radius:8px;border:0;background:#F59E0B;color:#111;cursor:pointer">${cnLetter(k)} ✕</button>`).join(' ')+bt("state.caseView='fenetre';render()",'☰ Fenêtre');return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
+  if(onlyBar){const bt=(a,t)=>`<button onclick="${a}" style="padding:5px 9px;font-size:11px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">${t}</button>`;const _pn=(state.pins||[]);const sw='<div style="display:flex;gap:4px;overflow-x:auto;white-space:nowrap;max-width:100%;flex-wrap:nowrap">'+bt('cnExportXlsx()','⤓ Export Excel')+bt('cnExcelToggle()',(state.excelMode?'📊 Excel ✓':'📊 Excel'))+bt('cnPinAll()','Tout')+bt('cnPinNone()','Aucun')+bt('cnPin()',(_pn.indexOf(cn.k)>=0?'📌 Retirer ':'📌 Épingler ')+cnLetter(cn.k))+_pn.map(k=>`<button onclick="cnPin(${k})" title="Retirer" style="padding:3px 8px;font-size:11px;font-weight:800;border-radius:8px;border:0;background:#F59E0B;color:#111;cursor:pointer">${cnLetter(k)} ✕</button>`).join(' ')+bt("state.caseView='fenetre';render()",'☰ Fenêtre')+'</div>';return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
   return`<div class="card" style="padding:8px;margin-bottom:8px">
     <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px"><button onclick="state.caseView='nav';cnPrepare();render();setTimeout(cnScroll,60)" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:1.5px solid #12263F;border-radius:6px;background:#fff;color:#12263F;cursor:pointer">▦ Navigation</button>${chips}</div>
     <div style="background:#1F2A44;color:#fff;font-weight:700;font-size:13px;padding:6px 8px;border-radius:6px 6px 0 0">Cas ${cn.k+1} — ${v.name} — T${caseRow.t} (${caseRow.d}/${caseRow.y})</div>
@@ -12249,10 +12336,11 @@ function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
   return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
   <div style="margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><button onclick="${exFn}()" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">⤴ Exporter</button><button onclick="cybSaveLines('${p}')" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">Sauvegarder les lignes</button><button onclick="cybOpenNav('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Cas par cas dans la navigation</button></div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:96px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:4px 10px;font-size:11px;border-radius:8px;cursor:pointer;border:1.5px solid #94A3B8;background:${i===vi?'#CBD5E1':'#fff'};color:#1E293B;font-weight:600">${i===vi?'✓ ':''}${x.icon} ${x.name} <span style="color:#0891B2">(${x.hits.length})</span></button>`).join('')}</div>
-  <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);return v.hits.slice(0,300).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:8px 12px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:none;background:${i===hi?'#365F73':'#829DA8'};color:#fff;line-height:1.1"><span style="display:block;font-size:11px;opacity:.85">${cnLetter(off+i)}</span>${v.R[h.idxs[0]].t}</button>`).join('');})()}</div>
+  <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);const sel=cybSelOf(p,vi,v.hits.length);return v.hits.slice(0,300).map((h,i)=>{const on=sel.includes(i);return`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:4px 12px 8px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:3px solid ${on?'#F59E0B':'transparent'};background:${i===hi?'#365F73':'#829DA8'};color:#fff;line-height:1.1"><span onclick="event.stopPropagation();cybPre('${p}',${vi},${i},${v.hits.length})" style="display:block;font-size:12px;padding:6px 4px;background:${on?'#F59E0B':'rgba(255,255,255,.2)'};color:${on?'#111':'#fff'};border-radius:6px;margin-bottom:3px;font-weight:800">${on?'☑':'☐'} ${cnLetter(off+i)}</span>${v.R[h.idxs[0]].t}</button>`;}).join('');})()}</div>
+  ${(()=>{const n=v.hits.length,sel=cybSelOf(p,vi,n),jx=!!(state.juxt&&state.juxt[p]);const bt=(a,t,on)=>`<button onclick="${a}" style="padding:9px 12px;font-size:12px;font-weight:700;border-radius:10px;cursor:pointer;border:2px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;return`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">${bt(`cybPreAll('${p}',${vi},${n},true)`,'☑ Tout')}${bt(`cybPreAll('${p}',${vi},${n},false)`,'☐ Aucun')}${bt(`cybJuxt('${p}')`,'⇉ Juxtaposer ('+sel.length+')',jx)}${bt(`cybExcelFromSel('${p}',${vi})`,'📊 Mode Excel ('+sel.length+')')}${bt(`cybExportCasesXlsx('${p}',${vi})`,'⤓ Export Excel ('+sel.length+')')}</div>`;})()}
   ${cybSetBarHTML(col)}
   ${cybClChipsHTML(col)}
-  ${cybWindowHTML(v,hi,col,before,after)}
+  ${(state.juxt&&state.juxt[p])?(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);const sel=cybSelOf(p,vi,v.hits.length).slice(0,8);return`<div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">${sel.map(i=>{const rw=v.R[v.hits[i].idxs[0]];return`<div style="flex:0 0 min(92vw,340px);min-width:0"><div style="background:#12263F;color:#fff;border-radius:8px 8px 0 0;padding:5px 8px;font-size:13px;font-weight:700"><span style="background:#F59E0B;color:#111;border-radius:6px;padding:1px 8px;margin-right:6px">${cnLetter(off+i)}</span>${v.icon||''} ${v.name} · T${rw.t} (${rw.d}/${rw.y})</div>${cybWindowHTML(v,i,col,before,after)}</div>`;}).join('')}</div>`;})():cybWindowHTML(v,hi,col,before,after)}
   ${nsKey?nextStatsHTML(res,nsKey,col):''}`;
 }
 function cybScopeKeys(sel){return sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];}
@@ -13208,7 +13296,7 @@ function npSetP(i,v){npCrit()[i].p=v;}
 function npAdd(){if(npCrit().length<4)npCrit().push({n:'',p:'any'});render();}
 function npDel(i){const c=npCrit();if(c.length>1)c.splice(i,1);render();}
 function npPredBuilder(){
-  const cr=npCrit().map(c=>({n:parseInt(c.n),p:c.p})).filter(c=>!isNaN(c.n));
+  const _seen={};const cr=npCrit().map(c=>({n:parseInt(c.n),p:c.p})).filter(c=>{if(isNaN(c.n))return false;const k=c.n+'@'+c.p;if(_seen[k])return false;_seen[k]=1;return true;});
   if(!cr.length)return null;
   const get=(r,p)=>{if(p==='any')return null;if(p[0]==='m')return r.m?r.m[parseInt(p.slice(1))]:undefined;return r.n[parseInt(p)];};
   const hit=(r,c)=>{
@@ -13238,6 +13326,11 @@ function exportNumPos(){
   const rows=state.npRes&&state.npRes.rows;if(!rows||!rows.length){alert('Aucun résultat à exporter');return;}
   let csv=csvHeader()+'\n';rows.forEach(r=>{csv+=rowToCSV(r)+'\n';});
   downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numero_position.csv');
+}
+function addLigneWrapHTML(){
+  const m=state.al18mode||'add';
+  const b=(v,t)=>`<button onclick="state.al18mode='${v}';render()" style="flex:1;padding:10px 6px;font-size:13px;font-weight:700;border:2px solid #0E7490;border-radius:10px;cursor:pointer;background:${m===v?'#0E7490':'#fff'};color:${m===v?'#fff':'#0E7490'}">${t}</button>`;
+  return`<div style="display:flex;gap:6px;margin-bottom:8px">${b('add','➕ Addition de 2 draws')}${b('num','🎯 Un seul numéro + position')}</div>`+(m==='num'?numPosCardHTML():addLigneCardHTML());
 }
 function numPosCardHTML(){
   const col='#B45309';
@@ -13306,7 +13399,7 @@ const SEARCH_SECTIONS=[
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
   {key:'schema',icon:'🧩',title:'Recherche par schéma (lignes + positions)',desc:'Dessine plusieurs lignes avec des numéros à des positions précises : retrouve le même schéma dans tous les lotos, cas par cas',color:'#7C3AED',html:schemaCardHTML},
-  {key:'addligne',icon:'➕',title:'Addition de 2 draws sur une ligne (avec positions)',desc:'Retrouve les tirages où deux numéros d\'une même ligne (positions au choix) s\'additionnent à une somme précise, cas par cas',color:'#0E7490',html:addLigneCardHTML},
+  {key:'addligne',icon:'➕',title:'Addition de 2 draws sur une ligne (avec positions)',desc:'Retrouve les tirages où deux numéros d\'une même ligne (positions au choix) s\'additionnent à une somme précise, cas par cas',color:'#0E7490',html:addLigneWrapHTML},
   {key:'opsimple',icon:'➗',title:'Opération simple (+, −, ×, /) — module 21',desc:'Draw 1 ⊕ opérande = Draw 2 sur une ligne ultérieure (Week), avec bankers optionnels, cas par cas',color:'#0E7490',html:opSimpleCardHTML},
   {key:'auto4',icon:'🤖',title:'Recherche Automatique 4 (module 33)',desc:'Fenêtres de 4 lignes de plusieurs lotos qui partagent les mêmes numéros avec les 2 tirages de référence — numéros qui suivent en jaune (approx.)',color:'#0F766E',html:auto4CardHTML},
   {key:'dblop',icon:'➗',title:'Double Opération (module 24)',desc:'Deux opérations (+ − × ÷) sur 4 numéros, positions et décalages réglables — modèle Cybetcast',color:'#9333EA',html:doubleOpCardHTML},
@@ -21134,7 +21227,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

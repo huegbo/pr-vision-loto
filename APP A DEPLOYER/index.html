@@ -15964,7 +15964,17 @@ function doCmp3(){
     for(let a=0;a<3;a++)rows[a][r].n.forEach((x,xi)=>{
       const nb=seen[x]||1;let mir=false;
       if(nb<2&&withMirror)for(let b=0;b<3;b++){if(b!==a&&rows[b][r].n.some(y=>MIR[x]===y||MIR[y]===x))mir=true;}
-      const t=nb===3?'exact3':nb===2?'exact2':mir?'mirror':null;
+      let t=nb===3?'exact3':nb===2?'exact2':mir?'mirror':null;
+      if(!t&&state.cmp3Colorier===true){
+        const act=state.cmp3ClActive||{};
+        for(const cl of CL_DEF){
+          if(cl.key==='miroir'||act[cl.key]!==true)continue;
+          const dx=getDerivsByType(x)[cl.key];
+          for(let b=0;b<3&&!t;b++){if(b===a)continue;
+            if(rows[b][r].n.some(y=>y===dx||getDerivsByType(y)[cl.key]===x))t=cl.key;}
+          if(t)break;
+        }
+      }
       if(t){marks[a][r][xi]=t;if(t==='mirror')counts.mirror++;}
     });
   }
@@ -15990,7 +16000,7 @@ function cmp3Shift(who,dir){
 function cmp3ResHTML(){
   const res=state.cmp3Result;if(!res)return'';
   setTimeout(()=>{const b=document.getElementById('cmp3-scroll');if(b)b.scrollTop=b.scrollHeight;},0);
-  const COL={exact3:['#DC2626','#fff'],exact2:['#EAB308','#111'],mirror:['#16A34A','#fff'],exact:['#EAB308','#111']};
+  const COL={exact3:['#DC2626','#fff'],exact2:['#EAB308','#111'],mirror:['#16A34A','#fff'],exact:['#EAB308','#111']};CL_DEF.forEach(c=>{COL[c.key]=[c.bg,c.fg];});
   const cell=(num,t)=>`<td style="text-align:center;padding:1px 0;font-weight:${t?700:500};${t?`background:${COL[t][0]};color:${COL[t][1]};`:''}">${num}</td>`;
   const tbl=(a)=>{const rs=res.rows[a];
     const hasM=rs.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
@@ -16014,7 +16024,9 @@ function cmp3CardHTML(){
     ${[0,1,2].map(i=>`<div class="row" ${i?'':'style="margin-top:0"'}><span style="font-size:9px;color:#777">Jeu ${'ABC'[i]} :</span><select onchange="state.cmp3K=state.cmp3K||[];state.cmp3K[${i}]=this.value;render()">${opts(ks[i])}</select>
       <span style="font-size:9px;color:#777">Ligne :</span><input type="number" placeholder="dernier" value="${ln[i]}" oninput="state.cmp3L=state.cmp3L||['','',''];state.cmp3L[${i}]=this.value" style="width:80px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px"></div>`).join('')}
     <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
-      <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label></div>
+      <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label>
+      <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Colorier===true?'checked':''} onchange="state.cmp3Colorier=this.checked;if(state.cmp3Result)doCmp3();else render()"> 🎨 Colorier</label></div>
+    ${state.cmp3Colorier===true?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin:3px 0">${CL_DEF.filter(c=>c.key!=='miroir').map(c=>{const on=(state.cmp3ClActive||{})[c.key]===true;return`<span onclick="state.cmp3ClActive=state.cmp3ClActive||{};state.cmp3ClActive['${c.key}']=!state.cmp3ClActive['${c.key}'];if(state.cmp3Result)doCmp3();else render()" style="background:${c.bg};color:${c.fg};border:1px solid ${on?c.bg:'#ccc'};opacity:${on?1:.45};cursor:pointer;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">${on?'✓':'○'} ${c.label}</span>`;}).join('')}</div>`:''}
     <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes (N+1 lignes). 🔴 = numéro présent dans les 3 plages sur la même ligne. 🟡 = présent dans 2 plages. 🟢 = miroir.</div>
     ${cmp3ResHTML()}

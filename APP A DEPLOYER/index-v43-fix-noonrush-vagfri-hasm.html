@@ -5051,7 +5051,7 @@ let state={
   vttMulti:false, vttMultiGames:[], vttMultiRes:null,
   cetMulti:false, cetMultiGames:[], cetMultiRes:null,
   prpGapMin:1, prpGapMax:3, prpRes:null, prpMulti:false, prpMultiGames:[], prpMultiRes:null,
-  sup2A:'', sup2B:'', sup2N:3, sup2Sens:'ab', sup2Exact:true, sup2Mode:'nm', sup2Res:null, sup2Multi:false, sup2MultiGames:[], sup2MultiRes:null,
+  sup2List:'', sup2N:3, sup2Sens:'ab', sup2Exact:true, sup2Mode:'nm', sup2Res:null, sup2Multi:false, sup2MultiGames:[], sup2MultiRes:null,
   mc3Gap:1, mc3Res:null, mc3Multi:false, mc3MultiGames:[], mc3MultiRes:null,
   mip3Gap:1, mip3Res:null, mip3Multi:false, mip3MultiGames:[], mip3MultiRes:null,
   elmMode:'ligne', elmGap:1, elmTypes:null, elmRes:null, elmFocus:null, elmMulti:false, elmMultiGames:[], elmMultiRes:null,
@@ -9663,42 +9663,50 @@ async function exportPrpExcel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
-// ══════ DEUX NUMÉROS SUPERPOSÉS (dessus / dessous) — ex: 14 au-dessus de 42, même colonne,
-// dans une fenêtre de N lignes (N=1 : ligne juste en dessous). A/B vides = n'importe quel numéro. ══════
-function sup2Run(A,B,N,mode,exact,sens){
-  const sameCol=true; // alignés : même colonne obligatoire
+// ══════ NUMÉROS SUPERPOSÉS (2 ou N) — ex: 14 au-dessus de 42, ou 14/42/7 en pile. Même colonne obligatoire,
+// N tirages entre chaque numéro consécutif de la pile. * ou vide = n'importe quel numéro. ══════
+function sup2Parse(s){
+  const toks=String(s||'').split(/[\s,;\/|>+]+/).filter(x=>x!=='');
+  return toks.map(t=>{const v=parseInt(t);return (t==='*'||t==='?'||isNaN(v))?null:v;});
+}
+function sup2Run(list,N,mode,exact,sens){
   // T = plus récent d'abord → la ligne i est AU-DESSUS de la ligne i+k
-  const res=[];
-  const rows=T.length;
-  const ok=(v,t)=>t===''||t===null||isNaN(t)||v===t;
-  for(let i=0;i<rows;i++){
-    const up=T[i];
-    for(let k=(exact?N+1:1);k<=N+1&&i+k<rows;k++){
-      const dn=T[i+k];
-      ['n','m'].forEach(kind=>{
-        if(mode==='n'&&kind==='m')return;
-        const ua=up[kind]||[],da=dn[kind]||[];
-        for(let p=0;p<ua.length;p++){
-          const qs=sameCol?[p]:da.map((_,q)=>q);
-          for(const q of qs){
-            const x=ua[p],y=da[q];
-            if(x===undefined||y===undefined||isNaN(x)||isNaN(y))continue;
-            let hit=false;
-            if(sens!=='ba'&&ok(x,A)&&ok(y,B))hit=true;
-            if(!hit&&sens!=='ab'&&ok(x,B)&&ok(y,A))hit=true;
-            if(hit)res.push({x,y,kind,p:p+1,q:q+1,up,dn,gap:k});
-          }
+  const res=[],rows=T.length,CAP=20000;
+  const lists=[];
+  if(sens!=='ba')lists.push(list);
+  if(sens!=='ab'){const r=list.slice().reverse();if(!(sens==='both'&&r.join(',')===list.join(',')))lists.push(r);}
+  const kmin=exact?N+1:1,kmax=N+1;
+  for(const L of lists){
+    for(let i=0;i<rows&&res.length<CAP;i++){
+      for(const kind of ['n','m']){
+        if(mode==='n'&&kind==='m')continue;
+        const a=T[i][kind]||[];
+        for(let p=0;p<a.length&&res.length<CAP;p++){
+          const x=a[p];
+          if(x===undefined||isNaN(x)||(L[0]!==null&&x!==L[0]))continue;
+          const idx=[i];
+          const dfs=(j,cur)=>{
+            if(res.length>=CAP)return;
+            if(j===L.length){res.push({kind,p:p+1,vals:idx.map(r=>T[r][kind][p]),idx:idx.slice(),L});return;}
+            for(let k=kmin;k<=kmax;k++){
+              const r=cur+k;if(r>=rows)break;
+              const v=(T[r][kind]||[])[p];
+              if(v===undefined||isNaN(v)||(L[j]!==null&&v!==L[j]))continue;
+              idx.push(r);dfs(j+1,r);idx.pop();
+            }
+          };
+          dfs(1,i);
         }
-      });
+      }
     }
   }
-  return res;
+  return res.map(r=>({kind:r.kind,p:r.p,vals:r.vals,rows:r.idx.map(k=>T[k]),gaps:r.idx.slice(1).map((k,q)=>k-r.idx[q]-1)}));
 }
 function sup2Find(){
-  const A=state.sup2A===''||state.sup2A==null?'':parseInt(state.sup2A);
-  const B=state.sup2B===''||state.sup2B==null?'':parseInt(state.sup2B);
+  const L=sup2Parse(state.sup2List);
+  if(L.length<2){alert('Entre au moins 2 numéros (ex : 14 42 ou 14,42,7). * = n\'importe lequel.');return;}
   const N=Math.max(0,parseInt(state.sup2N)||0);
-  const args=[A,B,N,state.sup2Mode,state.sup2Exact!==false,state.sup2Sens];
+  const args=[L,N,state.sup2Mode,state.sup2Exact!==false,state.sup2Sens];
   if(state.sup2Multi&&state.sup2MultiGames&&state.sup2MultiGames.length){
     const savedKey=GAME.key,results=[];
     for(const gk of state.sup2MultiGames){
@@ -9723,25 +9731,23 @@ function toggleSup2MultiGame(k){
 }
 function sup2RowsTableHTML(rows,max){
   const show=rows.slice(0,max);
+  const td='font-size:9.5px;padding:3px 4px';
   return `<table class="excel-tbl" style="width:100%"><thead><tr>
-    ${['Dessus','Dessous','Col.','Tirage haut','Date','Tirage bas','Date','Lignes'].map(h=>`<th style="position:sticky;top:0;background:#7C3AED;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
+    ${['Pile (haut→bas)','Col.','Tirages','Dates','Entre'].map(h=>`<th style="position:sticky;top:0;background:#7C3AED;color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}
   </tr></thead><tbody>
-  ${show.map((r,k)=>{const bg=k%2?'#F5F3FF':'#fff';const tag=(r.kind==='m'?'M':'D')+r.p+(r.q!==r.p?'→'+(r.kind==='m'?'M':'D')+r.q:'');return `<tr>
-    <td style="background:#EDE9FE;font-weight:700;font-size:11px;padding:3px 4px;text-align:center;color:#5B21B6">${r.x}</td>
-    <td style="background:#EDE9FE;font-weight:700;font-size:11px;padding:3px 4px;text-align:center;color:#5B21B6">${r.y}</td>
-    <td style="background:${bg};font-size:9.5px;padding:3px 4px;text-align:center">${tag}</td>
-    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${r.up.t}</td>
-    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${r.up.d}/${r.up.y}</td>
-    <td style="background:${bg};font-size:9.5px;padding:3px 4px;font-weight:600">${r.dn.t}</td>
-    <td style="background:${bg};font-size:9.5px;padding:3px 4px">${r.dn.d}/${r.dn.y}</td>
-    <td style="background:#FEF3C7;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${r.gap}</td>
+  ${show.map((r,k)=>{const bg=k%2?'#F5F3FF':'#fff';const tag=(r.kind==='m'?'M':'D')+r.p;return `<tr>
+    <td style="background:#EDE9FE;font-weight:700;font-size:11px;padding:3px 4px;text-align:center;color:#5B21B6">${r.vals.join(' ↓ ')}</td>
+    <td style="background:${bg};${td};text-align:center">${tag}</td>
+    <td style="background:${bg};${td};font-weight:600">${r.rows.map(x=>x.t).join(' · ')}</td>
+    <td style="background:${bg};${td}">${r.rows.map(x=>x.d+'/'+x.y).join(' · ')}</td>
+    <td style="background:#FEF3C7;font-weight:700;font-size:10px;padding:3px 4px;text-align:center">${r.gaps.join(' · ')}</td>
   </tr>`;}).join('')}
   </tbody></table>`;
 }
 function sup2ResultHTML(){
   if(state.sup2Res){
     const res=state.sup2Res,MAX=300;
-    if(!res.length)return `<div id="sup2-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat pour ces numéros et cette fenêtre.</div>`;
+    if(!res.length)return `<div id="sup2-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat pour cette pile et ces écarts.</div>`;
     return `<div id="sup2-res" style="margin-top:7px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#5B21B6">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-sup2-btn" onclick="exportSup2Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
       <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${sup2RowsTableHTML(res,MAX)}</div></div>`;
@@ -9759,25 +9765,25 @@ function sup2ResultHTML(){
   </div>`;
 }
 function sup2PanelHTML(){
-  const inp=(k,w)=>`<input type="number" min="0" max="99" value="${state[k]===''||state[k]==null?'':state[k]}" onchange="state.${k}=this.value;render()" style="width:${w||46}px;padding:2px 4px;border:1.5px solid #7C3AED;border-radius:4px;font-size:11px;text-align:center;font-weight:700" placeholder="tous">`;
   return `<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#7C3AED;margin-bottom:5px">🥞 2 numéros superposés — l'un au-dessus de l'autre (fenêtre de N lignes)</div>
+    <div style="font-size:11px;font-weight:500;color:#7C3AED;margin-bottom:5px">🥞 Numéros superposés (2 ou N) — en pile dans la même colonne</div>
     <div style="background:#F5F3FF;border:1px solid #DDD6FE;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#5B21B6">
-      Ex : 14 et 42 → le 14 est sur une ligne, le 42 est dessous, dans la même colonne. Toujours alignés (même colonne). N = nombre de tirages qui les séparent (N=3 : 3 tirages entre les deux, N=0 : lignes collées). Laisse un numéro vide = n'importe lequel.
+      Entre 2 numéros ou plus, du haut vers le bas (ex : <b>14 42</b> ou <b>14 42 7</b>). <b>*</b> = n'importe lequel. Toujours alignés (même colonne). N = nombre de tirages entre chaque numéro (N=0 : lignes collées).
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-      <span style="font-size:9px;color:#7C3AED;font-weight:600">Numéros</span>${inp('sup2A')}
-      <span style="font-size:9px;color:#7C3AED;font-weight:600">et</span>${inp('sup2B')}
-      <span style="font-size:9px;color:#7C3AED;font-weight:600">N tirages entre</span>${inp('sup2N')}
+      <span style="font-size:9px;color:#7C3AED;font-weight:600">Pile</span>
+      <input type="text" value="${String(state.sup2List||'').replace(/"/g,'&quot;')}" onchange="state.sup2List=this.value" placeholder="14 42 7" style="width:130px;padding:2px 4px;border:1.5px solid #7C3AED;border-radius:4px;font-size:11px;font-weight:700">
+      <span style="font-size:9px;color:#7C3AED;font-weight:600">N tirages entre</span>
+      <input type="number" min="0" max="99" value="${state.sup2N}" onchange="state.sup2N=this.value" style="width:46px;padding:2px 4px;border:1.5px solid #7C3AED;border-radius:4px;font-size:11px;text-align:center;font-weight:700">
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;font-size:10px;color:#5B21B6">
-      <select onchange="state.sup2Sens=this.value;render()" style="font-size:10px;padding:2px;border:1.5px solid #7C3AED;border-radius:4px">
-        <option value="ab" ${state.sup2Sens==='ab'?'selected':''}>1er numéro dessus, 2e dessous</option>
-        <option value="ba" ${state.sup2Sens==='ba'?'selected':''}>2e numéro dessus, 1er dessous</option>
+      <select onchange="state.sup2Sens=this.value" style="font-size:10px;padding:2px;border:1.5px solid #7C3AED;border-radius:4px">
+        <option value="ab" ${state.sup2Sens==='ab'?'selected':''}>Dans cet ordre (haut→bas)</option>
+        <option value="ba" ${state.sup2Sens==='ba'?'selected':''}>Ordre inversé</option>
         <option value="both" ${state.sup2Sens==='both'?'selected':''}>Les deux sens</option>
       </select>
-      <label style="cursor:pointer"><input type="checkbox" ${state.sup2Exact!==false?'checked':''} onchange="state.sup2Exact=this.checked;render()"> exactement N tirages entre (sinon 0 à N)</label>
-      ${GAME.hasM?`<select onchange="state.sup2Mode=this.value;render()" style="font-size:10px;padding:2px;border:1.5px solid #7C3AED;border-radius:4px"><option value="nm" ${state.sup2Mode!=='n'?'selected':''}>Tirage + Machine</option><option value="n" ${state.sup2Mode==='n'?'selected':''}>Tirage seulement</option></select>`:''}
+      <label style="cursor:pointer"><input type="checkbox" ${state.sup2Exact!==false?'checked':''} onchange="state.sup2Exact=this.checked"> exactement N tirages entre (sinon 0 à N)</label>
+      ${GAME.hasM?`<select onchange="state.sup2Mode=this.value" style="font-size:10px;padding:2px;border:1.5px solid #7C3AED;border-radius:4px"><option value="nm" ${state.sup2Mode!=='n'?'selected':''}>Tirage + Machine</option><option value="n" ${state.sup2Mode==='n'?'selected':''}>Tirage seulement</option></select>`:''}
     </div>
     <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:#7C3AED;margin-bottom:5px"><input type="checkbox" ${state.sup2Multi?'checked':''} onchange="state.sup2Multi=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois (tout loto)</label>
     ${state.sup2Multi?`<details class="gp" ${(state.gpOpen||{}).gp2?'open':''} ontoggle="(state.gpOpen=state.gpOpen||{})['gp2']=this.open" style="margin:4px 0;border:2px solid #6D28D9;border-radius:10px;background:#fff"><summary style="padding:10px 12px;font-size:14px;font-weight:700;color:#4C1D95;cursor:pointer;list-style:none">🎰 Sélectionner Loto ▾</summary><div style="max-height:55vh;overflow-y:auto;display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#F5F3FF;border-radius:6px">
@@ -9799,11 +9805,11 @@ async function exportSup2Excel(){
   try{
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet('Numéros superposés');
-    ws.addRow(['Filtre : 2 numéros superposés — '+(state.sup2A||'tous')+' / '+(state.sup2B||'tous')+' — '+state.sup2N+' tirage(s) entre'+(state.sup2Exact!==false?' (exact)':' (0 à N)')]).font={bold:true,italic:true};
+    ws.addRow(['Pile : '+state.sup2List+' — '+state.sup2N+' tirage(s) entre'+(state.sup2Exact!==false?' (exact)':' (0 à N)')]).font={bold:true,italic:true};
     ws.addRow([]);
-    ws.addRow(['Dessus','Dessous','Colonne','N° tirage haut','Date haut','N° tirage bas','Date bas','Lignes']).font={bold:true};
-    res.forEach(r=>ws.addRow([r.x,r.y,(r.kind==='m'?'M':'D')+r.p+(r.q!==r.p?'→'+(r.kind==='m'?'M':'D')+r.q:''),r.up.t,r.up.d+'/'+r.up.y,r.dn.t,r.dn.d+'/'+r.dn.y,r.gap]));
-    ws.columns.forEach(c=>{c.width=14;});
+    ws.addRow(['Pile (haut→bas)','Colonne','N° tirages','Dates','Tirages entre']).font={bold:true};
+    res.forEach(r=>ws.addRow([r.vals.join(' ↓ '),(r.kind==='m'?'M':'D')+r.p,r.rows.map(x=>x.t).join(' · '),r.rows.map(x=>x.d+'/'+x.y).join(' · '),r.gaps.join(' · ')]));
+    ws.columns.forEach(c=>{c.width=22;});
     await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numeros_superposes.xlsx');
   }catch(err){alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));}
 }
@@ -13692,7 +13698,7 @@ const SEARCH_SECTIONS=[
   {key:'dbt',icon:'➕',title:'Double même total',desc:'Deux paires qui donnent le même total',color:'#DB2777',html:dbtPanelHTML},
   {key:'tic',icon:'🔄',title:'Total + son miroir collé',desc:'Deux numéros collés, puis le miroir de leur total juste à côté (ex: 65 21 68 → 65+21=86, miroir 68)',color:'#0F766E',html:ticPanelHTML},
   {key:'prp',icon:'🔁',title:'Paires qui reviennent',desc:'Une paire ressort ensemble après un écart réglable de tirages',color:'#0E7490',html:prpPanelHTML},
-  {key:'sup2',icon:'🥞',title:'2 numéros superposés',desc:'Ex : 14 au-dessus de 42, même colonne, fenêtre de N lignes réglable',color:'#7C3AED',html:sup2PanelHTML},
+  {key:'sup2',icon:'🥞',title:'Numéros superposés (2 ou N)',desc:'2 ou N numéros en pile (ex : 14/42/7), même colonne, N tirages entre',color:'#7C3AED',html:sup2PanelHTML},
   {key:'mc3',icon:'🪞3️⃣',title:'Chaîne miroir sur 3 tirages',desc:'Un numéro sort, son miroir sort au tirage suivant, puis il revient au 3e',color:'#AB47BC',html:mc3PanelHTML},
   {key:'mip3',icon:'🪞🔗',title:'Trio — paire miroir interne',desc:'3 tirages de suite, chacun avec sa propre paire de numéros miroirs (ex: 86+68, puis 35+53, puis 15+51)',color:'#0D9488',html:mip3PanelHTML},
   {key:'vtot',icon:'🧱',title:'Même total superposé',desc:'N numéros aux mêmes positions, écart réglable',color:'#7C3AED',html:vtotPanelHTML},

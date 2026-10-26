@@ -9703,6 +9703,37 @@ function sup2Run(list,N,mode,exact,sens){
   }
   return res.map(r=>({kind:r.kind,p:r.p,vals:r.vals,rows:r.idx.map(k=>T[k]),gaps:r.idx.slice(1).map((k,q)=>k-r.idx[q]-1)}));
 }
+function sup2HistLoad(){try{return JSON.parse(localStorage.getItem('sup2_hist')||'[]');}catch(_){return [];}}
+function sup2HistSave(h){try{localStorage.setItem('sup2_hist',JSON.stringify(h.slice(0,40)));}catch(_){}}
+function sup2HistAdd(count){
+  const e={list:state.sup2List,N:state.sup2N,exact:state.sup2Exact!==false,sens:state.sup2Sens,mode:state.sup2Mode,
+    multi:!!state.sup2Multi,games:(state.sup2MultiGames||[]).slice(),game:GAME.name,count,ts:Date.now()};
+  const key=x=>[x.list,x.N,x.exact,x.sens,x.mode,x.multi,x.games.join(',')].join('|');
+  const h=sup2HistLoad().filter(x=>key(x)!==key(e));
+  h.unshift(e);sup2HistSave(h);
+}
+function sup2HistReplay(i){
+  const e=sup2HistLoad()[i];if(!e)return;
+  state.sup2List=e.list;state.sup2N=e.N;state.sup2Exact=e.exact;state.sup2Sens=e.sens;state.sup2Mode=e.mode;
+  state.sup2Multi=e.multi;state.sup2MultiGames=e.games.slice();
+  sup2Find();
+}
+function sup2HistDel(i){const h=sup2HistLoad();h.splice(i,1);sup2HistSave(h);render();}
+function sup2HistClear(){if(confirm("Vider tout l'historique des recherches ?")){sup2HistSave([]);render();}}
+function sup2HistHTML(){
+  const h=sup2HistLoad();
+  if(!h.length)return '';
+  const sens={ab:'↓',ba:'↑',both:'↕'};
+  return `<details style="margin-top:8px;border:1px solid #DDD6FE;border-radius:8px;background:#FAF5FF"><summary style="padding:6px 8px;font-size:10px;font-weight:700;color:#5B21B6;cursor:pointer">🕘 Historique des recherches (${h.length})</summary>
+    <div style="max-height:30vh;overflow:auto;padding:4px 6px">
+    ${h.map((e,i)=>{const d=new Date(e.ts);const dt=('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+      return `<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid #EDE9FE;font-size:10px">
+      <button onclick="sup2HistReplay(${i})" style="flex:1;text-align:left;background:none;border:none;cursor:pointer;color:#4C1D95;font-size:10px;padding:0"><b>${String(e.list).replace(/</g,'&lt;')}</b> ${sens[e.sens]||''} · N=${e.N}${e.exact?'':' (0→N)'} · ${e.multi?(e.games.length+' jeux'):e.game} · <b>${e.count}</b> rés. <span style="color:#999">${dt}</span></button>
+      <button onclick="sup2HistDel(${i})" style="border:none;background:none;color:#C62828;cursor:pointer;font-size:11px">✕</button></div>`;}).join('')}
+    </div>
+    <div style="padding:4px 8px"><button onclick="sup2HistClear()" style="font-size:9px;padding:2px 8px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer">Vider l'historique</button></div>
+  </details>`;
+}
 function sup2Find(){
   const L=sup2Parse(state.sup2List);
   if(L.length<2){alert('Entre au moins 2 numéros (ex : 14 42 ou 14,42,7). * = n\'importe lequel.');return;}
@@ -9717,9 +9748,11 @@ function sup2Find(){
     }
     loadGame(savedKey);
     state.sup2MultiRes={results};state.sup2Res=null;
+    sup2HistAdd(results.reduce((a,r)=>a+r.count,0));
   }else{
     if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
     state.sup2Res=sup2Run(...args);state.sup2MultiRes=null;
+    sup2HistAdd(state.sup2Res.length);
   }
   render();
   setTimeout(()=>{const e=document.getElementById('sup2-res')||document.getElementById('sup2-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
@@ -9797,6 +9830,7 @@ function sup2PanelHTML(){
       <button onclick="sup2Clear()" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button>
     </div>
     ${sup2ResultHTML()}
+    ${sup2HistHTML()}
   </div>`;
 }
 async function exportSup2Excel(){

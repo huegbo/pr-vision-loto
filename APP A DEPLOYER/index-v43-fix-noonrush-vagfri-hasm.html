@@ -9733,6 +9733,27 @@ function sup2HistHTML(){
     <div style="padding:4px 8px"><button onclick="sup2HistClear()" style="font-size:9px;padding:2px 8px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer">Vider l'historique</button></div>
   </details>`;
 }
+function sup2Stat(L,N,exact,mode,sens,obs){
+  // Attendu au hasard (approx.) : placements possibles × (1/R)^(nb de numéros fixés)
+  let R=0,cn=0,cm=0;
+  T.forEach(r=>{(r.n||[]).forEach(v=>{if(v>R)R=v;});(r.m||[]).forEach(v=>{if(v>R)R=v;});cn=Math.max(cn,(r.n||[]).length);cm=Math.max(cm,(r.m||[]).length);});
+  if(!R)return null;
+  const K=L.length,c=L.filter(x=>x!==null).length,rows=T.length;
+  const cols=cn+((mode!=='n'&&GAME.hasM)?cm:0);
+  const combos=exact?1:Math.pow(N+1,K-1);
+  const span=(K-1)*(exact?N+1:1);
+  const starts=Math.max(0,rows-span);
+  let nl=0;if(sens!=='ba')nl++;if(sens!=='ab'){const r=L.slice().reverse();if(!(sens==='both'&&r.join(',')===L.join(',')))nl++;}
+  const exp=starts*cols*combos*nl*Math.pow(1/R,c);
+  return {obs,exp,R};
+}
+function sup2StatHTML(st){
+  if(!st)return '';
+  const ratio=st.exp>0?st.obs/st.exp:0;
+  const verdict=st.exp<0.5&&st.obs<3?'trop peu de cas pour conclure':ratio>=2?'au-dessus du hasard':ratio<=0.5?'en dessous du hasard':'proche du hasard';
+  const col=verdict==='au-dessus du hasard'?'#065F46':verdict==='proche du hasard'?'#92400E':'#555';
+  return `<div style="margin:4px 0;padding:4px 7px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;font-size:9.5px;color:${col}">📊 Observé <b>${st.obs}</b> · attendu au hasard ≈ <b>${st.exp<10?st.exp.toFixed(1):Math.round(st.exp)}</b> · ×${ratio.toFixed(2)} → <b>${verdict}</b></div>`;
+}
 function sup2Find(){
   const L=sup2Parse(state.sup2List);
   if(L.length<2){alert('Entre au moins 2 numéros (ex : 14 42 ou 14,42,7). * = n\'importe lequel.');return;}
@@ -9743,7 +9764,7 @@ function sup2Find(){
     for(const gk of state.sup2MultiGames){
       loadGame(gk);
       const r=sup2Run(...args);
-      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:r.length,rows:r});
+      results.push({game:gk,gameName:GAMES[gk].name,icon:GAMES[gk].icon,count:r.length,rows:r,stat:sup2Stat(L,N,args[3],args[2],args[4],r.length)});
     }
     loadGame(savedKey);
     state.sup2MultiRes={results};state.sup2Res=null;
@@ -9751,6 +9772,7 @@ function sup2Find(){
   }else{
     if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
     state.sup2Res=sup2Run(...args);state.sup2MultiRes=null;
+    state.sup2Stat=sup2Stat(L,N,args[3],args[2],args[4],state.sup2Res.length);
     sup2HistAdd(state.sup2Res.length);
   }
   render();
@@ -9782,7 +9804,7 @@ function sup2ResultHTML(){
     const res=state.sup2Res,MAX=300;
     if(!res.length)return `<div id="sup2-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat pour cette pile et ces écarts.</div>`;
     return `<div id="sup2-res" style="margin-top:7px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#5B21B6">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-sup2-btn" onclick="exportSup2Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
+      ${sup2StatHTML(state.sup2Stat)}<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#5B21B6">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-sup2-btn" onclick="exportSup2Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
       <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${sup2RowsTableHTML(res,MAX)}</div></div>`;
   }
   const mr=state.sup2MultiRes;
@@ -9791,7 +9813,7 @@ function sup2ResultHTML(){
   return `<div id="sup2-multi-res" style="margin-top:7px">
     <div style="font-size:10px;font-weight:600;color:#5B21B6;margin-bottom:6px">${total} résultat${total>1?'s':''} au total sur ${mr.results.length} jeu${mr.results.length>1?'x':''}</div>
     ${mr.results.filter(r=>r.count>0).map(r=>`<div style="margin-bottom:8px">
-      <div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:3px">${r.icon} ${r.gameName} — ${r.count} résultat${r.count>1?'s':''}</div>
+      <div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:3px">${r.icon} ${r.gameName} — ${r.count} résultat${r.count>1?'s':''}</div>${sup2StatHTML(r.stat)}
       <div style="max-height:30vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${sup2RowsTableHTML(r.rows,100)}</div>
     </div>`).join('')}
     ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat dans les jeux sélectionnés.</div>`:''}
@@ -12253,6 +12275,13 @@ function cybExportCasesXlsx(p,vi){
 
 // ── Juxtaposition en MODE EXCEL : un seul tableau, blocs côte à côte alignés sur la ligne du cas, 1er bloc figé, décalage ▲▼ par bloc ──
 function cybJxShift(p,k,d){state.juxOff=state.juxOff||{};const key=p+'|'+k;state.juxOff[key]=(state.juxOff[key]||0)+d;render();}
+function cybJxAddExtra(p,val){
+  const [vi,hi]=String(val).split(':').map(Number);if(isNaN(vi)||isNaN(hi))return;
+  state.juxExtra=state.juxExtra||{};const a=state.juxExtra[p]=state.juxExtra[p]||[];
+  if(!a.some(e=>e.vi===vi&&e.hi===hi))a.push({vi,hi});
+  render();
+}
+function cybJxDelExtra(p,k){const a=(state.juxExtra||{})[p];if(a){a.splice(k,1);}render();}
 function cybJxReset(p){state.juxOff={};state.juxLock=null;render();}
 function cybJxFreeze(){state.juxFreeze=state.juxFreeze===false;render();}
 function cybJxSize(sz){state.juxSize=sz;render();}
@@ -12279,8 +12308,8 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const sz={compact:[10,3],normal:[12,5],large:[15,8]}[state.juxSize||'normal'];
   const fs=sz[0],pad=Math.max(1,Math.round((SS.rowH-fs-4)/2));
   const freeze=state.juxFreeze!==false;
-  const blocks=sel.slice(0,12).map(i=>{
-    const h=v.hits[i],i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
+  const mkBlock=(vv,i,letter,key)=>{
+    const R=vv.R,h=vv.hits[i],i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
     const lo=Math.min(R.length-1,i0+SS.before),hi=Math.max(0,i1-SS.after);
     const piv=new Set();h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
     const pivs=[...piv].slice(0,8);
@@ -12288,7 +12317,14 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
     for(let k=lo;k>=hi;k--){const j=h.idxs.indexOf(k);rows.push({r:R[k],hl:j>=0&&h.hl?h.hl[j]:null,hf:j>=0&&h.hf?h.hf[j]:null,isCase:j>=0});}
     if(hi===0)for(let k=1;k<=pend;k++)rows.push({r:{t:R[0].t+k,d:'à venir',y:'',n:[],s:null,m:[]},hl:null,isCase:false,pending:true});
     const ci=rows.findIndex(x=>x.isCase);
-    return{i,letter:cnLetter(off+i),rows,ci,pivs,nbN:Math.max(5,...rows.map(x=>x.r.n.length)),hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),rw:R[h.idxs[0]]};
+    return{i:key,letter,rows,ci,pivs,vname:vv===v?'':((vv.icon||'')+' '+vv.name),nbN:Math.max(5,...rows.map(x=>x.r.n.length)),hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),rw:R[h.idxs[0]]};
+  };
+  const blocks=sel.slice(0,12).map(i=>mkBlock(v,i,cnLetter(off+i),i));
+  const extras=((state.juxExtra||{})[p]||[]).filter(e=>res.variants[e.vi]&&res.variants[e.vi].hits[e.hi]);
+  extras.forEach(e=>{
+    const vv=res.variants[e.vi];
+    const o2=res.variants.slice(0,e.vi).reduce((a,x)=>a+x.hits.length,0);
+    blocks.push(mkBlock(vv,e.hi,cnLetter(o2+e.hi),'x'+e.vi+'_'+e.hi));
   });
   if(!blocks.length)return'<div style="font-size:11px;color:#888">Coche au moins un cas.</div>';
   const offs=state.juxOff||{};
@@ -12302,7 +12338,7 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const id='jx-'+p;
   const colHTML=(b,bi)=>{
     const cols=colsOf(b);const tw=cols.reduce((a,[_,w])=>a+w,0);
-    let t=`<thead><tr><th colspan="${cols.length}" style="position:sticky;top:0;z-index:6;background:#12263F;color:#fff;font-size:12px;padding:4px 6px;white-space:nowrap;text-align:left"><span style="background:#F59E0B;color:#111;border-radius:5px;padding:0 7px;margin-right:5px;font-weight:800">${b.letter}</span>T${b.rw.t} <span style="font-weight:400;opacity:.8">${b.rw.d}/${b.rw.y}</span> <button onclick="cybJxKeep(()=>cybJxShift('${p}',${b.i},-1))" title="Monter ce bloc d'une ligne" style="margin-left:6px;padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cybJxKeep(()=>cybJxShift('${p}',${b.i},1))" title="Descendre ce bloc d'une ligne" style="padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></th></tr><tr>`;
+    let t=`<thead><tr><th colspan="${cols.length}" style="position:sticky;top:0;z-index:6;background:#12263F;color:#fff;font-size:12px;padding:4px 6px;white-space:nowrap;text-align:left"><span style="background:#F59E0B;color:#111;border-radius:5px;padding:0 7px;margin-right:5px;font-weight:800">${b.letter}</span>${b.vname?`<span style="background:#6D28D9;color:#fff;border-radius:5px;padding:0 6px;margin-right:5px;font-size:10px">${b.vname}</span>`:''}T${b.rw.t} <span style="font-weight:400;opacity:.8">${b.rw.d}/${b.rw.y}</span> <button onclick="cybJxKeep(()=>cybJxShift('${p}','${b.i}',-1))" title="Monter ce bloc d'une ligne" style="margin-left:6px;padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cybJxKeep(()=>cybJxShift('${p}','${b.i}',1))" title="Descendre ce bloc d'une ligne" style="padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></th></tr><tr>`;
     cols.forEach(([n,w])=>{t+=`<th style="position:sticky;top:26px;z-index:5;background:#E8ECF4;color:#111;font-size:${Math.max(9,fs-1)}px;min-width:${w}px;width:${w}px;border:1px solid #D1D5DB">${n}</th>`;});
     t+='</tr></thead><tbody>';
     for(let r=0;r<nRows;r++){
@@ -12334,7 +12370,14 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const line=maxCi;
   setTimeout(()=>cybJxScroll(id,line),60);
   const tb=(a,t,on)=>`<button onclick="${a}" style="padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;
-  const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0"><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${freeze?'#1F2D3D':'#aaa'}"><input type="checkbox" ${freeze?'checked':''} onchange="cybJxKeep(cybJxFreeze)" style="width:18px;height:18px">📌 fige 1re col</label><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${sync?'checked':''} onchange="cybJxKeep(cybJxSyncToggle)" style="width:18px;height:18px">🔗 lié</label>${(()=>{const on=!!state.juxLock;return`<button onclick="cybJxLockToggle()" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':'Fais coulisser chaque colonne où tu veux (🔗 décoché), puis clique ici : elles bougeront ensemble en gardant ce décalage.'}" style="padding:6px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:11px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>`;})()}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxKeep(cybJxFull)',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxKeep(()=>cybJxSize('${k}'))`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}<span style="font-size:10px;color:#777">${state.juxLock?'🔒 Les colonnes gardent leur décalage et bougent ensemble.':(sync?'Tout descend ensemble. Décoche 🔗 : chaque colonne coulisse seule, puis 🔒 pour figer le décalage.':'Chaque colonne coulisse seule (coulissage indépendant).')}</span></div>
+  const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0"><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${freeze?'#1F2D3D':'#aaa'}"><input type="checkbox" ${freeze?'checked':''} onchange="cybJxKeep(cybJxFreeze)" style="width:18px;height:18px">📌 fige 1re col</label><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${sync?'checked':''} onchange="cybJxKeep(cybJxSyncToggle)" style="width:18px;height:18px">🔗 lié</label>${(()=>{const on=!!state.juxLock;return`<button onclick="cybJxLockToggle()" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':'Fais coulisser chaque colonne où tu veux (🔗 décoché), puis clique ici : elles bougeront ensemble en gardant ce décalage.'}" style="padding:6px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:11px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>`;})()}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxKeep(cybJxFull)',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxKeep(()=>cybJxSize('${k}'))`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}${(()=>{
+    const ex=(state.juxExtra||{})[p]||[];
+    let n=0;const og=res.variants.map((x,xi)=>{if(xi===vi||!x.hits.length)return'';const o2=res.variants.slice(0,xi).reduce((a,y)=>a+y.hits.length,0);
+      const opts=x.hits.slice(0,60).map((h,hi)=>{if(ex.some(e=>e.vi===xi&&e.hi===hi)||n>=500)return'';n++;return`<option value="${xi}:${hi}">${cnLetter(o2+hi)} · T${x.R[h.idxs[0]].t} ${x.R[h.idxs[0]].d}/${x.R[h.idxs[0]].y}</option>`;}).join('');
+      return opts?`<optgroup label="${(x.icon||'')+' '+x.name+' ('+x.hits.length+')'}">${opts}</optgroup>`:'';}).join('');
+    const chips=ex.map((e,k)=>{const x=res.variants[e.vi];return x?`<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 7px;border-radius:8px;background:#6D28D9;color:#fff;font-size:10px;font-weight:700">${x.icon||''} ${x.name} <button onclick="cybJxKeep(()=>cybJxDelExtra('${p}',${k}))" style="border:0;background:none;color:#fff;cursor:pointer;font-size:11px">✕</button></span>`:'';}).join('');
+    return og?`<select onchange="if(this.value){const v=this.value;cybJxKeep(()=>cybJxAddExtra('${p}',v));}" style="padding:6px 8px;font-size:11px;font-weight:700;border-radius:8px;border:1.5px solid #6D28D9;color:#4C1D95;background:#fff;max-width:230px"><option value="">➕ Aligner avec un autre jeu…</option>${og}</select>${chips}`:chips;
+  })()}<span style="font-size:10px;color:#777">${state.juxLock?'🔒 Les colonnes gardent leur décalage et bougent ensemble.':(sync?'Tout descend ensemble. Décoche 🔗 : chaque colonne coulisse seule, puis 🔒 pour figer le décalage.':'Chaque colonne coulisse seule (coulissage indépendant).')}</span></div>
   <div id="${id}" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px">${blocks.map(colHTML).join('')}</div>`;
   if(full){
     // Plein écran : rendu dans un conteneur rattaché à <body> (hors de la page, donc jamais coupé par un parent zoomé / transformé)

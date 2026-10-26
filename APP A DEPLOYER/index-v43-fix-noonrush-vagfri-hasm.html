@@ -12021,7 +12021,7 @@ function cnPrepare(){if(!state.caseView)state.caseView='nav';
   for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));
   state.selYears=[...ys].sort((a,b)=>parseInt(b)-parseInt(a));
   const hl={},rows={};
-  h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{hl[r.t+'_'+q]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
+  h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
   state.caseHL=hl;state.caseRows=rows;state.caseScrollT=row.t;
 }
 function cnScroll(){
@@ -16350,7 +16350,7 @@ function doCollesSearch(){
     saveHist({type:'colles',game:'multi',gameName:'Multi',vals,order:state.collesOrder});
   }else{
     state.collesMatches=T.filter(pred);
-    state.collesHit=0;
+    state.collesHit=0;state.clHit=0;state.clVar=0;
     state.collesMultiRes=null;
     saveHist({type:'colles',game:GAME.key,gameName:GAME.name,vals,order:state.collesOrder});
   }
@@ -16383,16 +16383,10 @@ function collesResHTML(){
     }
     return adj;
   };
-  const sel=rows[hi],si=hitIdx(sel);
-  let table='';
-  if(si>=0){
-    const lo=Math.min(R.length-1,si+10),hiI=Math.max(0,si-35),items=[];
-    for(let i=lo;i>=hiI;i--){const r=R[i];items.push({r,hl:hitT.has(r.t)?adjOf(r):null,sel:r.t===sel.t});}
-    table=gameTableHTML(items,`${GAME.icon||''} ${GAME.name} · T ${items[0].r.t} – ${items[items.length-1].r.t} · ${items.length} tirages`,col);
-  }
-  return`<div style="margin-top:6px"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="font-size:12px;font-weight:700;color:${col}">Résultat (${rows.length})</div><button onclick="exportCollesSearch()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button></div>
-    <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${rows.slice().reverse().slice(0,150).map(r=>{const ri=rows.indexOf(r);return`<button onclick="state.collesHit=${ri};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${ri===hi?'#12263F':'#9CA3AF'};color:#fff">${r.t}</button>`;}).join('')}</div>
-    ${table}</div>`;
+  const SS=cybSet();
+  const res={variants:[{key:GAME.key,machine:false,name:GAME.name,icon:GAME.icon||'',R,hits:rows.map(r=>({idxs:[hitIdx(r)],hl:[adjOf(r)]})).filter(h=>h.idxs[0]>=0)}],total:rows.length};
+  state.clVar=0;
+  return`<div style="margin-top:6px">${cybCasesHTML(res,'cl',col,null,'exportCollesSearch',SS.before,SS.after)}</div>`;
 }
 function collesCardHTML(){
   return`<div style="background:#fff;border:1.5px solid #4338CA;border-radius:8px;padding:8px;margin-bottom:8px">

@@ -12223,21 +12223,22 @@ function caseNavHTML(onlyBar){
   }
   const hdr=['Repère','N°','Date',...Array.from({length:nbN},(_,q)=>'D'+(q+1)),'Total',...(hasM?['M1','M2','M3','M4','M5']:[])].map(th).join('');
   const chips=f.slice(0,400).map((x,i)=>`<button onclick="cnGo(${i})" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:0;border-radius:6px;cursor:pointer;color:#fff;background:${i===cn.k?'#12263F':'#9CA3AF'}"><b>${cnLetter(i)}</b> ${(f.length>1&&new Set(f.map(y=>y.v.key)).size>1)?x.v.icon+' ':''}${x.v.R[x.h.idxs[0]].t}</button>`).join('');
-  const bar=`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #12263F;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.3)">
+  const bar=`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(6px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #12263F;border-radius:10px;padding:4px 6px;box-shadow:0 2px 10px rgba(0,0,0,.3)">
     <div style="display:flex;gap:6px;align-items:center">
-      <button onclick="cnGo(0)" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏮</button>
-      <button onclick="cnGo(${cn.k-1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">◀</button>
+      <button onclick="cnGo(0)" style="padding:6px 9px;font-size:14px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏮</button>
+      <button onclick="cnGo(${cn.k-1})" style="flex:1;padding:7px 0;font-size:17px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">◀</button>
       <span style="min-width:62px;text-align:center;font-weight:800;font-size:14px;color:#12263F"><span style="background:#F59E0B;border-radius:5px;padding:0 6px;margin-right:3px">${cnLetter(cn.k)}</span>${cn.k+1}/${f.length}</span>
-      <button onclick="cnGo(${cn.k+1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▶</button>
-      <button onclick="cnGo(${f.length-1})" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏭</button>
-      <button onclick="cnClose()" style="padding:9px 12px;font-size:12px;font-weight:700;border:0;border-radius:8px;background:#C62828;color:#fff;cursor:pointer">✕</button>
+      <button onclick="cnGo(${cn.k+1})" style="flex:1;padding:7px 0;font-size:17px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▶</button>
+      <button onclick="cnGo(${f.length-1})" style="padding:6px 9px;font-size:14px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏭</button>
+      <button onclick="state.cnBarOpen=!state.cnBarOpen;render()" title="Options" style="padding:6px 9px;font-size:14px;border:0;border-radius:8px;background:${state.cnBarOpen?'#12263F':'#CBD5E1'};color:${state.cnBarOpen?'#fff':'#12263F'};cursor:pointer">⚙</button>
+      <button onclick="cnClose()" style="padding:6px 10px;font-size:12px;font-weight:700;border:0;border-radius:8px;background:#C62828;color:#fff;cursor:pointer">✕</button>
     </div>
-    <div class="row" style="gap:6px;align-items:center;margin:5px 0 0;justify-content:center;flex-wrap:wrap">
+    ${state.cnBarOpen?`<div class="row" style="gap:6px;align-items:center;margin:5px 0 0;justify-content:center;flex-wrap:wrap">
       <span style="font-size:9px;color:#777">Avant</span><input type="number" min="0" value="${before}" onchange="cybSetSave('before',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:9px;color:#777">Après</span><input type="number" min="0" value="${after}" onchange="cybSetSave('after',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:9px;color:#777">Hauteur</span><input type="number" min="14" value="${rowH}" onchange="cybSetSave('rowH',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>
-    </div></div>`;
+    </div>`:''}</div>`;
   if(onlyBar){const bt=(a,t)=>`<button onclick="${a}" style="padding:5px 9px;font-size:11px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">${t}</button>`;const _pn=(state.pins||[]);const sw='<div style="display:flex;gap:4px;overflow-x:auto;white-space:nowrap;max-width:100%;flex-wrap:nowrap">'+bt('cnExportXlsx()','⤓ Export Excel')+bt('cnExcelToggle()',(state.excelMode?'📊 Excel ✓':'📊 Excel'))+bt('cnPinAll()','Tout')+bt('cnPinNone()','Aucun')+bt('cnPin()',(_pn.indexOf(cn.k)>=0?'📌 Retirer ':'📌 Épingler ')+cnLetter(cn.k))+_pn.map(k=>`<button onclick="cnPin(${k})" title="Retirer" style="padding:3px 8px;font-size:11px;font-weight:800;border-radius:8px;border:0;background:#F59E0B;color:#111;cursor:pointer">${cnLetter(k)} ✕</button>`).join(' ')+bt("state.caseView='fenetre';render()",'☰ Fenêtre')+'</div>';return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
   return`<div class="card" style="padding:8px;margin-bottom:8px">
     <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px"><button onclick="state.caseView='nav';cnPrepare();render();setTimeout(cnScroll,60)" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:1.5px solid #12263F;border-radius:6px;background:#fff;color:#12263F;cursor:pointer">▦ Navigation</button>${chips}</div>

@@ -11973,8 +11973,8 @@ function cybExcelFromSel(p,vi){
   const r=(window._cybRes||{})[p];if(!r)return;
   const v=r.variants[vi];const sel=cybSelOf(p,vi,v.hits.length);
   state[p+'Var']=vi;state[p+'Hit']=sel.length?sel[0]:0;
-  state.excelMode=true;state.caseExcelOff=false;
-  cybOpenNav(p);
+  state.juxt=state.juxt||{};state.juxt[p]=true;state.juxFull=true;
+  render();
 }
 
 // ── Export Excel des cas (juxtaposés, alignés sur la ligne du cas, couleurs conservées) ──
@@ -11982,8 +11982,35 @@ async function cybBuildCasesXlsx(list,fname){
   if(!list.length){alert('Aucun cas sélectionné.');return;}
   try{
     const SS=cybSet();const pend=Math.min(10,SS.pend||0);
-    const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet('Cas');
+    const wb=new ExcelJS.Workbook();
     const argb=c=>'FF'+String(c).replace('#','').toUpperCase();
+    // Feuille 1 : TOUS les résultats, un cas par ligne (mise en forme)
+    {
+      const w0=wb.addWorksheet('Résultats');
+      const nbN0=Math.max(5,...list.map(x=>x.v.R[x.h.idxs[0]].n.length));
+      const hasM0=list.some(x=>{const r=x.v.R[x.h.idxs[0]];return r.m&&r.m.some(z=>!isNaN(z));});
+      const heads0=['Lettre','Jeu','N° tirage','Date','Année',...Array.from({length:nbN0},(_,i)=>'D'+(i+1)),'Total',...(hasM0?['M1','M2','M3','M4','M5']:[])];
+      const hr=w0.addRow(heads0);
+      hr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF12263F'}};c.font={bold:true,color:{argb:'FFFFFFFF'}};c.alignment={horizontal:'center',vertical:'middle'};});
+      hr.height=22;
+      list.forEach((x,ri)=>{
+        const j=0,r=x.v.R[x.h.idxs[0]],hs=x.h.hl&&x.h.hl[j];
+        const vals=[x.letter,x.v.name,r.t,r.d,r.y,...Array.from({length:nbN0},(_,q)=>r.n[q]==null||isNaN(r.n[q])?null:r.n[q]),(r.s!=null&&!isNaN(r.s))?r.s:r.n.reduce((a,z)=>a+z,0),...(hasM0?Array.from({length:5},(_,q)=>(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:null):[])];
+        const row=w0.addRow(vals);
+        row.eachCell((c,k)=>{
+          c.alignment={horizontal:'center'};c.border={bottom:{style:'thin',color:{argb:'FFE5E7EB'}}};
+          if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF7F7F7'}};
+          if(k>=6&&k<6+nbN0&&hs&&hs.has(k-6)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF69F0AE'}};c.font={bold:true};}
+        });
+        row.getCell(1).font={bold:true,color:{argb:'FF111111'}};row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF59E0B'}};
+        row.getCell(3).font={bold:true,color:{argb:'FF0F766E'}};
+      });
+      heads0.forEach((_,k)=>{w0.getColumn(k+1).width=k===1?18:(k===3?11:(k<5?9:6.5));});
+      w0.views=[{state:'frozen',ySplit:1}];
+      w0.autoFilter={from:{row:1,column:1},to:{row:1,column:heads0.length}};
+    }
+    const ws=wb.addWorksheet('Cas juxtaposés');
+    list=list.slice(0,40);
     const blocks=list.map(({v,h,letter})=>{
       const R=v.R,i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
       const lo=Math.min(R.length-1,i0+SS.before),hi=Math.max(0,i1-SS.after);
@@ -12037,6 +12064,97 @@ function cybExportCasesXlsx(p,vi){
   const v=r.variants[vi];const off=r.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);
   const sel=cybSelOf(p,vi,v.hits.length);
   cybBuildCasesXlsx(sel.map(i=>({v,h:v.hits[i],letter:cnLetter(off+i)})),(v.name||'cas').replace(/[^A-Za-z0-9]/g,'')+'_cas');
+}
+
+// ── Juxtaposition en MODE EXCEL : un seul tableau, blocs côte à côte alignés sur la ligne du cas, 1er bloc figé, décalage ▲▼ par bloc ──
+function cybJxShift(p,k,d){state.juxOff=state.juxOff||{};const key=p+'|'+k;state.juxOff[key]=(state.juxOff[key]||0)+d;render();}
+function cybJxReset(p){state.juxOff={};render();}
+function cybJxFreeze(){state.juxFreeze=state.juxFreeze===false;render();}
+function cybJxSize(sz){state.juxSize=sz;render();}
+function cybJxScroll(id,line){
+  const cols=document.querySelectorAll('.jx-col[data-jx="'+id+'"]');if(!cols.length||line==null)return;
+  window._jxLock=true;
+  cols.forEach(el=>{const tr=el.querySelectorAll('tbody tr')[line];if(tr)el.scrollTop=Math.max(0,tr.offsetTop-Math.round((el.clientHeight||400)*0.35));});
+  requestAnimationFrame(()=>{window._jxLock=false;});
+}
+function cybJuxtExcelHTML(res,p,vi,col,sel,off){
+  const v=res.variants[vi],R=v.R,SS=cybSet();
+  const pend=Math.min(10,SS.pend||0);
+  const sz={compact:[10,3],normal:[12,5],large:[15,8]}[state.juxSize||'normal'];
+  const fs=sz[0],pad=Math.max(1,Math.round((SS.rowH-fs-4)/2));
+  const freeze=state.juxFreeze!==false;
+  const blocks=sel.slice(0,12).map(i=>{
+    const h=v.hits[i],i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
+    const lo=Math.min(R.length-1,i0+SS.before),hi=Math.max(0,i1-SS.after);
+    const piv=new Set();h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
+    const pivs=[...piv].slice(0,8);
+    const rows=[];
+    for(let k=lo;k>=hi;k--){const j=h.idxs.indexOf(k);rows.push({r:R[k],hl:j>=0&&h.hl?h.hl[j]:null,isCase:j>=0});}
+    if(hi===0)for(let k=1;k<=pend;k++)rows.push({r:{t:R[0].t+k,d:'à venir',y:'',n:[],s:null,m:[]},hl:null,isCase:false,pending:true});
+    const ci=rows.findIndex(x=>x.isCase);
+    return{i,letter:cnLetter(off+i),rows,ci,pivs,nbN:Math.max(5,...rows.map(x=>x.r.n.length)),hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),rw:R[h.idxs[0]]};
+  });
+  if(!blocks.length)return'<div style="font-size:11px;color:#888">Coche au moins un cas.</div>';
+  const offs=state.juxOff||{};
+  const maxCi=Math.max(...blocks.map(b=>b.ci));
+  blocks.forEach(b=>{b.top=Math.max(0,maxCi-b.ci+(offs[p+'|'+b.i]||0));});
+  const nRows=Math.max(...blocks.map(b=>b.top+b.rows.length));
+  const W={L:40,D:50,Y:38,N:32,T:38,M:30};
+  const colsOf=b=>[['L',W.L],['D',W.D],['Y',W.Y],...Array.from({length:b.nbN},(_,q)=>['D'+(q+1),W.N]),['To',W.T],...(b.hasM?[['M1',W.M],['M2',W.M],['M3',W.M],['M4',W.M],['M5',W.M]]:[])];
+  const sync=state.juxSync!==false;
+  const full=state.juxFull===true;
+  const id='jx-'+p;
+  const colHTML=(b,bi)=>{
+    const cols=colsOf(b);const tw=cols.reduce((a,[_,w])=>a+w,0);
+    let t=`<thead><tr><th colspan="${cols.length}" style="position:sticky;top:0;z-index:6;background:#12263F;color:#fff;font-size:12px;padding:4px 6px;white-space:nowrap;text-align:left"><span style="background:#F59E0B;color:#111;border-radius:5px;padding:0 7px;margin-right:5px;font-weight:800">${b.letter}</span>T${b.rw.t} <span style="font-weight:400;opacity:.8">${b.rw.d}/${b.rw.y}</span> <button onclick="cybJxShift('${p}',${b.i},-1)" title="Monter ce bloc d'une ligne" style="margin-left:6px;padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cybJxShift('${p}',${b.i},1)" title="Descendre ce bloc d'une ligne" style="padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></th></tr><tr>`;
+    cols.forEach(([n,w])=>{t+=`<th style="position:sticky;top:26px;z-index:5;background:#E8ECF4;color:#111;font-size:${Math.max(9,fs-1)}px;min-width:${w}px;width:${w}px;border:1px solid #D1D5DB">${n}</th>`;});
+    t+='</tr></thead><tbody>';
+    for(let r=0;r<nRows;r++){
+      const x=(r>=b.top)?b.rows[r-b.top]:null;
+      if(!x){t+=`<tr><td colspan="${cols.length}" style="padding:${pad}px 2px;font-size:${fs}px;border:1px solid #F3F3F3;background:#fff">&nbsp;</td></tr>`;continue;}
+      const rr=x.r;
+      const bg=x.pending?'#FFF7ED':x.isCase?'#FDF2E3':(r%2?'#F7F7F7':'#fff');
+      const cell=(txt,st)=>`<td style="text-align:center;padding:${pad}px 2px;font-size:${fs}px;background:${bg};border:1px solid #ECECEC;white-space:nowrap;${st||''}">${txt}</td>`;
+      t+='<tr>';
+      t+=cell(rr.t,`color:${x.pending?'#C2410C':'#0F766E'};font-weight:700;`);
+      t+=cell(rr.d||'','color:#555;');
+      t+=cell(rr.y||'','color:#777;font-size:'+(fs-2)+'px;');
+      for(let q=0;q<b.nbN;q++){
+        const val=rr.n[q];let st='';
+        if(x.hl&&x.hl.has(q))st='background:#69F0AE;color:#111;font-weight:800;';
+        else if(val!=null&&!isNaN(val)&&b.pivs.length){for(const pv of b.pivs){const ty=cybRelType(val,pv);if(ty){const c=cmp2Color(ty);st=`background:${c};color:${ty==='exact'?'#111':'#fff'};font-weight:700;`;break;}}}
+        t+=cell(val==null||isNaN(val)?'·':val,st);
+      }
+      const tot=rr.s!=null&&!isNaN(rr.s)?rr.s:(rr.n.length?rr.n.reduce((a,z)=>a+z,0):'·');
+      t+=cell(tot,'color:#92400E;font-weight:600;');
+      if(b.hasM)for(let q=0;q<5;q++){const mv=rr.m&&rr.m[q];t+=cell((mv==null||isNaN(mv))?'·':mv,'color:#7B1FA2;');}
+      t+='</tr>';
+    }
+    t+='</tbody>';
+    const frozen=freeze&&bi===0;
+    return`<div class="jx-col" data-jx="${id}" onscroll="cybJxSync(this)" style="flex:0 0 auto;max-height:${full?'calc(100vh - 110px)':'72vh'};overflow-y:auto;overflow-x:hidden;border:1px solid #CBD5E1;border-radius:8px;background:#fff;${frozen?'position:sticky;left:0;z-index:20;box-shadow:3px 0 6px rgba(0,0,0,.18);':''}"><table style="border-collapse:separate;border-spacing:0;width:${tw}px">${t}</table></div>`;
+  };
+  const line=maxCi;
+  setTimeout(()=>cybJxScroll(id,line),60);
+  const tb=(a,t,on)=>`<button onclick="${a}" style="padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;
+  const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">${tb('cybJxFreeze()','📌 1re colonne figée',freeze)}${tb('cybJxSyncToggle()','🔗 défilement lié',sync)}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxFull()',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxSize('${k}')`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}<span style="font-size:10px;color:#777">${sync?'Fais défiler : tout descend ensemble. Décoche 🔗 pour coulisser chaque colonne seule.':'Chaque colonne coulisse seule ; ▲▼ décale un bloc d’une ligne.'}</span></div>
+  <div id="${id}" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px">${blocks.map(colHTML).join('')}</div>`;
+  return full?`<div style="position:fixed;inset:0;z-index:2000;background:#F3F3F3;padding:8px;overflow:auto"><div style="font-size:13px;font-weight:800;color:#12263F;margin-bottom:2px">📊 ${v.icon||''} ${v.name} — ${blocks.length} cas en Excel</div>${inner}</div>`:inner;
+}
+function cybJxFull(){state.juxFull=state.juxFull!==true;render();}
+function cybJxSyncToggle(){state.juxSync=state.juxSync===false;render();}
+function cybJxSync(el){
+  if(state.juxSync===false||window._jxLock)return;
+  window._jxLock=true;
+  const id=el.getAttribute('data-jx');
+  document.querySelectorAll('.jx-col[data-jx="'+id+'"]').forEach(o=>{if(o!==el)o.scrollTop=el.scrollTop;});
+  requestAnimationFrame(()=>{window._jxLock=false;});
+}
+function cybExportAllXlsx(p){
+  const r=(window._cybRes||{})[p];if(!r||!r.total){alert('Aucun résultat à exporter.');return;}
+  const list=[];let g=0;
+  r.variants.forEach(v=>v.hits.forEach(h=>{list.push({v,h,letter:cnLetter(g)});g++;}));
+  cybBuildCasesXlsx(list,'resultats_'+p);
 }
 function cnExportXlsx(){
   const f=cnFlat();if(!f.length)return;
@@ -12335,13 +12453,13 @@ function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
   window._cybRes=window._cybRes||{};window._cybRes[p]=res;
   const vi=Math.min(state[p+'Var']||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state[p+'Hit']||0,v.hits.length-1);
   return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
-  <div style="margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><button onclick="${exFn}()" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">⤴ Exporter</button><button onclick="cybSaveLines('${p}')" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">Sauvegarder les lignes</button><button onclick="cybOpenNav('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Cas par cas dans la navigation</button></div>
+  <div style="margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><button onclick="cybExportAllXlsx('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:1.5px solid #12263F;background:#fff;color:#12263F;cursor:pointer">⤴ Exporter Excel (tout)</button><button onclick="${exFn}()" style="padding:10px 12px;font-size:12px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#555;cursor:pointer">CSV</button><button onclick="cybSaveLines('${p}')" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">Sauvegarder les lignes</button><button onclick="cybOpenNav('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Cas par cas dans la navigation</button></div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:96px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:4px 10px;font-size:11px;border-radius:8px;cursor:pointer;border:1.5px solid #94A3B8;background:${i===vi?'#CBD5E1':'#fff'};color:#1E293B;font-weight:600">${i===vi?'✓ ':''}${x.icon} ${x.name} <span style="color:#0891B2">(${x.hits.length})</span></button>`).join('')}</div>
   <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);const sel=cybSelOf(p,vi,v.hits.length);return v.hits.slice(0,300).map((h,i)=>{const on=sel.includes(i);return`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:4px 12px 8px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:3px solid ${on?'#F59E0B':'transparent'};background:${i===hi?'#365F73':'#829DA8'};color:#fff;line-height:1.1"><span onclick="event.stopPropagation();cybPre('${p}',${vi},${i},${v.hits.length})" style="display:block;font-size:12px;padding:6px 4px;background:${on?'#F59E0B':'rgba(255,255,255,.2)'};color:${on?'#111':'#fff'};border-radius:6px;margin-bottom:3px;font-weight:800">${on?'☑':'☐'} ${cnLetter(off+i)}</span>${v.R[h.idxs[0]].t}</button>`;}).join('');})()}</div>
   ${(()=>{const n=v.hits.length,sel=cybSelOf(p,vi,n),jx=!!(state.juxt&&state.juxt[p]);const bt=(a,t,on)=>`<button onclick="${a}" style="padding:9px 12px;font-size:12px;font-weight:700;border-radius:10px;cursor:pointer;border:2px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;return`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">${bt(`cybPreAll('${p}',${vi},${n},true)`,'☑ Tout')}${bt(`cybPreAll('${p}',${vi},${n},false)`,'☐ Aucun')}${bt(`cybJuxt('${p}')`,'⇉ Juxtaposer ('+sel.length+')',jx)}${bt(`cybExcelFromSel('${p}',${vi})`,'📊 Mode Excel ('+sel.length+')')}${bt(`cybExportCasesXlsx('${p}',${vi})`,'⤓ Export Excel ('+sel.length+')')}</div>`;})()}
   ${cybSetBarHTML(col)}
   ${cybClChipsHTML(col)}
-  ${(state.juxt&&state.juxt[p])?(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);const sel=cybSelOf(p,vi,v.hits.length).slice(0,8);return`<div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">${sel.map(i=>{const rw=v.R[v.hits[i].idxs[0]];return`<div style="flex:0 0 min(92vw,340px);min-width:0"><div style="background:#12263F;color:#fff;border-radius:8px 8px 0 0;padding:5px 8px;font-size:13px;font-weight:700"><span style="background:#F59E0B;color:#111;border-radius:6px;padding:1px 8px;margin-right:6px">${cnLetter(off+i)}</span>${v.icon||''} ${v.name} · T${rw.t} (${rw.d}/${rw.y})</div>${cybWindowHTML(v,i,col,before,after)}</div>`;}).join('')}</div>`;})():cybWindowHTML(v,hi,col,before,after)}
+  ${(state.juxt&&state.juxt[p])?cybJuxtExcelHTML(res,p,vi,col,cybSelOf(p,vi,v.hits.length),res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0)):cybWindowHTML(v,hi,col,before,after)}
   ${nsKey?nextStatsHTML(res,nsKey,col):''}`;
 }
 function cybScopeKeys(sel){return sel==='all'?Object.keys(GAMES).filter(k=>!/^TOUT /i.test(GAMES[k].name)):[sel];}
@@ -21228,7 +21346,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybJxShift, cybJxFull, cybJxSync, cybJxSyncToggle, cybJxReset, cybJxFreeze, cybJxSize, cybExportAllXlsx, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

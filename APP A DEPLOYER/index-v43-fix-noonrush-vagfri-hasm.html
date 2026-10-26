@@ -11956,6 +11956,14 @@ function cybSetSave(k,v){
   state.cybSet=state.cybSet||{};state.cybSet[k]=v;
   try{localStorage.setItem('cybSet',JSON.stringify(Object.assign({},JSON.parse(localStorage.getItem('cybSet')||'{}'),state.cybSet)));}catch(e){}
 }
+function cybSaveLines(p){
+  const r=(window._cybRes||{})[p];if(!r||!r.total){alert('Aucune ligne à sauvegarder.');return;}
+  const cases=[];r.variants.forEach(v=>v.hits.forEach(h=>cases.push({game:v.key,name:v.name,t:h.idxs.map(i=>v.R[i].t)})));
+  let a=[];try{a=JSON.parse(localStorage.getItem('cybSavedLines')||'[]');}catch(e){}
+  a.unshift({date:new Date().toLocaleString('fr-FR'),pfx:p,count:cases.length,cases:cases.slice(0,500)});
+  try{localStorage.setItem('cybSavedLines',JSON.stringify(a.slice(0,30)));}catch(e){}
+  alert(cases.length+' ligne(s) sauvegardée(s).');
+}
 function cybSetBarHTML(col){
   const S=cybSet();
   const f=(k,l,w)=>`<span style="font-size:9px;color:#555">${l}</span><input type="number" min="0" value="${S[k]}" onchange="cybSetSave('${k}',this.value);render()" style="width:${w}px;padding:3px 4px;border:1.5px solid ${col};border-radius:5px;font-size:12px">`;
@@ -12143,9 +12151,9 @@ function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
   window._cybRes=window._cybRes||{};window._cybRes[p]=res;
   const vi=Math.min(state[p+'Var']||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state[p+'Hit']||0,v.hits.length-1);
   return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
-  <div style="margin:3px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${lvXBtn(exFn+'()')}<button onclick="cybOpenNav('${p}')" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:6px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Consulter cas par cas dans la navigation</button></div>
-  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
-  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,120).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
+  <div style="margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><button onclick="${exFn}()" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">⤴ Exporter</button><button onclick="cybSaveLines('${p}')" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">Sauvegarder les lignes</button><button onclick="cybOpenNav('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Cas par cas dans la navigation</button></div>
+  <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:96px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:4px 10px;font-size:11px;border-radius:8px;cursor:pointer;border:1.5px solid #94A3B8;background:${i===vi?'#CBD5E1':'#fff'};color:#1E293B;font-weight:600">${i===vi?'✓ ':''}${x.icon} ${x.name} <span style="color:#0891B2">(${x.hits.length})</span></button>`).join('')}</div>
+  <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${v.hits.slice(0,300).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:14px 12px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:none;background:${i===hi?'#365F73':'#829DA8'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
   ${cybSetBarHTML(col)}
   ${cybClChipsHTML(col)}
   ${cybWindowHTML(v,hi,col,before,after)}
@@ -13199,7 +13207,8 @@ function searchHubHTML(){
   if(openKey){
     const sec=SEARCH_SECTIONS.find(s=>s.key===openKey);
     h+=`<button onclick="closeSearchModule()" style="padding:5px 12px;background:#fff;border:1.5px solid #6D28D9;color:#6D28D9;border-radius:20px;cursor:pointer;font-weight:600;font-size:11px;margin-bottom:8px">◀ Retour aux modules</button>`;
-    h+= sec ? `<div style="font-size:12px;font-weight:700;color:#1F2D3D;margin-bottom:6px">${sec.icon} ${sec.title}</div>` + sec.html() : `<div style="font-size:11px;color:#C62828">Module introuvable.</div>`;
+    const CYB_NUM={combo:'5',vadd:'15',addligne:'18',transfsimple:'20',opsimple:'22',dblop:'23',abs90:'29',auto4:'34',cmp2:'40',cmp3:'41',oblique:'42'};
+    h+= sec ? `<div style="font-size:16px;font-weight:600;color:#1F2D3D;margin:4px 0 8px;text-align:center">${CYB_NUM[openKey]?CYB_NUM[openKey]+'-) ':''}${sec.title} ▾</div>` + sec.html() : `<div style="font-size:11px;color:#C62828">Module introuvable.</div>`;
     h+=`</div>`;
     return h;
   }
@@ -14178,24 +14187,30 @@ function lvList(res,col,itemFn){
 }
 // ══════ Plusieurs Bankers sur Différentes Lignes — Avec Position (modèle Cybetcast) ══════
 // Tableau de jeu commun (style Navigation / Comparer 2 plages) : N°, DATE, N1..Nn, TOT (coloré), M1..M5, TOT.M
+function cybFull(b){
+  const d=b.closest('.cyb-tbl');if(!d)return;
+  if(d.dataset.full!=='1'){d.dataset.full='1';d.dataset.st=d.getAttribute('style')||'';d.setAttribute('style','position:fixed;inset:0;z-index:2000;background:#fff;overflow:auto;padding:6px;margin:0');b.textContent='✕';}
+  else{d.dataset.full='0';d.setAttribute('style',d.dataset.st||'');b.textContent='⛶';}
+}
 function gameTableHTML(items,title,col){
   const nbN=Math.max(4,...items.map(x=>x.r.n.length));
   const hasM=items.some(x=>x.r.m&&x.r.m.some(v=>!isNaN(v)));
-  const hdr=['N°','DATE'].concat(Array.from({length:nbN},(_,k)=>'N'+(k+1)),['TOT'],hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
-  const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
+  const hdr=['L','D','Y',...Array.from({length:nbN},(_,k)=>'D'+(k+1)),'To',...(hasM?['M1','M2','M3','M4','M5','To.M']:[])];
+  const th=hdr.map(h=>`<th style="font-size:13px;font-weight:800;color:#111;padding:3px 2px;background:#F3F4F6;border-bottom:2px solid #111;white-space:nowrap">${h}</th>`).join('');
   const sumOf=a=>a&&a.length&&a.every(v=>!isNaN(v))?a.reduce((s,v)=>s+v,0):null;
+  const rowH=cybSet().rowH;
   const body=items.map(({r,hl,sel,red,g,rel},ri)=>{
     const set=hl||new Set();const gs=g||new Set();
     const tot=r.s!=null&&!isNaN(r.s)?r.s:sumOf(r.n.slice(0,nbN));
-    const tc=tot!=null?tC(tot):['#fff','#999'];
     const totM=hasM?sumOf((r.m||[]).slice(0,5)):null;
-    const tcm=totM!=null?tC(totM):['#fff','#999'];
-    const bg=red?'#FEE2E2':sel?'#FFFBEB':(ri%2?'#F9FAFB':'#fff');
-    const nc=(v,q)=>{const on=set.has(q);const rc=(!on&&!red&&rel&&rel[q])?rel[q]:null;return`<td style="text-align:center;padding:2px 0;font-weight:${on||red||rc||gs.has(q)?700:500};${red?'background:#EF4444;color:#fff;':on?'background:#FFEB00;color:#111;':rc?`background:${rc[0]};color:${rc[1]};`:gs.has(q)?'background:#86EFAC;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
-    const mc=(v,q)=>{const on=set.has(5+q);return`<td style="text-align:center;font-size:10px;font-weight:600;${on?'background:#FFEB00;color:#111;':'color:#7B1FA2;'}">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;};
-    return`<tr style="border-bottom:1px solid #E5E7EB;background:${bg}"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:700;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d||''}${r.y?'/'+String(r.y).slice(-2):''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-weight:600;font-size:11px;background:${tc[0]};color:${tc[1]}">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-weight:600;font-size:11px;background:${tcm[0]};color:${tcm[1]}">${totM==null?'·':totM}</td>`:''}</tr>`;
+    const nc=(v,q)=>{const on=set.has(q);const rc=(!on&&!red&&rel&&rel[q])?rel[q]:null;
+      const bg=red?'#EF4444':on?'#69F0AE':rc?rc[0]:gs.has(q)?'#86EFAC':(q%2?'#DEDEDE':'#fff');
+      const fg=red?'#fff':on?'#111':rc?rc[1]:'#111';
+      return`<td style="text-align:center;padding:0;height:${rowH}px;font-size:15px;font-weight:${on||red||rc||gs.has(q)?700:500};background:${bg};color:${fg}">${v==null||isNaN(v)?'·':v}</td>`;};
+    const mc=(v,q)=>`<td style="text-align:center;font-size:11px;font-weight:600;color:#7B1FA2">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;
+    return`<tr style="border-bottom:1px solid #E5E7EB;height:${rowH}px"><td style="text-align:center;font-size:11px;color:#333;padding:0 2px;white-space:nowrap">${r.t}</td><td style="text-align:center;font-size:10px;color:#333;background:#DEDEDE;white-space:nowrap;padding:0 3px">${r.d||''}</td><td style="text-align:center;font-size:9px;color:#333;background:#BDBDBD;padding:0 3px">${r.y||''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-size:12px;background:#DEDEDE;color:#111">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-size:11px;background:#DEDEDE">${totM==null?'·':totM}</td>`:''}</tr>`;
   }).join('');
-  return`<div style="overflow-x:auto;border:1.5px solid ${col};border-radius:8px;margin-top:5px"><div style="background:${col};color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${title}</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+  return`<div class="cyb-tbl" style="margin-top:5px"><div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 2px;font-size:13px;color:#111"><span>${title}</span><span onclick="cybFull(this)" title="Plein écran" style="cursor:pointer;font-size:18px;padding:2px 6px">⛶</span></div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 // ══════ Statistiques des lignes qui suivent chaque résultat (Banker / Two Sure / Three Nap — modèle Cybetcast) ══════
 function nextStatsCompute(res,N){

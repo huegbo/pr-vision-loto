@@ -9363,7 +9363,7 @@ function runDbt(){
   setTimeout(()=>{const e=document.getElementById('dbt-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
 function dbtClear(){state.dbtRes=null;state.dbtMultiRes=null;render();}
-function dbtMultiResHTML(){
+function dbtMultiResHTMLOld(){
   const mr=state.dbtMultiRes;
   if(!mr)return'';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
@@ -9391,7 +9391,7 @@ function dbtMultiResHTML(){
     ${!total?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C;margin-top:4px">Aucun résultat trouvé dans aucun des jeux sélectionnés.</div>`:''}
   </div>`;
 }
-function dbtResultHTML(){
+function dbtResultHTMLOld(){
   if(!state.dbtRes)return '';
   const res=state.dbtRes,MAX=300;
   if(!res.length)return `<div id="dbt-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
@@ -9579,7 +9579,7 @@ function prpRowsTableHTML(rows,max){
   </tr>`;}).join('')}
   </tbody></table>`;
 }
-function prpResultHTML(){
+function prpResultHTMLOld(){
   if(!state.prpRes)return '';
   const res=state.prpRes,MAX=300;
   if(!res.length)return `<div id="prp-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune paire trouvée pour cet écart.</div>`;
@@ -9587,7 +9587,7 @@ function prpResultHTML(){
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0E7490">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-prp-btn" onclick="exportPrpExcel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${prpRowsTableHTML(res,MAX)}</div></div>`;
 }
-function prpMultiResultHTML(){
+function prpMultiResultHTMLOld(){
   const mr=state.prpMultiRes;
   if(!mr)return '';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
@@ -9719,7 +9719,7 @@ function mc3RowsTableHTML(rows,max){
   </tr>`;}).join('')}
   </tbody></table>`;
 }
-function mc3ResultHTML(){
+function mc3ResultHTMLOld(){
   if(!state.mc3Res)return '';
   const res=state.mc3Res,MAX=300;
   if(!res.length)return `<div id="mc3-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucune chaîne miroir trouvée pour cet écart.</div>`;
@@ -9727,7 +9727,7 @@ function mc3ResultHTML(){
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#5B21B6">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-mc3-btn" onclick="exportMc3Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${mc3RowsTableHTML(res,MAX)}</div></div>`;
 }
-function mc3MultiResultHTML(){
+function mc3MultiResultHTMLOld(){
   const mr=state.mc3MultiRes;
   if(!mr)return '';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
@@ -9871,7 +9871,7 @@ function mip3RowsTableHTML(rows,max){
   </tr>`;}).join('')}
   </tbody></table>`;
 }
-function mip3ResultHTML(){
+function mip3ResultHTMLOld(){
   if(!state.mip3Res)return '';
   const res=state.mip3Res,MAX=300;
   if(!res.length)return `<div id="mip3-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun trio de tirages avec paire miroir interne trouvé pour cet écart.</div>`;
@@ -9879,7 +9879,7 @@ function mip3ResultHTML(){
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap"><span style="font-size:10px;font-weight:600;color:#0F766E">${res.length} résultat${res.length>1?'s':''}${res.length>MAX?` — les ${MAX} premiers sont affichés`:''}</span><button id="export-mip3-btn" onclick="exportMip3Excel()" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>
     <div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px">${mip3RowsTableHTML(res,MAX)}</div></div>`;
 }
-function mip3MultiResultHTML(){
+function mip3MultiResultHTMLOld(){
   const mr=state.mip3MultiRes;
   if(!mr)return '';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
@@ -10103,7 +10103,7 @@ function runVtot(){
   setTimeout(()=>{const e=document.getElementById('vtot-res')||document.getElementById('vtot-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
 function vtotClear(){state.vtotRes=null;state.vtotMultiRes=null;render();}
-function vtotMultiResultHTML(){
+function vtotMultiResultHTMLOld(){
   const r=state.vtotMultiRes;
   if(!r)return'';
   const total=r.results.reduce((a,x)=>a+x.count,0);
@@ -10119,7 +10119,7 @@ function vtotMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
-function vtotResultHTML(){
+function vtotResultHTMLOld(){
   if(!state.vtotRes)return '';
   const res=state.vtotRes,MAX=300;
   if(!res.length)return `<div id="vtot-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
@@ -10294,7 +10294,7 @@ function vtotdCheckNone(){
   state.vtotdUnchecked=new Set(Array.from({length:n},(_,i)=>i));
   render();
 }
-function vtotdMultiResultHTML(){
+function vtotdMultiResultHTMLOld(){
   const r=state.vtotdMultiRes;
   if(!r)return'';
   const total=r.results.reduce((a,x)=>a+x.count,0);
@@ -10643,7 +10643,7 @@ function vtotdWeekHTML(){
     </tr>`;}).join('')}
     </tbody></table></div></div>`;
 }
-function vtotdResultHTML(){
+function vtotdResultHTMLOld(){
   if(!state.vtotdRes)return '';
   const res=state.vtotdRes,MAX=300;
   if(!res.length)return `<div id="vtotd-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
@@ -10767,7 +10767,7 @@ function runVtt(){
   render();
 }
 function vttClear(){state.vttRes=null;state.vttMultiRes=null;render();}
-function vttMultiResultHTML(){
+function vttMultiResultHTMLOld(){
   const r=state.vttMultiRes;
   if(!r)return'';
   const total=r.results.reduce((a,x)=>a+x.count,0);
@@ -10783,7 +10783,7 @@ function vttMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
-function vttResultHTML(){
+function vttResultHTMLOld(){
   if(!state.vttRes)return '';
   const res=state.vttRes,MAX=300;
   if(!res.length)return `<div style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
@@ -11032,7 +11032,7 @@ function runElm(){
   setTimeout(()=>{const e=document.getElementById('elm-res')||document.getElementById('elm-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
 function elmClear(){state.elmRes=null;state.elmMultiRes=null;render();}
-function elmMultiResultHTML(){
+function elmMultiResultHTMLOld(){
   const mr=state.elmMultiRes;
   if(!mr)return'';
   const total=mr.results.reduce((a,x)=>a+x.count,0);
@@ -11048,7 +11048,7 @@ function elmMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
-function elmResultHTML(){
+function elmResultHTMLOld(){
   if(!state.elmRes)return '';
   const res=state.elmRes,MAX=300;
   if(!res.length)return `<div id="elm-res" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun tirage ne correspond.</div>`;
@@ -11770,7 +11770,7 @@ function runCet(){
   setTimeout(()=>{const e=document.getElementById('cet-res')||document.getElementById('cet-multi-res');if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
 }
 function cetClear(){state.cetRes=null;state.cetMultiRes=null;render();}
-function cetMultiResultHTML(){
+function cetMultiResultHTMLOld(){
   const mr=state.cetMultiRes;
   if(!mr)return'';
   const total=mr.results.reduce((a,x)=>a+x.count,0);
@@ -11787,7 +11787,7 @@ function cetMultiResultHTML(){
     </div>`).join('')}
     </div></div>`;
 }
-function cetResultHTML(){
+function cetResultHTMLOld(){
   if(!state.cetRes)return '';
   const res=state.cetRes,MAX=300;
   const label=(ELM_DEF.find(d=>d.key===(state.cetType||'counter'))||{}).label||'Élément';
@@ -11946,21 +11946,208 @@ function formuleSectionHTML(){
 }
 
 // ══════ Moteur "cas par cas" Cybetcast (pastilles par jeu → par cas → fenêtre de tirages → statistiques) ══════
+// Réglages des résultats (comme « Réglages » de l'app Cybetcast) : lignes avant = 10, lignes après = 35, hauteur des lignes = 25
+function cybSet(){
+  let sv={};try{sv=JSON.parse(localStorage.getItem('cybSet')||'{}');}catch(e){}
+  return Object.assign({before:10,after:35,rowH:25},sv,state.cybSet||{});
+}
+function cybSetSave(k,v){
+  v=Math.max(0,parseInt(v)||0);
+  state.cybSet=state.cybSet||{};state.cybSet[k]=v;
+  try{localStorage.setItem('cybSet',JSON.stringify(Object.assign({},JSON.parse(localStorage.getItem('cybSet')||'{}'),state.cybSet)));}catch(e){}
+}
+function cybSetBarHTML(col){
+  const S=cybSet();
+  const f=(k,l,w)=>`<span style="font-size:9px;color:#555">${l}</span><input type="number" min="0" value="${S[k]}" onchange="cybSetSave('${k}',this.value);render()" style="width:${w}px;padding:3px 4px;border:1.5px solid ${col};border-radius:5px;font-size:12px">`;
+  return`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0">${f('before','Lignes avant les résultats',46)}${f('after','après',46)}${f('rowH','Hauteur des lignes',46)}</div>`;
+}
+// Relation entre deux numéros pour la coloration relative : même numéro, miroir, puis éléments de classification cochés
+function cybRelType(a,b){
+  const cl=state.cybCl||{};
+  if(a===b)return cl.exact===false?null:'exact';
+  if(state.cybMir!==false&&(MIR[a]===b||MIR[b]===a))return'mirror';
+  for(const d of CL_DEF){
+    if(d.key==='miroir'||!cl[d.key])continue;
+    const da=getDerivsByType(a)[d.key],db=getDerivsByType(b)[d.key];
+    if(da===b||db===a)return d.key;
+  }
+  return null;
+}
+function cybClChipsHTML(col){
+  const cl=state.cybCl||{};
+  const chip=(on,bg,fg,label,fn)=>`<button onclick="${fn}" style="padding:1px 6px;font-size:8.5px;border-radius:4px;border:1px solid ${on?bg:'#ccc'};background:${bg};color:${fg};opacity:${on?1:.4};cursor:pointer;font-weight:600">${on?'✓':'○'} ${label}</button>`;
+  return`<details style="margin:4px 0"><summary style="font-size:9px;color:${col};cursor:pointer;font-weight:600">🎨 Couleurs relatives (même numéro, miroir, counter, code…)</summary><div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">
+    ${chip(cl.exact!==false,'#EAB308','#111','Même numéro',"state.cybCl=state.cybCl||{};state.cybCl.exact=state.cybCl.exact===false;render()")}
+    ${chip(state.cybMir!==false,'#16A34A','#fff','Miroir',"state.cybMir=state.cybMir===false;render()")}
+    ${CL_DEF.filter(d=>d.key!=='miroir').map(d=>chip(!!cl[d.key],d.bg,d.fg,d.label,`state.cybCl=state.cybCl||{};state.cybCl['${d.key}']=!state.cybCl['${d.key}'];render()`)).join('')}
+  </div></details>`;
+}
+
+// ══════ Navigation « cas par cas » : le cas remplace les tirages de la navigation (Avant n / Cas / Après n) ══════
+function cnFlat(){const r=(window._cybRes||{})[(state.caseNav||{}).pfx];if(!r)return[];const a=[];r.variants.forEach((v,vi)=>v.hits.forEach((h,hi)=>a.push({v,h,vi,hi})));return a;}
+function cybOpenNav(pfx){
+  const r=(window._cybRes||{})[pfx];if(!r||!r.total)return;
+  let k=0;const vi=Math.min(state[pfx+'Var']||0,r.variants.length-1),hi=state[pfx+'Hit']||0;
+  for(let i=0;i<vi;i++)k+=r.variants[i].hits.length;k+=hi;
+  state.caseNav={pfx,k};
+  state.tab=0;state.showSearchHub=false;render();
+  setTimeout(()=>window.scrollTo({top:0,behavior:'auto'}),30);
+}
+function cnGo(k){
+  const f=cnFlat();if(!f.length){state.caseNav=null;render();return;}
+  k=Math.max(0,Math.min(f.length-1,k));state.caseNav.k=k;
+  state[state.caseNav.pfx+'Var']=f[k].vi;state[state.caseNav.pfx+'Hit']=f[k].hi;
+  render();
+}
+function cnClose(){state.caseNav=null;render();}
+function caseNavHTML(){
+  const cn=state.caseNav,f=cnFlat();
+  if(!f.length){return`<div class="card" style="padding:12px;font-size:12px">Plus de résultats à parcourir. <button onclick="cnClose()" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid #999;background:#fff;cursor:pointer">Fermer</button></div>`;}
+  cn.k=Math.max(0,Math.min(f.length-1,cn.k));
+  const {v,h}=f[cn.k],R=v.R;
+  const SS=cybSet();const before=SS.before,after=SS.after,rowH=SS.rowH;
+  const i0=Math.max(...h.idxs),i1=Math.min(...h.idxs);
+  const lo=Math.min(R.length-1,i0+before),hi=Math.max(0,i1-after);
+  const caseRow=R[h.idxs[0]];
+  const piv=new Set();
+  h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
+  const pivs=[...piv].slice(0,8);
+  const nbN=Math.max(5,...R.slice(hi,lo+1).map(r=>r.n.length));
+  const hasM=R.slice(hi,lo+1).some(r=>r.m&&r.m.some(x=>!isNaN(x)));
+  const th=(t)=>`<th style="background:#E8ECF4;color:#111;font-size:11px;padding:5px 4px;border:1px solid #D1D5DB;white-space:nowrap">${t}</th>`;
+  let body='';
+  for(let i=lo;i>=hi;i--){
+    const r=R[i],j=h.idxs.indexOf(i),isCase=j>=0,inSpan=i<=i0&&i>=i1;
+    const kind=isCase?'cas':(i>i0?'avant':(i<i1?'apres':'mid'));
+    const label=isCase?'Cas':kind==='avant'?'Avant '+(i-i0):kind==='apres'?'Après '+(i1-i):'Ligne';
+    const bg=isCase?'#FDF2E3':kind==='apres'?'#E2EFDA':'#fff';
+    const hs=isCase&&h.hl?h.hl[j]:null;
+    const cell=(x,q)=>{
+      let st='';
+      if(hs&&hs.has(q))st='background:#6B2FA0;color:#fff;font-weight:800;';
+      else if(pivs.length&&x!=null&&!isNaN(x)){for(const pv of pivs){const t=cybRelType(x,pv);if(t){const c=cmp2Color(t);st=`background:${c};color:${t==='exact'?'#111':'#fff'};font-weight:700;`;break;}}}
+      return`<td style="text-align:center;padding:0 2px;height:${rowH}px;font-size:14px;border:1px solid #E5E7EB;${st}">${x==null||isNaN(x)?'·':x}</td>`;
+    };
+    const tot=r.s!=null&&!isNaN(r.s)?r.s:r.n.reduce((a,b)=>a+b,0);
+    body+=`<tr style="background:${bg};height:${rowH}px"><td style="text-align:center;font-weight:700;font-size:12px;padding:0 6px;border:1px solid #E5E7EB;white-space:nowrap">${label}</td><td style="text-align:center;font-size:12px;color:#0F766E;font-weight:700;border:1px solid #E5E7EB">${r.t}</td><td style="text-align:center;font-size:11px;white-space:nowrap;border:1px solid #E5E7EB">${r.d||''}/${r.y||''}</td>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q)).join('')}<td style="text-align:center;font-weight:700;font-size:14px;border:1px solid #E5E7EB;${isCase?'background:#E8C4B8;':''}">${tot}</td>${hasM?Array.from({length:5},(_,q)=>`<td style="text-align:center;font-size:12px;color:#7B1FA2;font-weight:600;border:1px solid #E5E7EB">${(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:'·'}</td>`).join(''):''}</tr>`;
+  }
+  const hdr=['Repère','N°','Date',...Array.from({length:nbN},(_,q)=>'D'+(q+1)),'Total',...(hasM?['M1','M2','M3','M4','M5']:[])].map(th).join('');
+  const chips=f.slice(0,400).map((x,i)=>`<button onclick="cnGo(${i})" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:0;border-radius:6px;cursor:pointer;color:#fff;background:${i===cn.k?'#12263F':'#9CA3AF'}">${(f.length>1&&new Set(f.map(y=>y.v.key)).size>1)?x.v.icon+' ':''}${x.v.R[x.h.idxs[0]].t}</button>`).join('');
+  const bar=`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #12263F;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.3)">
+    <div style="display:flex;gap:6px;align-items:center">
+      <button onclick="cnGo(0)" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏮</button>
+      <button onclick="cnGo(${cn.k-1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">◀</button>
+      <span style="min-width:62px;text-align:center;font-weight:800;font-size:14px;color:#12263F">${cn.k+1}/${f.length}</span>
+      <button onclick="cnGo(${cn.k+1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▶</button>
+      <button onclick="cnGo(${f.length-1})" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏭</button>
+      <button onclick="cnClose()" style="padding:9px 12px;font-size:12px;font-weight:700;border:0;border-radius:8px;background:#C62828;color:#fff;cursor:pointer">✕</button>
+    </div>
+    <div class="row" style="gap:6px;align-items:center;margin:5px 0 0;justify-content:center;flex-wrap:wrap">
+      <span style="font-size:9px;color:#777">Avant</span><input type="number" min="0" value="${before}" onchange="cybSetSave('before',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
+      <span style="font-size:9px;color:#777">Après</span><input type="number" min="0" value="${after}" onchange="cybSetSave('after',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
+      <span style="font-size:9px;color:#777">Hauteur</span><input type="number" min="14" value="${rowH}" onchange="cybSetSave('rowH',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
+      <span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>
+    </div></div>`;
+  return`<div class="card" style="padding:8px;margin-bottom:8px">
+    <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px">${chips}</div>
+    <div style="background:#1F2A44;color:#fff;font-weight:700;font-size:13px;padding:6px 8px;border-radius:6px 6px 0 0">Cas ${cn.k+1} — ${v.name} — T${caseRow.t} (${caseRow.d}/${caseRow.y})</div>
+    <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${hdr}</tr></thead><tbody>${body}</tbody></table></div>
+    ${cybClChipsHTML('#12263F')}
+    <div style="height:110px"></div>
+  </div>${bar}`;
+}
+function vtotResultHTML(){if(!state.vtotRes)return'';return cybLegacyHTML('vt','#9A3412',state.vtotRes,null,'exportVtotExcel');}
+function vtotMultiResultHTML(){const r=state.vtotMultiRes;if(!r)return'';return cybLegacyHTML('vtm','#9A3412',null,r.results,'exportVtotExcel');}
+function vtotdResultHTML(){if(!state.vtotdRes)return'';return cybLegacyHTML('vd','#7C2D12',state.vtotdRes,null,'exportVtotDExcel');}
+function vtotdMultiResultHTML(){const r=state.vtotdMultiRes;if(!r)return'';return cybLegacyHTML('vdm','#7C2D12',null,r.results,'exportVtotDExcel');}
+function vttResultHTML(){if(!state.vttRes)return'';return cybLegacyHTML('vv','#0369A1',state.vttRes,null,'exportVttExcel');}
+function vttMultiResultHTML(){const r=state.vttMultiRes;if(!r)return'';return cybLegacyHTML('vvm','#0369A1',null,r.results,'exportVttExcel');}
+function elmResultHTML(){if(!state.elmRes)return'';return cybLegacyHTML('em','#7C2D12',state.elmRes,null,'exportElmExcel');}
+function elmMultiResultHTML(){const r=state.elmMultiRes;if(!r)return'';return cybLegacyHTML('emm','#7C2D12',null,r.results,'exportElmExcel');}
+function cetResultHTML(){if(!state.cetRes)return'';return cybLegacyHTML('ce','#0F766E',state.cetRes,null,'exportCetExcel');}
+function cetMultiResultHTML(){const r=state.cetMultiRes;if(!r)return'';return cybLegacyHTML('cem','#0F766E',null,r.results,'exportCetExcel');}
+function dbtResultHTML(){if(!state.dbtRes)return'';return cybLegacyHTML('db','#166534',state.dbtRes,null,'exportDbtExcel');}
+function dbtMultiResHTML(){const r=state.dbtMultiRes;if(!r)return'';return cybLegacyHTML('dbm','#166534',null,r.results,'exportDbtExcel');}
+function prpResultHTML(){if(!state.prpRes)return'';return cybLegacyHTML('pp','#0E7490',state.prpRes,null,'exportPrpExcel');}
+function prpMultiResultHTML(){const r=state.prpMultiRes;if(!r)return'';return cybLegacyHTML('ppm','#0E7490',null,r.results,'exportPrpExcel');}
+function mc3ResultHTML(){if(!state.mc3Res)return'';return cybLegacyHTML('m3','#5B21B6',state.mc3Res,null,'exportMc3Excel');}
+function mc3MultiResultHTML(){const r=state.mc3MultiRes;if(!r)return'';return cybLegacyHTML('m3m','#5B21B6',null,r.results,'exportMc3Excel');}
+function mip3ResultHTML(){if(!state.mip3Res)return'';return cybLegacyHTML('mi','#0F766E',state.mip3Res,null,'exportMip3Excel');}
+function mip3MultiResultHTML(){const r=state.mip3MultiRes;if(!r)return'';return cybLegacyHTML('mim','#0F766E',null,r.results,'exportMip3Excel');}
+// Adaptateur : transforme les résultats des anciens modules ([{game,gameName,icon,rows:[hit]}]) en cas navigables (jeux → cas → tirages avant/après)
+function cybLegacyRes(results,hlFn){
+  const variants=[];let total=0;
+  (results||[]).forEach(g=>{
+    if(!g||!g.rows||!g.rows.length||!GAMES[g.game])return;
+    const R=gameData(g.game).T;
+    const find=r=>R.findIndex(q=>q===r||(q.t===r.t&&q.d===r.d&&q.y===r.y));
+    const hits=[];
+    g.rows.forEach(x=>{
+      const rows=[];
+      const take=v=>{if(v&&Array.isArray(v.n)&&typeof v.t==='number'&&!rows.includes(v))rows.push(v);};
+      Object.values(x).forEach(v=>{if(Array.isArray(v))v.forEach(take);else take(v);});
+      const idxs=[],hl=[];
+      const vals=new Set();['a','b','x','mx','num','elm','elmVal'].forEach(k=>{if(Number.isFinite(x[k]))vals.add(x[k]);});
+      rows.forEach(r=>{
+        const i=find(r);if(i<0||idxs.includes(i))return;
+        let hs=hlFn?hlFn(x,r):null;
+        if(!hs){
+          hs=new Set();
+          if(Array.isArray(x.pos))x.pos.forEach(q=>{if((r===x.r||r===x.voisin)&&Number.isFinite(q))hs.add(q);});
+          if(Number.isFinite(x.pos)&&r===x.r)hs.add(x.pos-1);
+          if(Number.isFinite(x.posElm)&&(r===x.voisin||r===x.r))hs.add(x.posElm-1);
+          if(Array.isArray(x.valsA)&&r===x.r)r.n.forEach((v,q)=>{if(x.valsA.includes(v))hs.add(q);});
+          if(Array.isArray(x.valsB)&&r===x.voisin)r.n.forEach((v,q)=>{if(x.valsB.includes(v))hs.add(q);});
+          if(Array.isArray(x.cells))x.cells.forEach(c=>{if(c&&c.tId===r.t&&Number.isFinite(c.idx))hs.add(c.idx);});
+          if(vals.size)r.n.forEach((v,q)=>{if(vals.has(v))hs.add(q);});
+        }
+        idxs.push(i);hl.push(hs);
+      });
+      if(!idxs.length)return;
+      const ord=idxs.map((v,k)=>k).sort((p,q)=>idxs[p]-idxs[q]);
+      hits.push({idxs:ord.map(k=>idxs[k]),hl:ord.map(k=>hl[k])});
+    });
+    hits.sort((p,q)=>Math.min(...p.idxs)-Math.min(...q.idxs));
+    if(hits.length){variants.push({key:g.game,machine:false,name:g.gameName||GAMES[g.game].name,icon:g.icon||GAMES[g.game].icon,R,hits});total+=hits.length;}
+  });
+  return{variants,total};
+}
+// Résultat d'un ancien module au format « cas par cas » : single = tableau de hits sur le jeu courant ; multi = state.XMultiRes.results
+function cybLegacyHTML(pfx,col,single,multi,exFn,hlFn){
+  const results=multi?multi:[{game:GAME.key,gameName:GAME.name,icon:GAME.icon,rows:single||[]}];
+  const res=cybLegacyRes(results,hlFn);
+  return cybCasesHTML(res,pfx,col,null,exFn,5,10);
+}
 function cybWindowHTML(v,h,col,before,after){
   const R=v.R,hit=v.hits[h],i0=Math.max(...hit.idxs),i1=Math.min(...hit.idxs);
-  const lo=Math.min(R.length-1,i0+(before==null?10:before)),hi=Math.max(0,i1-(after==null?35:after));
+  const SS=cybSet();const lo=Math.min(R.length-1,i0+SS.before),hi=Math.max(0,i1-SS.after);
   const items=[];
-  for(let i=lo;i>=hi;i--){const j=hit.idxs.indexOf(i);items.push({r:R[i],hl:j>=0?(hit.hl&&hit.hl[j]):null,sel:j>=0});}
+  // Couleurs relatives (comme dans Cybetcast) : chaque case liée aux numéros du cas par même numéro / miroir / counter / code… est coloriée
+  const piv=new Set();
+  hit.idxs.forEach((ix,j)=>{const hs=hit.hl&&hit.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
+  const pivs=[...piv].slice(0,8);
+  for(let i=lo;i>=hi;i--){
+    const j=hit.idxs.indexOf(i);
+    const rel={};
+    if(pivs.length)R[i].n.forEach((x,q)=>{
+      if(j>=0&&hit.hl&&hit.hl[j]&&hit.hl[j].has(q))return;
+      for(const pv of pivs){const t=cybRelType(x,pv);if(t){const c=cmp2Color(t);rel[q]=[c,t==='exact'?'#111':'#fff'];break;}}
+    });
+    items.push({r:R[i],hl:j>=0?(hit.hl&&hit.hl[j]):null,sel:j>=0,rel});
+  }
   return gameTableHTML(items,`${v.icon} ${v.name} · T ${R[lo].t} – ${R[hi].t} · ${items.length} tirages`,col);
 }
 function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
   if(!res)return'';
   if(!res.total)return`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun cas trouvé.</div>`;
+  window._cybRes=window._cybRes||{};window._cybRes[p]=res;
   const vi=Math.min(state[p+'Var']||0,res.variants.length-1),v=res.variants[vi],hi=Math.min(state[p+'Hit']||0,v.hits.length-1);
   return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
-  <div style="margin:3px 0">${lvXBtn(exFn+'()')}</div>
+  <div style="margin:3px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center">${lvXBtn(exFn+'()')}<button onclick="cybOpenNav('${p}')" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:6px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Consulter cas par cas dans la navigation</button></div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:130px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:3px 8px;font-size:10px;border-radius:6px;cursor:pointer;border:1.5px solid ${col};background:${i===vi?col:'#fff'};color:${i===vi?'#fff':col}">${i===vi?'✓ ':''}${x.icon} ${x.name} (${x.hits.length})</button>`).join('')}</div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:90px;overflow-y:auto">${v.hits.slice(0,120).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="padding:4px 10px;font-size:11px;border-radius:6px;cursor:pointer;border:none;background:${i===hi?'#12263F':'#9CA3AF'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
+  ${cybSetBarHTML(col)}
+  ${cybClChipsHTML(col)}
   ${cybWindowHTML(v,hi,col,before,after)}
   ${nsKey?nextStatsHTML(res,nsKey,col):''}`;
 }
@@ -12977,7 +13164,23 @@ function historySectionHTML(){
   if(!state.searchHist||!state.searchHist.length)return '';
   return `<div style="font-size:9.5px;color:#888;margin-top:6px">Historique de recherche non disponible.</div>`;
 }
-function openSearchModule(key){state.searchModuleOpen=key;render();setTimeout(()=>{window.scrollTo({top:0,behavior:'smooth'});const focusMap={cq:'cq-input',combo:'cs-nums',formule:'form-input',date:'dsi',totalNear:'tns-tot',term:'',dig:'',sommeligne:'tsi'};const fid=focusMap[key];if(fid){const el=document.getElementById(fid);if(el)el.focus();}},60);}
+// ── Onglets des modules actifs, alignés horizontalement en haut (comme dans l'app Cybetcast) ──
+function modTabOpen(key){state.openMods=state.openMods||[];if(!state.openMods.includes(key))state.openMods.push(key);state.searchModuleOpen=key;state.caseNav=null;render();}
+function modTabHome(){state.searchModuleOpen=null;render();}
+function modTabClose(key){
+  state.openMods=(state.openMods||[]).filter(k=>k!==key);
+  if(state.searchModuleOpen===key){const l=state.openMods;state.searchModuleOpen=l.length?l[l.length-1]:null;}
+  render();
+}
+function modTabsHTML(){
+  state.openMods=state.openMods||[];
+  if(state.searchModuleOpen&&!state.openMods.includes(state.searchModuleOpen))state.openMods.push(state.searchModuleOpen);
+  if(!state.openMods.length)return'';
+  const cur=state.searchModuleOpen;
+  const tab=(act,label,on,closeFn)=>`<div style="flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:12px 6px 10px 12px;cursor:pointer;border-bottom:3px solid ${on?'#3A5F73':'transparent'}"><span onclick="${act}" style="font-size:13px;font-weight:${on?700:500};color:${on?'#D98B6B':'#4B4B55'};white-space:nowrap">${label}</span>${closeFn?`<span onclick="${closeFn}" title="Fermer" style="width:26px;height:26px;border:1px solid #C9C5D0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;color:#444;background:#fff">✕</span>`:''}</div>`;
+  return`<div id="mod-tabs" style="position:sticky;top:0;z-index:40;display:flex;overflow-x:auto;background:#FDF7FF;border-bottom:1.5px solid #D6D1DC;margin:0 -8px 8px;padding:0 4px">${tab('modTabHome()','Choisir un Module',!cur,null)}${state.openMods.map(k=>{const sec=SEARCH_SECTIONS.find(x=>x.key===k);return tab(`modTabOpen('${k}')`,sec?sec.title:k,cur===k,`modTabClose('${k}')`);}).join('')}</div>`;
+}
+function openSearchModule(key){state.openMods=state.openMods||[];if(!state.openMods.includes(key))state.openMods.push(key);state.searchModuleOpen=key;render();setTimeout(()=>{window.scrollTo({top:0,behavior:'smooth'});const focusMap={cq:'cq-input',combo:'cs-nums',formule:'form-input',date:'dsi',totalNear:'tns-tot',term:'',dig:'',sommeligne:'tsi'};const fid=focusMap[key];if(fid){const el=document.getElementById(fid);if(el)el.focus();}},60);}
 function closeSearchModule(){state.searchModuleOpen=null;render();setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),30);}
 function setSearchModuleQuery(v){state.searchModuleQuery=v;render();}
 function searchHubHTML(){
@@ -12991,6 +13194,7 @@ function searchHubHTML(){
       <span style="font-size:9px;color:#888">${T.length} tirages</span>
       <button onclick="exportAllCSV()" style="margin-left:auto;padding:3px 9px;font-size:9px;border-radius:10px;border:1.5px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600" title="Exporter tous les tirages en CSV">📤 Export CSV</button>
     </div>`;
+  h+=modTabsHTML();
   const openKey=state.searchModuleOpen;
   if(openKey){
     const sec=SEARCH_SECTIONS.find(s=>s.key===openKey);
@@ -13032,23 +13236,23 @@ function searchHubHTML(){
     </div>`;
   const revue=state.hubView==='revue';
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:4px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #6D28D9;background:${on?'#6D28D9':'#fff'};color:${on?'#fff':'#6D28D9'}">${txt}</button>`;
-  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Cybetcast 1–41')}</div>`;
+  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Cybetcast 1–44')}</div>`;
   if(state.hubView==='cyb'){
     const CYB=[
-      ['Une Ligne de Tirages','main'],['Plusieurs Lignes de Tirages','main'],['Dernière Ligne de Tirages','main'],
-      ['2 Nap','combo'],['3 Nap','combo'],['4 Nap','combo'],['5 Nap','combo'],
+      ['Une Ligne de Tirages','main'],['Voir les Pass','pass'],['Dernière Ligne de Tirages','main'],['Tirages à un mois ou date donnée','cal'],
+      ['2 Nap sur une Ligne','combo'],['3 Nap sur une Ligne','combo'],['4 Nap sur une Ligne','combo'],['5 Nap sur une Ligne','combo'],
       ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
-      ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['4 Bankers sur Différentes Lignes - Avec Position','bchain'],['5 Bankers sur Différentes Lignes - Avec Position','bchain'],
-      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition sur Plusieurs Lignes - Avec Position','vadd'],
-      ['Transformation Simple (addition de 2 draws, avec position)','addligne'],['Double Transformation',null],['Opération Simple (+, -, x, /)','opsimple'],['Double Opération','dblop'],['Transformation Opération 23',null],
-      ['Module 24 (nom à confirmer)',null],['Transformation (Counter, Turning…) & Operation','transfsimple'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Operation (Draws & Résultats) - Avec Positions','dblop'],
+      ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['Plusieurs Bankers sur Différentes Lignes - Avec Position','bchain'],
+      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','addligne'],['Addition sur Plusieurs Lignes – Avec Position','vadd'],
+      ['Transformation Simple (Counter, Turning...)','transfsimple'],['Double Transformation (Counter, Turning...)',null],['Opération Simple (+, -, x, /)','opsimple'],['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning...) & Opération (+, -, x, /)',null],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Opération (Draws & Résultats) - Avec Positions','dblop'],
+      ['Addition & Transformation avec Bankers',null],['Addition & Opération avec Bankers',null],
       ['Numéros Non Tirés dans l’Année','abs90'],
-      ['Recherche Automatique 0',null],['Recherche Automatique 1',null],['Recherche Automatique 2',null],['Recherche Automatique 3',null],['Recherche Automatique 4','auto4'],['Recherche Automatique 5',null],['Recherche Automatique 6',null],['Recherche Automatique 7',null],
-      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin','oblique'],['Numéros de Chance',null],['Module 41 (nom à confirmer)',null]];
-    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Même numérotation que l’appli Cybetcast. Grisé = pas encore reproduit. Titres 19 à 23 confirmés par la playlist Cybetcast ; 15–18 et 24–27 : à vérifier.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
+      ['Recherche Automatique 0',null],['Recherche Automatique 1',null],['Recherche Automatique 2',null],['Recherche Automatique 3',null],['Recherche Automatique 4','auto4'],['Recherche Automatique 5',null],['Recherche Automatique 6',null],['Recherche Automatique 7',null],['Recherche Automatique 8',null],['Recherche Automatique 9',null],
+      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance',null],['Combinaison de Numéros',null]];
+    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Numérotation et titres des 44 modules confirmés d’après l’appli Cybetcast (menu « Choisir un Module »). Grisé = pas encore reproduit.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
       const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
-      const act=ok?`openSearchModule('${k}')`:(main?`goNav(0)`:'');
-      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?'›':(main?'tableau':'à venir')}</span></div>`;
+      const act=ok?`openSearchModule('${k}')`:(main?`goNav(0)`:(k==='pass'?`goNav(0);state.showPass=true;render()`:''));
+      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?'›':((main||k==='pass')?'tableau':'à venir')}</span></div>`;
     }).join('')+'</div>';
   }else if(revue){
     const groups=[
@@ -13980,14 +14184,14 @@ function gameTableHTML(items,title,col){
   const hdr=['N°','DATE'].concat(Array.from({length:nbN},(_,k)=>'N'+(k+1)),['TOT'],hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
   const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
   const sumOf=a=>a&&a.length&&a.every(v=>!isNaN(v))?a.reduce((s,v)=>s+v,0):null;
-  const body=items.map(({r,hl,sel,red,g},ri)=>{
+  const body=items.map(({r,hl,sel,red,g,rel},ri)=>{
     const set=hl||new Set();const gs=g||new Set();
     const tot=r.s!=null&&!isNaN(r.s)?r.s:sumOf(r.n.slice(0,nbN));
     const tc=tot!=null?tC(tot):['#fff','#999'];
     const totM=hasM?sumOf((r.m||[]).slice(0,5)):null;
     const tcm=totM!=null?tC(totM):['#fff','#999'];
     const bg=red?'#FEE2E2':sel?'#FFFBEB':(ri%2?'#F9FAFB':'#fff');
-    const nc=(v,q)=>{const on=set.has(q);return`<td style="text-align:center;padding:2px 0;font-weight:${on||red||gs.has(q)?700:500};${red?'background:#EF4444;color:#fff;':on?'background:#FFEB00;color:#111;':gs.has(q)?'background:#86EFAC;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
+    const nc=(v,q)=>{const on=set.has(q);const rc=(!on&&!red&&rel&&rel[q])?rel[q]:null;return`<td style="text-align:center;padding:2px 0;font-weight:${on||red||rc||gs.has(q)?700:500};${red?'background:#EF4444;color:#fff;':on?'background:#FFEB00;color:#111;':rc?`background:${rc[0]};color:${rc[1]};`:gs.has(q)?'background:#86EFAC;color:#111;':''}">${v==null||isNaN(v)?'·':v}</td>`;};
     const mc=(v,q)=>{const on=set.has(5+q);return`<td style="text-align:center;font-size:10px;font-weight:600;${on?'background:#FFEB00;color:#111;':'color:#7B1FA2;'}">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;};
     return`<tr style="border-bottom:1px solid #E5E7EB;background:${bg}"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:700;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d||''}${r.y?'/'+String(r.y).slice(-2):''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-weight:600;font-size:11px;background:${tc[0]};color:${tc[1]}">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-weight:600;font-size:11px;background:${tcm[0]};color:${tcm[1]}">${totM==null?'·':totM}</td>`:''}</tr>`;
   }).join('');
@@ -15470,51 +15674,56 @@ function setCmp2B(v){state.cmp2B=v;render();}
 function doCmp2(){
   const keyA=state.cmp2A||GAME.key, keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
   const dA=gameData(keyA),dB=gameData(keyB);
-  // Ligne 1 vide = dernier tirage du jeu A (le tirage « en cours »).
-  const t1=(state.cmp2Line1===''||state.cmp2Line1==null)?(dA.T[0]?dA.T[0].t:NaN):parseInt(state.cmp2Line1), t2=(state.cmp2Line2===''||state.cmp2Line2==null)?(dB.T[0]?dB.T[0].t:NaN):parseInt(state.cmp2Line2);
-  const idxA0=dA.T.findIndex(r=>r.t===t1);
-  const idxB0=dB.T.findIndex(r=>r.t===t2);
-  if(isNaN(t1)||idxA0<0){alert('Ligne 1 introuvable dans '+GAMES[keyA].name+' (N° de tirage inconnu).');return;}
-  if(isNaN(t2)||idxB0<0){alert('Ligne 2 introuvable dans '+GAMES[keyB].name+' (N° de tirage inconnu).');return;}
-  const n=Math.min(500,Math.max(1,parseInt(state.cmp2Lines)||1));
-  // dA.T / dB.T sont triés du plus récent (index 0) au plus ancien.
-  // La « Ligne » donnée est la DERNIÈRE ligne de la plage : la fenêtre remonte de n lignes vers les
-  // tirages plus anciens (n+1 lignes au total), affichée du plus ancien au plus récent.
-  // « Inversée » retourne SEULEMENT la plage 2 (elle part de sa ligne et descend vers les anciens),
-  // la plage 1 reste dans l'ordre croissant ; les lignes sont comparées une à une (i avec i).
-  // Inversée : la plage 2 part de sa ligne et va vers l'AVANT (tirages plus récents), affichée du plus
-  // récent au plus ancien (ex : ligne 275, 40 lignes -> 315 ... 275). Sinon : 235 ... 275.
+  // Comme dans l'app Cybetcast : « Ligne » = N° de la DERNIÈRE ligne de la plage ; le prochain tirage (dernier+1) est une ligne « à venir » (zéros).
+  const nxt=d=>d.T[0]?d.T[0].t+1:NaN;
+  const t1=(state.cmp2Line1===''||state.cmp2Line1==null)?nxt(dA):parseInt(state.cmp2Line1), t2=(state.cmp2Line2===''||state.cmp2Line2==null)?nxt(dB):parseInt(state.cmp2Line2);
+  const find=(d,t)=>(d.T[0]&&t===d.T[0].t+1)?-1:d.T.findIndex(r=>r.t===t); // -1 = ligne à venir ; -2 = introuvable
+  const idxA0=isNaN(t1)?-2:(find(dA,t1)===-1&&!(dA.T[0]&&t1===dA.T[0].t+1)?-2:find(dA,t1));
   const inv=!!state.cmp2Inversee;
+  let idxB0=isNaN(t2)?-2:(find(dB,t2)===-1&&!(dB.T[0]&&t2===dB.T[0].t+1)?-2:find(dB,t2));
+  if(idxA0===-2){alert('Ligne 1 introuvable dans '+GAMES[keyA].name+' (N° de tirage inconnu).');return;}
+  if(idxB0===-2){alert('Ligne 2 introuvable dans '+GAMES[keyB].name+' (N° de tirage inconnu).');return;}
+  if(inv&&idxB0===-1)idxB0=0;
+  const n=Math.min(500,Math.max(1,parseInt(state.cmp2Lines)||1));
+  // dA.T / dB.T : du plus récent (index 0) au plus ancien. La plage remonte de n lignes vers les tirages plus anciens (n+1 lignes), affichée du plus ancien au plus récent.
+  // « Inversée » : la plage 2 va vers l'AVANT (tirages plus récents), affichée du plus récent au plus ancien.
   const m=Math.min(n,dA.T.length-1-idxA0,inv?idxB0:dB.T.length-1-idxB0);
+  const mk=(d,idx)=>idx>=0?d.T[idx]:{t:d.T[0].t+1,d:'00/00',y:'0000',n:[0,0,0,0,0],s:0,m:null,pending:true};
   const rowsA=[],rowsB=[];
   for(let k=0;k<=m;k++){
-    rowsA.push(dA.T[idxA0+m-k]);
-    rowsB.push(inv?dB.T[idxB0-m+k]:dB.T[idxB0+m-k]);
+    rowsA.push(mk(dA,idxA0+m-k));
+    rowsB.push(inv?mk(dB,idxB0-m+k):mk(dB,idxB0+m-k));
+  }
+  // Lignes qui SUIVENT la ligne alignée (par défaut 9) : ce qui est sorti « après » dans chaque jeu
+  const extra=Math.max(0,state.cmp2Extra===''||state.cmp2Extra==null?9:(parseInt(state.cmp2Extra)||0));
+  const exA=[],exB=[];
+  for(let k=1;k<=extra;k++){
+    const ia=idxA0-k; if(ia>=0)exA.push(dA.T[ia]);
+    const ib=inv?idxB0+k:idxB0-k; if(ib>=0&&ib<dB.T.length)exB.push(dB.T[ib]);
   }
   const respectPos=!!state.cmp2RespectPos;
   const withMirror=state.cmp2Mirror!==false;
+  const colorier=state.cmp2Colorier===true;
   const clActive=state.cmp2ClActive||{};
-  // Liste des types de correspondance testés, dans l'ordre de priorité : 'exact' (numéro identique)
-  // > 'mirror' (miroir, ex 13↔31) > chaque élément de classification actif (counter, bonanza, malta,
-  // key, turning, partner, shadow, equiv — cases à cocher, comme dans le reste de l'appli).
+  // 'exact' (même numéro) > 'mirror' (miroir) ; avec « Colorier » : tous les éléments de classification (counter, bonanza, malta, key, turning, partner, shadow, equiv…)
   const relType=(numA,numB)=>{
     if(numA===numB)return'exact';
     if(withMirror&&(MIR[numA]===numB||MIR[numB]===numA))return'mirror';
+    if(!colorier)return null;
     for(const cl of CL_DEF){
       if(cl.key==='miroir')continue;
-      if(!clActive[cl.key])continue;
+      if(clActive[cl.key]===false)continue;
       const dA=getDerivsByType(numA)[cl.key], dB=getDerivsByType(numB)[cl.key];
       if(dA===numB||dB===numA)return cl.key;
     }
     return null;
   };
-  // matchA[i]/matchB[i] : { position -> type }. Une case déjà marquée 'exact' n'est jamais dégradée
-  // par un type moins prioritaire trouvé ensuite.
   const PRIO=['exact','mirror',...CL_DEF.filter(c=>c.key!=='miroir').map(c=>c.key)];
   const better=(oldT,newT)=>!oldT||PRIO.indexOf(newT)<PRIO.indexOf(oldT);
   const matchA=rowsA.map(()=>({})), matchB=rowsB.map(()=>({}));
   for(let i=0;i<rowsA.length;i++){
     const rA=rowsA[i],rB=rowsB[i],mA=matchA[i],mB=matchB[i];
+    if(rA.pending||rB.pending)continue;
     if(respectPos){
       for(let p=0;p<Math.min(rA.n.length,rB.n.length);p++){
         const t=relType(rA.n[p],rB.n[p]);
@@ -15533,7 +15742,7 @@ function doCmp2(){
   matchA.forEach(m=>Object.values(m).forEach(t=>counts[t]++));
   const count=Object.values(counts).reduce((a,b)=>a+b,0);
   const dup=dA.T.filter(r=>r.t===t1).length>1||dB.T.filter(r=>r.t===t2).length>1;
-  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts,asked:n+1,got:m+1,dup,pendA:idxA0===0,pendB:(!inv&&idxB0===0)};
+  state.cmp2Result={keyA,keyB,rowsA,rowsB,exA,exB,matchA,matchB,count,counts,asked:n+1,got:m+1,dup};
   saveHist({type:'cmp2',keyA,keyB,line1:t1,line2:t2,lines:n,inversee:state.cmp2Inversee,respectPos});
   render();
 }
@@ -15545,16 +15754,17 @@ function cmp2Shift(who,dir){
   const step=Math.max(1,parseInt(state.cmp2Step)||1);
   const mv=(key,cur)=>{
     const d=gameData(key); if(!d.T.length)return cur;
-    let idx=(cur===''||cur==null)?0:d.T.findIndex(r=>r.t===parseInt(cur));
-    if(idx<0)return cur;
-    idx=Math.min(d.T.length-1,Math.max(0,idx+dir*step));
-    return d.T[idx].t;
+    const pend=d.T[0].t+1;
+    let idx=(cur===''||cur==null||parseInt(cur)===pend)?-1:d.T.findIndex(r=>r.t===parseInt(cur));
+    if(idx<-1)return cur;
+    idx=Math.min(d.T.length-1,Math.max(-1,idx+dir*step));
+    return idx<0?pend:d.T[idx].t;
   };
   if(who!=='B')state.cmp2Line1=mv(keyA,state.cmp2Line1);
   if(who!=='A')state.cmp2Line2=mv(keyB,state.cmp2Line2);
   if(state.cmp2Result||(who==='A'&&state.cmp2Line2!==''))doCmp2(); else render();
 }
-function toggleCmp2CL(key){state.cmp2ClActive[key]=!state.cmp2ClActive[key];render();}
+function toggleCmp2CL(key){state.cmp2ClActive[key]=state.cmp2ClActive[key]===false;if(state.cmp2Result)doCmp2();else render();}
 function toggleTotalSplitCL(key){state.totalSplitClActive[key]=!state.totalSplitClActive[key];render();}
 function cmp2ClLabel(t){
   if(t==='exact')return'même numéro';
@@ -15585,47 +15795,51 @@ function cmp2ResHTML(){
   const res=state.cmp2Result;
   if(!res)return'';
   if(!res.rowsA.length)return`<div style="font-size:10px;color:#999;margin-top:6px">Aucun résultat (plage vide — vérifie les N° de tirage et le nombre de lignes)</div>`;
-  const colorier=state.cmp2Colorier!==false;
   setTimeout(()=>{const b=document.getElementById('cmp2-scroll');if(b)b.scrollTop=b.scrollHeight;},0);
   // Affichage côte à côte, TOUTES les lignes visibles d'un coup (pas de défilement interne) :
   // un tableau compact par jeu (L, D, Y, D1..D5, To), ligne i de A en face de la ligne i de B.
   // Une case qui correspond est remplie en couleur (jaune = même numéro, vert = miroir, etc.).
-  const cell=(num,type)=>{
-    const col=(colorier&&type)?cmp2Color(type):null;
-    const fg=col?(type==='exact'?'#111':'#fff'):'#111';
-    return`<td style="text-align:center;padding:1px 0;font-weight:${col?700:500};${col?`background:${col};color:${fg};`:''}">${num}</td>`;
+  const cell=(num,type,ni)=>{
+    const col=type?cmp2Color(type):null;
+    const clx=CL_DEF.find(c=>c.key===type);
+    const fg=!col?'#111':(type==='exact'?'#111':type==='mirror'?'#fff':(clx?clx.fg:'#111'));
+    const bg=col||(ni%2?'#DEDEDE':'#fff');
+    return`<td style="text-align:center;padding:3px 0;font-size:15px;font-weight:${col?700:500};background:${bg};color:${fg}">${num}</td>`;
   };
-  // Même style que les tableaux de jeu de l'appli : N°, DATE, N1..N5, TOT (+ M1..M5, TOT.M si le jeu a une machine).
-  const tbl=(keyG,rows,mm,color,who,pend)=>{
+  // Tableau au format Cybetcast : L, D, Y, D1..D5, To (colonnes paires grisées) ; la ligne « à venir » (zéros) en mauve.
+  const tbl=(keyG,rows,mm,fs)=>{
     const hasM=rows.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
-    const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
-    const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
-    const mc=n=>(n==null||isNaN(n))?'<td style="text-align:center;color:#ccc">·</td>':`<td style="text-align:center;color:#7B1FA2;font-weight:600">${n}</td>`;
-    const body=rows.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d}${rows.length&&rows[0].y!==rows[rows.length-1].y?'/'+String(r.y).slice(-2):''}</td>${r.n.map((num,ni)=>cell(num,mm[i][ni])).join('')}<td style="text-align:center"><span style="background:#FEF3C7;color:#92400E;border-left:3px solid #F97316;padding:0 3px;font-size:10px">${r.s}</span></td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(mc).join('')+`<td style="text-align:center;font-size:10px;color:#6B21A8">${r.m&&r.m.every(x=>!isNaN(x))?r.m.reduce((a,b)=>a+b,0):'·'}</td>`:''}</tr>`).join('');
-    // Ligne « tirage à venir » (zéros) quand la plage se termine sur le dernier tirage connu — comme dans l'app Cybetcast
-    const nc=5+(hasM?6:0);
-    const pendRow=pend?`<tr style="border-bottom:1px solid #E5E7EB;background:#FFF7ED"><td style="text-align:center;font-size:10px;color:#C2410C;font-weight:700;padding:2px 3px">${rows[rows.length-1].t+1}</td><td style="text-align:center;font-size:10px;color:#C2410C">à venir</td>${Array(nc+1).fill('<td style="text-align:center;color:#C2410C;font-weight:700">0</td>').join('')}</tr>`:'';
-    const arr=who?`<div style="display:flex;gap:8px;padding:4px 6px;background:#F3F4F6"><button onclick="cmp2Shift('${who}',1)" title="Monter : vers les tirages plus anciens" style="flex:1;padding:6px 0;font-size:16px;border:0;border-radius:6px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cmp2Shift('${who}',-1)" title="Descendre : vers les tirages plus récents" style="flex:1;padding:6px 0;font-size:16px;border:0;border-radius:6px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></div>`:'';
-    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[keyG].name} <span style="font-weight:400;font-size:9px">· T ${rows[0].t} – ${rows[rows.length-1].t} · ${rows.length} tirages</span></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}${pendRow}</tbody></table>${arr}</div>`;
+    const nbN=Math.max(5,...rows.map(r=>r.n.length));
+    const hdr=['L','D','Y',...Array.from({length:nbN},(_,q)=>'D'+(q+1)),'To',...(hasM?['M1','M2','M3','M4','M5']:[])];
+    const th=hdr.map(h=>`<th style="font-size:13px;font-weight:800;color:#111;padding:4px 2px;background:#F3F4F6;border-bottom:2px solid #111;white-space:nowrap">${h}</th>`).join('');
+    const body=rows.map((r,i)=>{
+      const m_=mm[i]||{};const pe=r.pending;
+      return`<tr style="${pe?'background:#F3E5F5;':''}border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:11px;color:#333;padding:2px 2px;white-space:nowrap${pe?';background:#F3E5F5':''}">${r.t}</td><td style="text-align:center;font-size:10px;color:#333;background:#DEDEDE;white-space:nowrap;padding:0 3px">${r.d}</td><td style="text-align:center;font-size:9px;color:#333;background:#BDBDBD;padding:0 3px">${r.y}</td>${Array.from({length:nbN},(_,q)=>cell(r.n[q]==null||isNaN(r.n[q])?'·':r.n[q],pe?null:m_[q],q)).join('')}<td style="text-align:center;font-size:12px;background:#DEDEDE;color:#111">${pe?0:r.s}</td>${hasM?Array.from({length:5},(_,q)=>`<td style="text-align:center;font-size:12px;color:#7B1FA2;font-weight:600">${(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:'·'}</td>`).join(''):''}</tr>`;
+    }).join('');
+    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px;display:flex;align-items:center;justify-content:center;gap:6px"><span>${GAMES[keyG].name} <span style="font-weight:400;font-size:9px">T ${rows[0].t} - ${rows[rows.length-1].t}</span></span>${fs?`<span onclick="state.cmp2Full='${fs}';render()" title="Plein écran" style="cursor:pointer;font-size:14px;padding:0 4px;border:1px solid rgba(255,255,255,.6);border-radius:4px">⛶</span>`:''}</div><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
   };
+  const exA=res.exA||[],exB=res.exB||[];
+  const TA=fs=>tbl(res.keyA,res.rowsA.concat(exA),res.matchA.concat(exA.map(()=>({}))),fs);
+  const TB=fs=>tbl(res.keyB,res.rowsB.concat(exB),res.matchB.concat(exB.map(()=>({}))),fs);
   const badges=Object.entries(res.counts).filter(([t,c])=>c>0).map(([t,c])=>
     `<span style="font-size:9px;color:${cmp2Color(t)};font-weight:600">■ ${c} ${cmp2ClLabel(t)}</span>`).join('');
   return`<div style="margin-top:8px"><div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap">
-    <span style="font-size:10px;font-weight:500;color:#D97706">Résultat (${res.rowsA.length} lignes · ${res.count} correspondances)</span>
+    <span style="font-size:12px;font-weight:700;color:#12263F;text-decoration:underline">Résultat (${res.rowsA.length})</span><span style="font-size:9px;color:#D97706">${res.count} correspondances</span>
     ${res.got<res.asked?`<span style="font-size:9px;color:#B91C1C">⚠ ${res.got}/${res.asked} lignes</span>`:''}${res.dup?'<span style="font-size:9px;color:#B91C1C">⚠ N° en double</span>':''}
     ${badges}
-    <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
+    <button onclick="exportCmp2()" style="margin-left:auto;padding:4px 12px;background:#fff;color:#12263F;border:1.5px solid #9CA3AF;border-radius:8px;cursor:pointer;font-weight:600;font-size:11px">⤴ Exporter</button>
   </div>
   <div id="cmp2-scroll" class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px;max-height:calc(100vh - 235px);min-height:180px;overflow-y:auto;align-items:start">
-    <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309',null,res.pendA)}</div>
-    <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2',null,res.pendB)}</div>
-  </div></div>`;
+    <div style="min-width:0">${TA('A')}</div>
+    <div style="min-width:0">${TB('B')}</div>
+  </div>
+  ${state.cmp2Full?(()=>{const A=state.cmp2Full==='A';return`<div style="position:fixed;inset:0;z-index:2000;background:#fff;overflow:auto;padding:6px 6px 90px"><div style="display:flex;justify-content:flex-end;margin-bottom:4px"><button onclick="state.cmp2Full=null;render()" style="padding:6px 14px;font-size:13px;font-weight:700;border:0;border-radius:8px;background:#C62828;color:#fff;cursor:pointer">✕ Fermer</button></div>${A?TA(null):TB(null)}<div style="position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));display:flex;gap:10px;padding:0 10px"><button onclick="cmp2Shift('${A?'A':'B'}',1)" style="flex:1;padding:12px 0;font-size:20px;border:0;border-radius:8px;background:#9CA3AF;color:#fff">▲</button><button onclick="cmp2Shift('${A?'A':'B'}',-1)" style="flex:1;padding:12px 0;font-size:20px;border:0;border-radius:8px;background:#9CA3AF;color:#fff">▼</button></div></div>`;})():''}</div>`;
 }
 function cmp2CardHTML(){
   const keyA=state.cmp2A||GAME.key;
   const keyB=state.cmp2B||Object.keys(GAMES).find(k=>k!==keyA);
   return`<div style="background:#fff;border:1.5px solid #D97706;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ Comparer 2 Plages de Tirages — deux jeux, alignés par N° de tirage</div>
+    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ 40-) Comparer 2 Plages de Tirages — deux jeux, alignés par N° de tirage</div>
     <div class="row" style="margin-top:0">
       <span style="font-size:9px;color:#777">Jeu A :</span>
       <select onchange="setCmp2A(this.value)">${Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${keyA===k?'selected':''}>${g.icon} ${g.name}</option>`).join('')}</select>
@@ -15636,7 +15850,7 @@ function cmp2CardHTML(){
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Ligne 1 (N° tirage, Jeu A) :</span>
-      <input type="number" placeholder="${(()=>{const d=gameData(keyA);return d.T[0]?'dernier : '+d.T[0].t:'Ex: 167';})()}" value="${state.cmp2Line1!==''?state.cmp2Line1:(()=>{const d=gameData(keyA);return d.T[0]?d.T[0].t:'';})()}" oninput="state.cmp2Line1=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+      <input type="number" placeholder="${(()=>{const d=gameData(keyA);return d.T[0]?'à venir : '+(d.T[0].t+1):'Ex: 167';})()}" value="${state.cmp2Line1!==''?state.cmp2Line1:(()=>{const d=gameData(keyA);return d.T[0]?d.T[0].t+1:'';})()}" oninput="state.cmp2Line1=this.value" style="width:90px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
     </div>
     <div class="row">
       <span style="font-size:9px;color:#777">Ligne 2 (N° tirage, Jeu B) :</span>
@@ -15645,29 +15859,31 @@ function cmp2CardHTML(){
     <div class="row">
       <span style="font-size:9px;color:#777">Nombre de lignes :</span>
       <input type="number" min="1" value="${state.cmp2Lines}" oninput="state.cmp2Lines=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+      <span style="font-size:9px;color:#777;margin-left:8px">Lignes après :</span>
+      <input type="number" min="0" value="${state.cmp2Extra==null||state.cmp2Extra===''?9:state.cmp2Extra}" oninput="state.cmp2Extra=this.value" style="width:50px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
     </div>
     <div class="row" style="gap:10px">
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Inversee?'checked':''} onchange="state.cmp2Inversee=this.checked;render()">Inversée</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Colorier!==false?'checked':''} onchange="state.cmp2Colorier=this.checked;render()">🏷️ Colorier</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2RespectPos?'checked':''} onchange="state.cmp2RespectPos=this.checked;render()">Respecter les positions</label>
-      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Mirror!==false?'checked':''} onchange="state.cmp2Mirror=this.checked;render()">🪞 Miroir</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Colorier===true?'checked':''} onchange="state.cmp2Colorier=this.checked;if(state.cmp2Result)doCmp2();else render()">🏷️ Colorier</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2RespectPos?'checked':''} onchange="state.cmp2RespectPos=this.checked;if(state.cmp2Result)doCmp2();else render()">Respecter les positions</label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Mirror!==false?'checked':''} onchange="state.cmp2Mirror=this.checked;if(state.cmp2Result)doCmp2();else render()">🪞 Miroir</label>
     </div>
     <div style="font-size:8.5px;color:#777;margin-top:4px;margin-bottom:2px">Éléments de classification à colorier :</div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">
       ${CL_DEF.filter(cl=>cl.key!=='miroir').map(cl=>`
-        <div class="cl-chip ${state.cmp2ClActive[cl.key]?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
-          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]?'1':'.45'}">
-          ${state.cmp2ClActive[cl.key]?'✓':'○'} ${cl.label}
+        <div class="cl-chip ${state.cmp2ClActive[cl.key]!==false?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
+          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]!==false?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]!==false?'1':'.45'}">
+          ${state.cmp2ClActive[cl.key]!==false?'✓':'○'} ${cl.label}
         </div>`).join('')}
-      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=true});render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tout ✓</button>
-      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=false});render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Tout ○</button>
+      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=true});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tout ✓</button>
+      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=false});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Tout ○</button>
     </div>
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
-    ${!state.cmp2Result?'':`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.28)">
+    ${!state.cmp2Result?'':`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.28)">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      ${[['A','Jeu A'],['B','Jeu B']].map(([w,l])=>`<div><div style="font-size:9px;color:#B45309;font-weight:700;text-align:center;margin-bottom:2px">${l}</div><div style="display:flex;gap:8px"><button onclick="cmp2Shift('${w}',1)" title="Monter : vers les tirages plus anciens" style="flex:1;padding:9px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cmp2Shift('${w}',-1)" title="Descendre : vers les tirages plus récents" style="flex:1;padding:9px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></div></div>`).join('')}
+      ${[['A','Jeu A'],['B','Jeu B']].map(([w,l])=>`<div><div style="font-size:9px;color:#B45309;font-weight:700;text-align:center;margin-bottom:2px">${l}</div><div style="display:flex;gap:8px"><button onclick="cmp2Shift('${w}',1)" title="Monter : vers les tirages plus anciens" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cmp2Shift('${w}',-1)" title="Descendre : vers les tirages plus récents" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></div></div>`).join('')}
     </div>
     <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0 0;justify-content:center">
       <span style="font-size:9px;color:#777">Décaler de</span>
@@ -15709,11 +15925,28 @@ function doCmp3(){
       if(t){marks[a][r][xi]=t;if(t==='mirror')counts.mirror++;}
     });
   }
-  state.cmp3Result={ks,rows,marks,counts,asked:n+1,got:m+1,dup};
+  state.cmp3Result={ks,rows,marks,counts,asked:n+1,got:m+1,dup,pend:idx.map(x=>x===0)};
   render();
+}
+// ▲ (dir=+1) : vers les tirages plus anciens ; ▼ (dir=-1) : vers les plus récents. who : 0/1/2 ou 'ALL'.
+function cmp3Shift(who,dir){
+  const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
+  const step=Math.max(1,parseInt(state.cmp3Step)||1);
+  state.cmp3L=state.cmp3L||['','',''];
+  [0,1,2].forEach(i=>{
+    if(who!=='ALL'&&who!==i)return;
+    const d=gameData(ks[i]);if(!d.T.length)return;
+    const cur=state.cmp3L[i];
+    let idx=(cur===''||cur==null)?0:d.T.findIndex(r=>r.t===parseInt(cur));
+    if(idx<0)return;
+    idx=Math.min(d.T.length-1,Math.max(0,idx+dir*step));
+    state.cmp3L[i]=d.T[idx].t;
+  });
+  doCmp3();
 }
 function cmp3ResHTML(){
   const res=state.cmp3Result;if(!res)return'';
+  setTimeout(()=>{const b=document.getElementById('cmp3-scroll');if(b)b.scrollTop=b.scrollHeight;},0);
   const COL={exact3:['#DC2626','#fff'],exact2:['#EAB308','#111'],mirror:['#16A34A','#fff'],exact:['#EAB308','#111']};
   const cell=(num,t)=>`<td style="text-align:center;padding:1px 0;font-weight:${t?700:500};${t?`background:${COL[t][0]};color:${COL[t][1]};`:''}">${num}</td>`;
   const tbl=(a)=>{const rs=res.rows[a];
@@ -15721,19 +15954,20 @@ function cmp3ResHTML(){
     const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5']:[]);
     const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F">${h}</th>`).join('');
     const body=rs.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap">${r.d}</td>${r.n.map((x,xi)=>cell(x,res.marks[a][i][xi])).join('')}<td style="text-align:center;font-size:10px;color:#92400E">${r.s}</td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(x=>`<td style="text-align:center;color:#7B1FA2;font-weight:600">${isNaN(x)?'·':x}</td>`).join(''):''}</tr>`).join('');
-    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[res.ks[a]].name} <span style="font-weight:400;font-size:9px">· T ${rs[0].t} – ${rs[rs.length-1].t}</span></div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;};
+    const pendRow=(res.pend&&res.pend[a])?`<tr style="background:#FFF7ED"><td style="text-align:center;font-size:10px;color:#C2410C;font-weight:700;padding:2px 3px">${rs[rs.length-1].t+1}</td><td style="text-align:center;font-size:9px;color:#C2410C">à venir</td>${Array(6+(hasM?5:0)).fill('<td style="text-align:center;color:#C2410C;font-weight:700">0</td>').join('')}</tr>`:'';
+    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[res.ks[a]].name} <span style="font-weight:400;font-size:9px">· T ${rs[0].t} – ${rs[rs.length-1].t}</span></div><table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>${th}</tr></thead><tbody>${body}${pendRow}</tbody></table></div>`;};
   const c=res.counts||{exact3:0,exact2:0,mirror:0};
   const chip=(t,txt)=>`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;background:${COL[t][0]};color:${COL[t][1]}">${txt}</span>`;
   const warn=(res.got<res.asked?`<div style="font-size:9px;color:#B91C1C">⚠ ${res.got} lignes au lieu de ${res.asked} (pas assez de tirages anciens)</div>`:'')+((res.dup||[]).some(Boolean)?`<div style="font-size:9px;color:#B91C1C">⚠ N° de tirage en double : la plus récente est utilisée</div>`:'');
   return warn+`<div style="margin-top:8px;font-size:9px;color:#555;display:flex;gap:6px;flex-wrap:wrap">${chip('exact3','Dans les 3 plages : '+c.exact3)}${chip('exact2','Dans 2 plages : '+c.exact2)}${chip('mirror','Miroir : '+c.mirror)}</div>
-  <div class="cmpGrid" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
+  <div id="cmp3-scroll" class="cmpGrid" style="margin-top:4px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px;max-height:calc(100vh - 255px);min-height:180px;overflow-y:auto;align-items:start">${[0,1,2].map(a=>`<div style="min-width:0">${tbl(a)}</div>`).join('')}</div>`;
 }
 function cmp3CardHTML(){
   const ks=[0,1,2].map(i=>(state.cmp3K||[])[i]||Object.keys(GAMES)[i]||GAME.key);
   const ln=state.cmp3L||['','',''];
   const opts=sel=>Object.entries(GAMES).map(([k,g])=>`<option value="${k}" ${sel===k?'selected':''}>${g.icon} ${g.name}</option>`).join('');
   return`<div style="background:#fff;border:1.5px solid #D97706;border-radius:8px;padding:8px;margin-bottom:8px">
-    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage</div>
+    <div style="font-size:11px;font-weight:500;color:#D97706;margin-bottom:5px">⚖️ 41-) Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage</div>
     ${[0,1,2].map(i=>`<div class="row" ${i?'':'style="margin-top:0"'}><span style="font-size:9px;color:#777">Jeu ${'ABC'[i]} :</span><select onchange="state.cmp3K=state.cmp3K||[];state.cmp3K[${i}]=this.value;render()">${opts(ks[i])}</select>
       <span style="font-size:9px;color:#777">Ligne :</span><input type="number" placeholder="dernier" value="${ln[i]}" oninput="state.cmp3L=state.cmp3L||['','',''];state.cmp3L[${i}]=this.value" style="width:80px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px"></div>`).join('')}
     <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
@@ -15741,6 +15975,19 @@ function cmp3CardHTML(){
     <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes (N+1 lignes). 🔴 = numéro présent dans les 3 plages sur la même ligne. 🟡 = présent dans 2 plages. 🟢 = miroir.</div>
     ${cmp3ResHTML()}
+    ${!state.cmp3Result?'':`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #D97706;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.28)">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        ${[0,1,2].map(i=>`<div><div style="font-size:9px;color:#B45309;font-weight:700;text-align:center;margin-bottom:2px">Jeu ${'ABC'[i]}</div><div style="display:flex;gap:6px"><button onclick="cmp3Shift(${i},1)" title="Vers les tirages plus anciens" style="flex:1;padding:12px 0;font-size:17px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cmp3Shift(${i},-1)" title="Vers les tirages plus récents" style="flex:1;padding:12px 0;font-size:17px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></div></div>`).join('')}
+      </div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center;margin:5px 0 0;justify-content:center">
+        <span style="font-size:9px;color:#777">Décaler de</span>
+        <input type="number" min="1" value="${state.cmp3Step||1}" oninput="state.cmp3Step=this.value" style="width:46px;padding:3px 5px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
+        <span style="font-size:9px;color:#777">tirage(s)</span>
+        <span style="display:inline-flex;align-items:center;gap:3px;border:1px solid #D97706;border-radius:6px;padding:1px 5px"><span style="font-size:9px;color:#B45309;font-weight:600">Les 3</span><button onclick="cmp3Shift('ALL',1)" style="padding:3px 12px;font-size:13px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▲</button><button onclick="cmp3Shift('ALL',-1)" style="padding:3px 12px;font-size:13px;border:1px solid #D97706;border-radius:4px;background:#fff;color:#B45309;cursor:pointer">▼</button></span>
+        <span style="font-size:8.5px;color:#888">▲ plus anciens · ▼ plus récents</span>
+      </div>
+    </div>
+    <div style="height:100px"></div>`}
   </div>`;
 }
 // ══════ Picking par Position — après l'apparition d'un numéro pivot, que sort-il à telle position ? ══════
@@ -19910,7 +20157,9 @@ function __renderBody(){
   html+=addFormHTML();
 
   // ── ONGLET NAVIGATION ─────────────────────────────────────
-  if(state.tab===0){
+  if(state.tab===0&&state.caseNav){
+    html+=caseNavHTML();
+  }else if(state.tab===0){
     html+=listsStatusBarHTML();
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){
@@ -20624,7 +20873,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

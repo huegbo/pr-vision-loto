@@ -13205,6 +13205,9 @@ function openCyb(n){
   state.cybApx=apx;
   openSearchModule(k);
 }
+function cybSelectHTML(cur){
+  return `<select onchange="if(this.value)openCyb(parseInt(this.value))" style="width:100%;box-sizing:border-box;padding:12px 10px;font-size:15px;font-weight:600;color:#1F2D3D;border:2px solid #6D28D9;border-radius:10px;background:#fff"><option value="">${cur?'':'Choisir un Module ▾'}</option>${CYB44.map(([t,k],i)=>{const n=i+1;const kk=k?k.replace('~',''):'';const ok=kk==='main'||kk==='pass'||(kk&&SEARCH_SECTIONS.some(x=>x.key===kk));return`<option value="${n}" ${cur===n?'selected':''} ${ok?'':'disabled'}>${n}-) ${t}${k&&k.endsWith('~')?' ≈':''}</option>`;}).join('')}</select>`;
+}
 function cybStep(d){
   let n=(state.cybN||0)+d;
   while(n>=1&&n<=44&&(!CYB44[n-1][1]||CYB44[n-1][1]==='main'||CYB44[n-1][1]==='pass'))n+=d;
@@ -13215,7 +13218,7 @@ function cybHeadHTML(openKey,sec){
   const ok=e&&e[1]&&e[1].replace('~','')===openKey;
   if(!ok){state.cybN=null;return `<div style="font-size:16px;font-weight:600;color:#1F2D3D;margin:4px 0 8px;text-align:center">${sec.title}</div>`;}
   const bt=(d,t)=>`<button onclick="cybStep(${d})" style="padding:8px 14px;font-size:16px;border-radius:10px;border:1.5px solid #6D28D9;background:#fff;color:#6D28D9;cursor:pointer">${t}</button>`;
-  return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0 6px">${bt(-1,'◀')}<div style="flex:1;text-align:center;font-size:15px;font-weight:600;color:#1F2D3D">${n}-) ${e[0]}<div style="font-size:10px;font-weight:400;color:#888">module ${n} / 44</div></div>${bt(1,'▶')}</div>`+(state.cybApx?`<div style="font-size:11px;background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:8px;padding:6px 8px;margin-bottom:8px">≈ Module ${n} pas encore reproduit à l’identique — en attendant, voici le module le plus proche (« ${sec.title} »).</div>`:'');
+  return `<div style="display:flex;align-items:center;gap:8px;margin:4px 0 6px">${bt(-1,'◀')}<div style="flex:1;min-width:0">${cybSelectHTML(n)}<div style="font-size:10px;color:#888;text-align:center;margin-top:2px">module ${n} / 44</div></div>${bt(1,'▶')}</div>`+(state.cybApx?`<div style="font-size:11px;background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;border-radius:8px;padding:6px 8px;margin-bottom:8px">≈ Module ${n} pas encore reproduit à l’identique — en attendant, voici le module le plus proche (« ${sec.title} »).</div>`:'');
 }
 function modTabsHTML(){
   state.openMods=state.openMods||[];
@@ -13286,11 +13289,22 @@ function searchHubHTML(){
   h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(state.hubView==='all',"state.hubView='all';render()",'Tous (A–Z)')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Les 44 modules')}</div>`;
   if(state.hubView==='cyb'){
     const CYB=CYB44;
-    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Numérotation et titres des 44 modules confirmés d’après l’appli Cybetcast (menu « Choisir un Module »). « ≈ » = module le plus proche en attendant ta capture.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
-      const apx=!!(k&&k.endsWith('~'));if(apx)k=k.slice(0,-1);const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
+    const lay=state.cybLayout||'drop';
+    const lb=(v,t)=>`<button onclick="state.cybLayout='${v}';render()" style="padding:3px 10px;font-size:11px;border-radius:12px;cursor:pointer;border:1.5px solid #6D28D9;background:${lay===v?'#6D28D9':'#fff'};color:${lay===v?'#fff':'#6D28D9'}">${t}</button>`;
+    h+=`<div style="display:flex;align-items:center;gap:6px;margin:2px 0 6px"><span style="font-size:10px;color:#666;flex:1">Les 44 modules (numérotation Cybetcast). « ≈ » = module le plus proche en attendant ta capture.</span>${lb('drop','▾ Menu')}${lb('grid','▦ Grille')}${lb('list','☰ Liste')}</div>`;
+    const items=CYB.map(([t,k0],i)=>{
+      let k=k0;const apx=!!(k&&k.endsWith('~'));if(apx)k=k.slice(0,-1);
+      const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
       const act=(ok||main||k==='pass')?`openCyb(${n})`:'';
-      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?(apx?'≈ ›':'›'):((main||k==='pass')?'tableau':'à venir')}</span></div>`;
-    }).join('')+'</div>';
+      return{n,t,act,apx};
+    });
+    if(lay==='drop'){
+      h+=cybSelectHTML(0);
+    }else if(lay==='grid'){
+      h+='<div style="display:flex;flex-wrap:wrap;gap:6px">'+items.map(({n,t,act,apx})=>`<div ${act?`onclick="${act}"`:''} style="flex:1 1 150px;min-width:140px;display:flex;align-items:flex-start;gap:6px;padding:8px 9px;border:1.5px solid #E0DAF3;border-radius:10px;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="color:#6D28D9;font-size:14px;min-width:20px">${n}</b><span style="font-size:11.5px;line-height:1.25;color:#1F2D3D">${t}${apx?' <span style="color:#B45309">≈</span>':''}</span></div>`).join('')+'</div>';
+    }else{
+      h+='<div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+items.map(({n,t,act,apx})=>`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${apx?'≈ ›':'›'}</span></div>`).join('')+'</div>';
+    }
   }else if(revue){
     const groups=[
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
@@ -15823,6 +15837,19 @@ function cmp2Color(t){
   const cl=CL_DEF.find(c=>c.key===t);
   return cl?cl.bg:'#999';
 }
+function clGuideHTML(pf){
+  // pf = 'cmp2' | 'cmp3' : même rangée « Éléments de la classification en exergue » que le reste de l'appli
+  const act=state[pf+'ClActive']=state[pf+'ClActive']||{};
+  const mirOn=state[pf+'Mirror']!==false;
+  const redo=`if(state.${pf}Result)${pf==='cmp2'?'doCmp2':'doCmp3'}();else render()`;
+  const pill=(on,bg,fg,label,fn)=>`<span onclick="${fn}" style="display:inline-block;padding:7px 14px;border-radius:18px;font-size:13px;font-weight:600;cursor:pointer;border:2px solid ${on?bg:'#DDD'};background:${on?bg:'#F3F3F3'};color:${on?fg:'#777'}">${label}</span>`;
+  const keys=CL_DEF.filter(c=>c.key!=='miroir');
+  const mir=CL_DEF.find(c=>c.key==='miroir');
+  return `<div style="margin:6px 0;padding:8px;background:#FFF6EA;border-radius:10px"><div style="font-size:13px;font-weight:700;color:#8B3A12;margin-bottom:6px">🧩 Éléments de la classification en exergue <span style="font-weight:400;font-size:10px">(guident les couleurs)</span></div><div style="display:flex;flex-wrap:wrap;gap:6px">`
+  +keys.map(c=>pill(act[c.key]===true,c.bg,c.fg,c.label,`state.${pf}ClActive['${c.key}']=!(state.${pf}ClActive['${c.key}']===true);if(state.${pf}Colorier!==true)state.${pf}Colorier=true;${redo}`)).join('')
+  +pill(mirOn,'#16A34A','#fff','Miroir',`state.${pf}Mirror=${mirOn?'false':'true'};${redo}`)
+  +`<span onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.${pf}ClActive[c.key]=true});state.${pf}Mirror=true;state.${pf}Colorier=true;${redo}" style="display:inline-block;padding:7px 14px;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid #2E7D32;background:#E8F5E9;color:#2E7D32">Tous</span><span onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.${pf}ClActive[c.key]=false});state.${pf}Mirror=false;${redo}" style="display:inline-block;padding:7px 14px;border-radius:18px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid #C62828;background:#FFEBEE;color:#C62828">Aucun</span></div></div>`;
+}
 function exportCmp2(){
   const res=state.cmp2Result;
   if(!res||!res.rowsA.length){alert('Aucun résultat à exporter');return;}
@@ -15913,16 +15940,7 @@ function cmp2CardHTML(){
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2RespectPos?'checked':''} onchange="state.cmp2RespectPos=this.checked;if(state.cmp2Result)doCmp2();else render()">Respecter les positions</label>
       <label style="display:flex;align-items:center;gap:4px;font-size:9.5px;color:#777;cursor:pointer"><input type="checkbox" ${state.cmp2Mirror!==false?'checked':''} onchange="state.cmp2Mirror=this.checked;if(state.cmp2Result)doCmp2();else render()">🪞 Miroir</label>
     </div>
-    <div style="font-size:8.5px;color:#777;margin-top:4px;margin-bottom:2px">Éléments de classification à colorier :</div>
-    <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">
-      ${CL_DEF.filter(cl=>cl.key!=='miroir').map(cl=>`
-        <div class="cl-chip ${state.cmp2ClActive[cl.key]===true?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
-          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]===true?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]===true?'1':'.45'}">
-          ${state.cmp2ClActive[cl.key]===true?'✓':'○'} ${cl.label}
-        </div>`).join('')}
-      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=true});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tout ✓</button>
-      <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=false});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Tout ○</button>
-    </div>
+    ${clGuideHTML('cmp2')}
     <button onclick="doCmp2()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Part de la Ligne 1/Ligne 2 et avance du même nombre de crans dans les deux jeux (vers les plus récents par défaut, vers les plus anciens si "Inversée"). 🟡 Jaune = même numéro exact (n'importe où par défaut, ou seulement à la même position D1↔D1, D2↔D2... si "Respecter les positions" est coché). 🟢 Vert = numéro miroir (ex: 13↔31) si "🪞 Miroir" est coché. Chaque élément de classification coché (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Equiv) est colorié avec sa propre couleur habituelle dès qu'il relie un numéro d'une plage à un numéro de l'autre.</div>
     ${cmp2ResHTML()}
@@ -16028,7 +16046,7 @@ function cmp3CardHTML(){
     <div class="row"><span style="font-size:9px;color:#777">Nombre de lignes :</span><input type="number" min="1" value="${state.cmp3N||30}" oninput="state.cmp3N=this.value" style="width:60px;padding:4px 6px;border:1.5px solid #D97706;border-radius:5px;font-size:12px">
       <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Mirror!==false?'checked':''} onchange="state.cmp3Mirror=this.checked"> 🪞 Miroir</label>
       <label style="font-size:9.5px;color:#777;margin-left:8px"><input type="checkbox" ${state.cmp3Colorier===true?'checked':''} onchange="state.cmp3Colorier=this.checked;if(state.cmp3Result)doCmp3();else render()"> 🎨 Colorier</label></div>
-    ${state.cmp3Colorier===true?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin:3px 0">${CL_DEF.filter(c=>c.key!=='miroir').map(c=>{const on=(state.cmp3ClActive||{})[c.key]===true;return`<span onclick="state.cmp3ClActive=state.cmp3ClActive||{};state.cmp3ClActive['${c.key}']=!state.cmp3ClActive['${c.key}'];if(state.cmp3Result)doCmp3();else render()" style="background:${c.bg};color:${c.fg};border:1px solid ${on?c.bg:'#ccc'};opacity:${on?1:.45};cursor:pointer;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600">${on?'✓':'○'} ${c.label}</span>`;}).join('')}</div>`:''}
+    ${clGuideHTML('cmp3')}
     <button onclick="doCmp3()" style="padding:4px 12px;background:#D97706;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px;margin-top:4px">🔄 Actualiser</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Chaque plage finit à sa ligne et remonte de N lignes (N+1 lignes). 🔴 = numéro présent dans les 3 plages sur la même ligne. 🟡 = présent dans 2 plages. 🟢 = miroir.</div>
     ${cmp3ResHTML()}

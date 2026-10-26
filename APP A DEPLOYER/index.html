@@ -7560,7 +7560,7 @@ function genericMultiResultHTML(mr,opts){
   const _p=opts.pfx||'mg';
   if(total){
     window._cybRes=window._cybRes||{};
-    window._cybRes[_p]={variants:hits.map(res=>{const R=gameData(res.game).T;return{key:res.game,machine:false,name:res.gameName,icon:res.icon||'',R,hits:res.rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[opts.hlFn?opts.hlFn(r):null]})).filter(h=>h.idxs[0]>=0)};}),total};
+    window._cybRes[_p]={variants:hits.map(res=>{const R=gameData(res.game).T;return{key:res.game,machine:false,name:res.gameName,icon:res.icon||'',R,hits:res.rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[opts.hlFn?opts.hlFn(r):null],hf:[opts.hfFn?opts.hfFn(r):null]})).filter(h=>h.idxs[0]>=0)};}),total};
   }
   return`<div style="margin-top:6px">
     <div style="font-size:11px;font-weight:700;color:#fff;background:${opts.color};border-radius:6px;padding:4px 8px;margin-bottom:5px">✅ ${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} dans ${hits.length} jeu${hits.length>1?'x':''} (sur ${mr.results.length} cherchés)</div>
@@ -11995,13 +11995,13 @@ async function cybBuildCasesXlsx(list,fname){
       hr.eachCell(c=>{c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF12263F'}};c.font={bold:true,color:{argb:'FFFFFFFF'}};c.alignment={horizontal:'center',vertical:'middle'};});
       hr.height=22;
       list.forEach((x,ri)=>{
-        const j=0,r=x.v.R[x.h.idxs[0]],hs=x.h.hl&&x.h.hl[j];
+        const j=0,r=x.v.R[x.h.idxs[0]],hs=x.h.hl&&x.h.hl[j],hfs=x.h.hf&&x.h.hf[j];
         const vals=[x.letter,x.v.name,r.t,r.d,r.y,...Array.from({length:nbN0},(_,q)=>r.n[q]==null||isNaN(r.n[q])?null:r.n[q]),(r.s!=null&&!isNaN(r.s))?r.s:r.n.reduce((a,z)=>a+z,0),...(hasM0?Array.from({length:5},(_,q)=>(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:null):[])];
         const row=w0.addRow(vals);
         row.eachCell((c,k)=>{
           c.alignment={horizontal:'center'};c.border={bottom:{style:'thin',color:{argb:'FFE5E7EB'}}};
           if(ri%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF7F7F7'}};
-          if(k>=6&&k<6+nbN0&&hs&&hs.has(k-6)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF69F0AE'}};c.font={bold:true};}
+          if(k>=6&&k<6+nbN0&&hs&&hs.has(k-6)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:(hfs&&hfs.has(k-6))?'FFFB923C':'FF69F0AE'}};c.font={bold:true};}
         });
         row.getCell(1).font={bold:true,color:{argb:'FF111111'}};row.getCell(1).fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFF59E0B'}};
         row.getCell(3).font={bold:true,color:{argb:'FF0F766E'}};
@@ -12018,7 +12018,7 @@ async function cybBuildCasesXlsx(list,fname){
       const piv=new Set();h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
       const pivs=[...piv].slice(0,8);
       const rows=[];
-      for(let i=lo;i>=hi;i--){const j=h.idxs.indexOf(i);rows.push({r:R[i],hl:j>=0&&h.hl?h.hl[j]:null,isCase:j>=0});}
+      for(let i=lo;i>=hi;i--){const j=h.idxs.indexOf(i);rows.push({r:R[i],hl:j>=0&&h.hl?h.hl[j]:null,hf:j>=0&&h.hf?h.hf[j]:null,isCase:j>=0});}
       if(hi===0&&pend>0){const last=R[0];for(let k=1;k<=pend;k++)rows.push({r:{t:last.t+k,d:'à venir',y:'',n:[],s:null,m:[]},hl:null,isCase:false,pending:true});}
       const ci=rows.findIndex(x=>x.isCase);
       return{v,h,letter,rows,ci,pivs,hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),nbN:Math.max(5,...rows.map(x=>x.r.n.length))};
@@ -12043,7 +12043,7 @@ async function cybBuildCasesXlsx(list,fname){
           if(x.pending)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF7ED'}};
           if(k>=3&&k<3+b.nbN){
             const q=k-3;
-            if(x.hl&&x.hl.has(q)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF69F0AE'}};c.font={bold:true};}
+            if(x.hl&&x.hl.has(q)){c.fill={type:'pattern',pattern:'solid',fgColor:{argb:(x.hf&&x.hf.has(q))?'FFFB923C':'FF69F0AE'}};c.font={bold:true};}
             else if(val!=null&&b.pivs.length){for(const pv of b.pivs){const t=cybRelType(val,pv);if(t){const cc=cmp2Color(t);c.fill={type:'pattern',pattern:'solid',fgColor:{argb:argb(cc)}};c.font={bold:true,color:{argb:t==='exact'?'FF111111':'FFFFFFFF'}};break;}}}
           }
         });
@@ -12090,7 +12090,7 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
     const piv=new Set();h.idxs.forEach((ix,j)=>{const hs=h.hl&&h.hl[j];if(hs&&R[ix])hs.forEach(q=>{const x=R[ix].n[q];if(x!=null&&!isNaN(x))piv.add(x);});});
     const pivs=[...piv].slice(0,8);
     const rows=[];
-    for(let k=lo;k>=hi;k--){const j=h.idxs.indexOf(k);rows.push({r:R[k],hl:j>=0&&h.hl?h.hl[j]:null,isCase:j>=0});}
+    for(let k=lo;k>=hi;k--){const j=h.idxs.indexOf(k);rows.push({r:R[k],hl:j>=0&&h.hl?h.hl[j]:null,hf:j>=0&&h.hf?h.hf[j]:null,isCase:j>=0});}
     if(hi===0)for(let k=1;k<=pend;k++)rows.push({r:{t:R[0].t+k,d:'à venir',y:'',n:[],s:null,m:[]},hl:null,isCase:false,pending:true});
     const ci=rows.findIndex(x=>x.isCase);
     return{i,letter:cnLetter(off+i),rows,ci,pivs,nbN:Math.max(5,...rows.map(x=>x.r.n.length)),hasM:rows.some(x=>x.r.m&&x.r.m.some(z=>!isNaN(z))),rw:R[h.idxs[0]]};
@@ -12122,7 +12122,7 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
       t+=cell(rr.y||'','color:#777;font-size:'+(fs-2)+'px;');
       for(let q=0;q<b.nbN;q++){
         const val=rr.n[q];let st='';
-        if(x.hl&&x.hl.has(q))st='background:#69F0AE;color:#111;font-weight:800;';
+        if(x.hl&&x.hl.has(q))st=(x.hf&&x.hf.has(q))?'background:#FB923C;color:#111;font-weight:800;':'background:#69F0AE;color:#111;font-weight:800;';
         else if(val!=null&&!isNaN(val)&&b.pivs.length){for(const pv of b.pivs){const ty=cybRelType(val,pv);if(ty){const c=cmp2Color(ty);st=`background:${c};color:${ty==='exact'?'#111':'#fff'};font-weight:700;`;break;}}}
         t+=cell(val==null||isNaN(val)?'·':val,st);
       }
@@ -12140,7 +12140,21 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const tb=(a,t,on)=>`<button onclick="${a}" style="padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;
   const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">${tb('cybJxFreeze()','📌 1re colonne figée',freeze)}${tb('cybJxSyncToggle()','🔗 défilement lié',sync)}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxFull()',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxSize('${k}')`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}<span style="font-size:10px;color:#777">${sync?'Fais défiler : tout descend ensemble. Décoche 🔗 pour coulisser chaque colonne seule.':'Chaque colonne coulisse seule ; ▲▼ décale un bloc d’une ligne.'}</span></div>
   <div id="${id}" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px">${blocks.map(colHTML).join('')}</div>`;
-  return full?`<div style="position:fixed;inset:0;z-index:2000;background:#F3F3F3;padding:8px;overflow:auto"><div style="font-size:13px;font-weight:800;color:#12263F;margin-bottom:2px">📊 ${v.icon||''} ${v.name} — ${blocks.length} cas en Excel</div>${inner}</div>`:inner;
+  if(full){
+    // Plein écran : rendu dans un conteneur rattaché à <body> (hors de la page, donc jamais coupé par un parent zoomé / transformé)
+    window._jxFullHTML=`<div style="font-size:13px;font-weight:800;color:#12263F;margin-bottom:2px">📊 ${v.icon||''} ${v.name} — ${blocks.length} cas en Excel</div>${inner}`;
+    setTimeout(()=>{cybJxPortalSync();setTimeout(()=>cybJxScroll(id,line),40);},0);
+    return`<div data-jxfull="1" style="padding:14px;text-align:center;font-size:12px;color:#12263F;background:#E8ECF4;border-radius:10px">📊 Mode Excel élargi ouvert — <button onclick="cybJxFull()" style="padding:6px 12px;border-radius:8px;border:1.5px solid #12263F;background:#fff;font-weight:700;cursor:pointer">✕ Réduire</button></div>`;
+  }
+  window._jxFullHTML=null;
+  return inner;
+}
+function cybJxPortalSync(){
+  let el=document.getElementById('jx-portal');
+  const need=window._jxFullHTML&&document.querySelector('[data-jxfull]');
+  if(!need){if(el)el.remove();return;}
+  if(!el){el=document.createElement('div');el.id='jx-portal';el.style.cssText='position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483000;background:#F3F3F3;padding:8px;overflow:auto';document.body.appendChild(el);}
+  el.innerHTML=window._jxFullHTML;
 }
 function cybJxFull(){state.juxFull=state.juxFull!==true;render();}
 function cybJxSyncToggle(){state.juxSync=state.juxSync===false;render();}
@@ -12238,7 +12252,7 @@ function cnPrepare(){if(!state.caseView)state.caseView='nav';
     const {v,h}=f[k],R=v.R,row=R[h.idxs[0]];
     ys.add(String(row.y));
     if(ks.length===1&&!state.excelMode){const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));}
-    h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
+    h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j],hfs=h.hf&&h.hf[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:(hfs&&hfs.has(q))?'#FB923C':'#69F0AE',fg:'#111',style:'fill'};});});
     letters[row.t]=cnLetter(k);
     targets.push({t:row.t,y:String(row.y),cur:k===cn.k});
   });
@@ -12444,7 +12458,7 @@ function cybWindowHTML(v,h,col,before,after){
       if(j>=0&&hit.hl&&hit.hl[j]&&hit.hl[j].has(q))return;
       for(const pv of pivs){const t=cybRelType(x,pv);if(t){const c=cmp2Color(t);rel[q]=[c,t==='exact'?'#111':'#fff'];break;}}
     });
-    items.push({r:R[i],hl:j>=0?(hit.hl&&hit.hl[j]):null,sel:j>=0,rel});
+    items.push({r:R[i],hl:j>=0?(hit.hl&&hit.hl[j]):null,hf:j>=0?(hit.hf&&hit.hf[j]):null,sel:j>=0,rel});
   }
   return gameTableHTML(items,`${v.icon} ${v.name} · T ${R[lo].t} – ${R[hi].t} · ${items.length} tirages`,col);
 }
@@ -13428,6 +13442,8 @@ function npPredBuilder(){
   fn.cr=cr;fn.hit=hit;
   return fn;
 }
+function npFocusIdx(){const f=state.npFocus===undefined?'3':state.npFocus;return(f===''||f==null)?-1:parseInt(f);}
+function npHf(r){const set=new Set(),fi=npFocusIdx();if(fi<0)return set;npHl(r).forEach(q=>{if(q===fi)set.add(q);});return set;}
 function npHl(r){const f=npPredBuilder();const hs=f?f(r):null;const set=new Set();if(hs)hs.forEach(a=>a.forEach(q=>set.add(q)));return set;}
 function doNumPos(){
   const f=npPredBuilder();
@@ -13459,13 +13475,13 @@ function numPosCardHTML(){
   const posOpts=sel=>`<option value="any" ${sel==='any'?'selected':''}>Toutes positions</option>`+Array.from({length:nP},(_,i)=>`<option value="${i}" ${sel===String(i)?'selected':''}>D${i+1}</option>`).join('')+(GAME.hasM?Array.from({length:5},(_,i)=>`<option value="m${i}" ${sel==='m'+i?'selected':''}>M${i+1} (machine)</option>`).join(''):'');
   const rowsH=cr.map((c,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="font-size:12px;color:#777;min-width:14px">${i+1}.</span><input type="number" min="1" max="90" placeholder="N°" value="${c.n}" oninput="npSetN(${i},this.value)" onkeydown="if(event.key==='Enter')doNumPos()" style="width:70px;padding:8px;border:2px solid ${col};border-radius:8px;font-size:16px;text-align:center"><span style="font-size:12px;color:#777">en</span><select onchange="npSetP(${i},this.value)" style="padding:8px;border:2px solid ${col};border-radius:8px;font-size:14px;background:#fff">${posOpts(c.p)}</select>${cr.length>1?`<button onclick="npDel(${i})" style="padding:6px 10px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;border-radius:8px;cursor:pointer">✕</button>`:''}</div>`).join('');
   let resH='';
-  if(state.npMulti){resH=genericMultiResultHTML(state.npMultiRes,{pfx:'npm',color:col,bgHit:'#FEF3C7',rowRenderer:simpleRowRenderer(col),hlFn:npHl});}
+  if(state.npMulti){resH=genericMultiResultHTML(state.npMultiRes,{pfx:'npm',color:col,bgHit:'#FEF3C7',rowRenderer:simpleRowRenderer(col),hlFn:npHl,hfFn:npHf});}
   else if(state.npRes){
     const rows=state.npRes.rows;
     if(!rows.length)resH=`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun tirage trouvé dans ${GAME.name}.</div>`;
     else{
       const R=gameData(GAME.key).T,SS=cybSet();
-      const res={variants:[{key:GAME.key,machine:false,name:GAME.name,icon:GAME.icon||'',R,hits:rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[npHl(r)]})).filter(h=>h.idxs[0]>=0)}],total:rows.length};
+      const res={variants:[{key:GAME.key,machine:false,name:GAME.name,icon:GAME.icon||'',R,hits:rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[npHl(r)],hf:[npHf(r)]})).filter(h=>h.idxs[0]>=0)}],total:rows.length};
       resH=cybCasesHTML(res,'np',col,null,'exportNumPos',SS.before,SS.after);
     }
   }
@@ -13477,6 +13493,9 @@ function numPosCardHTML(){
       <button onclick="doNumPos()" style="padding:10px 22px;background:${col};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px">Chercher</button>
       ${cr.length<4?`<button onclick="npAdd()" style="padding:10px 14px;background:#fff;color:${col};border:2px solid ${col};border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">＋ autre numéro (même ligne)</button>`:''}
     </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;font-size:12px;color:#555"><span style="background:#FB923C;border-radius:5px;padding:2px 8px;font-weight:700;color:#111">orange</span> position à distinguer :
+      <select onchange="state.npFocus=this.value;if(state.npRes||state.npMultiRes)doNumPos();else render()" style="padding:6px;border:2px solid #FB923C;border-radius:8px;font-size:13px;background:#fff"><option value="" ${npFocusIdx()<0?'selected':''}>Aucune</option>${Array.from({length:GAME.n6?6:5},(_,i)=>`<option value="${i}" ${npFocusIdx()===i?'selected':''}>D${i+1}</option>`).join('')}</select>
+      <span style="font-size:10px;color:#777">les autres sorties du numéro restent en <span style="background:#69F0AE;border-radius:4px;padding:0 6px;color:#111">vert</span></span></div>
     ${GAME.hasM?`<label style="display:flex;gap:6px;align-items:center;font-size:11px;color:#777;margin-top:5px"><input type="checkbox" ${state.npWithM!==false?'checked':''} onchange="state.npWithM=this.checked">« Toutes positions » inclut aussi la machine</label>`:''}
     ${genericMultiToggleHTML('npMulti','npMultiGames','doNumPos',col,'#FEF3C7')}
     ${resH}
@@ -14641,12 +14660,12 @@ function gameTableHTML(items,title,col){
   const th=hdr.map(h=>`<th style="font-size:13px;font-weight:800;color:#111;padding:3px 2px;background:#F3F4F6;border-bottom:2px solid #111;white-space:nowrap">${h}</th>`).join('');
   const sumOf=a=>a&&a.length&&a.every(v=>!isNaN(v))?a.reduce((s,v)=>s+v,0):null;
   const rowH=cybSet().rowH;
-  const body=items.map(({r,hl,sel,red,g,rel},ri)=>{
-    const set=hl||new Set();const gs=g||new Set();
+  const body=items.map(({r,hl,hf,sel,red,g,rel},ri)=>{
+    const set=hl||new Set();const hfs=hf||new Set();const gs=g||new Set();
     const tot=r.s!=null&&!isNaN(r.s)?r.s:sumOf(r.n.slice(0,nbN));
     const totM=hasM?sumOf((r.m||[]).slice(0,5)):null;
     const nc=(v,q)=>{const on=set.has(q);const rc=(!on&&!red&&rel&&rel[q])?rel[q]:null;
-      const bg=red?'#EF4444':on?'#69F0AE':rc?rc[0]:gs.has(q)?'#86EFAC':(q%2?'#DEDEDE':'#fff');
+      const fo=on&&hfs.has(q);const bg=red?'#EF4444':fo?'#FB923C':on?'#69F0AE':rc?rc[0]:gs.has(q)?'#86EFAC':(q%2?'#DEDEDE':'#fff');
       const fg=red?'#fff':on?'#111':rc?rc[1]:'#111';
       return`<td style="text-align:center;padding:0;height:${rowH}px;font-size:15px;font-weight:${on||red||rc||gs.has(q)?700:500};background:${bg};color:${fg}">${v==null||isNaN(v)?'·':v}</td>`;};
     const mc=(v,q)=>`<td style="text-align:center;font-size:11px;font-weight:600;color:#7B1FA2">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;
@@ -20497,7 +20516,7 @@ function _doRender(){
         });
       }
     }catch(_){}
-    _renderBusy=false;
+    _renderBusy=false;try{setTimeout(cybJxPortalSync,0);}catch(_){}
     if(_renderQueued){ _renderQueued=false; render(); }
   }
 }
@@ -21347,7 +21366,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybJxShift, cybJxFull, cybJxSync, cybJxSyncToggle, cybJxReset, cybJxFreeze, cybJxSize, cybExportAllXlsx, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybJxShift, cybJxFull, cybJxPortalSync, cybJxSync, cybJxSyncToggle, cybJxReset, cybJxFreeze, cybJxSize, cybExportAllXlsx, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

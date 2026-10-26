@@ -7642,6 +7642,14 @@ function cqParseSection(sec){
     const pos=posPart==='*'?null:parseInt(posPart)-1;
     return{type:'pos',nums,pos};
   }
+  // Variables : s1=*P4 (valeur à la position 4) ; v1=10P (position du numéro 10)
+  m=sec.match(/^([a-z]\w*)=\*P([1-9])$/i);
+  if(m)return{type:'var',kind:'val',name:m[1].toLowerCase(),pos:parseInt(m[2])-1};
+  m=sec.match(/^([a-z]\w*)=(\d+)P$/i);
+  if(m)return{type:'var',kind:'posof',name:m[1].toLowerCase(),num:parseInt(m[2])};
+  // Condition sur expression : T21(s1+s2+s3) = la somme des variables vaut 21
+  m=sec.match(/^T(\d+)\(([a-z0-9_+\-*\/() ]+)\)$/i);
+  if(m&&/[a-z]/i.test(m[2]))return{type:'texpr',total:parseInt(m[1]),expr:m[2].toLowerCase()};
   return{type:'unknown',raw:sec};
 }
 // Évalue une requête complète sur T. Retourne les tirages (par index) qui matchent.
@@ -7657,7 +7665,20 @@ function cqRun(query){
   }
   groups.push(cur);
   // Prédicat pour un groupe de conditions sur une ligne
-  const matchLine=(row,conds)=>conds.every(c=>{
+  const cqEval=(expr,env)=>{
+    let bad=false;
+    const e=expr.replace(/[a-z_]\w*/g,id=>{if(env[id]===undefined){bad=true;return '0';}return '('+env[id]+')';});
+    if(bad||!/^[\d+\-*\/() .]+$/.test(e))return NaN;
+    try{return Function('"use strict";return ('+e+')')();}catch(x){return NaN;}
+  };
+  const matchLine=(row,conds,env)=>[...conds.filter(c=>c.type==='var'),...conds.filter(c=>c.type!=='var')].every(c=>{
+    if(c.type==='var'){
+      let v;
+      if(c.kind==='val'){if(c.pos>=row.n.length)return false;v=row.n[c.pos];}
+      else{const k=row.n.indexOf(c.num);if(k<0)return false;v=k+1;}
+      env[c.name]=v;return true;
+    }
+    if(c.type==='texpr')return cqEval(c.expr,env)===c.total;
     if(c.type==='pos'){
       if(c.pos===null){ // n'importe quelle position
         if(c.nums===null)return true;
@@ -7684,12 +7705,13 @@ function cqRun(query){
   // Recherche : trouver les séquences de lignes respectant groupes + écarts
   const results=[];
   for(let gi=0;gi<T.length;gi++){
-    if(!matchLine(T[gi],groups[0].conds))continue;
+    const env={};
+    if(!matchLine(T[gi],groups[0].conds,env))continue;
     let ok=true,idx=gi,chain=[gi];
     for(let g=0;g<groups.length-1;g++){
       const gap=groups[g].gapAfter;
       const nextIdx=idx-gap; // T est récent→ancien ; +gap lignes après = index plus petit
-      if(nextIdx<0||nextIdx>=T.length||!matchLine(T[nextIdx],groups[g+1].conds)){ok=false;break;}
+      if(nextIdx<0||nextIdx>=T.length||!matchLine(T[nextIdx],groups[g+1].conds,env)){ok=false;break;}
       idx=nextIdx;chain.push(nextIdx);
     }
     if(ok)results.push(chain);
@@ -7745,7 +7767,8 @@ function cqCaseViewerHTML(gk,rows,groups){
         if(c.nums===null&&c.pos!==null)h.cells.add(c.pos);
         else if(c.pos===null)row.n.forEach((v,k)=>{if(c.nums&&c.nums.includes(v))h.cells.add(k);});
         else if(c.nums&&c.nums.some(n=>n===null||row.n[c.pos]===n))h.cells.add(c.pos);
-      }else if(c.type==='total')h.tot=true;
+      }else if(c.type==='var'){if(c.kind==='val')h.cells.add(c.pos);else{const k=row.n.indexOf(c.num);if(k>=0)h.cells.add(k);}}
+      else if(c.type==='total')h.tot=true;
       else if(c.type==='transform'){if(c.pos===null)row.n.forEach((v,k)=>{if(v===c.deriv)h.cells.add(k);});else h.cells.add(c.pos);}
     });
     hl[idx]=h;

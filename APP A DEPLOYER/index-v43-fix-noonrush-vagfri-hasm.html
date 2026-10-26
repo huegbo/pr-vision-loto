@@ -12022,12 +12022,20 @@ function cnPrepare(){if(!state.caseView)state.caseView='nav';
   state.selYears=[...ys].sort((a,b)=>parseInt(b)-parseInt(a));
   const hl={},rows={};
   h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
-  state.caseHL=hl;state.caseRows=rows;state.caseScrollT=row.t;
+  state.caseHL=hl;state.caseRows=rows;state.caseScrollT=row.t;state.caseScrollY=String(row.y);state.caseScrollPending=true;
 }
-function cnScroll(){
-  const t=state.caseScrollT;if(t==null)return;
-  const el=document.querySelector('[data-t="'+t+'"]');
-  if(el){const y=el.getBoundingClientRect().top+window.scrollY-Math.round(window.innerHeight*0.30);window.scrollTo({top:Math.max(0,y),behavior:'auto'});}
+function cnScroll(n){
+  const t=state.caseScrollT,yr=state.caseScrollY;if(t==null)return;
+  const V=VCOL[yr],body=document.getElementById('col-'+yr);
+  if(!V||!body){if((n||0)<12)setTimeout(()=>cnScroll((n||0)+1),80);return;}
+  const idx=V.items.findIndex(it=>it.r&&it.r.t===t);
+  state.caseScrollPending=false;
+  if(idx<0)return;
+  const h=VH[yr]||26;
+  body.scrollTop=Math.max(0,idx*h-Math.round((body.clientHeight||400)*0.35));
+  vScroll(yr);
+  const colTop=body.getBoundingClientRect().top+window.scrollY-58;
+  window.scrollTo({top:Math.max(0,colTop),behavior:'auto'});
 }
 function cnClose(){state.caseNav=null;state.caseHL=null;state.caseRows=null;render();}
 function caseNavHTML(onlyBar){
@@ -20269,7 +20277,7 @@ function __renderBody(){
   if(state.tab===0&&state.caseNav&&state.caseView==='fenetre'){
     html+=caseNavHTML();
   }else if(state.tab===0){
-    if(state.caseNav){if(!state.caseHL)cnPrepare();html+=caseNavHTML(true);setTimeout(cnScroll,80);}
+    if(state.caseNav){if(!state.caseHL)cnPrepare();html+=caseNavHTML(true);if(state.caseScrollPending)setTimeout(cnScroll,80);}
     html+=listsStatusBarHTML();
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){

@@ -4664,7 +4664,7 @@ function loadGame(key){
   const base=parseLines(GAME.raw.trim().split('\n'));
   const extras=parseLines(getExtras(key));
   const byT={};base.forEach(r=>byT[r.t]=r);extras.forEach(r=>byT[r.t]=r); // la saisie manuelle a priorité
-  T=Object.values(byT).sort((a,b)=>b.t-a.t);
+  T=Object.values(byT).sort((a,b)=>b.t-a.t);if(T[0])T[0].__latest=true;
   IDX={};T.forEach((r,i)=>{IDX[r.t]=i;});
   MAX_T=T[0].t;MIN_T=T[T.length-1].t;
   YEARS=[...new Set(T.map(r=>r.y))].sort((a,b)=>parseInt(b)-parseInt(a));
@@ -5976,7 +5976,7 @@ function numSpan(n, extra, cid){
   // plain : numéro SANS aucun coloriage (Mode Excel « coloriage sur les 3 dernières lignes seulement »).
   const _plain=!!(extra&&extra.plain);
   if(_plain){extra=Object.assign({},extra,{an:null,isSrc:false,isMirNav:false,mirP:false,superpos:false,repMult:false,elmDup:false,align:false,vert:false,isComm:false,commBg:null,clKey:null,pair:null});}
-  const colC=(cid&&!_plain)?(pane2?state.coloredCells2[cid]:state.coloredCells[cid]):null;
+  const colC=(cid&&!_plain)?(pane2?state.coloredCells2[cid]:(state.coloredCells[cid]||(state.caseHL&&state.caseHL[cid])||null)):null;
   const col=_plain?null:(pane2?state.colored2[n]:state.colored[n]);
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
@@ -11950,7 +11950,7 @@ function formuleSectionHTML(){
 // Réglages des résultats (comme « Réglages » de l'app Cybetcast) : lignes avant = 10, lignes après = 35, hauteur des lignes = 25
 function cybSet(){
   let sv={};try{sv=JSON.parse(localStorage.getItem('cybSet')||'{}');}catch(e){}
-  return Object.assign({before:10,after:35,rowH:25},sv,state.cybSet||{});
+  return Object.assign({before:10,after:35,rowH:25,pend:1},sv,state.cybSet||{});
 }
 function cybSetSave(k,v){
   v=Math.max(0,parseInt(v)||0);
@@ -11968,7 +11968,7 @@ function cybSaveLines(p){
 function cybSetBarHTML(col){
   const S=cybSet();
   const f=(k,l,w)=>`<span style="font-size:9px;color:#555">${l}</span><input type="number" min="0" value="${S[k]}" onchange="cybSetSave('${k}',this.value);render()" style="width:${w}px;padding:3px 4px;border:1.5px solid ${col};border-radius:5px;font-size:12px">`;
-  return`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0">${f('before','Lignes avant les résultats',46)}${f('after','après',46)}${f('rowH','Hauteur des lignes',46)}</div>`;
+  return`<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0">${f('before','Lignes avant les résultats',46)}${f('after','après',46)}${f('rowH','Hauteur des lignes',46)}${f('pend','Lignes à venir',40)}</div>`;
 }
 // Relation entre deux numéros pour la coloration relative : même numéro, miroir, puis éléments de classification cochés
 function cybRelType(a,b){
@@ -11999,17 +11999,38 @@ function cybOpenNav(pfx){
   let k=0;const vi=Math.min(state[pfx+'Var']||0,r.variants.length-1),hi=state[pfx+'Hit']||0;
   for(let i=0;i<vi;i++)k+=r.variants[i].hits.length;k+=hi;
   state.caseNav={pfx,k};
-  state.tab=0;state.showSearchHub=false;render();
-  setTimeout(()=>window.scrollTo({top:0,behavior:'auto'}),30);
+  state.tab=0;state.showSearchHub=false;cnPrepare();render();
+  setTimeout(cnScroll,80);
 }
 function cnGo(k){
   const f=cnFlat();if(!f.length){state.caseNav=null;render();return;}
   k=Math.max(0,Math.min(f.length-1,k));state.caseNav.k=k;
   state[state.caseNav.pfx+'Var']=f[k].vi;state[state.caseNav.pfx+'Hit']=f[k].hi;
-  render();
+  cnPrepare();render();setTimeout(cnScroll,60);
 }
-function cnClose(){state.caseNav=null;render();}
-function caseNavHTML(){
+function cnPrepare(){if(!state.caseView)state.caseView='nav';
+  const cn=state.caseNav;if(!cn)return;const f=cnFlat();if(!f.length)return;
+  cn.k=Math.max(0,Math.min(f.length-1,cn.k));
+  const {v,h}=f[cn.k],R=v.R;
+  const row=R[h.idxs[0]];
+  if(GAME.key!==v.key){setGame(v.key);}
+  state.navMode='years';
+  const ys=new Set([String(row.y)]);
+  // une année voisine si la fenêtre déborde
+  const SS=cybSet();const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);
+  for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));
+  state.selYears=[...ys].sort((a,b)=>parseInt(b)-parseInt(a));
+  const hl={},rows={};
+  h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{hl[r.t+'_'+q]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
+  state.caseHL=hl;state.caseRows=rows;state.caseScrollT=row.t;
+}
+function cnScroll(){
+  const t=state.caseScrollT;if(t==null)return;
+  const el=document.querySelector('[data-t="'+t+'"]');
+  if(el){const y=el.getBoundingClientRect().top+window.scrollY-Math.round(window.innerHeight*0.30);window.scrollTo({top:Math.max(0,y),behavior:'auto'});}
+}
+function cnClose(){state.caseNav=null;state.caseHL=null;state.caseRows=null;render();}
+function caseNavHTML(onlyBar){
   const cn=state.caseNav,f=cnFlat();
   if(!f.length){return`<div class="card" style="padding:12px;font-size:12px">Plus de résultats à parcourir. <button onclick="cnClose()" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid #999;background:#fff;cursor:pointer">Fermer</button></div>`;}
   cn.k=Math.max(0,Math.min(f.length-1,cn.k));
@@ -12057,8 +12078,9 @@ function caseNavHTML(){
       <span style="font-size:9px;color:#777">Hauteur</span><input type="number" min="14" value="${rowH}" onchange="cybSetSave('rowH',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>
     </div></div>`;
+  if(onlyBar){const sw=`<button onclick="state.caseView='fenetre';render()" style="padding:3px 8px;font-size:10px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">☰ Fenêtre</button>`;return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
   return`<div class="card" style="padding:8px;margin-bottom:8px">
-    <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px">${chips}</div>
+    <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px"><button onclick="state.caseView='nav';cnPrepare();render();setTimeout(cnScroll,60)" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:1.5px solid #12263F;border-radius:6px;background:#fff;color:#12263F;cursor:pointer">▦ Navigation</button>${chips}</div>
     <div style="background:#1F2A44;color:#fff;font-weight:700;font-size:13px;padding:6px 8px;border-radius:6px 6px 0 0">Cas ${cn.k+1} — ${v.name} — T${caseRow.t} (${caseRow.d}/${caseRow.y})</div>
     <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><thead><tr>${hdr}</tr></thead><tbody>${body}</tbody></table></div>
     ${cybClChipsHTML('#12263F')}
@@ -14002,6 +14024,12 @@ function settingsHTML(){
         ${[[0.5,'50%'],[0.85,'85%'],[1,'100%'],[1.15,'115%'],[1.3,'130%'],[1.5,'150%']].map(([z,l])=>`<button onclick="setZoom(${z})" style="padding:4px 9px;border-radius:8px;font-size:10px;font-weight:500;cursor:pointer;border:2px solid ${state.zoom===z?'#1F2D3D':'#ddd'};background:${state.zoom===z?'#E8EAF6':'#fff'};color:#333">${l}</button>`).join('')}
       </div>
     </div>
+    <div style="padding:10px 0;border-bottom:1px solid #f0f0f0">
+      <div style="font-size:13px;font-weight:500;color:#333;margin-bottom:6px">📋 Résultats cas par cas</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center;font-size:11px;color:#555">
+        ${[['before','Lignes avant les résultats'],['after','Lignes après les résultats'],['rowH','Hauteur des lignes'],['pend','Lignes à venir (prédiction)']].map(([k,l])=>`<span>${l}</span><input type="number" min="0" value="${cybSet()[k]}" onchange="cybSetSave('${k}',this.value);render()" style="width:64px;padding:5px 6px;border:1.5px solid #6D28D9;border-radius:6px;font-size:14px;text-align:center">`).join('')}
+      </div>
+    </div>
     <div onclick="state.showBonusDefault=!state.showBonusDefault;render()" style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f0f0f0;cursor:pointer">
       <div><div style="font-size:13px;font-weight:500;color:#333">Afficher les Bonus/Machine par défaut</div><div style="font-size:9px;color:#888">Colonnes machine et TOT.M visibles d'emblée</div></div>
       ${tog(state.showBonusDefault)}
@@ -14246,6 +14274,9 @@ function cybFull(b){
   else{d.dataset.full='0';d.setAttribute('style',d.dataset.st||'');b.textContent='⛶';}
 }
 function gameTableHTML(items,title,col){
+  // Dernier tirage du jeu atteint → on ajoute la ligne « à venir » (N° suivant) pour pouvoir pronostiquer
+  const _last=items[items.length-1];
+  if(_last&&_last.r&&_last.r.__latest&&!items.some(x=>x.r.pending)){const _pn=Math.min(10,cybSet().pend);const _pad=[];for(let i=1;i<=_pn;i++)_pad.push({r:{t:_last.r.t+i,d:'à venir',y:'',n:[],s:null,m:[],pending:true}});items=items.concat(_pad);}
   const nbN=Math.max(4,...items.map(x=>x.r.n.length));
   const hasM=items.some(x=>x.r.m&&x.r.m.some(v=>!isNaN(v)));
   const hdr=['L','D','Y',...Array.from({length:nbN},(_,k)=>'D'+(k+1)),'To',...(hasM?['M1','M2','M3','M4','M5','To.M']:[])];
@@ -14261,7 +14292,7 @@ function gameTableHTML(items,title,col){
       const fg=red?'#fff':on?'#111':rc?rc[1]:'#111';
       return`<td style="text-align:center;padding:0;height:${rowH}px;font-size:15px;font-weight:${on||red||rc||gs.has(q)?700:500};background:${bg};color:${fg}">${v==null||isNaN(v)?'·':v}</td>`;};
     const mc=(v,q)=>`<td style="text-align:center;font-size:11px;font-weight:600;color:#7B1FA2">${v==null||isNaN(v)?'<span style="color:#ccc">·</span>':v}</td>`;
-    return`<tr style="border-bottom:1px solid #E5E7EB;height:${rowH}px"><td style="text-align:center;font-size:11px;color:#333;padding:0 2px;white-space:nowrap">${r.t}</td><td style="text-align:center;font-size:10px;color:#333;background:#DEDEDE;white-space:nowrap;padding:0 3px">${r.d||''}</td><td style="text-align:center;font-size:9px;color:#333;background:#BDBDBD;padding:0 3px">${r.y||''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-size:12px;background:#DEDEDE;color:#111">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-size:11px;background:#DEDEDE">${totM==null?'·':totM}</td>`:''}</tr>`;
+    return`<tr style="border-bottom:1px solid #E5E7EB;height:${rowH}px;${r.pending?'background:#FFF7ED;outline:2px dashed #FB923C;':''}"><td style="text-align:center;font-size:11px;color:${r.pending?'#C2410C':'#333'};font-weight:${r.pending?800:400};padding:0 2px;white-space:nowrap">${r.t}</td><td style="text-align:center;font-size:10px;color:#333;background:#DEDEDE;white-space:nowrap;padding:0 3px">${r.d||''}</td><td style="text-align:center;font-size:9px;color:#333;background:#BDBDBD;padding:0 3px">${r.y||''}</td>${Array.from({length:nbN},(_,q)=>nc(r.n[q],q)).join('')}<td style="text-align:center;font-size:12px;background:#DEDEDE;color:#111">${tot==null?'·':tot}</td>${hasM?Array.from({length:5},(_,q)=>mc((r.m||[])[q],q)).join('')+`<td style="text-align:center;font-size:11px;background:#DEDEDE">${totM==null?'·':totM}</td>`:''}</tr>`;
   }).join('');
   return`<div class="cyb-tbl" style="margin-top:5px"><div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:4px 2px;font-size:13px;color:#111"><span>${title}</span><span onclick="cybFull(this)" title="Plein écran" style="cursor:pointer;font-size:18px;padding:2px 6px">⛶</span></div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
@@ -17861,7 +17892,7 @@ function gameData(key){
     const base=parseLines(g.raw.trim().split('\n'),g);
     const extras=parseLines(getExtras(key),g);
     const byT={};base.forEach(r=>byT[r.t]=r);extras.forEach(r=>byT[r.t]=r);
-    const TT=Object.values(byT).sort((a,b)=>b.t-a.t);
+    const TT=Object.values(byT).sort((a,b)=>b.t-a.t);if(TT[0])TT[0].__latest=true;
     const BY={};TT.forEach(r=>{if(!BY[r.y])BY[r.y]=[];BY[r.y].push(r);});
     Object.keys(BY).forEach(y=>{BY[y].reverse();});
     const IDXX={};TT.forEach((r,i)=>{IDXX[r.t]=i;});
@@ -18920,8 +18951,8 @@ function vRowHTML(it,ri,C){
           const isAnchor=_aT===row.t;const isPi=ri===pinIdx;const ns=new Set(row.n);
           const _pane2=_dvMode==='norep';
           const hC=_pane2?row.n.some((n,ni)=>state.colored2[n]||state.coloredCells2[row.t+'_'+ni]):row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
-          const bg=state.blockRows[row.t]?state.blockRows[row.t]:(isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
-          out+=`<div ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
+          const bg=state.blockRows[row.t]?state.blockRows[row.t]:((state.caseRows&&state.caseRows[row.t])?'#FDF2E3':isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
+          out+=`<div data-t="${row.t}" ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
             ${(()=>{const _bdg=multiBadgeHTML(row,fS);return `<div style="font-weight:500;color:#${color};font-size:${_bdg?Math.max(7,fS-2):fS}px">${isAnchor&&_aLk?'🔒':''}${_bdg}${row.t}</div>`;})()}
             <div style="font-size:${fS}px;color:#555">${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);
@@ -20241,9 +20272,10 @@ function __renderBody(){
   html+=addFormHTML();
 
   // ── ONGLET NAVIGATION ─────────────────────────────────────
-  if(state.tab===0&&state.caseNav){
+  if(state.tab===0&&state.caseNav&&state.caseView==='fenetre'){
     html+=caseNavHTML();
   }else if(state.tab===0){
+    if(state.caseNav){if(!state.caseHL)cnPrepare();html+=caseNavHTML(true);setTimeout(cnScroll,80);}
     html+=listsStatusBarHTML();
     if(state.showPass)html+=passLookupCardHTML();
     if(coloredList.length){
@@ -20957,7 +20989,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

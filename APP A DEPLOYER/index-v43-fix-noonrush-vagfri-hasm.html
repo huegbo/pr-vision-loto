@@ -15533,7 +15533,7 @@ function doCmp2(){
   matchA.forEach(m=>Object.values(m).forEach(t=>counts[t]++));
   const count=Object.values(counts).reduce((a,b)=>a+b,0);
   const dup=dA.T.filter(r=>r.t===t1).length>1||dB.T.filter(r=>r.t===t2).length>1;
-  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts,asked:n+1,got:m+1,dup};
+  state.cmp2Result={keyA,keyB,rowsA,rowsB,matchA,matchB,count,counts,asked:n+1,got:m+1,dup,pendA:idxA0===0,pendB:(!inv&&idxB0===0)};
   saveHist({type:'cmp2',keyA,keyB,line1:t1,line2:t2,lines:n,inversee:state.cmp2Inversee,respectPos});
   render();
 }
@@ -15595,13 +15595,17 @@ function cmp2ResHTML(){
     return`<td style="text-align:center;padding:1px 0;font-weight:${col?700:500};${col?`background:${col};color:${fg};`:''}">${num}</td>`;
   };
   // Même style que les tableaux de jeu de l'appli : N°, DATE, N1..N5, TOT (+ M1..M5, TOT.M si le jeu a une machine).
-  const tbl=(keyG,rows,mm,color)=>{
+  const tbl=(keyG,rows,mm,color,who,pend)=>{
     const hasM=rows.some(r=>r.m&&r.m.some(x=>!isNaN(x)));
     const hdr=['N°','DATE','N1','N2','N3','N4','N5','TOT'].concat(hasM?['M1','M2','M3','M4','M5','TOT.M']:[]);
     const th=hdr.map(h=>`<th style="font-size:9px;color:#fff;padding:3px 2px;background:#12263F;white-space:nowrap">${h}</th>`).join('');
     const mc=n=>(n==null||isNaN(n))?'<td style="text-align:center;color:#ccc">·</td>':`<td style="text-align:center;color:#7B1FA2;font-weight:600">${n}</td>`;
     const body=rows.map((r,i)=>`<tr style="border-bottom:1px solid #E5E7EB"><td style="text-align:center;font-size:10px;color:#0F766E;font-weight:600;padding:2px 3px">${r.t}</td><td style="text-align:center;font-size:10px;color:#444;white-space:nowrap;padding:0 3px">${r.d}${rows.length&&rows[0].y!==rows[rows.length-1].y?'/'+String(r.y).slice(-2):''}</td>${r.n.map((num,ni)=>cell(num,mm[i][ni])).join('')}<td style="text-align:center"><span style="background:#FEF3C7;color:#92400E;border-left:3px solid #F97316;padding:0 3px;font-size:10px">${r.s}</span></td>${hasM?(r.m||[NaN,NaN,NaN,NaN,NaN]).map(mc).join('')+`<td style="text-align:center;font-size:10px;color:#6B21A8">${r.m&&r.m.every(x=>!isNaN(x))?r.m.reduce((a,b)=>a+b,0):'·'}</td>`:''}</tr>`).join('');
-    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[keyG].name} <span style="font-weight:400;font-size:9px">· T ${rows[0].t} – ${rows[rows.length-1].t} · ${rows.length} tirages</span></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+    // Ligne « tirage à venir » (zéros) quand la plage se termine sur le dernier tirage connu — comme dans l'app Cybetcast
+    const nc=5+(hasM?6:0);
+    const pendRow=pend?`<tr style="border-bottom:1px solid #E5E7EB;background:#FFF7ED"><td style="text-align:center;font-size:10px;color:#C2410C;font-weight:700;padding:2px 3px">${rows[rows.length-1].t+1}</td><td style="text-align:center;font-size:10px;color:#C2410C">à venir</td>${Array(nc+1).fill('<td style="text-align:center;color:#C2410C;font-weight:700">0</td>').join('')}</tr>`:'';
+    const arr=who?`<div style="display:flex;gap:8px;padding:4px 6px;background:#F3F4F6"><button onclick="cmp2Shift('${who}',1)" title="Monter : vers les tirages plus anciens" style="flex:1;padding:6px 0;font-size:16px;border:0;border-radius:6px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cmp2Shift('${who}',-1)" title="Descendre : vers les tirages plus récents" style="flex:1;padding:6px 0;font-size:16px;border:0;border-radius:6px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></div>`:'';
+    return`<div style="overflow-x:auto;border:1.5px solid #0F766E;border-radius:8px"><div style="background:#00695C;color:#fff;text-align:center;font-weight:700;font-size:11px;padding:4px 2px">${GAMES[keyG].name} <span style="font-weight:400;font-size:9px">· T ${rows[0].t} – ${rows[rows.length-1].t} · ${rows.length} tirages</span></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>${th}</tr></thead><tbody>${body}${pendRow}</tbody></table>${arr}</div>`;
   };
   const badges=Object.entries(res.counts).filter(([t,c])=>c>0).map(([t,c])=>
     `<span style="font-size:9px;color:${cmp2Color(t)};font-weight:600">■ ${c} ${cmp2ClLabel(t)}</span>`).join('');
@@ -15612,8 +15616,8 @@ function cmp2ResHTML(){
     <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
   <div class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">
-    <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309')}</div>
-    <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2')}</div>
+    <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309','A',res.pendA)}</div>
+    <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2','B',res.pendB)}</div>
   </div></div>`;
 }
 function cmp2CardHTML(){

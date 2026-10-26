@@ -4830,6 +4830,7 @@ const CL_DEF=[
   {key:'turning', label:'Turning',  bg:'#F57F17', fg:'#000'},
   {key:'partner', label:'Partner',  bg:'#C62828', fg:'#fff'},
   {key:'shadow',  label:'Shadow',   bg:'#37474F', fg:'#fff'},
+  {key:'code',    label:'Code',     bg:'#D81B60', fg:'#fff'},
   {key:'equiv',   label:'Equiv',    bg:'#558B2F', fg:'#fff'},
   {key:'miroir',  label:'Miroir',   bg:'#AB47BC', fg:'#fff'},
 ];
@@ -5101,7 +5102,7 @@ let state={
   digCount:1, digSlots:[{digit:'',pos:''},{digit:'',pos:''},{digit:'',pos:''}], digMatches:null,
   pickA:'', pickB:'', pickTirageRef:'', pickLines:2, pickDir:'after', pickResult:null,
   cmp2A:'', cmp2B:'', cmp2Line1:'', cmp2Line2:'', cmp2Lines:40, cmp2Inversee:false, cmp2Colorier:true, cmp2RespectPos:false, cmp2Mirror:true, cmp2Result:null,
-  cmp2ClActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true},
+  cmp2ClActive:{},
   totalSplitMirror:true,
   totalSplitClActive:{counter:true,bonanza:true,malta:true,key:true,turning:true,partner:true,shadow:true,equiv:true},
   posPivot:'', posPivotPos:'', posTargetPos:'0', posOffset:1, posResult:null,
@@ -10892,7 +10893,7 @@ const ELM_DEF=[
   {key:'turning', label:'Turning',  bg:'#F57F17', fg:'#000'},
   {key:'partner', label:'Partner',  bg:'#C62828', fg:'#fff'},
   {key:'shadow',  label:'Shadow',   bg:'#37474F', fg:'#fff'},
-  {key:'code',    label:'Code',     bg:'#0F766E', fg:'#fff'},
+  {key:'code',    label:'Code',     bg:'#D81B60', fg:'#fff'},
   {key:'equiv',   label:'Equiv',    bg:'#558B2F', fg:'#fff'},
   {key:'miroir',  label:'Miroir',   bg:'#AB47BC', fg:'#fff'},
 ];
@@ -15754,7 +15755,7 @@ function doCmp2(){
     if(!colorier)return null;
     for(const cl of CL_DEF){
       if(cl.key==='miroir')continue;
-      if(clActive[cl.key]===false)continue;
+      if(clActive[cl.key]!==true)continue;
       const dA=getDerivsByType(numA)[cl.key], dB=getDerivsByType(numB)[cl.key];
       if(dA===numB||dB===numA)return cl.key;
     }
@@ -15806,7 +15807,7 @@ function cmp2Shift(who,dir){
   if(who!=='A')state.cmp2Line2=mv(keyB,state.cmp2Line2);
   if(state.cmp2Result||(who==='A'&&state.cmp2Line2!==''))doCmp2(); else render();
 }
-function toggleCmp2CL(key){state.cmp2ClActive[key]=state.cmp2ClActive[key]===false;if(state.cmp2Result)doCmp2();else render();}
+function toggleCmp2CL(key){state.cmp2ClActive[key]=state.cmp2ClActive[key]!==true;if(state.cmp2Result)doCmp2();else render();}
 function toggleTotalSplitCL(key){state.totalSplitClActive[key]=!state.totalSplitClActive[key];render();}
 function cmp2ClLabel(t){
   if(t==='exact')return'même numéro';
@@ -15913,9 +15914,9 @@ function cmp2CardHTML(){
     <div style="font-size:8.5px;color:#777;margin-top:4px;margin-bottom:2px">Éléments de classification à colorier :</div>
     <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:2px">
       ${CL_DEF.filter(cl=>cl.key!=='miroir').map(cl=>`
-        <div class="cl-chip ${state.cmp2ClActive[cl.key]!==false?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
-          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]!==false?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]!==false?'1':'.45'}">
-          ${state.cmp2ClActive[cl.key]!==false?'✓':'○'} ${cl.label}
+        <div class="cl-chip ${state.cmp2ClActive[cl.key]===true?'':'off'}" onclick="toggleCmp2CL('${cl.key}')"
+          style="background:${cl.bg};color:${cl.fg};border-color:${state.cmp2ClActive[cl.key]===true?cl.bg:'#ccc'};cursor:pointer;display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;border:1px solid;font-size:8px;font-weight:500;opacity:${state.cmp2ClActive[cl.key]===true?'1':'.45'}">
+          ${state.cmp2ClActive[cl.key]===true?'✓':'○'} ${cl.label}
         </div>`).join('')}
       <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=true});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #2E7D32;background:#E8F5E9;color:#2E7D32;cursor:pointer;font-weight:500">Tout ✓</button>
       <button onclick="CL_DEF.forEach(c=>{if(c.key!=='miroir')state.cmp2ClActive[c.key]=false});if(state.cmp2Result)doCmp2();else render()" style="padding:1px 6px;font-size:8px;border-radius:4px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Tout ○</button>

@@ -13792,7 +13792,8 @@ function fabGo(action){
 }
 function goNav(id){
   if(id==='compareGames'){goCompareGames();return;}
-  if(id==='search'){state.showSearchHub=!state.showSearchHub;loadHist();}
+  if(id==='modules'){const on=state.showSearchHub&&state.hubView==='cyb';state.showSearchHub=!on;if(!on){state.hubView='cyb';state.searchModuleOpen=null;state.cybN=null;}loadHist();}
+  else if(id==='search'){const on=state.showSearchHub&&state.hubView!=='cyb';state.showSearchHub=!on;if(!on){state.hubView='all';}loadHist();}
   else if(id==='benin'){state.beninFiltreOpen=!state.beninFiltreOpen;state.showSearchHub=false;}
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
   else if(id==='ghalpha'){state.ghAlphaFiltreOpen=!state.ghAlphaFiltreOpen;state.showSearchHub=false;}
@@ -13822,6 +13823,7 @@ function bottomNavHTML(){
     [1,'🔀','Comparaison'],
     ['compareGames','🎮','Comparer lotos'],
     [2,'📊','Analyses'],
+    ['modules','🧩','Modules'],
     ['search','🔎','Recherche'],
     ['benin','🇧🇯','Bénin'],
     ['ghana','🇬🇭','Ghana'],
@@ -13839,7 +13841,7 @@ function bottomNavHTML(){
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='search'?state.showSearchHub:(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
+      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>

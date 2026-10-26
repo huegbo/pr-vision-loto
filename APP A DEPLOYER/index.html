@@ -13201,7 +13201,78 @@ function doubleOpCardHTML(){
   return lvBox(col,`➗ Double Opération (module 24) — 4 numéros`,form+body);
 }
 
+
+// ══════ Numéro avec position — ex : 82 en D4 (jeu courant ou tout loto), cas par cas dans la Navigation ══════
+function npCrit(){state.npCrit=state.npCrit||[{n:'',p:'any'}];return state.npCrit;}
+function npSetN(i,v){npCrit()[i].n=v;}
+function npSetP(i,v){npCrit()[i].p=v;}
+function npAdd(){if(npCrit().length<4)npCrit().push({n:'',p:'any'});render();}
+function npDel(i){const c=npCrit();if(c.length>1)c.splice(i,1);render();}
+function npPredBuilder(){
+  const cr=npCrit().map(c=>({n:parseInt(c.n),p:c.p})).filter(c=>!isNaN(c.n));
+  if(!cr.length)return null;
+  const get=(r,p)=>{if(p==='any')return null;if(p[0]==='m')return r.m?r.m[parseInt(p.slice(1))]:undefined;return r.n[parseInt(p)];};
+  const hit=(r,c)=>{
+    if(c.p==='any'){const a=[];r.n.forEach((v,i)=>{if(v===c.n)a.push(i);});if(state.npWithM!==false&&r.m)r.m.forEach((v,i)=>{if(v===c.n)a.push(r.n.length+i);});return a;}
+    const v=get(r,c.p);if(v!==c.n)return[];
+    return [c.p[0]==='m'?r.n.length+parseInt(c.p.slice(1)):parseInt(c.p)];
+  };
+  const fn=row=>{const hs=cr.map(c=>hit(row,c));return hs.every(a=>a.length)?hs:null;};
+  fn.cr=cr;fn.hit=hit;
+  return fn;
+}
+function npHl(r){const f=npPredBuilder();const hs=f?f(r):null;const set=new Set();if(hs)hs.forEach(a=>a.forEach(q=>set.add(q)));return set;}
+function doNumPos(){
+  const f=npPredBuilder();
+  if(!f){state.npRes=null;state.npMultiRes=null;render();return;}
+  const pred=row=>!!f(row);
+  if(state.npMulti&&state.npMultiGames&&state.npMultiGames.length){
+    state.npMultiRes={results:multiGameFilter(state.npMultiGames,()=>pred)};state.npRes=null;
+  }else{
+    state.npRes={rows:T.filter(pred)};state.npMultiRes=null;
+    state.npVar=0;state.npHit=0;
+  }
+  saveHist({type:'numpos',game:GAME.key,gameName:GAME.name,crit:npCrit().map(c=>c.n+'@'+c.p).join(' ')});
+  render();
+}
+function exportNumPos(){
+  const rows=state.npRes&&state.npRes.rows;if(!rows||!rows.length){alert('Aucun résultat à exporter');return;}
+  let csv=csvHeader()+'\n';rows.forEach(r=>{csv+=rowToCSV(r)+'\n';});
+  downloadCSV(csv,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_numero_position.csv');
+}
+function numPosCardHTML(){
+  const col='#B45309';
+  const cr=npCrit();
+  const nP=GAME.n6?6:5;
+  const posOpts=sel=>`<option value="any" ${sel==='any'?'selected':''}>Toutes positions</option>`+Array.from({length:nP},(_,i)=>`<option value="${i}" ${sel===String(i)?'selected':''}>D${i+1}</option>`).join('')+(GAME.hasM?Array.from({length:5},(_,i)=>`<option value="m${i}" ${sel==='m'+i?'selected':''}>M${i+1} (machine)</option>`).join(''):'');
+  const rowsH=cr.map((c,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="font-size:12px;color:#777;min-width:14px">${i+1}.</span><input type="number" min="1" max="90" placeholder="N°" value="${c.n}" oninput="npSetN(${i},this.value)" onkeydown="if(event.key==='Enter')doNumPos()" style="width:70px;padding:8px;border:2px solid ${col};border-radius:8px;font-size:16px;text-align:center"><span style="font-size:12px;color:#777">en</span><select onchange="npSetP(${i},this.value)" style="padding:8px;border:2px solid ${col};border-radius:8px;font-size:14px;background:#fff">${posOpts(c.p)}</select>${cr.length>1?`<button onclick="npDel(${i})" style="padding:6px 10px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;border-radius:8px;cursor:pointer">✕</button>`:''}</div>`).join('');
+  let resH='';
+  if(state.npMulti){resH=genericMultiResultHTML(state.npMultiRes,{pfx:'npm',color:col,bgHit:'#FEF3C7',rowRenderer:simpleRowRenderer(col),hlFn:npHl});}
+  else if(state.npRes){
+    const rows=state.npRes.rows;
+    if(!rows.length)resH=`<div style="font-size:11px;color:#B91C1C;margin-top:6px">Résultat (0) — aucun tirage trouvé dans ${GAME.name}.</div>`;
+    else{
+      const R=gameData(GAME.key).T,SS=cybSet();
+      const res={variants:[{key:GAME.key,machine:false,name:GAME.name,icon:GAME.icon||'',R,hits:rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[npHl(r)]})).filter(h=>h.idxs[0]>=0)}],total:rows.length};
+      resH=cybCasesHTML(res,'np',col,null,'exportNumPos',SS.before,SS.after);
+    }
+  }
+  return`<div style="background:#fff;border:1.5px solid ${col};border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:13px;font-weight:700;color:${col};margin-bottom:4px">🎯 Numéro avec position — ex : 82 en D4</div>
+    <div style="font-size:10px;color:#777;margin-bottom:4px">Jeu : ${GAME.icon||''} <b>${GAME.name}</b> (${T.length} tirages, du n°${T[T.length-1]?T[T.length-1].t:1} à aujourd'hui)</div>
+    ${rowsH}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+      <button onclick="doNumPos()" style="padding:10px 22px;background:${col};color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px">Chercher</button>
+      ${cr.length<4?`<button onclick="npAdd()" style="padding:10px 14px;background:#fff;color:${col};border:2px solid ${col};border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">＋ autre numéro (même ligne)</button>`:''}
+    </div>
+    ${GAME.hasM?`<label style="display:flex;gap:6px;align-items:center;font-size:11px;color:#777;margin-top:5px"><input type="checkbox" ${state.npWithM!==false?'checked':''} onchange="state.npWithM=this.checked">« Toutes positions » inclut aussi la machine</label>`:''}
+    ${genericMultiToggleHTML('npMulti','npMultiGames','doNumPos',col,'#FEF3C7')}
+    ${resH}
+  </div>`;
+}
+
 const SEARCH_SECTIONS=[
+  {key:'numpos',icon:'🎯',title:'Numéro avec position',desc:'Un numéro à une position précise (ex : 82 en D4), jeu courant ou tout loto, cas par cas',color:'#B45309',html:numPosCardHTML},
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
   {key:'vseq',icon:'🪜',title:'Séquence de numéros (avec position)',desc:'Motif vertical sur plusieurs tirages — place exacte ou collés, écart réglable',color:'#B45309',html:vseqPanelHTML},
@@ -13359,6 +13430,7 @@ function searchHubHTML(){
   }
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
+    ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],
     ['🔢','Recherche numéros','Tirages contenant vos numéros','#155B8A',"openSearchModule('combo')"],
     ['🎯','Recherche par total','Tous les tirages d’un total donné','#B35A0C',"openSearchModule('sommeligne')"],
     ['🔗','2 numéros collés','Deux numéros côte à côte sur la ligne (ex : 13 + 31)','#4338CA',"openSearchModule('colles2')"],
@@ -21063,7 +21135,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

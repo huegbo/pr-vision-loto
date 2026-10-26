@@ -12895,6 +12895,7 @@ const SEARCH_SECTIONS=[
   {key:'colles3',icon:'🔗',title:'3 numéros collés',desc:'Trois numéros côte à côte sur la ligne, dans l\'ordre ou non',color:'#4338CA',html:()=>{if(state.collesCount!==3)state.collesCount=3;return collesCardHTML();}},
   ...collesStatsSections(),
   {key:'schema',icon:'🧩',title:'Recherche par schéma (lignes + positions)',desc:'Dessine plusieurs lignes avec des numéros à des positions précises : retrouve le même schéma dans tous les lotos, cas par cas',color:'#7C3AED',html:schemaCardHTML},
+  {key:'addligne',icon:'➕',title:'Addition de 2 draws sur une ligne (avec positions)',desc:'Retrouve les tirages où deux numéros d\'une même ligne (positions au choix) s\'additionnent à une somme précise, cas par cas',color:'#0E7490',html:addLigneCardHTML},
   {key:'auto4',icon:'🤖',title:'Recherche Automatique 4 (module 33)',desc:'Fenêtres de 4 lignes de plusieurs lotos qui partagent les mêmes numéros avec les 2 tirages de référence — numéros qui suivent en jaune (approx.)',color:'#0F766E',html:auto4CardHTML},
   {key:'dblop',icon:'➗',title:'Double Opération (module 24)',desc:'Deux opérations (+ − × ÷) sur 4 numéros, positions et décalages réglables — modèle Cybetcast',color:'#9333EA',html:doubleOpCardHTML},
   {key:'transfsimple',icon:'🔁',title:'Transformation simple (module 19)',desc:'Deux numéros inconnus (draws) liés par une transformation, avec bankers et filtres — modèle Cybetcast',color:'#0E7490',html:transfSimpleCardHTML},
@@ -12988,7 +12989,7 @@ function searchHubHTML(){
       ['2 Nap','combo'],['3 Nap','combo'],['4 Nap','combo'],['5 Nap','combo'],
       ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
       ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['4 Bankers sur Différentes Lignes - Avec Position','bchain'],['5 Bankers sur Différentes Lignes - Avec Position','bchain'],
-      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','vadd'],['Addition sur Plusieurs Lignes - Avec Position','vadd'],
+      ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','addligne'],['Addition sur Plusieurs Lignes - Avec Position','vadd'],
       ['Transformation Simple (Counter, Turning…)','transfsimple'],['Module 20 (nom à confirmer)',null],['Module 21 (nom à confirmer)',null],['Module 22 (nom à confirmer)',null],['Module 23 (nom à confirmer)',null],
       ['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning…) & Operation','transfsimple'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Operation (Draws & Résultats) - Avec Positions','dblop'],
       ['Numéros Non Tirés dans l’Année','abs90'],
@@ -13004,7 +13005,7 @@ function searchHubHTML(){
       ['⚖️ Comparaisons',['cmp2','cmp3','cmpwin']],
       ['🧬 Similarité',['schema','simi','oblique']],
       ['🔗 Numéros collés',['colles2','colles3','colles2stats','colles3stats','voisinscolles','termColles','termVert']],
-      ['🔁 Transformations',['transfsimple','dblop']],
+      ['🔁 Transformations',['transfsimple','addligne','dblop']],
       ['📍 Alignements verticaux',['bankersligne','bankers','bchain','vadd','vtan','planf','totx']],
       ['📊 Statistiques',['fiche','freq','gaps','pairs','tdist','resume','abs90']],
       ['🛠️ Outils',['imp']],
@@ -14119,6 +14120,54 @@ function schemaCardHTML(){
   let note='';
   if(res)note=`<div style="font-size:10px;color:#555;margin-top:4px">${res.L.length} ligne(s), ${res.cells} case(s) à retrouver${res.need<res.cells?' (au moins '+res.need+')':''}. Les cases retrouvées sont en jaune dans chaque cas.</div>`;
   return lvBox(col,'🧩 Recherche par schéma — lignes + positions',form+note+cybCasesHTML(res,'sc2',col,'sc','exportSchemaCSV',5,15));
+}
+
+// ══════ Addition de 2 draws sur une ligne — avec positions (modèle Cybetcast « Addition de 2 Draws sur une Ligne - Avec Position ») ══════
+function doAddLigne(){
+  const tg=parseInt(state.alT);if(isNaN(tg)||tg<1){alert('Entre la somme cible (nombre entier).');return;}
+  const p1=parseInt(state.alP1??-1),p2=parseInt(state.alP2??-1);
+  if(p1>=0&&p1===p2){alert('Choisis deux positions différentes (ou « Qu’importe »).');return;}
+  const r90=(state.alR||'direct')==='r90',sel=state.alGame||'all',incM=state.alM===true;
+  const val=(a,b)=>{const s=a+b;return r90&&s>90?s-90:s;};
+  const variants=[];let total=0;
+  cybScopeKeys(sel).forEach(k=>{
+    [false,true].forEach(machine=>{
+      if(machine&&(!incM||!GAMES[k].hasM))return;
+      const R=bcVariantRows(k,machine),hits=[];
+      R.forEach((r,i)=>{
+        const set=new Set();const n=r.n;
+        for(let a=0;a<n.length;a++)for(let b=a+1;b<n.length;b++){
+          // positions imposées : (p1,p2) ou (p2,p1) selon l'ordre ; « Qu'importe » = toutes les paires
+          const okPos=(p1<0&&p2<0)||(p1<0&&(a===p2||b===p2))||(p2<0&&(a===p1||b===p1))||((a===p1&&b===p2)||(a===p2&&b===p1));
+          if(okPos&&val(n[a],n[b])===tg){set.add(a);set.add(b);}
+        }
+        if(set.size)hits.push({idxs:[i],hl:[set],score:set.size});
+      });
+      if(hits.length){total+=hits.length;variants.push({key:k,machine,name:GAMES[k].name+(machine?' Machine Number':''),icon:GAMES[k].icon,R,hits});}
+    });
+  });
+  variants.sort((a,b)=>b.hits.length-a.hits.length);
+  state.al2Var=0;state.al2Hit=0;state.al2Res={tg,p1,p2,r90,variants,total};render();
+}
+function exportAddLigneCSV(){
+  const res=state.al2Res;if(!res||!res.total){alert('Lancez d\'abord la recherche.');return;}
+  const rows=[];res.variants.forEach(v=>v.hits.forEach(h=>{const r=v.R[h.idxs[0]];rows.push([v.name,r.t,(r.d||'')+'/'+(r.y||''),r.n.join(' ')]);}));
+  lvExport('addligne',['Jeu','N°','DATE','Tirage'],rows);
+}
+function addLigneCardHTML(){
+  const col='#0E7490',res=state.al2Res;
+  const form=`<div style="font-size:10px;color:#555;margin-bottom:3px">Retrouve les tirages où l'addition de <b>2 draws</b> d'une même ligne donne la somme cible, avec ou sans position imposée (D1 à D5).</div>
+  <div class="row" style="gap:6px;flex-wrap:wrap;align-items:center">
+    ${lvSel('Draw 1 :','alP1',bcPosOpts().slice(0,6),'-1',col)}
+    ${lvSel('Draw 2 :','alP2',bcPosOpts().slice(0,6),'-1',col)}
+    ${lvInp('Somme cible :','alT',90,60,col)}
+    ${lvSel('Lecture :','alR',[['direct','Somme directe'],['r90','Règle des 90 (>90 → −90)']],'direct',col)}
+    ${cybScopeSel('alGame',col)}
+    <label style="font-size:10px"><input type="checkbox" ${state.alM===true?'checked':''} onchange="state.alM=this.checked"> numéros machine</label>
+    <button onclick="doAddLigne()" style="padding:5px 14px;background:${col};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">🔄 Actualiser</button></div>`;
+  let note='';
+  if(res)note=`<div style="font-size:10px;color:#555;margin-top:4px">Somme ${res.tg}${res.r90?' (règle des 90)':''} · Draw 1 : ${res.p1<0?'qu’importe':'D'+(res.p1+1)} · Draw 2 : ${res.p2<0?'qu’importe':'D'+(res.p2+1)}. Les 2 draws de l'addition sont en jaune.</div>`;
+  return lvBox(col,'➕ Addition de 2 draws sur une ligne — avec positions',form+note+cybCasesHTML(res,'al2',col,'al','exportAddLigneCSV',5,15));
 }
 function bcGet(k,d){const v=parseInt(state[k]);return isNaN(v)?d:v;}
 function bcPosOpts(){return[['-1','Qu’importe'],['0','D1'],['1','D2'],['2','D3'],['3','D4'],['4','D5'],['5','D6']];}

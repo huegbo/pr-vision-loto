@@ -13205,8 +13205,18 @@ function openCyb(n){
   state.cybApx=apx;
   openSearchModule(k);
 }
+function cybDropToggle(){state.cybDrop=!state.cybDrop;render();}
+function cybDropPick(n){state.cybDrop=false;openCyb(n);}
 function cybSelectHTML(cur){
-  return `<select onchange="if(this.value)openCyb(parseInt(this.value))" style="width:100%;box-sizing:border-box;padding:12px 10px;font-size:15px;font-weight:600;color:#1F2D3D;border:2px solid #6D28D9;border-radius:10px;background:#fff"><option value="">${cur?'':'Choisir un Module ▾'}</option>${CYB44.map(([t,k],i)=>{const n=i+1;const kk=k?k.replace('~',''):'';const ok=kk==='main'||kk==='pass'||(kk&&SEARCH_SECTIONS.some(x=>x.key===kk));return`<option value="${n}" ${cur===n?'selected':''} ${ok?'':'disabled'}>${n}-) ${t}${k&&k.endsWith('~')?' ≈':''}</option>`;}).join('')}</select>`;
+  const e=cur?CYB44[cur-1]:null;
+  const open=state.cybDrop===true;
+  const label=e?`<b style="color:#6D28D9">${cur}-)</b> ${e[0]}`:'Choisir un Module';
+  const rows=CYB44.map(([t,k],i)=>{
+    const n=i+1;const kk=k?k.replace('~',''):'';
+    const ok=kk==='main'||kk==='pass'||(kk&&SEARCH_SECTIONS.some(x=>x.key===kk));
+    return`<div ${ok?`onclick="cybDropPick(${n})"`:''} style="display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-bottom:1px solid #EEE;font-size:14px;color:#1F2D3D;background:${cur===n?'#EDE9FE':'#fff'};${ok?'cursor:pointer':'opacity:.4'}"><b style="min-width:24px;color:#6D28D9">${n}</b><span style="flex:1">${t}${k&&k.endsWith('~')?' <span style="color:#B45309">≈</span>':''}</span></div>`;
+  }).join('');
+  return `<div style="position:relative"><div onclick="cybDropToggle()" style="display:flex;align-items:center;gap:8px;padding:12px 12px;border:2px solid #6D28D9;border-radius:10px;background:#fff;font-size:15px;font-weight:600;color:#1F2D3D;cursor:pointer"><span style="flex:1;min-width:0">${label}</span><span style="color:#6D28D9">${open?'▴':'▾'}</span></div>${open?`<div style="position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:60;max-height:60vh;overflow-y:auto;background:#fff;border:2px solid #6D28D9;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25)">${rows}</div>`:''}</div>`;
 }
 function cybStep(d){
   let n=(state.cybN||0)+d;
@@ -20948,7 +20958,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, openCyb, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

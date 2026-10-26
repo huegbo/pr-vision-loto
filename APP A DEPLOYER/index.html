@@ -12069,13 +12069,24 @@ function cybExportCasesXlsx(p,vi){
 
 // ── Juxtaposition en MODE EXCEL : un seul tableau, blocs côte à côte alignés sur la ligne du cas, 1er bloc figé, décalage ▲▼ par bloc ──
 function cybJxShift(p,k,d){state.juxOff=state.juxOff||{};const key=p+'|'+k;state.juxOff[key]=(state.juxOff[key]||0)+d;render();}
-function cybJxReset(p){state.juxOff={};render();}
+function cybJxReset(p){state.juxOff={};state.juxLock=null;render();}
 function cybJxFreeze(){state.juxFreeze=state.juxFreeze===false;render();}
 function cybJxSize(sz){state.juxSize=sz;render();}
+function cybJxKeep(fn){
+  window._jxSaved=[...document.querySelectorAll('.jx-col')].map(c=>c.scrollTop);
+  const po=document.getElementById('jx-portal');window._jxPortalTop=po?po.scrollTop:null;
+  window._jxSkipScroll=true;fn();
+}
 function cybJxScroll(id,line){
   const cols=document.querySelectorAll('.jx-col[data-jx="'+id+'"]');if(!cols.length||line==null)return;
   window._jxLock=true;
-  cols.forEach(el=>{const tr=el.querySelectorAll('tbody tr')[line];if(tr)el.scrollTop=Math.max(0,tr.offsetTop-Math.round((el.clientHeight||400)*0.35));});
+  if(window._jxSkipScroll&&window._jxSaved){
+    window._jxSkipScroll=false;
+    cols.forEach((el,i)=>{if(window._jxSaved[i]!=null)el.scrollTop=window._jxSaved[i];});
+    const po=document.getElementById('jx-portal');if(po&&window._jxPortalTop!=null)po.scrollTop=window._jxPortalTop;
+  }else{
+    cols.forEach(el=>{const tr=el.querySelectorAll('tbody tr')[line];if(tr)el.scrollTop=Math.max(0,tr.offsetTop-Math.round((el.clientHeight||400)*0.35));});
+  }
   requestAnimationFrame(()=>{window._jxLock=false;});
 }
 function cybJuxtExcelHTML(res,p,vi,col,sel,off){
@@ -12102,12 +12113,12 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const nRows=Math.max(...blocks.map(b=>b.top+b.rows.length));
   const W={L:40,D:50,Y:38,N:32,T:38,M:30};
   const colsOf=b=>[['L',W.L],['D',W.D],['Y',W.Y],...Array.from({length:b.nbN},(_,q)=>['D'+(q+1),W.N]),['To',W.T],...(b.hasM?[['M1',W.M],['M2',W.M],['M3',W.M],['M4',W.M],['M5',W.M]]:[])];
-  const sync=state.juxSync!==false;
+  const sync=state.juxSync===true;
   const full=state.juxFull===true;
   const id='jx-'+p;
   const colHTML=(b,bi)=>{
     const cols=colsOf(b);const tw=cols.reduce((a,[_,w])=>a+w,0);
-    let t=`<thead><tr><th colspan="${cols.length}" style="position:sticky;top:0;z-index:6;background:#12263F;color:#fff;font-size:12px;padding:4px 6px;white-space:nowrap;text-align:left"><span style="background:#F59E0B;color:#111;border-radius:5px;padding:0 7px;margin-right:5px;font-weight:800">${b.letter}</span>T${b.rw.t} <span style="font-weight:400;opacity:.8">${b.rw.d}/${b.rw.y}</span> <button onclick="cybJxShift('${p}',${b.i},-1)" title="Monter ce bloc d'une ligne" style="margin-left:6px;padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cybJxShift('${p}',${b.i},1)" title="Descendre ce bloc d'une ligne" style="padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></th></tr><tr>`;
+    let t=`<thead><tr><th colspan="${cols.length}" style="position:sticky;top:0;z-index:6;background:#12263F;color:#fff;font-size:12px;padding:4px 6px;white-space:nowrap;text-align:left"><span style="background:#F59E0B;color:#111;border-radius:5px;padding:0 7px;margin-right:5px;font-weight:800">${b.letter}</span>T${b.rw.t} <span style="font-weight:400;opacity:.8">${b.rw.d}/${b.rw.y}</span> <button onclick="cybJxKeep(()=>cybJxShift('${p}',${b.i},-1))" title="Monter ce bloc d'une ligne" style="margin-left:6px;padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▲</button><button onclick="cybJxKeep(()=>cybJxShift('${p}',${b.i},1))" title="Descendre ce bloc d'une ligne" style="padding:0 7px;border:0;border-radius:4px;background:#9CA3AF;color:#fff;cursor:pointer">▼</button></th></tr><tr>`;
     cols.forEach(([n,w])=>{t+=`<th style="position:sticky;top:26px;z-index:5;background:#E8ECF4;color:#111;font-size:${Math.max(9,fs-1)}px;min-width:${w}px;width:${w}px;border:1px solid #D1D5DB">${n}</th>`;});
     t+='</tr></thead><tbody>';
     for(let r=0;r<nRows;r++){
@@ -12138,7 +12149,7 @@ function cybJuxtExcelHTML(res,p,vi,col,sel,off){
   const line=maxCi;
   setTimeout(()=>cybJxScroll(id,line),60);
   const tb=(a,t,on)=>`<button onclick="${a}" style="padding:6px 10px;font-size:11px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #12263F;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}">${t}</button>`;
-  const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0">${tb('cybJxFreeze()','📌 1re colonne figée',freeze)}${tb('cybJxSyncToggle()','🔗 défilement lié',sync)}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxFull()',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxSize('${k}')`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}<span style="font-size:10px;color:#777">${sync?'Fais défiler : tout descend ensemble. Décoche 🔗 pour coulisser chaque colonne seule.':'Chaque colonne coulisse seule ; ▲▼ décale un bloc d’une ligne.'}</span></div>
+  const inner=`<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0"><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${freeze?'#1F2D3D':'#aaa'}"><input type="checkbox" ${freeze?'checked':''} onchange="cybJxKeep(cybJxFreeze)" style="width:18px;height:18px">📌 fige 1re col</label><label style="font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px;font-weight:600;color:${sync?'#1F2D3D':'#aaa'}"><input type="checkbox" ${sync?'checked':''} onchange="cybJxKeep(cybJxSyncToggle)" style="width:18px;height:18px">🔗 lié</label>${(()=>{const on=!!state.juxLock;return`<button onclick="cybJxLockToggle()" title="${on?'Les colonnes descendent ensemble en gardant ton décalage. Clique pour les libérer.':'Fais coulisser chaque colonne où tu veux (🔗 décoché), puis clique ici : elles bougeront ensemble en gardant ce décalage.'}" style="padding:6px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:11px;background:${on?'#166534':'#E2E8F0'};color:${on?'#fff':'#334155'}">${on?'🔒 figé':'🔒 figer à l\'instant'}</button>`;})()}${tb('cybJxReset(\''+p+'\')','⟲ Réaligner')}${tb('cybJxKeep(cybJxFull)',full?'✕ Réduire':'⛶ Élargir',full)}${['compact','normal','large'].map(k=>tb(`cybJxKeep(()=>cybJxSize('${k}'))`,{compact:'Compact',normal:'Normal',large:'Grand'}[k],(state.juxSize||'normal')===k)).join('')}<span style="font-size:10px;color:#777">${state.juxLock?'🔒 Les colonnes gardent leur décalage et bougent ensemble.':(sync?'Tout descend ensemble. Décoche 🔗 : chaque colonne coulisse seule, puis 🔒 pour figer le décalage.':'Chaque colonne coulisse seule (coulissage indépendant).')}</span></div>
   <div id="${id}" style="display:flex;gap:8px;align-items:flex-start;overflow-x:auto;padding-bottom:6px">${blocks.map(colHTML).join('')}</div>`;
   if(full){
     // Plein écran : rendu dans un conteneur rattaché à <body> (hors de la page, donc jamais coupé par un parent zoomé / transformé)
@@ -12157,13 +12168,23 @@ function cybJxPortalSync(){
   el.innerHTML=window._jxFullHTML;
 }
 function cybJxFull(){state.juxFull=state.juxFull!==true;render();}
-function cybJxSyncToggle(){state.juxSync=state.juxSync===false;render();}
+function cybJxSyncToggle(){state.juxSync=state.juxSync!==true;render();}
 function cybJxSync(el){
-  if(state.juxSync===false||window._jxLock)return;
+  if(state.juxSync!==true&&!state.juxLock)return;
+  if(window._jxLock)return;
   window._jxLock=true;
   const id=el.getAttribute('data-jx');
-  document.querySelectorAll('.jx-col[data-jx="'+id+'"]').forEach(o=>{if(o!==el)o.scrollTop=el.scrollTop;});
+  const cols=[...document.querySelectorAll('.jx-col[data-jx="'+id+'"]')];
+  const lk=state.juxLock||null,i=cols.indexOf(el);
+  const base=el.scrollTop-(lk&&lk[i]!=null?lk[i]:0);
+  cols.forEach((o,j)=>{if(o!==el)o.scrollTop=base+(lk&&lk[j]!=null?lk[j]:0);});
   requestAnimationFrame(()=>{window._jxLock=false;});
+}
+function cybJxLockToggle(){
+  if(state.juxLock){cybJxKeep(()=>{state.juxLock=null;render();});return;}
+  const cols=[...document.querySelectorAll('.jx-col')];if(!cols.length)return;
+  const ref=cols[0].scrollTop;
+  cybJxKeep(()=>{state.juxLock=cols.map(c=>c.scrollTop-ref);state.juxSync=true;render();});
 }
 function cybExportAllXlsx(p){
   const r=(window._cybRes||{})[p];if(!r||!r.total){alert('Aucun résultat à exporter.');return;}
@@ -21366,7 +21387,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybJxShift, cybJxFull, cybJxPortalSync, cybJxSync, cybJxSyncToggle, cybJxReset, cybJxFreeze, cybJxSize, cybExportAllXlsx, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cybPre, cybPreAll, cybJxShift, cybJxKeep, cybJxLockToggle, cybJxFull, cybJxPortalSync, cybJxSync, cybJxSyncToggle, cybJxReset, cybJxFreeze, cybJxSize, cybExportAllXlsx, cybExportCasesXlsx, cnExportXlsx, cybJuxt, cybExcelFromSel, doNumPos, npSetN, npSetP, npAdd, npDel, exportNumPos, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

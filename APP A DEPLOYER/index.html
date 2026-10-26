@@ -12065,24 +12065,24 @@ function caseNavHTML(){
     <div style="height:110px"></div>
   </div>${bar}`;
 }
-function vtotResultHTML(){if(!state.vtotRes)return'';return cybLegacyHTML('vt','#9A3412',state.vtotRes,null,'exportVtotExcel');}
-function vtotMultiResultHTML(){const r=state.vtotMultiRes;if(!r)return'';return cybLegacyHTML('vtm','#9A3412',null,r.results,'exportVtotExcel');}
-function vtotdResultHTML(){if(!state.vtotdRes)return'';return cybLegacyHTML('vd','#7C2D12',state.vtotdRes,null,'exportVtotDExcel');}
-function vtotdMultiResultHTML(){const r=state.vtotdMultiRes;if(!r)return'';return cybLegacyHTML('vdm','#7C2D12',null,r.results,'exportVtotDExcel');}
-function vttResultHTML(){if(!state.vttRes)return'';return cybLegacyHTML('vv','#0369A1',state.vttRes,null,'exportVttExcel');}
-function vttMultiResultHTML(){const r=state.vttMultiRes;if(!r)return'';return cybLegacyHTML('vvm','#0369A1',null,r.results,'exportVttExcel');}
-function elmResultHTML(){if(!state.elmRes)return'';return cybLegacyHTML('em','#7C2D12',state.elmRes,null,'exportElmExcel');}
-function elmMultiResultHTML(){const r=state.elmMultiRes;if(!r)return'';return cybLegacyHTML('emm','#7C2D12',null,r.results,'exportElmExcel');}
-function cetResultHTML(){if(!state.cetRes)return'';return cybLegacyHTML('ce','#0F766E',state.cetRes,null,'exportCetExcel');}
-function cetMultiResultHTML(){const r=state.cetMultiRes;if(!r)return'';return cybLegacyHTML('cem','#0F766E',null,r.results,'exportCetExcel');}
-function dbtResultHTML(){if(!state.dbtRes)return'';return cybLegacyHTML('db','#166534',state.dbtRes,null,'exportDbtExcel');}
-function dbtMultiResHTML(){const r=state.dbtMultiRes;if(!r)return'';return cybLegacyHTML('dbm','#166534',null,r.results,'exportDbtExcel');}
-function prpResultHTML(){if(!state.prpRes)return'';return cybLegacyHTML('pp','#0E7490',state.prpRes,null,'exportPrpExcel');}
-function prpMultiResultHTML(){const r=state.prpMultiRes;if(!r)return'';return cybLegacyHTML('ppm','#0E7490',null,r.results,'exportPrpExcel');}
-function mc3ResultHTML(){if(!state.mc3Res)return'';return cybLegacyHTML('m3','#5B21B6',state.mc3Res,null,'exportMc3Excel');}
-function mc3MultiResultHTML(){const r=state.mc3MultiRes;if(!r)return'';return cybLegacyHTML('m3m','#5B21B6',null,r.results,'exportMc3Excel');}
-function mip3ResultHTML(){if(!state.mip3Res)return'';return cybLegacyHTML('mi','#0F766E',state.mip3Res,null,'exportMip3Excel');}
-function mip3MultiResultHTML(){const r=state.mip3MultiRes;if(!r)return'';return cybLegacyHTML('mim','#0F766E',null,r.results,'exportMip3Excel');}
+function vtotResultHTML(){if(!state.cybMode)return vtotResultHTMLOld();if(!state.vtotRes)return'';return cybLegacyHTML('vt','#9A3412',state.vtotRes,null,'exportVtotExcel');}
+function vtotMultiResultHTML(){if(!state.cybMode)return vtotMultiResultHTMLOld();const r=state.vtotMultiRes;if(!r)return'';return cybLegacyHTML('vtm','#9A3412',null,r.results,'exportVtotExcel');}
+function vtotdResultHTML(){if(!state.cybMode)return vtotdResultHTMLOld();if(!state.vtotdRes)return'';return cybLegacyHTML('vd','#7C2D12',state.vtotdRes,null,'exportVtotDExcel');}
+function vtotdMultiResultHTML(){if(!state.cybMode)return vtotdMultiResultHTMLOld();const r=state.vtotdMultiRes;if(!r)return'';return cybLegacyHTML('vdm','#7C2D12',null,r.results,'exportVtotDExcel');}
+function vttResultHTML(){if(!state.cybMode)return vttResultHTMLOld();if(!state.vttRes)return'';return cybLegacyHTML('vv','#0369A1',state.vttRes,null,'exportVttExcel');}
+function vttMultiResultHTML(){if(!state.cybMode)return vttMultiResultHTMLOld();const r=state.vttMultiRes;if(!r)return'';return cybLegacyHTML('vvm','#0369A1',null,r.results,'exportVttExcel');}
+function elmResultHTML(){if(!state.cybMode)return elmResultHTMLOld();if(!state.elmRes)return'';return cybLegacyHTML('em','#7C2D12',state.elmRes,null,'exportElmExcel');}
+function elmMultiResultHTML(){if(!state.cybMode)return elmMultiResultHTMLOld();const r=state.elmMultiRes;if(!r)return'';return cybLegacyHTML('emm','#7C2D12',null,r.results,'exportElmExcel');}
+function cetResultHTML(){if(!state.cybMode)return cetResultHTMLOld();if(!state.cetRes)return'';return cybLegacyHTML('ce','#0F766E',state.cetRes,null,'exportCetExcel');}
+function cetMultiResultHTML(){if(!state.cybMode)return cetMultiResultHTMLOld();const r=state.cetMultiRes;if(!r)return'';return cybLegacyHTML('cem','#0F766E',null,r.results,'exportCetExcel');}
+function dbtResultHTML(){if(!state.cybMode)return dbtResultHTMLOld();if(!state.dbtRes)return'';return cybLegacyHTML('db','#166534',state.dbtRes,null,'exportDbtExcel');}
+function dbtMultiResHTML(){if(!state.cybMode)return dbtMultiResHTMLOld();const r=state.dbtMultiRes;if(!r)return'';return cybLegacyHTML('dbm','#166534',null,r.results,'exportDbtExcel');}
+function prpResultHTML(){if(!state.cybMode)return prpResultHTMLOld();if(!state.prpRes)return'';return cybLegacyHTML('pp','#0E7490',state.prpRes,null,'exportPrpExcel');}
+function prpMultiResultHTML(){if(!state.cybMode)return prpMultiResultHTMLOld();const r=state.prpMultiRes;if(!r)return'';return cybLegacyHTML('ppm','#0E7490',null,r.results,'exportPrpExcel');}
+function mc3ResultHTML(){if(!state.cybMode)return mc3ResultHTMLOld();if(!state.mc3Res)return'';return cybLegacyHTML('m3','#5B21B6',state.mc3Res,null,'exportMc3Excel');}
+function mc3MultiResultHTML(){if(!state.cybMode)return mc3MultiResultHTMLOld();const r=state.mc3MultiRes;if(!r)return'';return cybLegacyHTML('m3m','#5B21B6',null,r.results,'exportMc3Excel');}
+function mip3ResultHTML(){if(!state.cybMode)return mip3ResultHTMLOld();if(!state.mip3Res)return'';return cybLegacyHTML('mi','#0F766E',state.mip3Res,null,'exportMip3Excel');}
+function mip3MultiResultHTML(){if(!state.cybMode)return mip3MultiResultHTMLOld();const r=state.mip3MultiRes;if(!r)return'';return cybLegacyHTML('mim','#0F766E',null,r.results,'exportMip3Excel');}
 // Adaptateur : transforme les résultats des anciens modules ([{game,gameName,icon,rows:[hit]}]) en cas navigables (jeux → cas → tirages avant/après)
 function cybLegacyRes(results,hlFn){
   const variants=[];let total=0;
@@ -13181,6 +13181,7 @@ function modTabClose(key){
   if(state.searchModuleOpen===key){const l=state.openMods;state.searchModuleOpen=l.length?l[l.length-1]:null;}
   render();
 }
+try{if(state.cybMode===undefined)state.cybMode=!!localStorage.getItem('cybMode');}catch(e){}
 function modTabsHTML(){
   state.openMods=state.openMods||[];
   if(state.searchModuleOpen&&!state.openMods.includes(state.searchModuleOpen))state.openMods.push(state.searchModuleOpen);
@@ -13203,6 +13204,7 @@ function searchHubHTML(){
       <span style="font-size:9px;color:#888">${T.length} tirages</span>
       <button onclick="exportAllCSV()" style="margin-left:auto;padding:3px 9px;font-size:9px;border-radius:10px;border:1.5px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600" title="Exporter tous les tirages en CSV">📤 Export CSV</button>
     </div>`;
+  h+=`<label style="display:flex;align-items:center;gap:8px;font-size:11px;color:#4B4B55;margin:0 0 6px;cursor:pointer"><input type="checkbox" ${state.cybMode?'checked':''} onchange="state.cybMode=this.checked;try{localStorage.setItem('cybMode',this.checked?'1':'')}catch(e){}render()"> Affichage « cas par cas » Cybetcast sur les anciens modules (désactivé = comme avant)</label>`;
   h+=modTabsHTML();
   const openKey=state.searchModuleOpen;
   if(openKey){
@@ -13244,9 +13246,10 @@ function searchHubHTML(){
       </div>
       <span style="color:#bbb;font-size:16px;flex:0 0 auto">›</span>
     </div>`;
+  if(!state.hubView)state.hubView='cyb';
   const revue=state.hubView==='revue';
   const pill=(on,act,txt)=>`<button onclick="${act}" style="padding:4px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #6D28D9;background:${on?'#6D28D9':'#fff'};color:${on?'#fff':'#6D28D9'}">${txt}</button>`;
-  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(!revue,"state.hubView='all';render()",'Tous les modules')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Cybetcast 1–44')}</div>`;
+  h+=`<div style="display:flex;gap:6px;margin-bottom:8px">${pill(state.hubView==='all',"state.hubView='all';render()",'Tous (A–Z)')}${pill(revue,"state.hubView='revue';render()",'🆕 Recherche revue')}${pill(state.hubView==='cyb',"state.hubView='cyb';render()",'📱 Les 44 modules')}</div>`;
   if(state.hubView==='cyb'){
     const CYB=[
       ['Une Ligne de Tirages','main'],['Voir les Pass','pass'],['Dernière Ligne de Tirages','main'],['Tirages à un mois ou date donnée','cal'],
@@ -13254,15 +13257,15 @@ function searchHubHTML(){
       ['2 Bankers Verticalement Alignés','bankers'],['3 Bankers Verticalement Alignés','bankers'],['Plusieurs Bankers Verticalement Alignés','bankers'],
       ['2 Bankers sur Différentes Lignes - Avec Position','bchain'],['3 Bankers sur Différentes Lignes - Avec Position','bchain'],['Plusieurs Bankers sur Différentes Lignes - Avec Position','bchain'],
       ['Addition de 2 à 5 Draws sur une Ligne','vadd'],['Addition de 2 à 5 Draws & 1 Banker, sur une Ligne','vadd'],['Addition sur une Ligne & Bankers sur plusieurs Lignes','vadd'],['Addition de 2 Draws sur une Ligne - Avec Position','addligne'],['Addition sur Plusieurs Lignes – Avec Position','vadd'],
-      ['Transformation Simple (Counter, Turning...)','transfsimple'],['Double Transformation (Counter, Turning...)',null],['Opération Simple (+, -, x, /)','opsimple'],['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning...) & Opération (+, -, x, /)',null],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Opération (Draws & Résultats) - Avec Positions','dblop'],
-      ['Addition & Transformation avec Bankers',null],['Addition & Opération avec Bankers',null],
+      ['Transformation Simple (Counter, Turning...)','transfsimple'],['Double Transformation (Counter, Turning...)','dblop~'],['Opération Simple (+, -, x, /)','opsimple'],['Double Operation (+, -, x, /)','dblop'],['Transformation (Counter, Turning...) & Opération (+, -, x, /)','dblop~'],['Opérations (Draws & Résultats) - Avec Positions','dblop'],['Double Opération (Draws & Résultats) - Avec Positions','dblop'],
+      ['Addition & Transformation avec Bankers','vadd~'],['Addition & Opération avec Bankers','vadd~'],
       ['Numéros Non Tirés dans l’Année','abs90'],
-      ['Recherche Automatique 0',null],['Recherche Automatique 1',null],['Recherche Automatique 2',null],['Recherche Automatique 3',null],['Recherche Automatique 4','auto4'],['Recherche Automatique 5',null],['Recherche Automatique 6',null],['Recherche Automatique 7',null],['Recherche Automatique 8',null],['Recherche Automatique 9',null],
-      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance',null],['Combinaison de Numéros',null]];
-    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Numérotation et titres des 44 modules confirmés d’après l’appli Cybetcast (menu « Choisir un Module »). Grisé = pas encore reproduit.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
-      const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
+      ['Recherche Automatique 0','auto4~'],['Recherche Automatique 1','auto4~'],['Recherche Automatique 2','auto4~'],['Recherche Automatique 3','auto4~'],['Recherche Automatique 4','auto4'],['Recherche Automatique 5','auto4~'],['Recherche Automatique 6','auto4~'],['Recherche Automatique 7','auto4~'],['Recherche Automatique 8','auto4~'],['Recherche Automatique 9','auto4~'],
+      ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance','freq~'],['Combinaison de Numéros','combo~']];
+    h+='<div style="font-size:10px;color:#666;margin:2px 0 6px">Numérotation et titres des 44 modules confirmés d’après l’appli Cybetcast (menu « Choisir un Module »). « ≈ » = module le plus proche en attendant ta capture.</div><div style="display:flex;flex-direction:column;border:1px solid #E5E9F0;border-radius:8px;overflow:hidden">'+CYB.map(([t,k],i)=>{
+      const apx=!!(k&&k.endsWith('~'));if(apx)k=k.slice(0,-1);const n=i+1,ok=k&&k!=='main'&&SEARCH_SECTIONS.some(x=>x.key===k),main=k==='main';
       const act=ok?`openSearchModule('${k}')`:(main?`goNav(0)`:(k==='pass'?`goNav(0);state.showPass=true;render()`:''));
-      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?'›':((main||k==='pass')?'tableau':'à venir')}</span></div>`;
+      return`<div ${act?`onclick="${act}"`:''} style="display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid #F0EEF9;background:#fff;${act?'cursor:pointer':'opacity:.45'}"><b style="width:22px;color:#6D28D9;font-size:12px">${n}</b><span style="flex:1;font-size:12px;color:#1F2D3D">${t}</span><span style="font-size:9px;color:#888">${ok?(apx?'≈ ›':'›'):((main||k==='pass')?'tableau':'à venir')}</span></div>`;
     }).join('')+'</div>';
   }else if(revue){
     const groups=[
@@ -20889,7 +20892,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

@@ -15586,6 +15586,7 @@ function cmp2ResHTML(){
   if(!res)return'';
   if(!res.rowsA.length)return`<div style="font-size:10px;color:#999;margin-top:6px">Aucun résultat (plage vide — vérifie les N° de tirage et le nombre de lignes)</div>`;
   const colorier=state.cmp2Colorier!==false;
+  setTimeout(()=>{const b=document.getElementById('cmp2-scroll');if(b)b.scrollTop=b.scrollHeight;},0);
   // Affichage côte à côte, TOUTES les lignes visibles d'un coup (pas de défilement interne) :
   // un tableau compact par jeu (L, D, Y, D1..D5, To), ligne i de A en face de la ligne i de B.
   // Une case qui correspond est remplie en couleur (jaune = même numéro, vert = miroir, etc.).
@@ -15615,7 +15616,7 @@ function cmp2ResHTML(){
     ${badges}
     <button onclick="exportCmp2()" style="margin-left:auto;padding:2px 8px;background:#059669;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500;font-size:9px">📊 Excel</button>
   </div>
-  <div class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px">
+  <div id="cmp2-scroll" class="cmpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#FFFBEB;border:1px solid #FDE4B8;border-radius:6px;padding:4px;max-height:calc(100vh - 235px);min-height:180px;overflow-y:auto;align-items:start">
     <div style="min-width:0">${tbl(res.keyA,res.rowsA,res.matchA,'#B45309',null,res.pendA)}</div>
     <div style="min-width:0">${tbl(res.keyB,res.rowsB,res.matchB,'#0891B2',null,res.pendB)}</div>
   </div></div>`;
@@ -15676,7 +15677,7 @@ function cmp2CardHTML(){
       <span style="font-size:8.5px;color:#888">▲ plus anciens · ▼ plus récents</span>
     </div>
     </div>`}
-    <div style="height:110px"></div>
+    <div style="height:100px"></div>
   </div>`;
 }
 // ══════ Comparer 3 Plages de Tirages — trois jeux, alignés par N° de tirage (même logique que 2 plages) ══════

@@ -12007,6 +12007,7 @@ function cybOpenNav(pfx){
   let k=0;const vi=Math.min(state[pfx+'Var']||0,r.variants.length-1),hi=state[pfx+'Hit']||0;
   for(let i=0;i<vi;i++)k+=r.variants[i].hits.length;k+=hi;
   state.caseNav={pfx,k};
+  { const _f=cnFlat();const _c=_f[k];state.pins=_c?_f.map((x,i)=>x.v===_c.v?i:-1).filter(i=>i>=0).slice(0,12):[]; if(_c&&state.pins.indexOf(k)<0)state.pins.push(k); }
   state.tab=0;state.showSearchHub=false;cnPrepare();render();
   setTimeout(cnScroll,80);
 }
@@ -12019,33 +12020,89 @@ function cnGo(k){
 function cnPrepare(){if(!state.caseView)state.caseView='nav';
   const cn=state.caseNav;if(!cn)return;const f=cnFlat();if(!f.length)return;
   cn.k=Math.max(0,Math.min(f.length-1,cn.k));
-  const {v,h}=f[cn.k],R=v.R;
-  const row=R[h.idxs[0]];
-  if(GAME.key!==v.key){setGame(v.key);}
-  state.navMode='years';
-  const ys=new Set([String(row.y)]);
-  // une année voisine si la fenêtre déborde
-  const SS=cybSet();const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);
-  for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));
+  const cur=f[cn.k];
+  if(GAME.key!==cur.v.key){setGame(cur.v.key);}
+  state.navMode='years';if(!state.caseExcelOff)state.excelMode=true;
+  // cas affichés EN PARALLÈLE dans la Navigation : les cas épinglés (lettres) du même jeu + le cas courant
+  const pins=(state.pins||[]).filter(k=>k<f.length&&f[k].v.key===cur.v.key&&f[k].v===cur.v);
+  const ks=[...new Set([...pins,cn.k])].sort((x,y)=>x-y);
+  const SS=cybSet();const ys=new Set(),hl={},rows={},letters={},targets=[];
+  ks.forEach(k=>{
+    const {v,h}=f[k],R=v.R,row=R[h.idxs[0]];
+    ys.add(String(row.y));
+    const lo=Math.min(R.length-1,Math.max(...h.idxs)+SS.before),hi=Math.max(0,Math.min(...h.idxs)-SS.after);
+    for(let i=hi;i<=lo;i++)ys.add(String(R[i].y));
+    h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
+    letters[row.t]=cnLetter(k);
+    targets.push({t:row.t,y:String(row.y),cur:k===cn.k});
+  });
   state.selYears=[...ys].sort((a,b)=>parseInt(b)-parseInt(a));
-  const hl={},rows={};
-  h.idxs.forEach((ix,j)=>{const r=R[ix];rows[r.t]=1;const hs=h.hl&&h.hl[j];if(hs)hs.forEach(q=>{const nn=r.n.length;hl[r.t+'_'+(q<nn?q:'m'+(q-nn))]={bg:'#69F0AE',fg:'#111',style:'fill'};});});
-  state.caseHL=hl;state.caseRows=rows;state.caseScrollT=row.t;state.caseScrollY=String(row.y);state.caseScrollPending=true;
+  state.caseHL=hl;state.caseRows=rows;state.caseLetters=letters;state.caseTargets=targets;
+  const c=targets.find(x=>x.cur)||targets[0];
+  state.caseScrollT=c.t;state.caseScrollY=c.y;state.caseScrollPending=true;
+}
+function cnPinAll(){const f=cnFlat(),c=f[state.caseNav.k];state.pins=f.map((x,i)=>x.v===c.v?i:-1).filter(i=>i>=0).slice(0,12);cnPrepare();render();setTimeout(cnScroll,60);}
+function cnPinNone(){state.pins=[];cnPrepare();render();setTimeout(cnScroll,60);}
+function cnExcelToggle(){state.excelMode=!state.excelMode;state.caseExcelOff=!state.excelMode;cnPrepare();render();setTimeout(cnScroll,60);}
+function cnPin(k){
+  const f=cnFlat();k=(k==null)?state.caseNav.k:k;
+  const a=state.pins||[];const i=a.indexOf(k);
+  if(i>=0)a.splice(i,1);else{a.push(k);a.sort((x,y)=>x-y);}
+  state.pins=a;cnPrepare();render();setTimeout(cnScroll,60);
 }
 function cnScroll(n){
-  const t=state.caseScrollT,yr=state.caseScrollY;if(t==null)return;
-  const V=VCOL[yr],body=document.getElementById('col-'+yr);
-  if(!V||!body){if((n||0)<12)setTimeout(()=>cnScroll((n||0)+1),80);return;}
-  const idx=V.items.findIndex(it=>it.r&&it.r.t===t);
+  const tg=state.caseTargets||[];if(!tg.length)return;
+  const ex=document.getElementById('col-exnav');
+  if(state.excelMode&&ex&&state.caseExLine!=null){
+    const tr=ex.querySelectorAll('tbody tr')[state.caseExLine];
+    if(tr)ex.scrollTop=Math.max(0,tr.offsetTop-Math.round((ex.clientHeight||400)*0.35));
+    state.caseScrollPending=false;
+    window.scrollTo({top:Math.max(0,ex.getBoundingClientRect().top+window.scrollY-58),behavior:'auto'});
+    return;
+  }
+  let ok=true;
+  tg.forEach(x=>{
+    const V=VCOL[x.y],body=document.getElementById('col-'+x.y);
+    if(!V||!body){ok=false;return;}
+    const idx=V.items.findIndex(it=>it.r&&it.r.t===x.t);
+    if(idx<0)return;
+    const h=VH[x.y]||26;
+    body.scrollTop=Math.max(0,idx*h-Math.round((body.clientHeight||400)*0.35));
+    vScroll(x.y);
+  });
+  if(!ok){if((n||0)<12)setTimeout(()=>cnScroll((n||0)+1),80);return;}
   state.caseScrollPending=false;
-  if(idx<0)return;
-  const h=VH[yr]||26;
-  body.scrollTop=Math.max(0,idx*h-Math.round((body.clientHeight||400)*0.35));
-  vScroll(yr);
-  const colTop=body.getBoundingClientRect().top+window.scrollY-58;
-  window.scrollTo({top:Math.max(0,colTop),behavior:'auto'});
+  const first=document.getElementById('col-'+state.caseScrollY);
+  if(first)window.scrollTo({top:Math.max(0,first.getBoundingClientRect().top+window.scrollY-58),behavior:'auto'});
 }
-function cnClose(){state.caseNav=null;state.caseHL=null;state.caseRows=null;render();}
+function cnLetter(k){let r='';k++;while(k>0){const m=(k-1)%26;r=String.fromCharCode(65+m)+r;k=Math.floor((k-1)/26);}return r;}
+function cnParOpen(){
+  const f=cnFlat();if(!f.length)return;
+  state.caseView='par';
+  if(!state.parSel||!state.parSel.length||state.parSel.some(k=>k>=f.length))state.parSel=f.slice(0,3).map((_,i)=>i);
+  render();
+}
+function cnParToggle(k){
+  const a=state.parSel||[];const i=a.indexOf(k);
+  if(i>=0)a.splice(i,1);else{a.push(k);a.sort((x,y)=>x-y);}
+  state.parSel=a;render();
+}
+function cnParAll(){const f=cnFlat();state.parSel=f.slice(0,8).map((_,i)=>i);render();}
+function caseParHTML(){
+  const f=cnFlat();
+  if(!f.length)return'';
+  const cn=state.caseNav;
+  const sel=(state.parSel||[]).filter(k=>k<f.length);
+  const chips=f.slice(0,200).map((x,k)=>{const on=sel.includes(k);return`<button onclick="cnParToggle(${k})" style="flex:0 0 auto;padding:8px 11px;font-size:13px;font-weight:700;border:2px solid #12263F;border-radius:10px;cursor:pointer;background:${on?'#12263F':'#fff'};color:${on?'#fff':'#12263F'}"><span style="font-size:15px">${cnLetter(k)}</span> <span style="font-weight:500;font-size:11px">${(new Set(f.map(y=>y.v.key)).size>1?x.v.icon+' ':'')}T${x.v.R[x.h.idxs[0]].t}</span></button>`;}).join('');
+  const cols=sel.map(k=>{const {v,h,hi}=f[k];const R=v.R;const rw=R[h.idxs[0]];
+    return`<div style="flex:0 0 min(92vw,340px);min-width:0"><div style="background:#12263F;color:#fff;border-radius:8px 8px 0 0;padding:5px 8px;font-size:13px;font-weight:700"><span style="background:#F59E0B;color:#111;border-radius:6px;padding:1px 8px;margin-right:6px">${cnLetter(k)}</span>${v.icon||''} ${v.name} · T${rw.t} (${rw.d}/${rw.y})</div>${cybWindowHTML(v,hi,'#12263F')}</div>`;}).join('');
+  return`<div class="card" style="padding:8px;margin-bottom:8px">
+    <div style="font-size:12px;font-weight:700;color:#12263F;margin-bottom:4px">⇉ Comparaison en parallèle — touche des lettres pour les ajouter / retirer <button onclick="cnParAll()" style="margin-left:6px;padding:2px 8px;font-size:10px;border:1px solid #12263F;border-radius:8px;background:#fff;color:#12263F;cursor:pointer">8 premiers</button></div>
+    <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px">${chips}</div>
+    <div style="display:flex;gap:8px;overflow-x:auto;align-items:flex-start;padding-bottom:6px">${cols||'<div style="font-size:11px;color:#888">Choisis au moins une lettre.</div>'}</div>
+    <div style="height:110px"></div></div>`;
+}
+function cnClose(){state.caseNav=null;state.caseHL=null;state.caseRows=null;state.caseLetters=null;state.caseTargets=null;state.pins=[];render();}
 function caseNavHTML(onlyBar){
   const cn=state.caseNav,f=cnFlat();
   if(!f.length){return`<div class="card" style="padding:12px;font-size:12px">Plus de résultats à parcourir. <button onclick="cnClose()" style="margin-left:8px;padding:4px 10px;border-radius:6px;border:1px solid #999;background:#fff;cursor:pointer">Fermer</button></div>`;}
@@ -12078,12 +12135,12 @@ function caseNavHTML(onlyBar){
     body+=`<tr style="background:${bg};height:${rowH}px"><td style="text-align:center;font-weight:700;font-size:12px;padding:0 6px;border:1px solid #E5E7EB;white-space:nowrap">${label}</td><td style="text-align:center;font-size:12px;color:#0F766E;font-weight:700;border:1px solid #E5E7EB">${r.t}</td><td style="text-align:center;font-size:11px;white-space:nowrap;border:1px solid #E5E7EB">${r.d||''}/${r.y||''}</td>${Array.from({length:nbN},(_,q)=>cell(r.n[q],q)).join('')}<td style="text-align:center;font-weight:700;font-size:14px;border:1px solid #E5E7EB;${isCase?'background:#E8C4B8;':''}">${tot}</td>${hasM?Array.from({length:5},(_,q)=>`<td style="text-align:center;font-size:12px;color:#7B1FA2;font-weight:600;border:1px solid #E5E7EB">${(r.m&&r.m[q]!=null&&!isNaN(r.m[q]))?r.m[q]:'·'}</td>`).join(''):''}</tr>`;
   }
   const hdr=['Repère','N°','Date',...Array.from({length:nbN},(_,q)=>'D'+(q+1)),'Total',...(hasM?['M1','M2','M3','M4','M5']:[])].map(th).join('');
-  const chips=f.slice(0,400).map((x,i)=>`<button onclick="cnGo(${i})" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:0;border-radius:6px;cursor:pointer;color:#fff;background:${i===cn.k?'#12263F':'#9CA3AF'}">${(f.length>1&&new Set(f.map(y=>y.v.key)).size>1)?x.v.icon+' ':''}${x.v.R[x.h.idxs[0]].t}</button>`).join('');
+  const chips=f.slice(0,400).map((x,i)=>`<button onclick="cnGo(${i})" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:0;border-radius:6px;cursor:pointer;color:#fff;background:${i===cn.k?'#12263F':'#9CA3AF'}"><b>${cnLetter(i)}</b> ${(f.length>1&&new Set(f.map(y=>y.v.key)).size>1)?x.v.icon+' ':''}${x.v.R[x.h.idxs[0]].t}</button>`).join('');
   const bar=`<div style="position:fixed;left:8px;right:78px;max-width:700px;bottom:calc(8px + env(safe-area-inset-bottom));z-index:850;background:#FFFBEB;border:1.5px solid #12263F;border-radius:10px;padding:6px 8px;box-shadow:0 2px 10px rgba(0,0,0,.3)">
     <div style="display:flex;gap:6px;align-items:center">
       <button onclick="cnGo(0)" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏮</button>
       <button onclick="cnGo(${cn.k-1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">◀</button>
-      <span style="min-width:62px;text-align:center;font-weight:800;font-size:14px;color:#12263F">${cn.k+1}/${f.length}</span>
+      <span style="min-width:62px;text-align:center;font-weight:800;font-size:14px;color:#12263F"><span style="background:#F59E0B;border-radius:5px;padding:0 6px;margin-right:3px">${cnLetter(cn.k)}</span>${cn.k+1}/${f.length}</span>
       <button onclick="cnGo(${cn.k+1})" style="flex:1;padding:12px 0;font-size:18px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">▶</button>
       <button onclick="cnGo(${f.length-1})" style="padding:9px 10px;font-size:15px;border:0;border-radius:8px;background:#9CA3AF;color:#fff;cursor:pointer">⏭</button>
       <button onclick="cnClose()" style="padding:9px 12px;font-size:12px;font-weight:700;border:0;border-radius:8px;background:#C62828;color:#fff;cursor:pointer">✕</button>
@@ -12094,7 +12151,7 @@ function caseNavHTML(onlyBar){
       <span style="font-size:9px;color:#777">Hauteur</span><input type="number" min="14" value="${rowH}" onchange="cybSetSave('rowH',this.value);render()" style="width:44px;padding:3px 5px;border:1.5px solid #12263F;border-radius:5px;font-size:12px">
       <span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>
     </div></div>`;
-  if(onlyBar){const sw=`<button onclick="state.caseView='fenetre';render()" style="padding:3px 8px;font-size:10px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">☰ Fenêtre</button>`;return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
+  if(onlyBar){const bt=(a,t)=>`<button onclick="${a}" style="padding:5px 9px;font-size:11px;border-radius:8px;border:1px solid #12263F;background:#fff;color:#12263F;cursor:pointer">${t}</button>`;const _pn=(state.pins||[]);const sw=bt('cnExcelToggle()',(state.excelMode?'📊 Excel ✓':'📊 Excel'))+bt('cnPinAll()','Tout')+bt('cnPinNone()','Aucun')+bt('cnPin()',(_pn.indexOf(cn.k)>=0?'📌 Retirer ':'📌 Épingler ')+cnLetter(cn.k))+_pn.map(k=>`<button onclick="cnPin(${k})" title="Retirer" style="padding:3px 8px;font-size:11px;font-weight:800;border-radius:8px;border:0;background:#F59E0B;color:#111;cursor:pointer">${cnLetter(k)} ✕</button>`).join(' ')+bt("state.caseView='fenetre';render()",'☰ Fenêtre');return bar.replace('<span style="font-size:8.5px;color:#888">◀ cas précédent · ▶ cas suivant</span>',sw);}
   return`<div class="card" style="padding:8px;margin-bottom:8px">
     <div style="display:flex;gap:4px;overflow-x:auto;padding:2px 0 6px"><button onclick="state.caseView='nav';cnPrepare();render();setTimeout(cnScroll,60)" style="flex:0 0 auto;padding:4px 9px;font-size:11px;font-weight:700;border:1.5px solid #12263F;border-radius:6px;background:#fff;color:#12263F;cursor:pointer">▦ Navigation</button>${chips}</div>
     <div style="background:#1F2A44;color:#fff;font-weight:700;font-size:13px;padding:6px 8px;border-radius:6px 6px 0 0">Cas ${cn.k+1} — ${v.name} — T${caseRow.t} (${caseRow.d}/${caseRow.y})</div>
@@ -12192,7 +12249,7 @@ function cybCasesHTML(res,p,col,nsKey,exFn,before,after){
   return`<div style="font-size:12px;font-weight:700;color:${col};margin-top:8px;text-decoration:underline">Résultat (${res.total})</div>
   <div style="margin:6px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center"><button onclick="${exFn}()" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">⤴ Exporter</button><button onclick="cybSaveLines('${p}')" style="padding:10px 16px;font-size:13px;font-weight:600;border-radius:10px;border:1.5px solid #9CA3AF;background:#fff;color:#12263F;cursor:pointer">Sauvegarder les lignes</button><button onclick="cybOpenNav('${p}')" style="padding:10px 16px;font-size:13px;font-weight:700;border-radius:10px;border:0;background:#12263F;color:#fff;cursor:pointer">📍 Cas par cas dans la navigation</button></div>
   <div style="display:flex;flex-wrap:wrap;gap:4px;margin:4px 0;max-height:96px;overflow-y:auto">${res.variants.map((x,i)=>`<button onclick="state.${p}Var=${i};state.${p}Hit=0;render()" style="padding:4px 10px;font-size:11px;border-radius:8px;cursor:pointer;border:1.5px solid #94A3B8;background:${i===vi?'#CBD5E1':'#fff'};color:#1E293B;font-weight:600">${i===vi?'✓ ':''}${x.icon} ${x.name} <span style="color:#0891B2">(${x.hits.length})</span></button>`).join('')}</div>
-  <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${v.hits.slice(0,300).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:14px 12px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:none;background:${i===hi?'#365F73':'#829DA8'};color:#fff">${v.R[h.idxs[0]].t}</button>`).join('')}</div>
+  <div style="position:sticky;top:44px;z-index:30;background:#F3F3F3;padding:6px 0;display:flex;gap:8px;overflow-x:auto">${(()=>{const off=res.variants.slice(0,vi).reduce((a,x)=>a+x.hits.length,0);return v.hits.slice(0,300).map((h,i)=>`<button onclick="state.${p}Hit=${i};render()" style="flex:0 0 auto;min-width:64px;padding:8px 12px;font-size:17px;font-weight:600;border-radius:10px;cursor:pointer;border:none;background:${i===hi?'#365F73':'#829DA8'};color:#fff;line-height:1.1"><span style="display:block;font-size:11px;opacity:.85">${cnLetter(off+i)}</span>${v.R[h.idxs[0]].t}</button>`).join('');})()}</div>
   ${cybSetBarHTML(col)}
   ${cybClChipsHTML(col)}
   ${cybWindowHTML(v,hi,col,before,after)}
@@ -18963,7 +19020,7 @@ function vRowHTML(it,ri,C){
           const hC=_pane2?row.n.some((n,ni)=>state.colored2[n]||state.coloredCells2[row.t+'_'+ni]):row.n.some((n,ni)=>state.colored[n]||state.coloredCells[row.t+'_'+ni]);
           const bg=state.blockRows[row.t]?state.blockRows[row.t]:((state.caseRows&&state.caseRows[row.t])?'#FDF2E3':isPi?'#FFF9C4':isM?'#D1FAE5':hC?'#FFF7ED':ri%2===0?'#fff':'#f7f7f7');const tc=tC(row.s);
           out+=`<div data-t="${row.t}" ${isAnchor?`id="anch-${yr}"`:''} class="${GAME.n6?'grid-nav-n6':GAME.hasM?'grid-nav-m':'grid-nav'}" style="background:${isAnchor?'#FFEDD5':bg};${isAnchor?'border-top:2.5px solid #EA580C;':''}border-bottom:${isAnchor?'2.5px solid #EA580C':isPi?'2px solid #F59E0B':'1px solid #eee'};padding-top:${rP}px;padding-bottom:${rP}px">
-            ${(()=>{const _bdg=multiBadgeHTML(row,fS);return `<div style="font-weight:500;color:#${color};font-size:${_bdg?Math.max(7,fS-2):fS}px">${isAnchor&&_aLk?'🔒':''}${_bdg}${row.t}</div>`;})()}
+            ${(()=>{const _bdg=multiBadgeHTML(row,fS);return `<div style="font-weight:500;color:#${color};font-size:${_bdg?Math.max(7,fS-2):fS}px">${state.caseLetters&&state.caseLetters[row.t]?`<span style="background:#F59E0B;color:#111;border-radius:4px;padding:0 4px;margin-right:2px;font-weight:800">${state.caseLetters[row.t]}</span>`:''}${isAnchor&&_aLk?'🔒':''}${_bdg}${row.t}</div>`;})()}
             <div style="font-size:${fS}px;color:#555">${row.d}</div>
             ${(()=>{const _e=elmHLMark(row);
               // Miroir superposé + Mêmes numéros superposés : toujours visibles dans
@@ -20613,7 +20670,13 @@ function __renderBody(){
       // Option « 📅 aligner sur une date » (défaut 1re semaine de juillet) : chaque année est décalée vers le bas
       // pour que sa 1re ligne à partir de jour/mois tombe sur la MÊME ligne du tableau dans toutes les colonnes.
       cols.forEach(c=>{c.off=0;});
-      if(state.excelAlignDate){
+      state.caseExLine=null;
+      if(state.caseNav&&state.caseTargets&&state.caseTargets.length){
+        // Cas en parallèle : chaque année est décalée pour que la ligne de son cas tombe sur la MÊME ligne du tableau
+        const _ixc=cols.map(c=>{const tg=state.caseTargets.filter(x=>x.y===String(c.yr));const t0=(tg.find(x=>x.cur)||tg[0]);return t0?c.rows.findIndex(r=>r.t===t0.t):-1;});
+        const _mxc=Math.max(..._ixc);
+        if(_mxc>=0){cols.forEach((c,i)=>{c.off=_ixc[i]>=0?(_mxc-_ixc[i]):0;});state.caseExLine=_mxc;}
+      }else if(state.excelAlignDate){
         const _tg=(state.alignMonth||7)*100+(state.alignDay||1);
         const _ix=cols.map(c=>c.rows.findIndex(r=>{const a=String(r.d).split('/');const k=(parseInt(a[1])||0)*100+(parseInt(a[0])||0);return Math.floor(k/100)===(state.alignMonth||7)&&k>=_tg;}));
         const _mx=Math.max(..._ix);
@@ -20670,10 +20733,10 @@ function __renderBody(){
       for(let ri=0;ri<_mr;ri++){
         html+=`<tr>`;
         _cs.forEach((c,ci)=>{
-          const row=(ri>=c.off)?c.rows[ri-c.off]:undefined;const bg=ri%2===0?'#fff':'#f7f7f7';
+          const row=(ri>=c.off)?c.rows[ri-c.off]:undefined;let bg=ri%2===0?'#fff':'#f7f7f7';if(row&&state.caseRows&&state.caseRows[row.t])bg='#FDF2E3';
           if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;return;}
           const tc=tC(row.s);
-          html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${multiBadgeHTML(row,fCell)}${row.t}</td>`;
+          html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${state.caseLetters&&state.caseLetters[row.t]?`<b style="background:#F59E0B;color:#111;border-radius:3px;padding:0 3px;margin-right:1px">${state.caseLetters[row.t]}</b>`:''}${multiBadgeHTML(row,fCell)}${row.t}</td>`;
           html+=`<td style="${fz(ci,1)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;color:#666;font-weight:400;font-size:${fCell}px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
           const _e=elmHLMark(row);
           // Couches "toujours actives" (Miroir même ligne / Miroir superposé / Mêmes numéros superposés) —
@@ -20999,7 +21062,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cnPin, cnPinAll, cnPinNone, cnExcelToggle, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

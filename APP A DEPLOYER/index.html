@@ -7547,25 +7547,33 @@ function simpleRowRenderer(color){
   return r=>{const tc=tC(r.s);return`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:9.5px">
     <span style="font-weight:700;color:${color}">N°${r.t}</span><span style="color:#888;font-size:8px">${r.d}/${r.y}</span>
     ${r.n.map(n=>`<span style="font-weight:500;background:#f5f5f5;color:#333;border-radius:3px;padding:0 3px">${n}</span>`).join('')}
-    ${r.m?r.m.map(n=>`<span style="font-weight:500;background:#eef;color:#556;border-radius:3px;padding:0 3px">${n}</span>`).join(''):''}
+    ${r.m?r.m.filter(n=>n!=null&&!isNaN(n)).map(n=>`<span style="font-weight:500;background:#eef;color:#556;border-radius:3px;padding:0 3px">${n}</span>`).join(''):''}
     <span style="font-weight:600;color:${tc[1]};background:${tc[0]};border-radius:3px;padding:0 4px">${r.s}</span>
   </div>`;};
 }
+function cybOpenCase(pfx,vi,hi){state[pfx+'Var']=vi;state[pfx+'Hit']=hi;cybOpenNav(pfx);}
 function genericMultiResultHTML(mr,opts){
   if(!mr)return'';
   const total=mr.results.reduce((s,r)=>s+r.count,0);
   const hits=mr.results.filter(r=>r.count),miss=mr.results.filter(r=>!r.count);
+  // Registre « cas par cas » : chaque ligne trouvée s'ouvre dans la Navigation directe (◀ ▶ entre les cas)
+  const _p=opts.pfx||'mg';
+  if(total){
+    window._cybRes=window._cybRes||{};
+    window._cybRes[_p]={variants:hits.map(res=>{const R=gameData(res.game).T;return{key:res.game,machine:false,name:res.gameName,icon:res.icon||'',R,hits:res.rows.map(r=>({idxs:[R.findIndex(x=>x.t===r.t)],hl:[opts.hlFn?opts.hlFn(r):null]})).filter(h=>h.idxs[0]>=0)};}),total};
+  }
   return`<div style="margin-top:6px">
     <div style="font-size:11px;font-weight:700;color:#fff;background:${opts.color};border-radius:6px;padding:4px 8px;margin-bottom:5px">✅ ${total} tirage${total>1?'s':''} trouvé${total>1?'s':''} dans ${hits.length} jeu${hits.length>1?'x':''} (sur ${mr.results.length} cherchés)</div>
+    ${total?`<button onclick="cybOpenCase('${_p}',0,0)" style="width:100%;padding:12px 0;margin-bottom:6px;font-size:14px;font-weight:700;border:0;border-radius:10px;background:#12263F;color:#fff;cursor:pointer">▶ Parcourir les ${total} cas dans la Navigation (touche aussi un résultat)</button>`:''}
     <div style="display:flex;flex-direction:column;gap:5px;max-height:420px;overflow-y:auto">
     ${hits.map(res=>`<div style="border:2px solid ${opts.color};border-radius:8px;padding:5px 8px;background:${opts.bgHit};box-shadow:0 1px 6px rgba(0,0,0,.12)">
-      <div style="display:flex;align-items:center;justify-content:space-between">
+      <div onclick="cybOpenCase('${_p}',${hits.indexOf(res)},0)" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer" title="Parcourir les cas de ce jeu dans la Navigation">
         <span style="font-size:12px;font-weight:700;color:${opts.color}">${res.icon} ${res.gameName}</span>
-        <span style="font-size:11px;font-weight:700;color:#fff;background:${opts.color};border-radius:10px;padding:0 8px">${res.count} résultat${res.count>1?'s':''}</span>
+        <span style="font-size:13px;font-weight:700;color:#fff;background:${opts.color};border-radius:12px;padding:5px 12px">${res.count} résultat${res.count>1?'s':''} ›</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:2px;margin-top:3px">
-        ${res.rows.slice(0,10).map(r=>opts.rowRenderer(r)).join('')}
-        ${res.rows.length>10?`<div style="font-size:8px;color:#999">… et ${res.rows.length-10} autres</div>`:''}
+        ${res.rows.slice(0,60).map((r,ri)=>`<div onclick="cybOpenCase('${_p}',${hits.indexOf(res)},${ri})" style="cursor:pointer;padding:3px 2px;border-radius:5px;border:1px dashed transparent" onmouseover="this.style.borderColor='#6D28D9'" onmouseout="this.style.borderColor='transparent'" title="Ouvrir ce cas dans la Navigation">${opts.rowRenderer(r)}</div>`).join('')}
+        ${res.rows.length>60?`<div style="font-size:8px;color:#999">… et ${res.rows.length-60} autres</div>`:''}
       </div>
     </div>`).join('')}
     </div>
@@ -16417,7 +16425,7 @@ function collesCardHTML(){
     <button onclick="doCollesSearch()" style="padding:4px 12px;background:#4338CA;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:500;font-size:11px">Chercher</button>
     <div style="font-size:8px;color:#888;margin-top:3px">Ex: 13 + 31 → trouve les tirages où ils sont côte à côte, peu importe où sur la ligne.</div>
     ${genericMultiToggleHTML('collesMulti','collesMultiGames','doCollesSearch','#4338CA','#E0E7FF')}
-    ${state.collesMulti?genericMultiResultHTML(state.collesMultiRes,{color:'#4338CA',bgHit:'#E0E7FF',rowRenderer:simpleRowRenderer('#4338CA')}):collesResHTML()}
+    ${state.collesMulti?genericMultiResultHTML(state.collesMultiRes,{pfx:'clm',color:'#4338CA',bgHit:'#E0E7FF',rowRenderer:simpleRowRenderer('#4338CA'),hlFn:r=>{const vals=state.collesSlots.slice(0,state.collesCount).map(v=>parseInt(v));const n=vals.length,all=r.n.concat(r.m||[]),adj=new Set();for(let i=0;i<=all.length-n;i++){const w=all.slice(i,i+n);const ok=state.collesOrder==='exact'?w.every((v,k)=>v===vals[k]):w.slice().sort((a,b)=>a-b).join(',')===vals.slice().sort((a,b)=>a-b).join(',');if(ok)for(let k=0;k<n;k++)adj.add(i+k);}return adj;}}):collesResHTML()}
   </div>`;
 }
 // ══════ Terminaisons collées — 2 ou 3 derniers chiffres dans des positions adjacentes ══════
@@ -20992,7 +21000,7 @@ const Theme = {
 // Recherche, historique, requêtes combinées (CQ)
 const Search = {
   loadHist, saveHist, doSearch, doTotalSearch,
-  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
+  runHist, clearHist, doComboSearch, cqParseSection, cqRun, doCQ, cqSelCase, cqSelGame, cybOpenNav, cybOpenCase, cnPrepare, cnScroll, openCyb, cybDropToggle, cybDropPick, cybStep, cybFull, cybSaveLines, cnGo, cnClose, modTabOpen, modTabHome, modTabClose,
   toggleMultiGame, cqMultiResultHTML, cqResultHTML, runFamousSeq,
   evalFormula, doFormula, formResultHTML, setGameForSearch,
   comboResHTML, runHistIdx, searchHubHTML,

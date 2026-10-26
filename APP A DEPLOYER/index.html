@@ -9664,6 +9664,168 @@ async function exportPrpExcel(){
     if(btn)btn.textContent='📤 Excel';
   }
 }
+// ══════ Modules « inspiration » : Miroir même colonne · Miroirs en retard · KEY/BONANZA (cadre commun : multi-jeux, historique, Excel) ══════
+const STDMOD={};
+function stdModLoad(k){try{return JSON.parse(localStorage.getItem('stdmod_'+k)||'[]');}catch(_){return [];}}
+function stdModSave(k,h){try{localStorage.setItem('stdmod_'+k,JSON.stringify(h.slice(0,30)));}catch(_){}}
+function stdModGet(k){state.sm=state.sm||{};return state.sm[k]=state.sm[k]||{p:Object.assign({},STDMOD[k].defaults),multi:false,games:[],res:null,mres:null};}
+function stdModSet(k,f,v){stdModGet(k).p[f]=v;}
+function stdModToggleGame(k,g){const S=stdModGet(k),i=S.games.indexOf(g);if(i>=0)S.games.splice(i,1);else S.games.push(g);}
+function stdModFind(k){
+  const c=STDMOD[k],S=stdModGet(k),p=Object.assign({},S.p);
+  if(S.multi&&S.games.length){
+    const saved=GAME.key,out=[];
+    for(const gk of S.games){loadGame(gk);out.push({gameName:GAMES[gk].name,icon:GAMES[gk].icon,d:c.run(p)});}
+    loadGame(saved);S.mres=out;S.res=null;
+  }else{
+    if(!T.length){alert('Aucun tirage disponible pour ce jeu');return;}
+    S.res=c.run(p);S.mres=null;
+  }
+  const cnt=S.mres?S.mres.reduce((a,x)=>a+x.d.count,0):S.res.count;
+  const sig=JSON.stringify([p,S.multi,S.games]);
+  const h=stdModLoad(k).filter(x=>JSON.stringify([x.p,x.multi,x.games])!==sig);
+  h.unshift({p,multi:S.multi,games:S.games.slice(),game:GAME.name,count:cnt,ts:Date.now()});stdModSave(k,h);
+  render();
+  setTimeout(()=>{const e=document.getElementById('sm-res-'+k);if(e&&e.scrollIntoView)e.scrollIntoView({behavior:'smooth',block:'nearest'});},60);
+}
+function stdModClear(k){const S=stdModGet(k);S.res=null;S.mres=null;render();}
+function stdModReplay(k,i){const e=stdModLoad(k)[i];if(!e)return;const S=stdModGet(k);S.p=Object.assign({},e.p);S.multi=e.multi;S.games=e.games.slice();stdModFind(k);}
+function stdModHistDel(k,i){const h=stdModLoad(k);h.splice(i,1);stdModSave(k,h);render();}
+function stdModHistClear(k){if(confirm("Vider l'historique des recherches ?")){stdModSave(k,[]);render();}}
+function stdModHistHTML(k){
+  const c=STDMOD[k],h=stdModLoad(k);if(!h.length)return '';
+  return `<details style="margin-top:8px;border:1px solid #DDD6FE;border-radius:8px;background:#FAF5FF"><summary style="padding:6px 8px;font-size:10px;font-weight:700;color:#5B21B6;cursor:pointer">🕘 Historique des recherches (${h.length})</summary>
+  <div style="max-height:30vh;overflow:auto;padding:4px 6px">${h.map((e,i)=>{const d=new Date(e.ts);const dt=('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    return `<div style="display:flex;align-items:center;gap:5px;padding:3px 0;border-bottom:1px solid #EDE9FE;font-size:10px"><button onclick="stdModReplay('${k}',${i})" style="flex:1;text-align:left;background:none;border:none;cursor:pointer;color:#4C1D95;font-size:10px;padding:0"><b>${c.label(e.p)}</b> · ${e.multi?(e.games.length+' jeux'):e.game} · <b>${e.count}</b> rés. <span style="color:#999">${dt}</span></button><button onclick="stdModHistDel('${k}',${i})" style="border:none;background:none;color:#C62828;cursor:pointer;font-size:11px">✕</button></div>`;}).join('')}</div>
+  <div style="padding:4px 8px"><button onclick="stdModHistClear('${k}')" style="font-size:9px;padding:2px 8px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer">Vider l'historique</button></div></details>`;
+}
+async function stdModExcel(k){
+  const c=STDMOD[k],S=stdModGet(k);
+  if(!S.res||!S.res.count){alert('Aucun résultat à exporter');return;}
+  if(typeof ExcelJS==='undefined'){alert("La librairie d'export n'a pas pu se charger (vérifie ta connexion internet), réessaie.");return;}
+  try{
+    const x=c.excel(S.res),wb=new ExcelJS.Workbook(),ws=wb.addWorksheet(c.title.slice(0,28));
+    ws.addRow([c.title+' — '+c.label(S.p)]).font={bold:true,italic:true};ws.addRow([]);
+    ws.addRow(x.head).font={bold:true};x.rows.forEach(r=>ws.addRow(r));ws.columns.forEach(cc=>{cc.width=16;});
+    await dlXlsxBlob(wb,GAME.name.replace(/[^A-Za-z0-9]/g,'')+'_'+k+'.xlsx');
+  }catch(err){alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));}
+}
+function stdModResHTML(k){
+  const c=STDMOD[k],S=stdModGet(k);
+  if(S.res){
+    if(!S.res.count&&!S.res.always)return `<div id="sm-res-${k}" style="margin-top:7px;padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat.</div>`;
+    return `<div id="sm-res-${k}" style="margin-top:7px"><div style="display:flex;margin-bottom:4px"><span style="font-size:10px;font-weight:600;color:#5B21B6">${S.res.count} résultat${S.res.count>1?'s':''}</span><button onclick="stdModExcel('${k}')" style="margin-left:auto;padding:2px 8px;font-size:8px;border-radius:8px;border:1px solid #059669;background:#ECFDF5;color:#065F46;cursor:pointer;font-weight:600">📤 Excel</button></div>${c.render(S.res)}</div>`;
+  }
+  if(S.mres){
+    const tot=S.mres.reduce((a,x)=>a+x.d.count,0);
+    return `<div id="sm-res-${k}" style="margin-top:7px"><div style="font-size:10px;font-weight:600;color:#5B21B6;margin-bottom:6px">${tot} résultat${tot>1?'s':''} sur ${S.mres.length} jeu${S.mres.length>1?'x':''}</div>
+    ${S.mres.filter(x=>x.d.count>0||x.d.always).map(x=>`<div style="margin-bottom:8px"><div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:3px">${x.icon||''} ${x.gameName} — ${x.d.count} résultat${x.d.count>1?'s':''}</div>${c.render(x.d)}</div>`).join('')}
+    ${!tot?`<div style="padding:7px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:6px;font-size:10px;color:#B91C1C">Aucun résultat dans les jeux sélectionnés.</div>`:''}</div>`;
+  }
+  return '';
+}
+function stdModPanelHTML(k){
+  const c=STDMOD[k],S=stdModGet(k),col=c.color;
+  const fld=f=>{
+    const v=S.p[f.f];
+    if(f.t==='select'){if(f.needM&&!GAME.hasM)return '';return `<span style="font-size:9px;color:${col};font-weight:600">${f.label}</span><select onchange="stdModSet('${k}','${f.f}',this.value)" style="font-size:10px;padding:2px;border:1.5px solid ${col};border-radius:4px">${f.opts.map(o=>`<option value="${o[0]}" ${String(v)===String(o[0])?'selected':''}>${o[1]}</option>`).join('')}</select>`;}
+    return `<span style="font-size:9px;color:${col};font-weight:600">${f.label}</span><input type="number" min="${f.min||0}" max="${f.max||999}" value="${v===''||v==null?'':v}" placeholder="${f.ph||''}" onchange="stdModSet('${k}','${f.f}',this.value)" style="width:52px;padding:2px 4px;border:1.5px solid ${col};border-radius:4px;font-size:11px;text-align:center;font-weight:700">`;
+  };
+  return `<div style="background:#fff;border:1.5px solid ${col};border-radius:8px;padding:8px;margin-bottom:8px">
+    <div style="font-size:11px;font-weight:500;color:${col};margin-bottom:5px">${c.icon} ${c.title}</div>
+    <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:5px 7px;margin-bottom:6px;font-size:9px;color:#334155">${c.intro}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">${c.fields.map(fld).join('')}</div>
+    <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;font-weight:500;color:${col};margin-bottom:5px"><input type="checkbox" ${S.multi?'checked':''} onchange="stdModGet('${k}').multi=this.checked;render()">🎰 Chercher dans plusieurs jeux à la fois (tout loto)</label>
+    ${S.multi?`<details class="gp" ${(state.gpOpen||{})['sm_'+k]?'open':''} ontoggle="(state.gpOpen=state.gpOpen||{})['sm_${k}']=this.open" style="margin:4px 0;border:2px solid #6D28D9;border-radius:10px;background:#fff"><summary style="padding:10px 12px;font-size:14px;font-weight:700;color:#4C1D95;cursor:pointer;list-style:none">🎰 Sélectionner Loto ▾</summary><div style="max-height:55vh;overflow-y:auto;display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;padding:5px;background:#F5F3FF;border-radius:6px">
+      ${Object.entries(GAMES).map(([g,gg])=>{const sel=S.games.includes(g);return`<button onclick="stdModToggleGame('${k}','${g}');render()" style="padding:2px 7px;font-size:9px;border-radius:10px;cursor:pointer;font-weight:500;border:1.5px solid ${sel?col:'#ccc'};background:${sel?col:'#fff'};color:${sel?'#fff':'#777'}">${gg.icon} ${gg.name}</button>`;}).join('')}
+      <button onclick="stdModGet('${k}').games=Object.keys(GAMES);render()" style="padding:8px 14px;font-size:13px;border-radius:14px;border:2px solid #059669;background:#D1FAE5;color:#065F46;cursor:pointer;font-weight:800">TOUS LES LOTOS</button>
+      <button onclick="stdModGet('${k}').games=[];render()" style="padding:8px 14px;font-size:13px;border-radius:14px;border:2px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:800">AUCUN</button>
+    </div></details>`:`<div style="font-size:9px;color:#888;margin-bottom:6px">${GAME.icon||''} ${GAME.name} — ${T.length} tirages</div>`}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><button onclick="stdModFind('${k}')" style="padding:4px 14px;background:${col};color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:11px">🔎 Chercher</button><button onclick="stdModClear('${k}')" style="padding:4px 10px;font-size:10px;border-radius:5px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:500">Vider</button></div>
+    ${stdModResHTML(k)}${stdModHistHTML(k)}</div>`;
+}
+function smTable(head,rowsHTML,col){return `<div style="max-height:44vh;overflow:auto;border:1px solid var(--line);border-radius:8px"><table class="excel-tbl" style="width:100%"><thead><tr>${head.map(h=>`<th style="position:sticky;top:0;background:${col};color:#fff;font-size:9px;padding:4px">${h}</th>`).join('')}</tr></thead><tbody>${rowsHTML}</tbody></table></div>`;}
+function smTd(v,st){return `<td style="font-size:9.5px;padding:3px 4px;text-align:center;${st||''}">${v}</td>`;}
+function smMaxBall(){let R=0;T.forEach(r=>{(r.n||[]).forEach(v=>{if(v>R)R=v;});(r.m||[]).forEach(v=>{if(v>R)R=v;});});return R||90;}
+
+// ── 1) Miroir même colonne : X sort en colonne c, son miroir revient dans la même colonne dans les N tirages suivants
+STDMOD.mirpos={key:'mirpos',icon:'🪞📍',title:'Miroir même colonne',color:'#9333EA',
+  intro:"Si X sort dans une colonne (D1…D5 ou M1…M5), son miroir (12↔21…) revient-il dans la <b>même colonne</b> dans les N tirages suivants, et après combien de tirages ? Laisse « Numéro » vide pour tous les numéros.",
+  defaults:{n:10,x:'',mode:'nm'},
+  fields:[{f:'x',label:'Numéro',min:1,max:90,ph:'tous'},{f:'n',label:'N tirages max',min:1,max:200},{f:'mode',t:'select',needM:true,label:'',opts:[['nm','Tirage + Machine'],['n','Tirage seulement']]}],
+  label:p=>(p.x?('n°'+p.x+' · '):'tous · ')+'≤'+p.n+' tirages',
+  run:function(p){
+    const N=Math.max(1,parseInt(p.n)||1),X=p.x===''||p.x==null?null:parseInt(p.x),asc=T.slice().reverse(),res=[];let starts=0;
+    for(let i=0;i<asc.length;i++)for(const kind of ['n','m']){
+      if(p.mode==='n'&&kind==='m')continue;const a=asc[i][kind]||[];
+      for(let c=0;c<a.length;c++){
+        const x=a[c];if(x===undefined||isNaN(x)||!MIR[x]||(X!==null&&x!==X))continue;
+        if(i+1>=asc.length)continue;starts++;
+        const mx=MIR[x];
+        for(let k=1;k<=N&&i+k<asc.length;k++){const v=(asc[i+k][kind]||[])[c];if(v===mx){res.push({x,mx,kind,c:c+1,r1:asc[i],r2:asc[i+k],gap:k});break;}}
+      }
+    }
+    res.reverse();
+    const R=smMaxBall(),exp=starts*(1-Math.pow(1-1/R,N));
+    return {count:res.length,rows:res,stat:{obs:res.length,exp},starts};
+  },
+  render:function(d){
+    const gs={};d.rows.forEach(r=>{gs[r.gap]=(gs[r.gap]||0)+1;});
+    const dist=Object.keys(gs).sort((a,b)=>a-b).map(g=>`${g}→<b>${gs[g]}</b>`).join(' · ');
+    return sup2StatHTML(d.stat)+`<div style="font-size:9px;color:#555;margin:3px 0">Délai (tirages) → nb de cas : ${dist||'—'}</div>`+
+      smTable(['Départ','Col.','Tirage','Date','Miroir','Tirage','Date','Délai'],d.rows.slice(0,300).map((r,i)=>{const bg=i%2?'#FAF5FF':'#fff';const tg=(r.kind==='m'?'M':'D')+r.c;
+        return `<tr>${smTd(r.x,'background:#EDE9FE;font-weight:700;color:#5B21B6')}${smTd(tg,'background:'+bg)}${smTd(r.r1.t,'background:'+bg+';font-weight:600')}${smTd(r.r1.d+'/'+r.r1.y,'background:'+bg)}${smTd(r.mx,'background:#EDE9FE;font-weight:700;color:#5B21B6')}${smTd(r.r2.t,'background:'+bg+';font-weight:600')}${smTd(r.r2.d+'/'+r.r2.y,'background:'+bg)}${smTd(r.gap,'background:#FEF3C7;font-weight:700')}</tr>`;}).join(''),'#9333EA');
+  },
+  excel:d=>({head:['Départ','Colonne','Tirage','Date','Miroir','Tirage retour','Date retour','Délai'],rows:d.rows.map(r=>[r.x,(r.kind==='m'?'M':'D')+r.c,r.r1.t,r.r1.d+'/'+r.r1.y,r.mx,r.r2.t,r.r2.d+'/'+r.r2.y,r.gap])})};
+
+// ── 2) Miroirs en retard : X vient de sortir, son miroir n'est pas sorti depuis ≥ N tirages
+STDMOD.mirret={key:'mirret',icon:'🪞⏳',title:'Miroirs en retard',color:'#0E7490',
+  intro:"Numéros sortis dans les <b>K derniers tirages</b> dont le <b>miroir</b> n'est pas sorti depuis au moins <b>N tirages</b>. Le « rapport » compare le retard actuel à l'écart habituel de ce miroir (plus il est haut, plus le retard est inhabituel).",
+  defaults:{k:3,n:10,mode:'nm'},
+  fields:[{f:'k',label:'Sorti dans les K derniers',min:1,max:50},{f:'n',label:'Miroir absent depuis N',min:1,max:500},{f:'mode',t:'select',needM:true,label:'',opts:[['nm','Tirage + Machine'],['n','Tirage seulement']]}],
+  label:p=>'K='+p.k+' · N='+p.n,
+  run:function(p){
+    const K=Math.max(1,parseInt(p.k)||1),N=Math.max(1,parseInt(p.n)||1),last={},cnt={};
+    T.forEach((r,i)=>{const s=new Set((r.n||[]).concat(p.mode==='n'?[]:(r.m||[])));s.forEach(v=>{if(isNaN(v))return;if(last[v]===undefined)last[v]=i;cnt[v]=(cnt[v]||0)+1;});});
+    const rows=[];
+    Object.keys(MIR).forEach(xs=>{const x=+xs,mx=MIR[x];const rx=last[x]===undefined?Infinity:last[x],rm=last[mx]===undefined?Infinity:last[mx];
+      if(rx<K&&rm>=N){const avg=cnt[mx]?T.length/cnt[mx]:Infinity;rows.push({x,mx,rx,rm,avg,ratio:rm===Infinity?Infinity:(avg===Infinity?0:rm/avg)});}});
+    rows.sort((a,b)=>(b.ratio===Infinity?1e9:b.ratio)-(a.ratio===Infinity?1e9:a.ratio));
+    return {count:rows.length,rows};
+  },
+  render:function(d){
+    const f=v=>v===Infinity?'jamais':v;
+    return smTable(['Sorti','Il y a','Miroir','Absent depuis','Écart moyen','Rapport'],d.rows.map((r,i)=>{const bg=i%2?'#ECFEFF':'#fff';
+      return `<tr>${smTd(r.x,'background:#CFFAFE;font-weight:700;color:#0E7490')}${smTd(r.rx===0?'dernier tirage':r.rx+' tirage'+(r.rx>1?'s':''),'background:'+bg)}${smTd(r.mx,'background:#CFFAFE;font-weight:700;color:#0E7490')}${smTd(f(r.rm),'background:'+bg+';font-weight:700')}${smTd(r.avg===Infinity?'—':r.avg.toFixed(1),'background:'+bg)}${smTd(r.ratio===Infinity?'∞':r.ratio.toFixed(2),'background:#FEF3C7;font-weight:700')}</tr>`;}).join(''),'#0E7490');
+  },
+  excel:d=>({head:['Sorti','Il y a (tirages)','Miroir','Absent depuis','Écart moyen','Rapport'],rows:d.rows.map(r=>[r.x,r.rx,r.mx,r.rm===Infinity?'jamais':r.rm,r.avg===Infinity?'':+r.avg.toFixed(1),r.ratio===Infinity?'inf':+r.ratio.toFixed(2)])})};
+
+// ── 3) KEY / BONANZA : comparaison de deux plages consécutives (récente vs précédente)
+STDMOD.keybon={key:'keybon',icon:'🔑',title:'KEY / BONANZA (2 plages)',color:'#B45309',
+  intro:"Compare la <b>plage récente</b> (les derniers tirages) à la <b>plage précédente</b>. <b style='color:#15803D'>KEY</b> = dans le top K sur les deux plages (base stable). <b style='color:#C2410C'>BONANZA</b> = dans le top K récent mais pas avant (montée). <b style='color:#1D4ED8'>FROID</b> = top K avant, disparu du top récent. Le pronostic prend KEY puis BONANZA — repère statistique, pas une prédiction.",
+  defaults:{nr:30,na:30,k:15,pick:5,mode:'n'},
+  fields:[{f:'nr',label:'Récente (tirages)',min:5,max:2000},{f:'na',label:'Précédente (tirages)',min:5,max:2000},{f:'k',label:'Top K',min:3,max:45},{f:'pick',label:'Pronostic',min:1,max:10},{f:'mode',t:'select',needM:true,label:'',opts:[['n','Tirage seulement'],['nm','Tirage + Machine']]}],
+  label:p=>p.nr+'/'+p.na+' · top '+p.k,
+  run:function(p){
+    const nr=Math.max(1,parseInt(p.nr)||1),na=Math.max(1,parseInt(p.na)||1),K=Math.max(1,parseInt(p.k)||1),pick=Math.max(1,parseInt(p.pick)||5);
+    const fr=new Array(91).fill(0),fo=new Array(91).fill(0);
+    const add=(arr,rows)=>rows.forEach(r=>(r.n||[]).concat(p.mode==='nm'?(r.m||[]):[]).forEach(v=>{if(v>=1&&v<=90)arr[v]++;}));
+    add(fr,T.slice(0,nr));add(fo,T.slice(nr,nr+na));
+    const top=(f)=>{const a=[];for(let v=1;v<=90;v++)if(f[v]>0)a.push(v);a.sort((x,y)=>f[y]-f[x]||x-y);return new Set(a.slice(0,K));};
+    const tr=top(fr),to=top(fo),rows=[];
+    for(let v=1;v<=90;v++){const inR=tr.has(v),inO=to.has(v);
+      const type=inR&&inO?'KEY':inR?'BONANZA':inO?'FROID':null;if(type)rows.push({v,fo:fo[v],fr:fr[v],type});}
+    const ord={KEY:0,BONANZA:1,FROID:2};rows.sort((a,b)=>ord[a.type]-ord[b.type]||b.fr-a.fr||a.v-b.v);
+    const prono=rows.filter(r=>r.type!=='FROID').slice(0,pick).map(r=>r.v);
+    return {count:rows.length,rows,prono,nrEff:Math.min(nr,T.length),naEff:Math.max(0,Math.min(na,T.length-nr))};
+  },
+  render:function(d){
+    const C={KEY:['#DCFCE7','#15803D'],BONANZA:['#FFEDD5','#C2410C'],FROID:['#DBEAFE','#1D4ED8']};
+    const chips=d.prono.map(v=>`<span style="display:inline-block;min-width:26px;text-align:center;padding:3px 7px;margin:1px;border-radius:12px;background:#B45309;color:#fff;font-weight:800;font-size:12px">${v}</span>`).join('');
+    return `<div style="margin:4px 0;padding:5px 7px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:6px;font-size:10px;color:#92400E">🎯 Pronostic : ${chips||'—'} <span style="font-size:8px;color:#999">(récente ${d.nrEff} tirages · précédente ${d.naEff})</span></div>`+
+      smTable(['N°','Type','Précédente','Récente','Écart'],d.rows.map(r=>`<tr>${smTd(r.v,'background:'+C[r.type][0]+';font-weight:800;color:'+C[r.type][1])}${smTd(r.type,'background:'+C[r.type][0]+';font-weight:700;color:'+C[r.type][1])}${smTd(r.fo)}${smTd(r.fr)}${smTd((r.fr-r.fo>0?'+':'')+(r.fr-r.fo),'font-weight:700')}</tr>`).join(''),'#B45309');
+  },
+  excel:d=>({head:['N°','Type','Précédente','Récente','Écart'],rows:d.rows.map(r=>[r.v,r.type,r.fo,r.fr,r.fr-r.fo])})};
 // ══════ NUMÉROS SUPERPOSÉS (2 ou N) — ex: 14 au-dessus de 42, ou 14/42/7 en pile. Même colonne obligatoire,
 // N tirages entre chaque numéro consécutif de la pile. * ou vide = n'importe quel numéro. ══════
 function sup2Parse(s){
@@ -13776,6 +13938,9 @@ const SEARCH_SECTIONS=[
   {key:'dbt',icon:'➕',title:'Double même total',desc:'Deux paires qui donnent le même total',color:'#DB2777',html:dbtPanelHTML},
   {key:'tic',icon:'🔄',title:'Total + son miroir collé',desc:'Deux numéros collés, puis le miroir de leur total juste à côté (ex: 65 21 68 → 65+21=86, miroir 68)',color:'#0F766E',html:ticPanelHTML},
   {key:'prp',icon:'🔁',title:'Paires qui reviennent',desc:'Une paire ressort ensemble après un écart réglable de tirages',color:'#0E7490',html:prpPanelHTML},
+  {key:'mirpos',icon:'🪞📍',title:'Miroir même colonne',desc:'X sort en colonne c : son miroir revient-il dans la même colonne, et après combien de tirages ?',color:'#9333EA',html:()=>stdModPanelHTML('mirpos')},
+  {key:'mirret',icon:'🪞⏳',title:'Miroirs en retard',desc:'Numéro sorti récemment dont le miroir est absent depuis N tirages',color:'#0E7490',html:()=>stdModPanelHTML('mirret')},
+  {key:'keybon',icon:'🔑',title:'KEY / BONANZA (2 plages)',desc:'Compare récent vs précédent : KEY stable, BONANZA en montée, FROID, + pronostic',color:'#B45309',html:()=>stdModPanelHTML('keybon')},
   {key:'sup2',icon:'🥞',title:'Numéros superposés (2 ou N)',desc:'2 ou N numéros en pile (ex : 14/42/7), même colonne, N tirages entre',color:'#7C3AED',html:sup2PanelHTML},
   {key:'mc3',icon:'🪞3️⃣',title:'Chaîne miroir sur 3 tirages',desc:'Un numéro sort, son miroir sort au tirage suivant, puis il revient au 3e',color:'#AB47BC',html:mc3PanelHTML},
   {key:'mip3',icon:'🪞🔗',title:'Trio — paire miroir interne',desc:'3 tirages de suite, chacun avec sa propre paire de numéros miroirs (ex: 86+68, puis 35+53, puis 15+51)',color:'#0D9488',html:mip3PanelHTML},

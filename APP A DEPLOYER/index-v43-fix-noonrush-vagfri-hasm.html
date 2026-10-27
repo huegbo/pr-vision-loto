@@ -2031,6 +2031,21 @@ function afficheTogoCardHTML(e,date){
   const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:${TH.ball};border:2px solid ${TH.ring};box-sizing:border-box;font-weight:900;font-size:24px;color:${TH.num};letter-spacing:-1px">${ok?p2(v):''}</span>`;};
   const hl=hourLabel(e.hour);const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^(\d)H/,'0$1H')):'';
   const lab=t=>`<span style="font-size:9px;line-height:1.05;color:${/matinal/.test(K)?'#14532D':'#fff'};font-weight:700;text-align:left;width:58px;flex:0 0 58px"><b style="font-size:20px">5</b> ${t}<br>boules</span>`;
+  if(/matinal/.test(K)){
+    const dd=p2(date.getDate())+'/'+p2(date.getMonth()+1)+'/'+date.getFullYear();
+    const mb=(v,dark)=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:62px;aspect-ratio:1/1;border-radius:50%;box-sizing:border-box;font-weight:900;font-size:clamp(14px,3.6vw,26px);${dark?'background:radial-gradient(circle at 35% 30%,#B34A5C,#8A2536 70%);color:#fff;border:2px solid #6E1A29':'background:radial-gradient(circle at 35% 30%,#FFFDF8,#EFE3D1 75%);color:#333;border:2px solid #CDBBA6'}">${ok?p2(v):''}</span>`;};
+    const arrow=(txt,dark)=>`<div style="flex:0 0 34%;max-width:150px;min-height:54px;display:flex;align-items:center;justify-content:center;text-align:center;padding:6px 16px 6px 8px;box-sizing:border-box;clip-path:polygon(0 0,82% 0,100% 50%,82% 100%,0 100%);${dark?'background:linear-gradient(180deg,#9B3042,#7A1F2F);color:#fff;font-weight:800':'background:linear-gradient(180deg,#FFFFFF,#EADFD3);color:#555;font-weight:700;font-style:italic'};font-size:12px;line-height:1.15">${txt}</div>`;
+    return `<div style="margin:10px 0;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#EBD8DF,#F6ECEF 60%,#E7D2DA);border:3px solid #3A3F47;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:600px;padding:12px 12px 14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <div style="flex:0 0 auto;background:#fff;border-radius:6px;padding:3px 7px;font-weight:900;font-size:11px;color:#1F7A33;border:2px solid #C9A227">LONATO</div>
+        <div style="flex:1;background:#fff;border:3px solid #2B5FA6;border-radius:4px;text-align:center;padding:5px 8px;font-weight:900;color:#111;font-size:clamp(12px,3.3vw,19px);line-height:1.2">LOTO MATINAL TIRAGE N°:${tNo}<br>DU ${dd}</div>
+        <div style="flex:0 0 auto;font-weight:900;font-style:italic;color:#1F7A33;font-size:clamp(14px,3.6vw,22px);line-height:.9;text-align:right"><span style="font-size:10px;color:#C9A227">Loto</span><br>Matinal</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">${arrow('5 Premiers<br>Numéros',true)}<div style="flex:1 1 0;display:flex;gap:7px;min-width:0">${n.map(v=>mb(v,true)).join('')}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">${arrow('5 derniers<br>Numéros',false)}<div style="flex:1 1 0;display:flex;gap:7px;min-width:0">${(m||[NaN,NaN,NaN,NaN,NaN]).slice(0,5).map(v=>mb(v,false)).join('')}</div></div>
+      <div style="display:flex;justify-content:space-between;gap:6px;margin-top:10px;font-size:9px;font-weight:700;color:#6B7280"><span>${DJ[date.getDay()]} · ${hh}</span>${e.done?'':'<span>⏳ pas encore publié</span>'}<span>www.lonato.tg · NUMÉRO VERT 8600</span></div>
+    </div>`;
+  }
   const hasM=TH.two&&(m||!r);
   return `<div style="margin:10px 0;border-radius:14px;overflow:hidden;background:${TH.bg};box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:560px">
     <div style="padding:10px 12px 6px;text-align:center">

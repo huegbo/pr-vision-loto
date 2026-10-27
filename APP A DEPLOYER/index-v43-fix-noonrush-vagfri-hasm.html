@@ -1998,7 +1998,7 @@ function setAfficheCountry(i){state.afficheCountry=(i==='all')?'all':AFF_COUNTRI
 function afficheBall(v,xtra,sz){
   const ok=v!=null&&!isNaN(v);
   const txt=ok?String(v).padStart(2,'0'):'';
-  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:${xtra?3:2}px solid ${xtra?'#D32F2F':'#33415A'};box-sizing:border-box;font-weight:800;font-size:${Math.round(sz*0.46)}px;color:#3B3B3B;flex:0 0 auto">${txt}</span>`;
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:66px;aspect-ratio:1/1;border-radius:50%;background:#fff;border:${xtra?3:2}px solid ${xtra?'#D32F2F':'#33415A'};box-sizing:border-box;font-weight:800;font-size:clamp(12px,3.1vw,28px);color:#3B3B3B">${txt}</span>`;
 }
 function afficheBlockHTML(e,sz){
   const r=e.row,hasM=!!(e.gdef&&e.gdef.hasM)||(r&&r.m&&r.m.some(x=>!isNaN(x)));
@@ -2010,8 +2010,8 @@ function afficheBlockHTML(e,sz){
   const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^0/,'')):'';
   return `<div style="padding:4px 2px 10px">
     <div style="color:#fff;font-weight:800;font-size:${Math.round(sz*0.62)}px;letter-spacing:-.3px;margin-bottom:4px;text-shadow:0 1px 0 rgba(0,0,0,.15)">${hh?hh+' – ':''}${String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^(CM|TG|BJ|CI|GH|NG|IT|BF)\s+/,'').toUpperCase()}</div>
-    <div style="display:flex;align-items:center">${lab('PREMIERS')}<div style="display:flex;gap:3px;padding-bottom:5px;border-bottom:2px solid #D9F3EF;flex-wrap:nowrap">${first}</div></div>
-    ${second?`<div style="display:flex;align-items:center;margin-top:5px">${lab('DERNIERS')}<div style="display:flex;gap:3px">${second}</div></div>`:''}
+    <div style="display:flex;align-items:center">${lab('PREMIERS')}<div style="display:flex;gap:3px;padding-bottom:5px;border-bottom:2px solid #D9F3EF;flex:1 1 0;min-width:0">${first}</div></div>
+    ${second?`<div style="display:flex;align-items:center;margin-top:5px">${lab('DERNIERS')}<div style="display:flex;gap:3px;flex:1 1 0;min-width:0"><div style="display:flex;gap:3px;width:${(5/(n.length+(e.country==='Cameroun'?2:x.length))*100).toFixed(2)}%;min-width:0">${second}</div></div></div>`:''}
     ${e.done?'':`<div style="font-size:9px;color:#E9FFFC;margin-top:3px;opacity:.85">⏳ pas encore publié</div>`}
   </div>`;
 }
@@ -2081,13 +2081,13 @@ function afficheCountryPosterHTML(country,date){
   if(country==="Côte d'Ivoire")return `<div style="margin:10px 0"><div style="font-weight:800;color:#F97316;font-size:14px;margin-bottom:6px">🇨🇮 Loto Bonheur — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px">${list.map(e=>afficheCICardHTML(e,date)).join('')}</div></div>`;
   if(country==='Togo')return `<div style="margin:10px 0"><div style="font-weight:800;color:#C026D3;font-size:14px">🇹🇬 Lonato — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div>${list.map(e=>afficheTogoCardHTML(e,date)).join('')}</div>`;
   const sz=window.innerWidth<420?34:36;
-  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2)">
+  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap">
       <div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:2px 16px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:24px;letter-spacing:1px">5/90</div></div>
       <div style="color:#fff;font-weight:800;font-size:18px">RÉSULTATS : <span style="font-size:20px">${dd}</span></div>
       <div style="margin-left:auto;color:#E9FFFC;font-size:11px;font-weight:700">${country}</div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));column-gap:18px">${list.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:18px">${list.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
   </div>`;
 }
 function afficheSuper4HTML(date){
@@ -2095,7 +2095,7 @@ function afficheSuper4HTML(date){
   const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
   const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:50%;background:#fff;border:4px solid #E53935;box-sizing:border-box;font-weight:900;font-size:30px;color:#E53935">${ok?String(v).padStart(2,'0'):''}</span>`;};
   const n=row?row.n.slice(0,4):[NaN,NaN,NaN,NaN];
-  return `<div style="margin:10px 0;border-radius:14px;background:radial-gradient(circle at 50% 30%,#2347A8,#0C1F5C 70%);border:6px solid #E53935;padding:14px 8px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+  return `<div style="margin:10px 0;border-radius:14px;background:radial-gradient(circle at 50% 30%,#2347A8,#0C1F5C 70%);border:6px solid #E53935;padding:14px 8px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.3);max-width:420px">
     <div style="display:inline-block;transform:skewX(-8deg)"><div style="font-size:30px;font-weight:900;color:#fff;letter-spacing:1px;-webkit-text-stroke:1px #E53935;text-shadow:0 3px 0 #E53935">SUPER <span style="background:#E53935;border-radius:50%;padding:0 8px">4</span></div><div style="font-size:34px;font-weight:900;color:#E53935;-webkit-text-stroke:1px #fff;text-shadow:0 3px 0 #7f1d1d;margin-top:-4px">CAGNOTTE</div></div>
     <div style="color:#fff;font-weight:800;font-size:16px;margin:10px 0 8px">NUMEROS GAGNANTS DU :<br><span style="font-size:22px">${dd}</span></div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${n.map(ball).join('')}</div>

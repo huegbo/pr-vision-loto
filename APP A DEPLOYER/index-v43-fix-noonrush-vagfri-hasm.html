@@ -1441,7 +1441,7 @@ const GAME_SCHEDULE=[
 {k:"cm_logone",w:[0,1,2,3,4,5,6],h:"12:30"},{k:"cm_mboa",w:[1,2,3,4,5,6],h:"20:00"},
 {k:"cm_mfoundi",w:[1,2,3,4,5,6],h:"11:00"},{k:"cm_mont_cameroun",w:[1,2,3,4,5,6],h:"14:00"},
 {k:"cm_moungo",w:[1,2,3,4,5,6],h:"08:00"},{k:"cm_noun",w:[1,2,3,4,5,6],h:"15:30"},
-{k:"cm_sanaga",w:[1,2,3,4,5,6],h:"17:00"},{k:"cm_wouri",w:[1,2,3,4,5,6],h:"09:30"},{k:"cm_digital",w:[3],h:null}
+{k:"cm_sanaga",w:[1,2,3,4,5,6],h:"17:00"},{k:"cm_wouri",w:[1,2,3,4,5,6],h:"09:30"},{k:"cm_digital",w:[0,1,2,3,4,5,6],h:"22:00"}
 ];
 // Horaires officiels Cameroun 5/90 confirmés par capture le 15/09/2026 (certains à la demi-heure,
 // d'où le format "HH:MM" au lieu de "HH" comme les autres jeux) — voir hourSortKey()/hourLabel().
@@ -2090,7 +2090,7 @@ function afficheCICardHTML(e,date){
 }
 function afficheCountryPosterHTML(country,date){
   const day=tirageJourEntriesForDate(date);
-  const list=day.entries.filter(e=>e.country===country&&e.key!=='cm_super4').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const list=day.entries.filter(e=>e.country===country&&e.key!=='cm_super4'&&e.key!=='cm_digital').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
   const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
   if(!list.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#41B7AE;color:#fff;font-weight:700">${country} — aucun tirage prévu ce jour-là.</div>`;
   if(country==="Côte d'Ivoire")return `<div style="margin:10px 0"><div style="font-weight:800;color:#F97316;font-size:14px;margin-bottom:6px">🇨🇮 Loto Bonheur — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px">${list.map(e=>afficheCICardHTML(e,date)).join('')}</div></div>`;
@@ -2103,6 +2103,26 @@ function afficheCountryPosterHTML(country,date){
       <div style="margin-left:auto;color:#E9FFFC;font-size:11px;font-weight:700">${country}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:18px">${list.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
+  </div>`;
+}
+function afficheCMDigitalHTML(date){
+  const row=rowForDate('cm_digital',ymdKey(date));
+  const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+date.getFullYear();
+  const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:70px;aspect-ratio:1/1;border-radius:50%;background:#fff;border:3px solid #222;box-sizing:border-box;font-weight:900;font-size:clamp(14px,4.6vw,30px);color:#111">${ok?String(v).padStart(2,'0'):''}</span>`;};
+  const n=row?row.n.slice(0,5):[NaN,NaN,NaN,NaN,NaN],x=(row&&row.x)||[],m=row&&row.m?row.m.slice(0,5):[NaN,NaN,NaN,NaN,NaN];
+  const lab=t=>`<div style="color:#fff;font-weight:800;font-size:12px;letter-spacing:1.5px;margin:10px 0 5px">${t}</div>`;
+  return `<div style="margin:10px 0;border-radius:16px;background:#C73A36;padding:14px 12px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:560px">
+    <div style="color:#fff;font-weight:900;font-size:26px;font-style:italic;letter-spacing:-.5px">PREMIER <span style="font-weight:700">Loto</span></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:6px 0 10px"><div style="flex:1;height:2px;background:#fff"></div><div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:1px 14px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:20px">5/90</div></div><div style="flex:1;height:2px;background:#fff"></div></div>
+    <div style="color:#fff;font-weight:900;font-size:20px;line-height:1.15">RÉSULTATS DU<br>TIRAGE DIGITAL ICI</div>
+    <div style="color:#fff;font-weight:800;font-size:13px;margin-top:10px">DATE</div>
+    <div style="display:inline-block;background:#fff;border:2px solid #222;padding:2px 14px;font-weight:900;font-size:24px;color:#111;margin-top:3px">${dd}</div>
+    <div style="color:#fff;font-weight:900;font-size:28px;margin-top:8px;text-shadow:2px 2px 0 #111">22<span style="font-size:18px">H</span>00 DIGITAL</div>
+    ${lab('7 PREMIERS')}
+    <div style="display:flex;gap:4px">${n.map(ball).join('')}${[0,1].map(i=>ball(x[i])).join('')}</div>
+    ${lab('5 DERNIERS')}
+    <div style="display:flex;gap:4px;justify-content:center"><div style="display:flex;gap:4px;width:${(5/7*100).toFixed(2)}%">${m.map(ball).join('')}</div></div>
+    ${row?'':'<div style="color:#FFE0DE;font-size:11px;margin-top:8px">⏳ pas encore publié</div>'}
   </div>`;
 }
 function afficheSuper4HTML(date){
@@ -2131,7 +2151,7 @@ function afficheHTML(){
       <button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}</div>
-    ${countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheSuper4HTML(date):'')).join('')}
+    ${countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheCMDigitalHTML(date)+afficheSuper4HTML(date):'')).join('')}
     <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
   </div>`;
 }

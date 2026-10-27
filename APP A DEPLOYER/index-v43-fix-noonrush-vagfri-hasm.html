@@ -2024,11 +2024,11 @@ function afficheTogoCardHTML(e,date){
   const TH=/matinal/.test(K)?{bg:'linear-gradient(180deg,#7FB6E6,#D9ECF8 70%,#A9D08E)',ball:'#127A2F',num:'#fff',ring:'#0E5F25',foot:'#FACC15',footTx:'#14532D',two:true}
     :/gold/.test(K)?{bg:'linear-gradient(180deg,#7A5A1E,#C8A24A 55%,#8A6A2B)',ball:'#fff',num:'#111',ring:'#E5E7EB',foot:'#1E7A2F',footTx:'#fff'}
     :/diamant/.test(K)?{bg:'radial-gradient(circle at 50% 40%,#2B4C9B,#0B1F4D 75%)',ball:'#fff',num:'#111',ring:'#C7D2FE',foot:'#FACC15',footTx:'#14532D'}
-    :{bg:'linear-gradient(180deg,#14532D,#2E8B57)',ball:'#fff',num:'#111',ring:'#BBF7D0',foot:'#FACC15',footTx:'#14532D'};
+    :{bg:'radial-gradient(circle at 50% 38%,#23763F,#0F4A24 72%)',ball:'#fff',num:'#111',ring:'#E5E7EB',foot:'#FACC15',footTx:'#14532D',benz:true};
   const r=e.row;const n=r?r.n:[NaN,NaN,NaN,NaN,NaN];
   const m=(r&&r.m)?r.m:null;
   const tNo=(/matinal/.test(K)?(()=>{const q=rowForDate('matinal',ymdKey(date));return q?q.t:(r?r.t:'—');})():(r?r.t:'—'));
-  const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:${TH.ball};border:2px solid ${TH.ring};box-sizing:border-box;font-weight:900;font-size:24px;color:${TH.num};letter-spacing:-1px">${ok?p2(v):''}</span>`;};
+  const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:74px;aspect-ratio:1/1;border-radius:50%;background:${TH.ball};border:${TH.benz?'0':'2px'} solid ${TH.ring};box-sizing:border-box;font-weight:900;font-size:clamp(16px,5vw,34px);color:${TH.num};letter-spacing:-1px">${ok?p2(v):''}</span>`;};
   const hl=hourLabel(e.hour);const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^(\d)H/,'0$1H')):'';
   const lab=t=>`<span style="font-size:9px;line-height:1.05;color:${/matinal/.test(K)?'#14532D':'#fff'};font-weight:700;text-align:left;width:58px;flex:0 0 58px"><b style="font-size:20px">5</b> ${t}<br>boules</span>`;
   if(/matinal/.test(K)){
@@ -2049,11 +2049,11 @@ function afficheTogoCardHTML(e,date){
   const hasM=TH.two&&(m||!r);
   return `<div style="margin:10px 0;border-radius:14px;overflow:hidden;background:${TH.bg};box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:560px">
     <div style="padding:10px 12px 6px;text-align:center">
-      <div style="font-size:30px;font-weight:900;color:#1F7A33;-webkit-text-stroke:1px #F59E0B;text-shadow:0 2px 0 #FDE68A;letter-spacing:-.5px;line-height:1">${title}</div>
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 4px 8px;color:${/matinal/.test(K)?'#1F2937':'#FDE68A'};font-weight:900;font-size:15px"><span>${DJ[date.getDay()]} : ${p2(date.getDate())}/ ${p2(date.getMonth()+1)} / ${date.getFullYear()}</span><span style="font-weight:600;font-size:12px">TIRAGE N° <b style="font-size:17px">${tNo}</b></span><span style="font-size:13px">${hh}</span></div>
+      ${TH.benz?`<div style="display:inline-block;transform:skewX(-6deg);line-height:.95"><div style="font-size:24px;font-weight:900;color:#FDE047;text-shadow:0 2px 0 #B45309;letter-spacing:1px">LOTO</div><div style="font-size:38px;font-weight:900;color:#F59E0B;-webkit-text-stroke:1px #FDE047;text-shadow:0 3px 0 #92400E;letter-spacing:-.5px">${nm.replace(/^LOTT?O\s+/,'')}</div></div>`:`<div style="font-size:30px;font-weight:900;color:#1F7A33;-webkit-text-stroke:1px #F59E0B;text-shadow:0 2px 0 #FDE68A;letter-spacing:-.5px;line-height:1">${title}</div>`}
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 4px 8px;color:${/matinal/.test(K)?'#1F2937':'#FDE047'};font-weight:900;font-size:15px"><span>${DJ[date.getDay()]} : ${p2(date.getDate())} / ${p2(date.getMonth()+1)} /${date.getFullYear()}</span><span style="font-weight:600;font-size:12px">TIRAGE N° <b style="font-size:17px">${tNo}</b></span><span style="font-size:13px">${hh}</span></div>
       ${TH.two?`<div style="display:flex;align-items:center;gap:4px;margin-bottom:5px">${lab('premières')}<div style="display:flex;gap:4px">${n.map(ball).join('')}</div></div>
       ${hasM?`<div style="display:flex;align-items:center;gap:4px">${lab('dernières')}<div style="display:flex;gap:4px">${(m||[NaN,NaN,NaN,NaN,NaN]).slice(0,5).map(ball).join('')}</div></div>`:''}`
-      :`<div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap">${n.map(ball).join('')}</div>`}
+      :`<div style="display:flex;gap:6px;justify-content:center;flex-wrap:nowrap">${n.map(ball).join('')}</div>`}
       ${e.done?'':`<div style="font-size:10px;color:${/matinal/.test(K)?'#334155':'#FDE68A'};margin-top:6px">⏳ pas encore publié</div>`}
     </div>
     <div style="background:${TH.foot};color:${TH.footTx};font-size:9px;font-weight:700;padding:5px 8px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap"><span>❗ JOUEZ DE MANIÈRE RESPONSABLE ⑱</span><span>NUMÉRO VERT 8600</span><span>LonatoLoto590 · www.lonato.tg</span></div>

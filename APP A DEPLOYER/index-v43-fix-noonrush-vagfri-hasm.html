@@ -1988,6 +1988,108 @@ function tirageJourDayBodyHTML(entries,todayK,dayLabel){
     </div>`;
   }).join('')}`;
 }
+// ══════ AFFICHES DU JOUR : résultats groupés par pays et par jour, dessinés comme l'affiche officielle 5/90 (Cameroun, Togo, Bénin) + SUPER 4 ══════
+function afficheDateObj(){const d=state.afficheDate?new Date(state.afficheDate+'T00:00:00'):new Date();d.setHours(0,0,0,0);return d;}
+function afficheDateISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
+function setAfficheDate(v){state.afficheDate=v;render();}
+function shiftAfficheDate(n){const d=afficheDateObj();d.setDate(d.getDate()+n);state.afficheDate=afficheDateISO(d);render();}
+const AFF_COUNTRIES=['Cameroun','Togo','Bénin',"Côte d'Ivoire"];
+function setAfficheCountry(i){state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
+function afficheBall(v,xtra,sz){
+  const ok=v!=null&&!isNaN(v);
+  const txt=ok?String(v).padStart(2,'0'):'';
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:${sz}px;height:${sz}px;border-radius:50%;background:#fff;border:${xtra?3:2}px solid ${xtra?'#D32F2F':'#33415A'};box-sizing:border-box;font-weight:800;font-size:${Math.round(sz*0.46)}px;color:#3B3B3B;flex:0 0 auto">${txt}</span>`;
+}
+function afficheBlockHTML(e,sz){
+  const r=e.row,hasM=!!(e.gdef&&e.gdef.hasM)||(r&&r.m&&r.m.some(x=>!isNaN(x)));
+  const n=r?r.n:[NaN,NaN,NaN,NaN,NaN],x=(r&&r.x)||[];
+  const first=n.map(v=>afficheBall(v,false,sz)).join('')+(e.country==='Cameroun'?[0,1].map(i=>afficheBall(x[i],true,sz)).join(''):x.map(v=>afficheBall(v,true,sz)).join(''));
+  const second=hasM?(r&&r.m?r.m:[NaN,NaN,NaN,NaN,NaN]).slice(0,5).map(v=>afficheBall(v,false,sz)).join(''):'';
+  const lab=(t)=>`<span style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:7px;font-weight:700;color:#E9FFFC;line-height:1;letter-spacing:.3px;margin-right:4px;text-align:center">${t}</span>`;
+  const hl=hourLabel(e.hour);const head=(hl?hl.replace('H','H').replace(/H(\d)$/,'H0$1').replace(/^(\d)H$/,'$1H00'):'');
+  const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^0/,'')):'';
+  return `<div style="padding:4px 2px 10px">
+    <div style="color:#fff;font-weight:800;font-size:${Math.round(sz*0.62)}px;letter-spacing:-.3px;margin-bottom:4px;text-shadow:0 1px 0 rgba(0,0,0,.15)">${hh?hh+' – ':''}${String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^(CM|TG|BJ|CI|GH|NG|IT|BF)\s+/,'').toUpperCase()}</div>
+    <div style="display:flex;align-items:center">${lab('PREMIERS')}<div style="display:flex;gap:3px;padding-bottom:5px;border-bottom:2px solid #D9F3EF;flex-wrap:nowrap">${first}</div></div>
+    ${second?`<div style="display:flex;align-items:center;margin-top:5px">${lab('DERNIERS')}<div style="display:flex;gap:3px">${second}</div></div>`:''}
+    ${e.done?'':`<div style="font-size:9px;color:#E9FFFC;margin-top:3px;opacity:.85">⏳ pas encore publié</div>`}
+  </div>`;
+}
+function afficheTogoCardHTML(e,date){
+  const DJ=['DIMANCHE','LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI'];
+  const p2=n=>String(n).padStart(2,'0');
+  const nm=String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^(TG)\s+/,'').toUpperCase().replace(/\s+(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI|SAMEDI|DIMANCHE)$/,'');
+  const title=/^LOTT?O\s/.test(nm)?nm:(/MATINAL/.test(nm)?'LOTO ':'LOTTO ')+nm;
+  const K=String(e.key);
+  const TH=/matinal/.test(K)?{bg:'linear-gradient(180deg,#7FB6E6,#D9ECF8 70%,#A9D08E)',ball:'#127A2F',num:'#fff',ring:'#0E5F25',foot:'#FACC15',footTx:'#14532D',two:true}
+    :/gold/.test(K)?{bg:'linear-gradient(180deg,#7A5A1E,#C8A24A 55%,#8A6A2B)',ball:'#fff',num:'#111',ring:'#E5E7EB',foot:'#1E7A2F',footTx:'#fff'}
+    :/diamant/.test(K)?{bg:'radial-gradient(circle at 50% 40%,#2B4C9B,#0B1F4D 75%)',ball:'#fff',num:'#111',ring:'#C7D2FE',foot:'#FACC15',footTx:'#14532D'}
+    :{bg:'linear-gradient(180deg,#14532D,#2E8B57)',ball:'#fff',num:'#111',ring:'#BBF7D0',foot:'#FACC15',footTx:'#14532D'};
+  const r=e.row;const n=r?r.n:[NaN,NaN,NaN,NaN,NaN];
+  const m=(r&&r.m)?r.m:null;
+  const tNo=(/matinal/.test(K)?(()=>{const q=rowForDate('matinal',ymdKey(date));return q?q.t:(r?r.t:'—');})():(r?r.t:'—'));
+  const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:${TH.ball};border:2px solid ${TH.ring};box-sizing:border-box;font-weight:900;font-size:24px;color:${TH.num};letter-spacing:-1px">${ok?p2(v):''}</span>`;};
+  const hl=hourLabel(e.hour);const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^(\d)H/,'0$1H')):'';
+  const lab=t=>`<span style="font-size:9px;line-height:1.05;color:${/matinal/.test(K)?'#14532D':'#fff'};font-weight:700;text-align:left;width:58px;flex:0 0 58px"><b style="font-size:20px">5</b> ${t}<br>boules</span>`;
+  const hasM=TH.two&&(m||!r);
+  return `<div style="margin:10px 0;border-radius:14px;overflow:hidden;background:${TH.bg};box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:560px">
+    <div style="padding:10px 12px 6px;text-align:center">
+      <div style="font-size:30px;font-weight:900;color:#1F7A33;-webkit-text-stroke:1px #F59E0B;text-shadow:0 2px 0 #FDE68A;letter-spacing:-.5px;line-height:1">${title}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:10px 4px 8px;color:${/matinal/.test(K)?'#1F2937':'#FDE68A'};font-weight:900;font-size:15px"><span>${DJ[date.getDay()]} : ${p2(date.getDate())}/ ${p2(date.getMonth()+1)} / ${date.getFullYear()}</span><span style="font-weight:600;font-size:12px">TIRAGE N° <b style="font-size:17px">${tNo}</b></span><span style="font-size:13px">${hh}</span></div>
+      ${TH.two?`<div style="display:flex;align-items:center;gap:4px;margin-bottom:5px">${lab('premières')}<div style="display:flex;gap:4px">${n.map(ball).join('')}</div></div>
+      ${hasM?`<div style="display:flex;align-items:center;gap:4px">${lab('dernières')}<div style="display:flex;gap:4px">${(m||[NaN,NaN,NaN,NaN,NaN]).slice(0,5).map(ball).join('')}</div></div>`:''}`
+      :`<div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap">${n.map(ball).join('')}</div>`}
+      ${e.done?'':`<div style="font-size:10px;color:${/matinal/.test(K)?'#334155':'#FDE68A'};margin-top:6px">⏳ pas encore publié</div>`}
+    </div>
+    <div style="background:${TH.foot};color:${TH.footTx};font-size:9px;font-weight:700;padding:5px 8px;display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap"><span>❗ JOUEZ DE MANIÈRE RESPONSABLE ⑱</span><span>NUMÉRO VERT 8600</span><span>LonatoLoto590 · www.lonato.tg</span></div>
+  </div>`;
+}
+function afficheCountryPosterHTML(country,date){
+  const day=tirageJourEntriesForDate(date);
+  const list=day.entries.filter(e=>e.country===country&&e.key!=='cm_super4').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
+  if(!list.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#41B7AE;color:#fff;font-weight:700">${country} — aucun tirage prévu ce jour-là.</div>`;
+  if(country==='Togo')return `<div style="margin:10px 0"><div style="font-weight:800;color:#C026D3;font-size:14px">🇹🇬 Lonato — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div>${list.map(e=>afficheTogoCardHTML(e,date)).join('')}</div>`;
+  const sz=window.innerWidth<420?34:36;
+  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap">
+      <div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:2px 16px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:24px;letter-spacing:1px">5/90</div></div>
+      <div style="color:#fff;font-weight:800;font-size:18px">RÉSULTATS : <span style="font-size:20px">${dd}</span></div>
+      <div style="margin-left:auto;color:#E9FFFC;font-size:11px;font-weight:700">${country}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));column-gap:18px">${list.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
+  </div>`;
+}
+function afficheSuper4HTML(date){
+  const row=rowForDate('cm_super4',ymdKey(date));
+  const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
+  const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:62px;height:62px;border-radius:50%;background:#fff;border:4px solid #E53935;box-sizing:border-box;font-weight:900;font-size:30px;color:#E53935">${ok?String(v).padStart(2,'0'):''}</span>`;};
+  const n=row?row.n.slice(0,4):[NaN,NaN,NaN,NaN];
+  return `<div style="margin:10px 0;border-radius:14px;background:radial-gradient(circle at 50% 30%,#2347A8,#0C1F5C 70%);border:6px solid #E53935;padding:14px 8px 16px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.3)">
+    <div style="display:inline-block;transform:skewX(-8deg)"><div style="font-size:30px;font-weight:900;color:#fff;letter-spacing:1px;-webkit-text-stroke:1px #E53935;text-shadow:0 3px 0 #E53935">SUPER <span style="background:#E53935;border-radius:50%;padding:0 8px">4</span></div><div style="font-size:34px;font-weight:900;color:#E53935;-webkit-text-stroke:1px #fff;text-shadow:0 3px 0 #7f1d1d;margin-top:-4px">CAGNOTTE</div></div>
+    <div style="color:#fff;font-weight:800;font-size:16px;margin:10px 0 8px">NUMEROS GAGNANTS DU :<br><span style="font-size:22px">${dd}</span></div>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${n.map(ball).join('')}</div>
+    ${row?'':'<div style="color:#BFD0FF;font-size:11px;margin-top:8px">⏳ pas encore publié</div>'}
+  </div>`;
+}
+function afficheHTML(){
+  const date=afficheDateObj();const C=state.afficheCountry||'Cameroun';
+  const FL={'Cameroun':'🇨🇲','Togo':'🇹🇬','Bénin':'🇧🇯',"Côte d'Ivoire":'🇨🇮'};
+  const chip=(c,i)=>{const on=(i==='all')?C==='all':C===c;return `<button onclick="setAfficheCountry(${i==='all'?"'all'":i})" style="padding:7px 12px;border-radius:18px;border:2px solid #0F766E;background:${on?'#0F766E':'#fff'};color:${on?'#fff':'#0F766E'};font-weight:800;font-size:12px;cursor:pointer">${i==='all'?'🖼️ Tous':(FL[c]+' '+c)}</button>`;};
+  const countries=C==='all'?AFF_COUNTRIES:[C];
+  return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800;color:#0F766E">🖼️ Affiches du jour</div><button onclick="state.afficheOpen=false;render()" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:50%;background:#E2E8F0;cursor:pointer">✕</button></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      <button onclick="shiftAfficheDate(-1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">◀</button>
+      <input type="date" value="${afficheDateISO(date)}" onchange="setAfficheDate(this.value)" style="padding:5px 8px;border:1.5px solid #0F766E;border-radius:8px;font-size:13px;font-weight:700">
+      <button onclick="shiftAfficheDate(1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">▶</button>
+      <button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}</div>
+    ${countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheSuper4HTML(date):'')).join('')}
+    <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
+  </div>`;
+}
 function tirageJourHTML(){
   const days=tirageJourMultiDays();
   const multi=days.length>1;
@@ -5072,7 +5174,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles
   // essayés (02/10/2026 : "ou permettre de switcher" / "entre les deux styles"), via un bouton dans
   // le bandeau lui-même plutôt que d'en imposer un seul définitivement.
@@ -14657,6 +14759,7 @@ function goNav(id){
   else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
   else if(id==='tirageJour'){state.tirageJourOpen=!state.tirageJourOpen;state.showSearchHub=false;}
+  else if(id==='affiche'){const on=!state.afficheOpen;['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen','tirageJourOpen','pronosticOpen','classifTabOpen','conversionOpen'].forEach(k=>{state[k]=false;});state.afficheOpen=on;state.showSearchHub=false;}
   else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
   else if(id==='classif'){state.classifTabOpen=!state.classifTabOpen;state.showSearchHub=false;}
   else if(id==='conversion'){
@@ -14688,13 +14791,14 @@ function bottomNavHTML(){
     ['nigeria','🇳🇬','Nigeria'],
     ['multi','🌍','Multi-Pays'],
     ['tirageJour','📆','Tirage du jour'],
+    ['affiche','🖼️','Affiches'],
     ['pronostic','🍀','Pronostic'],
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
   ];
   return`<div style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))));
+      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -20995,6 +21099,11 @@ function __renderBody(){
   }
   if(state.multiFiltreOpen){
     document.getElementById('app').innerHTML=multiFiltreHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.afficheOpen){
+    document.getElementById('app').innerHTML=afficheHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

@@ -2081,7 +2081,7 @@ function afficheCountryPosterHTML(country,date){
   if(country==="Côte d'Ivoire")return `<div style="margin:10px 0"><div style="font-weight:800;color:#F97316;font-size:14px;margin-bottom:6px">🇨🇮 Loto Bonheur — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px">${list.map(e=>afficheCICardHTML(e,date)).join('')}</div></div>`;
   if(country==='Togo')return `<div style="margin:10px 0"><div style="font-weight:800;color:#C026D3;font-size:14px">🇹🇬 Lonato — ${String(date.getDate()).padStart(2,'0')}/${String(date.getMonth()+1).padStart(2,'0')}/${date.getFullYear()}</div>${list.map(e=>afficheTogoCardHTML(e,date)).join('')}</div>`;
   const sz=window.innerWidth<420?34:36;
-  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
+  return `<div style="margin:10px 0;border-radius:14px;background:${country==='Bénin'?'#00663C':'#41B7AE'};padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap">
       <div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:2px 16px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:24px;letter-spacing:1px">5/90</div></div>
       <div style="color:#fff;font-weight:800;font-size:18px">RÉSULTATS : <span style="font-size:20px">${dd}</span></div>

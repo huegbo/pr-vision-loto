@@ -1419,8 +1419,8 @@ const GAME_SCHEDULE=[
 {k:"ci_sw1h",w:[0,6],h:"01"},{k:"ci_sw3h",w:[0,6],h:"03"},{k:"ci_soutra",w:[6],h:"09:55"},
 {k:"ci_diamant",w:[6],h:"12:55"},{k:"ci_moaye",w:[6],h:"15:55"},{k:"ci_afterwork",w:[0,1,2,3,4,5,6],h:"18:00"},
 {k:"ci_digital21h",w:[0,1,2,3,4,5,6],h:"21"},{k:"ci_digital22h",w:[0,1,2,3,4,5,6],h:"22"},
-{k:"ci_digital23h",w:[0,1,2,3,4,5,6],h:"23"},{k:"ci_benediction",w:[0],h:"09:55"},{k:"ci_prestige",w:[0],h:"12:55"},
-{k:"ci_awale",w:[0],h:"15:55"},{k:"ci_espoir",w:[0],h:"20:00"},{k:"ci_reveil",w:[1],h:"10:00"},
+{k:"ci_digital23h",w:[0,1,2,3,4,5,6],h:"23"},{k:"ci_benediction",w:[0],h:"10:00"},{k:"ci_prestige",w:[0],h:"12:55"},
+{k:"ci_awale",w:[0],h:"16:00"},{k:"ci_espoir",w:[0],h:"20:00"},{k:"ci_reveil",w:[1],h:"10:00"},
 {k:"ci_etoile",w:[1],h:"12:55"},{k:"ci_akwaba",w:[1],h:"15:55"},{k:"ci_matinale",w:[2],h:"09:55"},
 {k:"ci_emergence",w:[2],h:"12:55"},{k:"ci_sika",w:[2],h:"15:55"},{k:"ci_premiere_heure",w:[3],h:"09:55"},
 {k:"ci_fortune",w:[3],h:"12:55"},{k:"ci_baraka",w:[3],h:"15:55"},{k:"ci_kado",w:[4],h:"09:55"},
@@ -2050,7 +2050,8 @@ function afficheCICardHTML(e,date){
   const K=String(e.key);
   let nm=String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^CI\s+/,'').toUpperCase().replace(/^DIGITAL REVEIL\s+/,'DIGITAL ');
   const isDigital=/^DIGITAL/.test(nm);
-  const TH=/digital2|digital_?2/.test(K)||/digital2\d/.test(K)?{bg:'linear-gradient(160deg,#2F7F4F,#14532D 70%,#B8862B)'}
+  const TH=/benediction|prestige|awale|espoir/.test(K)?{bg:'linear-gradient(135deg,#E8B93A,#F2C94C 55%,#E6AE2C)',gold:true}
+    :/digital2|digital_?2/.test(K)||/digital2\d/.test(K)?{bg:'linear-gradient(160deg,#2F7F4F,#14532D 70%,#B8862B)'}
     :/reveil_0/.test(K)?{bg:'linear-gradient(135deg,#B8862B,#1F4E9A 55%,#0B3B8C)'}
     :/afterwork/.test(K)?{bg:'linear-gradient(160deg,#F0198C,#8B22D8 65%,#5B1FC9)'}
     :/monday|lucky|midweek|thursday|bonanza|national/.test(K)?{bg:'linear-gradient(180deg,#38BDF8,#2563EB 60%,#1D4ED8)'}
@@ -2059,17 +2060,17 @@ function afficheCICardHTML(e,date){
   const ring=isDigital?'3px solid #F5A623':'none';
   const ball=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:50px;height:50px;border-radius:50%;background:#fff;border:${ring};box-sizing:border-box;font-weight:900;font-size:26px;color:#111;letter-spacing:-1px">${ok?p2(v):''}</span>`;};
   const hl=hourLabel(e.hour);const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^(\d)H/,'0$1H')):'';
-  const hd=t=>`<div style="color:#fff;font-weight:800;font-size:13px;letter-spacing:.3px;text-align:center;margin:8px 0 6px">${t}</div>`;
+  const hd=t=>`<div style="color:${TH.gold?'#1F4D2B':'#fff'};font-weight:800;font-size:13px;letter-spacing:.3px;text-align:center;margin:8px 0 6px">${t}</div>`;
   const row=a=>`<div style="display:flex;gap:6px;justify-content:center;flex-wrap:nowrap">${a.map(ball).join('')}</div>`;
   return `<div style="border-radius:16px;overflow:hidden;background:${TH.bg};box-shadow:0 4px 14px rgba(0,0,0,.25);padding:10px 10px 8px">
     <div style="display:flex;align-items:center;gap:8px">
       <span style="background:#fff;border-radius:16px;padding:3px 10px;font-weight:900;font-size:12px;font-style:italic;color:#2E8B3A">Lo<span style="color:#F59E0B">to</span><span style="color:#E8601C">Bonheur</span></span>
-      <div style="flex:1;text-align:center;color:#fff;font-weight:900;font-size:21px;line-height:1.1">Tirage ${isDigital?`<span style="background:#F5821F;border-radius:14px;padding:1px 10px;display:inline-block">${nm}</span>`:`<span style="color:#F5A623">${nm}</span>`}</div>
+      <div style="flex:1;text-align:center;color:#fff;font-weight:900;font-size:21px;line-height:1.1">${TH.gold?'<span style="color:#fff">TIRAGE</span>':'Tirage'} ${isDigital?`<span style="background:#F5821F;border-radius:14px;padding:1px 10px;display:inline-block">${nm}</span>`:`<span style="color:${TH.gold?'#1F4D2B':'#F5A623'}">${nm}</span>`}</div>
     </div>
-    <div style="text-align:center;color:#F5C451;font-weight:900;font-size:14px;margin:8px 0 0"><span>${DJ[date.getDay()]} : </span><span style="color:#fff;font-weight:700">${p2(date.getDate())} / ${p2(date.getMonth()+1)} / ${String(date.getFullYear()).slice(2)}</span> <span>${hh}</span></div>
+    <div style="text-align:center;color:${TH.gold?'#1F4D2B':'#F5C451'};font-weight:900;font-size:14px;margin:8px 0 0"><span>${DJ[date.getDay()]} : </span><span style="color:#fff;font-weight:700">${p2(date.getDate())} / ${p2(date.getMonth()+1)} / ${String(date.getFullYear()).slice(2)}</span> <span>${hh}</span></div>
     ${m?hd('5 PREMIÈRES BOULES TIRÉES')+row(n)+hd('5 DERNIÈRES BOULES TIRÉES')+row(m.slice(0,5)):hd('5 NUMÉROS GAGNANTS')+row(n)}
     ${e.done?'':`<div style="font-size:10px;color:#E5E7EB;text-align:center;margin-top:6px">⏳ pas encore publié</div>`}
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;color:#fff;font-size:8px;font-weight:700;flex-wrap:wrap"><span style="border:1.5px solid #fff;border-radius:50%;padding:2px 4px;font-size:9px">-18</span><span>www.lotobonheur.ci · *590#</span><span><i>Loto Bonheur Lonaci Officiel</i></span><span style="background:#fff;color:#1E3A8A;border-radius:3px;padding:1px 4px">LONACI</span></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;color:${TH.gold?'#1F4D2B':'#fff'};font-size:8px;font-weight:700;flex-wrap:wrap"><span style="border:1.5px solid ${TH.gold?'#1F4D2B':'#fff'};border-radius:50%;padding:2px 4px;font-size:9px">-18</span><span>www.lotobonheur.ci · *590#</span><span><i>Loto Bonheur Lonaci Officiel</i></span><span style="background:#fff;color:#1E3A8A;border-radius:3px;padding:1px 4px">LONACI</span></div>
   </div>`;
 }
 function afficheCountryPosterHTML(country,date){

@@ -1275,9 +1275,9 @@ function ghanaFiltreHTML(){
   return html;
 }
 // ══════ CAMEROUN (Premier Bet 5/90) — filtre Jour / Jeu (vue dédiée, unifie les 11 jeux) ══════
-const CAMEROUN_JEU_LABELS={CONTINENT:'CONTINENT (21h)',LIONS:'LIONS (18h30)',LOGONE:'LOGONE (12h30)',MBOA:'MBOA (20h)',MFOUNDI:'MFOUNDI (11h)',MONT_CAMEROUN:'MONT CAMEROUN (14h)',MOUNGO:'MOUNGO (8h)',NOUN:'NOUN (15h30)',SANAGA:'SANAGA (17h)',WOURI:'WOURI (9h30)',SUPER4:'SUPER 4 CAGNOTTE (20h)'};
-const CAMEROUN_JEU_ORDER=['MOUNGO','WOURI','MFOUNDI','LOGONE','MONT_CAMEROUN','NOUN','SANAGA','LIONS','MBOA','CONTINENT','SUPER4'];
-const CAMEROUN_JEU_COLORS={MOUNGO:'0E7C7B',WOURI:'17A398',MFOUNDI:'2DC6B0',LOGONE:'1D4E89',MONT_CAMEROUN:'2C6FB0',NOUN:'4A90D9',SANAGA:'6D28D9',LIONS:'8B5CF6',MBOA:'B45309',CONTINENT:'D97706',SUPER4:'F59E0B'};
+const CAMEROUN_JEU_LABELS={CONTINENT:'CONTINENT (21h)',LIONS:'LIONS (18h30)',LOGONE:'LOGONE (12h30)',MBOA:'MBOA (20h)',MFOUNDI:'MFOUNDI (11h)',MONT_CAMEROUN:'MONT CAMEROUN (14h)',MOUNGO:'MOUNGO (8h)',NOUN:'NOUN (15h30)',SANAGA:'SANAGA (17h)',WOURI:'WOURI (9h30)',SUPER4:'SUPER 4 CAGNOTTE (20h)',DIGITAL:'DIGITAL (22h)'};
+const CAMEROUN_JEU_ORDER=['MOUNGO','WOURI','MFOUNDI','LOGONE','MONT_CAMEROUN','NOUN','SANAGA','LIONS','MBOA','CONTINENT','SUPER4','DIGITAL'];
+const CAMEROUN_JEU_COLORS={MOUNGO:'0E7C7B',WOURI:'17A398',MFOUNDI:'2DC6B0',LOGONE:'1D4E89',MONT_CAMEROUN:'2C6FB0',NOUN:'4A90D9',SANAGA:'6D28D9',LIONS:'8B5CF6',MBOA:'B45309',CONTINENT:'D97706',SUPER4:'F59E0B',DIGITAL:'C73A36'};
 let CAMEROUN_ALL_ROWS=null;
 function parseCamerounAll(){
   if(CAMEROUN_ALL_ROWS) return CAMEROUN_ALL_ROWS;
@@ -2315,7 +2315,7 @@ function tgCodeOf(row){
   const d=String(row.d).split('/'),dd=d[0].padStart(2,'0')+'/'+(d[1]||'').padStart(2,'0');
   return tgCodeMap()[row.y+'|'+dd+'|'+row.n.join('-')]||null;
 }
-// ══════ TOUT CAMEROUN — jeu combiné dynamique (11 jeux fusionnés chronologiquement) ══════
+// ══════ TOUT CAMEROUN — jeu combiné dynamique (12 jeux fusionnés chronologiquement) ══════
 const CAMEROUN_TOUT_SOURCES=[
   {key:'MOUNGO',raw:RAW_CM_MOUNGO},
   {key:'WOURI',raw:RAW_CM_WOURI},
@@ -2327,6 +2327,7 @@ const CAMEROUN_TOUT_SOURCES=[
   {key:'LIONS',raw:RAW_CM_LIONS},
   {key:'MBOA',raw:RAW_CM_MBOA},
   {key:'CONTINENT',raw:RAW_CM_CONTINENT},
+  {key:'DIGITAL',raw:RAW_CM_DIGITAL},
   {key:'SUPER4',raw:RAW_CM_SUPER4,n4:true}, // 4 numéros seulement, pas de machine/xtra
 ];
 let CM_TOUT_ROWS=null;

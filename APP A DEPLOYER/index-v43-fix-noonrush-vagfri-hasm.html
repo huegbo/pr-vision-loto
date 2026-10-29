@@ -2167,22 +2167,40 @@ function afficheSuper4HTML(date){
     ${row?'':'<div style="color:#BFD0FF;font-size:11px;margin-top:8px">⏳ pas encore publié</div>'}
   </div>`;
 }
+function afficheDate2Obj(){let d;if(state.afficheDate2){d=new Date(state.afficheDate2+'T00:00:00');}else{d=afficheDateObj();d.setDate(d.getDate()-1);}d.setHours(0,0,0,0);return d;}
+function setAfficheDate2(v){state.afficheDate2=v;render();}
+function shiftAfficheDate2(n){const d=afficheDate2Obj();d.setDate(d.getDate()+n);state.afficheDate2=afficheDateISO(d);render();}
+function toggleAfficheCompare(){state.afficheCompare=!state.afficheCompare;if(state.afficheCompare&&!state.afficheDate2){const d=afficheDateObj();d.setDate(d.getDate()-1);state.afficheDate2=afficheDateISO(d);}render();}
+function afficheDateBar(date,w){
+  const sh=w==='2'?'shiftAfficheDate2':'shiftAfficheDate',st=w==='2'?'setAfficheDate2':'setAfficheDate';
+  const btn='padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer';
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+      ${state.afficheCompare?`<span style="background:#0F766E;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900">${w==='2'?'B':'A'}</span>`:''}
+      <button onclick="${sh}(-1)" style="${btn}">◀</button>
+      <input type="date" value="${afficheDateISO(date)}" onchange="${st}(this.value)" style="padding:5px 8px;border:1.5px solid #0F766E;border-radius:8px;font-size:13px;font-weight:700">
+      <button onclick="${sh}(1)" style="${btn}">▶</button>
+      <span style="font-weight:900;font-size:15px;color:#0F766E;text-transform:uppercase;letter-spacing:.5px">${['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][date.getDay()]}</span>
+      ${w==='2'?'':`<button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>`}
+    </div>`;
+}
+function afficheDayBody(date,countries){
+  return countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheCMDigitalHTML(date)+afficheSuper4HTML(date):'')).join('');
+}
 function afficheHTML(){
   const date=afficheDateObj();const C=state.afficheCountry||'Cameroun';
   const FL={'Cameroun':'🇨🇲','Togo':'🇹🇬','Bénin':'🇧🇯',"Côte d'Ivoire":'🇨🇮','Ghana':'🇬🇭'};
   const chip=(c,i)=>{const on=(i==='all')?C==='all':C===c;return `<button onclick="setAfficheCountry(${i==='all'?"'all'":i})" style="padding:7px 12px;border-radius:18px;border:2px solid #0F766E;background:${on?'#0F766E':'#fff'};color:${on?'#fff':'#0F766E'};font-weight:800;font-size:12px;cursor:pointer">${i==='all'?'🖼️ Tous':(FL[c]+' '+c)}</button>`;};
   const countries=C==='all'?AFF_COUNTRIES:[C];
-  return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:900px;margin:0 auto">
+  const cmp=!!state.afficheCompare;
+  const cmpBtn=`<button onclick="toggleAfficheCompare()" style="padding:7px 12px;border-radius:18px;border:2px solid #7C3AED;background:${cmp?'#7C3AED':'#fff'};color:${cmp?'#fff':'#7C3AED'};font-weight:800;font-size:12px;cursor:pointer">⚖️ Comparer 2 jours</button>`;
+  const body=cmp?`<div style="display:grid;grid-template-columns:repeat(2,minmax(340px,1fr));gap:16px;overflow-x:auto;align-items:start">
+      <div style="min-width:0">${afficheDateBar(date,'')}${afficheDayBody(date,countries)}</div>
+      <div style="min-width:0">${afficheDateBar(afficheDate2Obj(),'2')}${afficheDayBody(afficheDate2Obj(),countries)}</div>
+    </div>`:`${afficheDateBar(date,'')}${afficheDayBody(date,countries)}`;
+  return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:${cmp?'1500px':'900px'};margin:0 auto">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800;color:#0F766E">🖼️ Affiches du jour</div><button onclick="state.afficheOpen=false;render()" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:50%;background:#E2E8F0;cursor:pointer">✕</button></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
-      <button onclick="shiftAfficheDate(-1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">◀</button>
-      <input type="date" value="${afficheDateISO(date)}" onchange="setAfficheDate(this.value)" style="padding:5px 8px;border:1.5px solid #0F766E;border-radius:8px;font-size:13px;font-weight:700">
-      <button onclick="shiftAfficheDate(1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">▶</button>
-      <span style="font-weight:900;font-size:15px;color:#0F766E;text-transform:uppercase;letter-spacing:.5px">${['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][date.getDay()]}</span>
-      <button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}</div>
-    ${countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheCMDigitalHTML(date)+afficheSuper4HTML(date):'')).join('')}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}${cmpBtn}</div>
+    ${body}
     <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
   </div>`;
 }
@@ -5271,7 +5289,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:false, afficheDate2:'', tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles
   // essayés (02/10/2026 : "ou permettre de switcher" / "entre les deux styles"), via un bouton dans
   // le bandeau lui-même plutôt que d'en imposer un seul définitivement.

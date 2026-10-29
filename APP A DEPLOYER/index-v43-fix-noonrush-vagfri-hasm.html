@@ -2177,8 +2177,7 @@ function setAfficheDateK(k,v){if(k===1)state.afficheDate=v;else if(k===2)state.a
 function shiftAfficheDateK(k,n){const d=afficheDateK(k);d.setDate(d.getDate()+n);setAfficheDateK(k,afficheDateISO(d));}
 function setAfficheCompare(n){
   n=(state.afficheCompare===n)?0:n;state.afficheCompare=n;
-  if(n>=2&&!state.afficheDate2){const d=afficheDateObj();d.setDate(d.getDate()-1);state.afficheDate2=afficheDateISO(d);}
-  if(n>=3&&!state.afficheDate3){const d=afficheDateObj();d.setDate(d.getDate()-2);state.afficheDate3=afficheDateISO(d);}
+  state.afficheDate2='';state.afficheDate3=''; // B = veille de A, C = avant-veille de A (suivent A tant qu'on ne les change pas)
   render();
 }
 function afficheDateBar(date,k){

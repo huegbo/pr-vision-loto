@@ -2178,6 +2178,7 @@ function afficheHTML(){
       <button onclick="shiftAfficheDate(-1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">◀</button>
       <input type="date" value="${afficheDateISO(date)}" onchange="setAfficheDate(this.value)" style="padding:5px 8px;border:1.5px solid #0F766E;border-radius:8px;font-size:13px;font-weight:700">
       <button onclick="shiftAfficheDate(1)" style="padding:6px 12px;border-radius:8px;border:1.5px solid #0F766E;background:#fff;font-weight:800;cursor:pointer">▶</button>
+      <span style="font-weight:900;font-size:15px;color:#0F766E;text-transform:uppercase;letter-spacing:.5px">${['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][date.getDay()]}</span>
       <button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}</div>

@@ -1994,7 +1994,7 @@ function afficheDateObj(){const d=state.afficheDate?new Date(state.afficheDate+'
 function afficheDateISO(d){const p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());}
 function setAfficheDate(v){state.afficheDate=v;render();}
 function shiftAfficheDate(n){const d=afficheDateObj();d.setDate(d.getDate()+n);state.afficheDate=afficheDateISO(d);render();}
-const AFF_COUNTRIES=['Cameroun','Togo','Bénin',"Côte d'Ivoire"];
+const AFF_COUNTRIES=['Cameroun','Togo','Bénin',"Côte d'Ivoire",'Ghana'];
 function setAfficheCountry(i){state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
 function afficheBall(v,xtra,sz){
   const ok=v!=null&&!isNaN(v);
@@ -2089,7 +2089,37 @@ function afficheCICardHTML(e,date){
     <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:10px;color:${TH.gold?'#1F4D2B':'#fff'};font-size:8px;font-weight:700;flex-wrap:wrap"><span style="border:1.5px solid ${TH.gold?'#1F4D2B':'#fff'};border-radius:50%;padding:2px 4px;font-size:9px">-18</span><span>www.lotobonheur.ci · *590#</span><span><i>Loto Bonheur Lonaci Officiel</i></span><span style="background:#fff;color:#1E3A8A;border-radius:3px;padding:1px 4px">LONACI</span></div>
   </div>`;
 }
+function afficheGhanaCardHTML(e,date){
+  const DJ=['DIMANCHE','LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI'];
+  const p2=n=>String(n).padStart(2,'0');
+  const alpha=e.country==='GH Alpha';
+  const nm=String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^GH\s+/,'').toUpperCase();
+  const r=e.row;const n=r?r.n.slice(0,5):[NaN,NaN,NaN,NaN,NaN];
+  const m=(r&&r.m&&r.m.some(v=>!isNaN(v)))?r.m.slice(0,5):((e.gdef.hasM&&!r)?[NaN,NaN,NaN,NaN,NaN]:null);
+  const gold=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:56px;aspect-ratio:1/1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F5C451,#B8860B 70%,#8A6508);box-sizing:border-box;font-weight:900;font-size:clamp(14px,4.4vw,24px);color:#2B1B00;box-shadow:0 2px 4px rgba(0,0,0,.35)">${ok?p2(v):''}</span>`;};
+  const silver=v=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;flex:1 1 0;min-width:0;max-width:56px;aspect-ratio:1/1;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#C9CED6 70%,#9AA2AE);box-sizing:border-box;font-weight:900;font-size:clamp(14px,4.4vw,24px);color:#1E3A6E;box-shadow:0 2px 4px rgba(0,0,0,.3)">${ok?p2(v):''}</span>`;};
+  const hl=hourLabel(e.hour);const hh=hl?((/H\d\d$/.test(hl)?hl:hl+'00').replace(/^(\d)H/,'0$1H')):'';
+  const lab=t=>`<div style="color:#E5E7EB;font-weight:800;font-size:10px;letter-spacing:1px;margin:8px 0 4px">${t}</div>`;
+  const row=(a,f)=>`<div style="display:flex;gap:5px">${a.map(f).join('')}</div>`;
+  const bg=alpha?'linear-gradient(160deg,#1E1B4B,#4C1D95 70%,#7C3AED)':'linear-gradient(160deg,#0B3D2E,#14532D 60%,#064E3B)';
+  return `<div style="border-radius:16px;overflow:hidden;background:${bg};box-shadow:0 4px 14px rgba(0,0,0,.25);padding:0 12px 12px">
+    <div style="height:6px;margin:0 -12px 8px;background:linear-gradient(90deg,#CE1126 33%,#FCD116 33% 66%,#006B3F 66%)"></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><div style="color:#fff;font-weight:900;font-size:20px;letter-spacing:.3px;flex:1 1 auto">${nm}</div><span style="background:#FCD116;color:#1F2937;border-radius:12px;padding:1px 9px;font-weight:800;font-size:10px">${alpha?'GH ALPHA':'GHANA'}</span></div>
+    <div style="color:#FCD116;font-weight:800;font-size:13px;margin-top:2px">${DJ[date.getDay()]} ${p2(date.getDate())}/${p2(date.getMonth()+1)}/${date.getFullYear()} ${hh}</div>
+    ${lab(m?'NUMÉROS GAGNANTS':'5 NUMÉROS GAGNANTS')}${row(n,gold)}
+    ${m?lab('NUMÉROS MACHINE')+row(m,silver):''}
+    ${e.done?'':`<div style="font-size:10px;color:#E5E7EB;margin-top:6px">⏳ pas encore publié</div>`}
+  </div>`;
+}
+function afficheGhanaHTML(date){
+  const day=tirageJourEntriesForDate(date);
+  const list=day.entries.filter(e=>e.country==='Ghana'||e.country==='GH Alpha').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+date.getFullYear();
+  if(!list.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#14532D;color:#fff;font-weight:700">Ghana — aucun tirage prévu ce jour-là.</div>`;
+  return `<div style="margin:10px 0"><div style="font-weight:800;color:#006B3F;font-size:14px;margin-bottom:6px">🇬🇭 Ghana — ${dd}</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">${list.map(e=>afficheGhanaCardHTML(e,date)).join('')}</div></div>`;
+}
 function afficheCountryPosterHTML(country,date){
+  if(country==='Ghana')return afficheGhanaHTML(date);
   const day=tirageJourEntriesForDate(date);
   const list=day.entries.filter(e=>e.country===country&&e.key!=='cm_super4'&&e.key!=='cm_digital').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
   const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
@@ -2140,7 +2170,7 @@ function afficheSuper4HTML(date){
 }
 function afficheHTML(){
   const date=afficheDateObj();const C=state.afficheCountry||'Cameroun';
-  const FL={'Cameroun':'🇨🇲','Togo':'🇹🇬','Bénin':'🇧🇯',"Côte d'Ivoire":'🇨🇮'};
+  const FL={'Cameroun':'🇨🇲','Togo':'🇹🇬','Bénin':'🇧🇯',"Côte d'Ivoire":'🇨🇮','Ghana':'🇬🇭'};
   const chip=(c,i)=>{const on=(i==='all')?C==='all':C===c;return `<button onclick="setAfficheCountry(${i==='all'?"'all'":i})" style="padding:7px 12px;border-radius:18px;border:2px solid #0F766E;background:${on?'#0F766E':'#fff'};color:${on?'#fff':'#0F766E'};font-weight:800;font-size:12px;cursor:pointer">${i==='all'?'🖼️ Tous':(FL[c]+' '+c)}</button>`;};
   const countries=C==='all'?AFF_COUNTRIES:[C];
   return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:900px;margin:0 auto">

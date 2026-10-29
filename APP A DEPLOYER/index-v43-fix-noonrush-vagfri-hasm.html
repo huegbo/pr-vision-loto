@@ -2170,11 +2170,12 @@ function afficheSuper4HTML(date){
 function afficheDateK(k){
   if(k===1)return afficheDateObj();
   const v=k===2?state.afficheDate2:state.afficheDate3;
-  let d;if(v){d=new Date(v+'T00:00:00');}else{d=afficheDateObj();d.setDate(d.getDate()-(k-1));}
+  let d;if(v){d=new Date(v+'T00:00:00');}else{d=afficheDateObj();d.setDate(d.getDate()-(k-1)*(state.afficheSameDay?7:1));}
   d.setHours(0,0,0,0);return d;
 }
 function setAfficheDateK(k,v){if(k===1)state.afficheDate=v;else if(k===2)state.afficheDate2=v;else state.afficheDate3=v;render();}
 function shiftAfficheDateK(k,n){const d=afficheDateK(k);d.setDate(d.getDate()+n);setAfficheDateK(k,afficheDateISO(d));}
+function setAfficheSameDay(){state.afficheSameDay=!state.afficheSameDay;state.afficheDate2='';state.afficheDate3='';render();}
 function setAfficheCompare(n){
   n=(state.afficheCompare===n)?0:n;state.afficheCompare=n;
   state.afficheDate2='';state.afficheDate3=''; // B = veille de A, C = avant-veille de A (suivent A tant qu'on ne les change pas)
@@ -2205,7 +2206,7 @@ function afficheHTML(){
   const body=nc?`<div style="display:grid;grid-template-columns:repeat(${nc},minmax(340px,1fr));gap:16px;overflow-x:auto;align-items:start">${cols.join('')}</div>`:cols[0];
   return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:${nc===3?'2200px':nc===2?'1500px':'900px'};margin:0 auto">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800;color:#0F766E">🖼️ Affiches du jour</div><button onclick="state.afficheOpen=false;render()" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:50%;background:#E2E8F0;cursor:pointer">✕</button></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}${cmpBtn(2)}${cmpBtn(3)}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}${cmpBtn(2)}${cmpBtn(3)}${nc?`<button onclick="setAfficheSameDay()" style="padding:7px 12px;border-radius:18px;border:2px solid #EA580C;background:${state.afficheSameDay?'#EA580C':'#fff'};color:${state.afficheSameDay?'#fff':'#EA580C'};font-weight:800;font-size:12px;cursor:pointer">📅 Même jour (semaine -1, -2)</button>`:''}</div>
     ${body}
     <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
   </div>`;
@@ -5295,7 +5296,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:0, afficheDate2:'', afficheDate3:'', tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:0, afficheDate2:'', afficheDate3:'', afficheSameDay:false, tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles
   // essayés (02/10/2026 : "ou permettre de switcher" / "entre les deux styles"), via un bouton dans
   // le bandeau lui-même plutôt que d'en imposer un seul définitivement.

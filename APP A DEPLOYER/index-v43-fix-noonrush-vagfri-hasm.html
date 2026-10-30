@@ -20065,7 +20065,11 @@ function vFill(yr){
   // de hauteur (h) légèrement fausse peut sinon empêcher d'atteindre les
   // toutes dernières lignes (année en cours sans lignes vides jusqu'à
   // décembre pour combler l'écart) — elles restaient cachées derrière la cale basse.
-  if(body.scrollHeight-(body.scrollTop+vh)<=4)end=n;
+  // Garde-fou : ce raccourci ne vaut que s'il reste peu de lignes (≤300). Avant, au tout premier
+  // remplissage (cales pas encore posées → scrollHeight≈hauteur visible) il affichait TOUTES les
+  // lignes d'un coup : ~10 800 lignes × 2 volets pour Multi-Pays 2026 = page figée 15 s+
+  // (« Page ne répondant pas », export Excel qui « plante »).
+  if(n-end<=300&&body.scrollHeight-(body.scrollTop+vh)<=4)end=n;
   if(V.start===start&&V.end===end)return;
   V.start=start;V.end=end;
   top.style.height=(start*h)+'px';

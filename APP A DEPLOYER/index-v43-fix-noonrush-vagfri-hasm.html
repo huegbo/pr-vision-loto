@@ -9051,6 +9051,18 @@ async function exportColoredExcel(){
   }
   cols=cols.filter(c=>c.rows.length);
   if(!cols.length){alert("Aucune donnée pour les années/plage choisies. Ajuste la sélection dans le panneau d'export, puis relance.");return;}
+  // Garde-fou anti-plantage (Multi-Pays = ~10 000 tirages/année) : budget de lignes total pour
+  // que le navigateur (surtout mobile) ne manque pas de mémoire. Au-delà, on garde les plus récents.
+  const EXPORT_ROW_BUDGET=6000;
+  let exportTrimMsg='';
+  {
+    const totalRows=cols.reduce((s,c)=>s+c.rows.length,0);
+    if(totalRows>EXPORT_ROW_BUDGET){
+      const per=Math.max(200,Math.floor(EXPORT_ROW_BUDGET/cols.length));
+      cols=cols.map(c=>({y:c.y,rows:c.rows.length>per?c.rows.slice(c.rows.length-per):c.rows}));
+      exportTrimMsg="Export limité aux "+per+" derniers tirages par année (trop volumineux sinon). Utilise « N derniers » ou « Plage de N° » pour choisir précisément.";
+    }
+  }
   // L'année la plus récente en premier (à gauche) — c'est ce bloc qui sera figé (volets) plus bas,
   // pour qu'il reste visible pendant qu'on fait défiler vers les années plus anciennes.
   cols.sort((a,b)=>parseInt(b.y,10)-parseInt(a.y,10));
@@ -9117,6 +9129,10 @@ async function exportColoredExcel(){
     });
 
     for(let ri=0;ri<maxRows;ri++){
+      if(ri%250===0){
+        btns.forEach(b=>b.textContent='⏳ '+Math.round(ri/maxRows*100)+'%');
+        await new Promise(res=>setTimeout(res,0)); // laisse respirer le navigateur
+      }
       const row=ws.addRow([]);
       cols.forEach((c,ci)=>{
         const startCol=1+ci*colsPerYear;
@@ -9222,6 +9238,8 @@ async function exportColoredExcel(){
     // pour qu'ils restent visibles en faisant défiler vers les années plus anciennes ou les lignes suivantes.
     ws.views=[{state:'frozen',xSplit:blockCols,ySplit:3}];
 
+    btns.forEach(b=>b.textContent='⏳ Écriture du fichier...');
+    await new Promise(res=>setTimeout(res,30));
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/octet-stream'});
     const a=document.createElement('a');
@@ -9229,6 +9247,7 @@ async function exportColoredExcel(){
     a.download=sanitizeFile(GAME.name+'_'+exportLabel)+'.xlsx';
     document.body.appendChild(a);a.click();
     setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+    if(exportTrimMsg)setTimeout(()=>alert(exportTrimMsg),600);
   }catch(err){
     alert("Erreur pendant l'export : "+(err&&err.message?err.message:err));
   }finally{

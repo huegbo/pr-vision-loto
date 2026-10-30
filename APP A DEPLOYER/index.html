@@ -9129,6 +9129,11 @@ async function exportColoredExcel(){
       });
     });
 
+    // Mode Excel + « 3 derniers » (state.excelColor3) : comme à l'écran, seules les 3 DERNIÈRES lignes sont coloriées
+    // (dernier tirage violet, avant-dernier vert, 3e rose, par valeur gagnants+machine) — le reste reste neutre.
+    const _ex3=!!(state.excelMode&&state.excelColor3);
+    const _ex3o=_ex3?mgLast3ColorMap(cols,maxRows,false):null;
+    const _ex3map=_ex3o?_ex3o.map:null,_ex3L=_ex3o?_ex3o.last:-1;
     for(let ri=0;ri<maxRows;ri++){
       if(ri%250===0){
         btns.forEach(b=>b.textContent='⏳ '+Math.round(ri/maxRows*100)+'%');
@@ -9171,6 +9176,7 @@ async function exportColoredExcel(){
           let hs=null;
           if(manual)hs=hlStyle(manual);
           else if(mk&&mk[ni])hs=hlStyle({bg:mk[ni][0],fg:mk[ni][1],style:mk[ni][2]});
+          if(_ex3){const _c3=(ri>=_ex3L-2&&ri<=_ex3L)?mgCell3(r,v,_ex3map):null;hs=_c3?{mode:'fill',color:_c3,text:'#FFFFFF'}:null;}
           if(hs){
             const bStyle={style:'medium',color:{argb:hexToARGB(hs.color)}};
             if(hs.mode==='box'){
@@ -9209,6 +9215,7 @@ async function exportColoredExcel(){
             let hs=manual?hlStyle(manual):null;
             if(!hs&&bmk&&bmk[mi])hs=hlStyle({bg:bmk[mi][0],fg:bmk[mi][1],style:bmk[mi][2]});
             if(!hs&&D){const am=anValMark(v,ctx);if(am)hs=hlStyle({bg:am[0],fg:am[1]});}
+            if(_ex3){const _c3=(ri>=_ex3L-2&&ri<=_ex3L)?mgCell3(r,v,_ex3map):null;hs=_c3?{mode:'fill',color:_c3,text:'#FFFFFF'}:null;}
             if(hs){
               const bStyleM={style:'medium',color:{argb:hexToARGB(hs.color)}};
               if(hs.mode==='box'){cell.font={color:{argb:hexToARGB(hs.text)},bold:true};cell.border={top:bStyleM,bottom:bStyleM,left:bStyleM,right:bStyleM};}

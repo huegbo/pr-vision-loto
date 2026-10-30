@@ -21033,12 +21033,13 @@ function anRender(){
     if(GAME.n6){widths.push(W_TOT,W_TOT);}
     else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
     widths.forEach(w=>{lefts.push(acc);acc+=w;});
-    const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
+    const _frz0=acc<=Math.max(320,window.innerWidth*0.55);
+    const fz=(ci,idx)=>(ci===0&&_frz0)?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
     html+=`<div id="col-exan" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exan')"><table class="excel-tbl"><thead><tr>`;
     cols.forEach((c,ci)=>{const light=isLightBg(c.color);html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?'left:0;':''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:11px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr}</th>`;});
     html+=`</tr><tr>`;
     const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
-    cols.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${ci===0?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:8px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
+    cols.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${(ci===0&&_frz0)?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:8px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
     html+=`</tr></thead><tbody>`;
     for(let ri=0;ri<maxRows;ri++){
       html+=`<tr>`;
@@ -21699,7 +21700,9 @@ function __renderBody(){
       else if(GAME.hasM){widths.push(...Array(5).fill(W_N),W_TOT);}
       widths.forEach(w=>{lefts.push(acc);acc+=w;});
       const blockW=acc; // largeur totale du bloc figé
-      const fz=(ci,idx)=>ci===0?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
+      // Figer la 1re année seulement si elle laisse de la place aux autres (sinon grande police / écran étroit : elle couvre tout l'écran et le défilement horizontal semble bloqué).
+      const _frz0=blockW<=Math.max(320,window.innerWidth*0.55);
+      const fz=(ci,idx)=>(ci===0&&_frz0)?`position:sticky;left:${lefts[idx]}px;z-index:4;`:'';
       html+=settingsPanelHTML();
       html+=maxRowsBarHTML();
       html+=bjBarHTML();
@@ -21716,11 +21719,11 @@ function __renderBody(){
         <table class="excel-tbl" style="font-family:'${fontFam}',sans-serif"><thead><tr>`;
       _cs.forEach((c,ci)=>{
         const light=isLightBg(c.color);
-        html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${ci===0?`left:0;`:''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:${fTitle}px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
+        html+=`<th colspan="${nCells}" style="position:sticky;top:0;z-index:${ci===0?8:6};${(ci===0&&_frz0)?`left:0;`:''}background:#${c.color};color:${light?'#000':'#fff'};font-weight:600;font-size:${fTitle}px;padding:4px;white-space:nowrap">${GAME.name} ${c.yr} <span style="font-weight:normal;opacity:.8;font-size:8px">(${c.rows.length})</span></th>`;
       });
       html+=`</tr><tr>`;
       const heads=GAME.n6?['N°','DATE','N1','N2','N3','N4','N5','N6','TOT','JOLLY','SS']:['N°','DATE','N1','N2','N3','N4','N5',(GAME.xtra?'X1':'TOT'),...(GAME.hasM?(GAME.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(GAME.hasM?[GAME.xtra?'X2':'TM']:[])];
-      _cs.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${ci===0?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:${fHead}px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
+      _cs.forEach((c,ci)=>{heads.forEach((h,hi)=>{html+=`<th style="position:sticky;top:22px;z-index:${ci===0?7:5};${(ci===0&&_frz0)?`left:${lefts[hi]}px;`:''}background:var(--ink);color:#fff;font-size:${fHead}px;font-weight:700;width:${widths[hi]}px;min-width:${widths[hi]}px">${h}</th>`;});});
       html+=`</tr></thead><tbody>`;
       for(let ri=0;ri<_mr;ri++){
         html+=`<tr>`;

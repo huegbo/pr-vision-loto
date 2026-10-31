@@ -14400,6 +14400,7 @@ function searchHubHTML(){
     ['🔗','2 numéros collés','Deux numéros côte à côte sur la ligne (ex : 13 + 31)','#4338CA',"openSearchModule('colles2')"],
     ['🔗','3 numéros collés','Trois numéros côte à côte sur la ligne','#4F46E5',"openSearchModule('colles3')"],
     ['🔥','Chauds & froids','Numéros les plus et moins sortis','#0E6272','goHotCold()'],
+    ['🧩','Relations d\'un tirage','Saisis un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('elm')"],
   ];
   h+=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
     ${cards.map(([ic,tit,desc,bg,fn])=>`<div onclick="${fn}" style="background:${bg};border-radius:14px;padding:12px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px">

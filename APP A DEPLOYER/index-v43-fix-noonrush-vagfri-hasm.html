@@ -1994,7 +1994,7 @@ function afficheDateISO(d){const p=n=>String(n).padStart(2,'0');return d.getFull
 function setAfficheDate(v){state.afficheDate=v;render();}
 function shiftAfficheDate(n){const d=afficheDateObj();d.setDate(d.getDate()+n);state.afficheDate=afficheDateISO(d);render();}
 const AFF_COUNTRIES=['Cameroun','Togo','Bénin',"Côte d'Ivoire",'Ghana'];
-function setAfficheCountry(i){state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
+function setAfficheCountry(i){state.afficheMixOn=false;state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
 function afficheBall(v,xtra,sz){
   const ok=v!=null&&!isNaN(v);
   const txt=ok?String(v).padStart(2,'0'):'';
@@ -2193,7 +2193,62 @@ function afficheDateBar(date,k){
       ${k===1?`<button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Aujourd'hui</button>`:''}
     </div>`;
 }
+
+// ══════ AFFICHE PERSO / COUPLÉE : on choisit les lotos à mettre ensemble sur une même affiche (ex : Noun 15h30 + Star/Fortune Bénin 18H) ══════
+const AFF_MIX_PRESETS=[
+  {n:'Bénin 18H (Star + Fortune) + Noun',k:['bj18','cm_noun']},
+  {n:'Noun + Star 18H + Fortune 18H',k:['cm_noun','bj_s18','bj_f18']},
+  {n:'Noun + Star 18H',k:['cm_noun','bj_s18']},
+  {n:'Noun + Fortune 18H',k:['cm_noun','bj_f18']},
+  {n:'Noun + Bénin 14H + 18H',k:['cm_noun','bj14','bj18']},
+  {n:'Lions + Bénin 18H',k:['cm_lions','bj18']},
+  {n:'Sanaga + Bénin 18H',k:['cm_sanaga','bj18']}
+];
+function afficheMixResolve(k,date){const m=/^bj(11|14|18)$/.exec(k);if(!m)return k;return 'bj_'+([0,3,6].includes(date.getDay())?'s':'f')+m[1];}
+function setAfficheMixOn(){state.afficheMixOn=!state.afficheMixOn;if(state.afficheMixOn&&!(state.afficheMix&&state.afficheMix.length))state.afficheMix=['cm_noun','bj18'];render();}
+function setAfficheMix(arr){state.afficheMix=arr.slice();state.afficheMixOn=true;render();}
+function addAfficheMix(k){if(!k)return;state.afficheMix=state.afficheMix||[];if(!state.afficheMix.includes(k))state.afficheMix.push(k);render();}
+function delAfficheMix(k){state.afficheMix=(state.afficheMix||[]).filter(x=>x!==k);render();}
+function afficheMixLabel(k){
+  const m=/^bj(11|14|18)$/.exec(k);if(m)return '🇧🇯 Bénin '+m[1]+'H (Star + Fortune : celui qui tire ce jour)';
+  const g=GAMES[k];const s=GAME_SCHEDULE.find(x=>x.k===k);
+  return (g?((g.icon||'')+' '+String(g.name)):k)+(s&&s.h?' · '+hourLabel(s.h):'');
+}
+function afficheMixControlsHTML(){
+  const sel=state.afficheMix||[];
+  const pb=(p)=>`<button onclick='setAfficheMix(${JSON.stringify(p.k)})' style="padding:5px 10px;border-radius:14px;border:1.5px solid #B45309;background:#fff;color:#B45309;font-weight:700;font-size:11px;cursor:pointer">${p.n}</button>`;
+  const opts=['bj11','bj14','bj18'].concat(GAME_SCHEDULE.map(x=>x.k).filter(k=>GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6&&k!=='cm_super4')).map(k=>`<option value="${k}">${afficheMixLabel(k)}</option>`).join('');
+  return `<div style="background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:8px 10px;margin-bottom:10px">
+    <div style="font-weight:800;color:#9A3412;font-size:12px;margin-bottom:6px">🧩 Affiche perso — choisis les lotos à mettre ensemble</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${AFF_MIX_PRESETS.map(pb).join('')}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      <select onchange="addAfficheMix(this.value);this.value=''" style="padding:5px;border:1.5px solid #B45309;border-radius:8px;max-width:100%;font-size:12px"><option value="">➕ Ajouter un loto…</option>${opts}</select>
+      <button onclick="setAfficheMix([])" style="padding:5px 10px;border-radius:8px;border:1px solid #94A3B8;background:#fff;font-size:11px;cursor:pointer">🗑 Vider</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${sel.map(k=>`<span style="background:#B45309;color:#fff;border-radius:12px;padding:3px 4px 3px 10px;font-size:11px;font-weight:700;display:inline-flex;gap:6px;align-items:center">${afficheMixLabel(k)}<button onclick="delAfficheMix('${k}')" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;line-height:1">✕</button></span>`).join('')||'<span style="color:#9A3412;font-size:11px">Aucun loto choisi.</span>'}</div>
+  </div>`;
+}
+function afficheMixPosterHTML(date){
+  const entries=tirageJourEntriesForDate(date).entries;
+  const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
+  const found=[],missing=[];
+  (state.afficheMix||[]).forEach(k0=>{const k=afficheMixResolve(k0,date);const e=entries.find(x=>x.key===k&&!/veille/.test(x.label));if(e)found.push(e);else{const sib=/^bj_[sf](11|14|18)$/.exec(k);const alt=sib?'bj_'+(k[3]==='s'?'f':'s')+sib[1]:null;if(!(alt&&(state.afficheMix||[]).some(x=>afficheMixResolve(x,date)===alt)&&entries.some(x=>x.key===alt)))missing.push(k);}});
+  found.sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  const sz=window.innerWidth<420?34:36;
+  const miss=missing.length?`<div style="font-size:10px;color:#E9FFFC;padding:2px 2px 8px;opacity:.9">Pas de tirage ce jour-là : ${missing.map(k=>String(GAMES[k]?GAMES[k].name:k)).join(', ')}</div>`:'';
+  if(!found.length&&!missing.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#41B7AE;color:#fff;font-weight:700">Choisis au moins un loto.</div>`;
+  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap">
+      <div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:2px 16px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:24px;letter-spacing:1px">5/90</div></div>
+      <div style="color:#fff;font-weight:800;font-size:18px">RÉSULTATS : <span style="font-size:20px">${dd}</span></div>
+      <div style="margin-left:auto;color:#E9FFFC;font-size:11px;font-weight:700">🧩 Affiche perso</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:18px">${found.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
+    ${miss}
+  </div>`;
+}
 function afficheDayBody(date,countries){
+  if(state.afficheMixOn)return afficheMixPosterHTML(date);
   return countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheCMDigitalHTML(date)+afficheSuper4HTML(date):'')).join('');
 }
 function afficheHTML(){
@@ -2207,7 +2262,8 @@ function afficheHTML(){
   const body=nc?`<div style="display:grid;grid-template-columns:repeat(${nc},minmax(340px,1fr));gap:16px;overflow-x:auto;align-items:start">${cols.join('')}</div>`:cols[0];
   return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:${nc===3?'2200px':nc===2?'1500px':'900px'};margin:0 auto">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800;color:#0F766E">🖼️ Affiches du jour</div><button onclick="state.afficheOpen=false;render()" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:50%;background:#E2E8F0;cursor:pointer">✕</button></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}${cmpBtn(2)}${cmpBtn(3)}${nc?`<button onclick="setAfficheSameDay()" style="padding:7px 12px;border-radius:18px;border:2px solid #EA580C;background:${state.afficheSameDay?'#EA580C':'#fff'};color:${state.afficheSameDay?'#fff':'#EA580C'};font-weight:800;font-size:12px;cursor:pointer">📅 Même jour (semaine -1, -2)</button>`:''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}<button onclick="setAfficheMixOn()" style="padding:7px 12px;border-radius:18px;border:2px solid #B45309;background:${state.afficheMixOn?'#B45309':'#fff'};color:${state.afficheMixOn?'#fff':'#B45309'};font-weight:800;font-size:12px;cursor:pointer">🧩 Affiche perso</button>${cmpBtn(2)}${cmpBtn(3)}${nc?`<button onclick="setAfficheSameDay()" style="padding:7px 12px;border-radius:18px;border:2px solid #EA580C;background:${state.afficheSameDay?'#EA580C':'#fff'};color:${state.afficheSameDay?'#fff':'#EA580C'};font-weight:800;font-size:12px;cursor:pointer">📅 Même jour (semaine -1, -2)</button>`:''}</div>
+    ${state.afficheMixOn?afficheMixControlsHTML():''}
     ${body}
     <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
   </div>`;

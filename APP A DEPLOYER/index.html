@@ -14250,6 +14250,7 @@ const SEARCH_SECTIONS=[
   {key:'vtotd',icon:'⚖️',title:'Total ↔ Différence superposé',desc:"Total d'un côté = différence de l'autre, toute position, écart réglable",color:'#7C3AED',html:vtotdPanelHTML},
   {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},
   {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
+  {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
   {key:'formule',icon:'🧮',title:'Suite par formule',desc:'Suite étalée sur plusieurs tirages (formule libre ou suite célèbre)',color:'#7C3AED',html:formuleSectionHTML},
   {key:'combo',icon:'🔗',title:'Numéros + Total (même ligne)',desc:'Numéros ET total sur la même ligne, multi-jeu possible',color:'#6D28D9',html:comboSectionHTML},
@@ -14394,13 +14395,13 @@ function searchHubHTML(){
   }
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
+    ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],
     ['🔢','Recherche numéros','Tirages contenant vos numéros','#155B8A',"openSearchModule('combo')"],
     ['🎯','Recherche par total','Tous les tirages d’un total donné','#B35A0C',"openSearchModule('sommeligne')"],
     ['🔗','2 numéros collés','Deux numéros côte à côte sur la ligne (ex : 13 + 31)','#4338CA',"openSearchModule('colles2')"],
     ['🔗','3 numéros collés','Trois numéros côte à côte sur la ligne','#4F46E5',"openSearchModule('colles3')"],
     ['🔥','Chauds & froids','Numéros les plus et moins sortis','#0E6272','goHotCold()'],
-    ['🧩','Relations d\'un tirage','Saisis un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('elm')"],
   ];
   h+=`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
     ${cards.map(([ic,tit,desc,bg,fn])=>`<div onclick="${fn}" style="background:${bg};border-radius:14px;padding:12px 14px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.15);display:flex;align-items:center;gap:12px">

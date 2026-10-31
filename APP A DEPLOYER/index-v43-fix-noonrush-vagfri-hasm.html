@@ -11733,6 +11733,8 @@ function relStep(d){ // d=+1 : tirage plus ancien, d=-1 : plus récent
 }
 function relFillLast(){const rows=gameData(relGameKey()).T;if(rows.length)relLoadRow(rows[0].t);}
 function relPanelHTML(){
+  // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
+  if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
   const nums=relParse(state.relInput);
   const chip=(c,v,hit)=>`<span style="display:inline-block;margin:1px 2px 1px 0;padding:1px 7px;border-radius:9px;font-size:9.5px;font-weight:600;background:${c.bg};color:${c.fg};${hit?'outline:2px solid #111;':''}">${c.label} <b>${v}</b></span>`;
   let res='';
@@ -11754,6 +11756,14 @@ function relPanelHTML(){
     const _fqList=Object.entries(_fq).map(([v,e])=>({v:+v,k:e.from.size,n:e.cl.length,from:[...e.from]})).filter(x=>x.k>=2).sort((a,b)=>b.k-a.k||b.n-a.n||a.v-b.v);
     res+=`<div style="margin:6px 0 4px;font-size:10px;font-weight:700;color:#7C2D12">🔁 Numéros qui reviennent (liés à 2 numéros du tirage ou plus) — ${_fqList.length}</div>`;
     res+=_fqList.length?`<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:3px">${_fqList.map(x=>`<span title="lié à ${x.from.join(', ')} (${x.n} liens)" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;background:${x.k>=3?'#FDE68A':'#FEF3C7'};border:${nums.includes(x.v)?'2px solid #111':'1px solid #F59E0B'};color:#7C2D12">${x.v} <span style="font-weight:500;font-size:9px">×${x.k} (${x.from.join('·')})</span></span>`).join('')}</div>`:`<div style="font-size:9.5px;color:#888;margin-bottom:6px">Aucun numéro commun à plusieurs numéros du tirage.</div>`;
+    // Liste complète : chaque numéro qui apparaît dans les résultats ci-dessous + son nombre d'apparitions
+    const _srt=state.relSort==='num'?'num':'count';
+    const _all=Object.entries(_fq).map(([v,e])=>({v:+v,n:e.cl.length,k:e.from.size})).sort(_srt==='num'?((a,b)=>a.v-b.v):((a,b)=>b.n-a.n||b.k-a.k||a.v-b.v));
+    const _tot=_all.reduce((a,x)=>a+x.n,0);
+    const _mx=Math.max(1,..._all.map(x=>x.n));
+    const _sb=(k,t)=>`<button onclick="state.relSort='${k}';render()" style="padding:1px 8px;font-size:9px;border-radius:9px;border:1px solid #7C2D12;background:${_srt===k?'#7C2D12':'#fff'};color:${_srt===k?'#fff':'#7C2D12'};cursor:pointer;font-weight:600">${t}</button>`;
+    res+=`<div style="margin:8px 0 4px;display:flex;align-items:center;gap:5px;flex-wrap:wrap"><span style="font-size:10px;font-weight:700;color:#7C2D12">📊 Apparitions de chaque numéro — ${_all.length} numéros, ${_tot} apparitions</span><span style="margin-left:auto;display:flex;gap:3px">${_sb('count','Par nombre')}${_sb('num','Par numéro')}</span></div>`;
+    res+=`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px;max-height:30vh;overflow:auto">${_all.map(x=>{const a=0.15+0.85*(x.n/_mx);return `<span title="${x.n} apparition(s), lié à ${x.k} numéro(s) du tirage" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:9px;font-size:10.5px;font-weight:700;color:#7C2D12;background:rgba(245,158,11,${a.toFixed(2)});border:${nums.includes(x.v)?'2px solid #111':'1px solid #F59E0B'}">${x.v}<span style="font-weight:600;font-size:9px;background:#7C2D12;color:#fff;border-radius:7px;padding:0 4px">×${x.n}</span></span>`;}).join('')}</div>`;
     res+=`<div style="margin:6px 0 4px;font-size:10px;font-weight:700;color:#7C2D12">Liens entre les numéros du tirage (${links.length})</div>`;
     res+=links.length?`<div style="margin-bottom:6px">${links.map(l=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#FFF7ED;border:1px solid ${l.c.bg}">${l.a} → ${l.b} <span style="color:${l.c.bg}">(${l.c.label})</span></span>`).join('')}</div>`:`<div style="font-size:9.5px;color:#888;margin-bottom:6px">Aucun lien direct entre ces numéros.</div>`;
     res+=nums.map(n=>{
@@ -11786,7 +11796,7 @@ function relPanelHTML(){
       <button onclick="relStep(1)" title="Tirage plus ancien" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:700">◀</button>
       <button onclick="relStep(-1)" title="Tirage plus récent" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:700">▶</button>
       <button onclick="relFillLast()" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #7C2D12;background:#FFEDD5;color:#7C2D12;cursor:pointer;font-weight:600">Dernier tirage</button>
-      <button onclick="relSetInput('')" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Vider</button>
+      <button onclick="state.relAutoOff=true;relSetInput('')" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Vider</button>
     </div>
     <div style="max-height:52vh;overflow:auto">${res}</div>
   </div>`;

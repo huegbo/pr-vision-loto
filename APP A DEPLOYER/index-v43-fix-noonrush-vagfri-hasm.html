@@ -11766,6 +11766,49 @@ function relStep(d){ // d=+1 : tirage plus ancien, d=-1 : plus récent
   i=Math.max(0,Math.min(rows.length-1,i+d));relLoadRow(rows[i].t);
 }
 function relFillLast(){const rows=gameData(relGameKey()).T;if(rows.length)relLoadRow(rows[0].t);}
+// ══════ SUPERPOSÉS : numéro du haut ± numéro du bas, position par position ══════
+// Loto à 10 numéros : haut = tirage (N1..N5), bas = machine (M1..M5). Loto à 5 numéros : haut = tirage précédent, bas = tirage suivant (2 tirages successifs).
+function supGameKey(){const k=state.supGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function supPairs(){
+  const k=supGameKey(),g=GAMES[k],T=gameData(k).T;
+  const sm=state.supMode;const mode=g.hasM?((sm==='succ'||sm==='succm')?sm:'tm'):'succ';
+  const ok=a=>a&&a.length>=5&&a.slice(0,5).every(v=>v!=null&&!isNaN(v)&&v>0);
+  const out=[];
+  if(mode==='tm'){T.forEach(r=>{if(ok(r.n)&&ok(r.m))out.push({r,top:r.n.slice(0,5),bot:r.m.slice(0,5)});});}
+  else{const f=mode==='succm'?'m':'n';for(let i=0;i+1<T.length;i++){const a=T[i+1],b=T[i];if(ok(a[f])&&ok(b[f]))out.push({r:b,r0:a,top:a[f].slice(0,5),bot:b[f].slice(0,5)});}}
+  out.forEach(p=>{p.sum=p.top.map((v,i)=>v+p.bot[i]);p.dif=p.top.map((v,i)=>Math.abs(v-p.bot[i]));});
+  return{k,g,mode,pairs:out};
+}
+function supPanelHTML(){
+  const {k,g,mode,pairs}=supPairs();
+  const N=Math.max(5,Math.min(500,+state.supN||30));
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}${GAMES[x].hasM?' (10 n°)':''}</option>`).join('');
+  const sh=pairs.slice(0,N);
+  const q=String(state.supQ||'').trim();const qv=q===''?null:+q;
+  const tot={},dif={};
+  pairs.slice(0,Math.max(N,100)).forEach(p=>{p.sum.forEach(v=>tot[v]=(tot[v]||0)+1);p.dif.forEach(v=>dif[v]=(dif[v]||0)+1);});
+  const byC=state.supSort==='freq';const top=o=>Object.entries(o).sort(byC?((a,b)=>b[1]-a[1]||a[0]-b[0]):((a,b)=>a[0]-b[0])).map(([v,c])=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border-radius:9px;background:#EEF2FF;font-size:10px"><b>${v}</b> ×${c}</span>`).join('');
+  const cell=(a,b,s,d)=>{const hs=qv!==null&&s===qv,hd=qv!==null&&d===qv;return `<td style="text-align:center;padding:2px 3px;border-left:1px solid #ddd;line-height:1.25"><div>${a}</div><div style="border-bottom:1px solid #888">${b}</div><div style="${hs?'background:#FDE047;':''}color:#166534;font-weight:700" title="total">${s}${s>90?`<span style="color:#999;font-weight:400;font-size:9px"> (${s-90})</span>`:''}</div><div style="${hd?'background:#FDE047;':''}color:#B91C1C;font-weight:700" title="soustraction">${d}</div></td>`;};
+  const rowsH=sh.map(p=>`<tr style="border-top:1px solid #ccc"><td style="font-size:9.5px;padding:2px 4px;white-space:nowrap">N°${p.r.t}<br>${p.r.d}/${String(p.r.y).slice(2)}${p.r0?`<br><span style="color:#888">↑${p.r0.d}</span>`:''}</td>${[0,1,2,3,4].map(i=>cell(p.top[i],p.bot[i],p.sum[i],p.dif[i])).join('')}</tr>`).join('');
+  let hits='';
+  if(qv!==null&&!isNaN(qv)){
+    const hl=[];pairs.forEach(p=>{[0,1,2,3,4].forEach(i=>{if(p.sum[i]===qv)hl.push(`N°${p.r.t} ${p.r.d}/${p.r.y} pos${i+1} : ${p.top[i]}+${p.bot[i]}=${qv}`);if(p.dif[i]===qv)hl.push(`N°${p.r.t} ${p.r.d}/${p.r.y} pos${i+1} : ${p.top[i]}−${p.bot[i]}=${qv}`);});});
+    hits=`<div style="margin:6px 0;font-size:10.5px"><b>${hl.length}</b> résultat(s) pour ${qv} (total ou soustraction)<div style="max-height:140px;overflow:auto;border:1px solid #ddd;padding:4px;margin-top:3px">${hl.slice(0,200).join('<br>')||'—'}</div></div>`;
+  }
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.supGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    ${g.hasM?`<select onchange="state.supMode=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px"><option value="tm"${mode==='tm'?' selected':''}>Tirage (haut) + Machine (bas)</option><option value="succ"${mode==='succ'?' selected':''}>2 tirages successifs (numéros normaux)</option><option value="succm"${mode==='succm'?' selected':''}>2 tirages successifs (numéros machine)</option></select>`:`<span style="color:#555">5 numéros : 2 tirages successifs</span>`}
+    <label>Tirages <input type="number" min="5" max="500" value="${N}" onchange="state.supN=+this.value;render()" style="width:58px"></label>
+    <label>Chercher <input type="number" value="${q}" placeholder="total ou diff." onchange="state.supQ=this.value;render()" style="width:90px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">${mode==='tm'?'Haut = numéro du tirage, bas = numéro machine de même position.':(mode==='succm'?'Numéros MACHINE : haut = tirage précédent, bas = tirage suivant (même position).':'Haut = tirage précédent, bas = tirage suivant (même position).')} <span style="color:#166534"><b>Vert</b> = haut+bas</span> · <span style="color:#B91C1C"><b>Rouge</b> = haut−bas</span></div>
+  <div style="margin:4px 0"><button onclick="state.supSort=(state.supSort==='freq'?'val':'freq');render()" style="padding:2px 8px;border:1px solid #166534;border-radius:6px;background:#fff;font-size:10px">Tri : ${byC?'fréquence':'valeur'} (changer)</button> <span style="color:#555">sur les ${Math.max(N,100)} derniers tirages</span></div>
+  <div style="margin:4px 0"><b>Tous les totaux (haut+bas) :</b> ${top(tot)}</div>
+  <div style="margin:4px 0"><b>Toutes les soustractions (haut−bas) :</b> ${top(dif)}</div>
+  ${hits}
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:11px"><thead><tr><th>Tirage</th>${[1,2,3,4,5].map(i=>`<th>P${i}</th>`).join('')}</tr></thead><tbody>${rowsH||'<tr><td colspan="6">Aucune donnée</td></tr>'}</tbody></table></div></div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -14333,6 +14376,7 @@ const SEARCH_SECTIONS=[
   {key:'vtotd',icon:'⚖️',title:'Total ↔ Différence superposé',desc:"Total d'un côté = différence de l'autre, toute position, écart réglable",color:'#7C3AED',html:vtotdPanelHTML},
   {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},
   {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
+  {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
   {key:'formule',icon:'🧮',title:'Suite par formule',desc:'Suite étalée sur plusieurs tirages (formule libre ou suite célèbre)',color:'#7C3AED',html:formuleSectionHTML},
@@ -14478,6 +14522,7 @@ function searchHubHTML(){
   }
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
+    ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],
     ['🔢','Recherche numéros','Tirages contenant vos numéros','#155B8A',"openSearchModule('combo')"],

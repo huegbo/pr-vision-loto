@@ -11912,9 +11912,10 @@ function relFillLast(){const rows=gameData(relGameKey()).T;if(rows.length)relLoa
 // ══════ SUPERPOSÉS : numéro du haut ± numéro du bas, position par position ══════
 // Loto à 10 numéros : haut = tirage (N1..N5), bas = machine (M1..M5). Loto à 5 numéros : haut = tirage précédent, bas = tirage suivant (2 tirages successifs).
 function supGameKey(){const k=state.supGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function supIs10(k){const g=GAMES[k];return !!(g&&g.hasM&&(g.sum10||k==='detente'));}
 function supPairs(){
   const k=supGameKey(),g=GAMES[k],T=gameData(k).T;
-  const sm=state.supMode;const mode=g.hasM?((sm==='succ'||sm==='succm')?sm:'tm'):'succ';
+  const sm=state.supMode;const mode=supIs10(k)?((sm==='succ'||sm==='succm')?sm:'tm'):'succ';
   const ok=a=>a&&a.length>=5&&a.slice(0,5).every(v=>v!=null&&!isNaN(v)&&v>0);
   const out=[];
   if(mode==='tm'){T.forEach(r=>{if(ok(r.n)&&ok(r.m))out.push({r,top:r.n.slice(0,5),bot:r.m.slice(0,5)});});}
@@ -11925,7 +11926,7 @@ function supPairs(){
 function supPanelHTML(){
   const {k,g,mode,pairs}=supPairs();
   const N=Math.max(5,Math.min(500,+state.supN||30));
-  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}${GAMES[x].hasM?' (10 n°)':''}</option>`).join('');
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}${supIs10(x)?' (10 n°)':''}</option>`).join('');
   const sh=pairs.slice(0,N);
   const q=String(state.supQ||'').trim();const qv=q===''?null:+q;
   const tot={},dif={};
@@ -11941,7 +11942,7 @@ function supPanelHTML(){
   return `<div style="font-size:11px">
   <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
     <select onchange="state.supGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
-    ${g.hasM?`<select onchange="state.supMode=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px"><option value="tm"${mode==='tm'?' selected':''}>Tirage (haut) + Machine (bas)</option><option value="succ"${mode==='succ'?' selected':''}>2 tirages successifs (numéros normaux)</option><option value="succm"${mode==='succm'?' selected':''}>2 tirages successifs (numéros machine)</option></select>`:`<span style="color:#555">5 numéros : 2 tirages successifs</span>`}
+    ${supIs10(k)?`<select onchange="state.supMode=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px"><option value="tm"${mode==='tm'?' selected':''}>Tirage (haut) + Machine (bas)</option><option value="succ"${mode==='succ'?' selected':''}>2 tirages successifs (numéros normaux)</option><option value="succm"${mode==='succm'?' selected':''}>2 tirages successifs (numéros machine)</option></select>`:`<span style="color:#555">5 numéros : 2 tirages successifs</span>`}
     <label>Tirages <input type="number" min="5" max="500" value="${N}" onchange="state.supN=+this.value;render()" style="width:58px"></label>
     <label>Chercher <input type="number" value="${q}" placeholder="total ou diff." onchange="state.supQ=this.value;render()" style="width:90px"></label>
   </div>

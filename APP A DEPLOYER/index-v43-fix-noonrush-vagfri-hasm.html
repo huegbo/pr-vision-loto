@@ -1994,7 +1994,7 @@ function afficheDateISO(d){const p=n=>String(n).padStart(2,'0');return d.getFull
 function setAfficheDate(v){state.afficheDate=v;render();}
 function shiftAfficheDate(n){const d=afficheDateObj();d.setDate(d.getDate()+n);state.afficheDate=afficheDateISO(d);render();}
 const AFF_COUNTRIES=['Cameroun','Togo','Bénin',"Côte d'Ivoire",'Ghana'];
-function setAfficheCountry(i){state.afficheMixOn=false;state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
+function setAfficheCountry(i){state.afficheMixOn=false;state.afficheTogoWeek=false;state.afficheCountry=(i==='all')?'all':AFF_COUNTRIES[i];render();}
 function afficheBall(v,xtra,sz){
   const ok=v!=null&&!isNaN(v);
   const txt=ok?String(v).padStart(2,'0'):'';
@@ -2209,11 +2209,12 @@ function afficheMixSaveCur(){const sel=state.afficheMix||[];if(!sel.length){aler
 function afficheMixDelSaved(i){const L=afficheMixSaved();L.splice(i,1);try{localStorage.setItem('aff_mix_saved',JSON.stringify(L));}catch(e){}render();}
 function afficheMixMove(i,d){const a=state.afficheMix||[];const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];state.afficheMixOrder=true;render();}
 function afficheMixResolve(k,date){const m=/^bj(11|14|18)$/.exec(k);if(!m)return k;return 'bj_'+([0,3,6].includes(date.getDay())?'s':'f')+m[1];}
-function setAfficheMixOn(){state.afficheMixOn=!state.afficheMixOn;if(state.afficheMixOn&&!(state.afficheMix&&state.afficheMix.length))state.afficheMix=['cm_noun','bj18'];render();}
+function setAfficheMixOn(){state.afficheMixOn=!state.afficheMixOn;if(state.afficheMixOn)state.afficheTogoWeek=false;if(state.afficheMixOn&&!(state.afficheMix&&state.afficheMix.length))state.afficheMix=['cm_noun','bj18'];render();}
 function setAfficheMix(arr){state.afficheMix=arr.slice();state.afficheMixOn=true;render();}
 function addAfficheMix(k){if(!k)return;state.afficheMix=state.afficheMix||[];if(!state.afficheMix.includes(k))state.afficheMix.push(k);render();}
 function delAfficheMix(k){state.afficheMix=(state.afficheMix||[]).filter(x=>x!==k);render();}
 function afficheMixLabel(k){
+  if(k==='gh_all')return '🇬🇭 Tous les jeux Ghana du jour';if(k==='alpha_all')return '🇬🇭 Famille Alpha du jour (Alpha / Express / One)';
   const m=/^bj(11|14|18)$/.exec(k);if(m)return '🇧🇯 Bénin '+m[1]+'H (Star + Fortune : celui qui tire ce jour)';
   const g=GAMES[k];const s=GAME_SCHEDULE.find(x=>x.k===k);
   return (g?((g.icon||'')+' '+String(g.name)):k)+(s&&s.h?' · '+hourLabel(s.h):'');
@@ -2221,7 +2222,7 @@ function afficheMixLabel(k){
 function afficheMixControlsHTML(){
   const sel=state.afficheMix||[];
   const pb=(p)=>`<button onclick='setAfficheMix(${JSON.stringify(p.k)})' style="padding:5px 10px;border-radius:14px;border:1.5px solid #B45309;background:#fff;color:#B45309;font-weight:700;font-size:11px;cursor:pointer">${p.n}</button>`;
-  const opts=['bj11','bj14','bj18'].concat(GAME_SCHEDULE.map(x=>x.k).filter(k=>GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6&&k!=='cm_super4')).map(k=>`<option value="${k}">${afficheMixLabel(k)}</option>`).join('');
+  const opts=['gh_all','alpha_all','bj11','bj14','bj18'].concat(GAME_SCHEDULE.map(x=>x.k).filter(k=>GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6&&k!=='cm_super4')).map(k=>`<option value="${k}">${afficheMixLabel(k)}</option>`).join('');
   return `<div style="background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:8px 10px;margin-bottom:10px">
     <div style="font-weight:800;color:#9A3412;font-size:12px;margin-bottom:6px">🧩 Affiche perso — choisis les lotos à mettre ensemble</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${AFF_MIX_PRESETS.map(pb).join('')}</div>
@@ -2239,20 +2240,99 @@ function afficheMixPosterHTML(date){
   const entries=tirageJourEntriesForDate(date).entries;
   const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
   const found=[],missing=[];
-  (state.afficheMix||[]).forEach(k0=>{const k=afficheMixResolve(k0,date);const e=entries.find(x=>x.key===k&&!/veille/.test(x.label));if(e)found.push(e);else{const sib=/^bj_[sf](11|14|18)$/.exec(k);const alt=sib?'bj_'+(k[3]==='s'?'f':'s')+sib[1]:null;if(!(alt&&(state.afficheMix||[]).some(x=>afficheMixResolve(x,date)===alt)&&entries.some(x=>x.key===alt)))missing.push(k);}});
+  const addE=e=>{if(!found.includes(e))found.push(e);};
+  (state.afficheMix||[]).forEach(k0=>{
+    if(k0==='gh_all'){entries.filter(e=>e.country==='Ghana'&&!/veille/.test(e.label)).forEach(addE);return;}
+    if(k0==='alpha_all'){entries.filter(e=>e.country==='GH Alpha').forEach(addE);return;}
+    const k=afficheMixResolve(k0,date);const e=entries.find(x=>x.key===k&&!/veille/.test(x.label));
+    if(e)addE(e);else{const sib=/^bj_[sf](11|14|18)$/.exec(k);const alt=sib?'bj_'+(k[3]==='s'?'f':'s')+sib[1]:null;if(!(alt&&(state.afficheMix||[]).some(x=>afficheMixResolve(x,date)===alt)&&entries.some(x=>x.key===alt)))missing.push(k);}
+  });
   if(!state.afficheMixOrder)found.sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
   const sz=window.innerWidth<420?34:36;
+  const isGh=e=>e.country==='Ghana'||e.country==='GH Alpha';
+  const isCI=e=>e.country==="Côte d'Ivoire";
+  const isTg=e=>e.country==='Togo';
+  const std=found.filter(e=>!isGh(e)&&!isCI(e)&&!isTg(e));
+  const gh=found.filter(isGh),ci=found.filter(isCI),tg=found.filter(isTg);
   const miss=missing.length?`<div style="font-size:10px;color:#E9FFFC;padding:2px 2px 8px;opacity:.9">Pas de tirage ce jour-là : ${missing.map(k=>String(GAMES[k]?GAMES[k].name:k)).join(', ')}</div>`:'';
   if(!found.length&&!missing.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#41B7AE;color:#fff;font-weight:700">Choisis au moins un loto.</div>`;
-  return `<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
+  const grid=(arr,fn,min)=>arr.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(${min}px,1fr));gap:12px;margin:10px 0">${arr.map(e=>fn(e,date)).join('')}</div>`:'';
+  const poster=std.length||missing.length?`<div style="margin:10px 0;border-radius:14px;background:#41B7AE;padding:12px 12px 6px;box-shadow:0 4px 14px rgba(0,0,0,.2);max-width:760px">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap">
       <div style="transform:skewX(-14deg);background:#D32F2F;border:2px solid #fff;padding:2px 16px"><div style="transform:skewX(14deg);color:#fff;font-weight:900;font-size:24px;letter-spacing:1px">5/90</div></div>
       <div style="color:#fff;font-weight:800;font-size:18px">RÉSULTATS : <span style="font-size:20px">${dd}</span></div>
       <div style="margin-left:auto;color:#E9FFFC;font-size:11px;font-weight:700">🧩 Affiche perso</div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:18px">${found.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));column-gap:18px">${std.map(e=>afficheBlockHTML(e,sz)).join('')}</div>
     ${miss}
-  </div>`;
+  </div>`:'';
+  return poster+grid(gh,afficheGhanaCardHTML,300)+grid(ci,afficheCICardHTML,330)+tg.map(e=>afficheTogoCardHTML(e,date)).join('');
+}
+
+// ══════ TOGO : TOUS LES RÉSULTATS DE LA SEMAINE (lundi → dimanche) SUR UNE SEULE PAGE ══════
+function setAfficheTogoWeek(){state.afficheTogoWeek=!state.afficheTogoWeek;if(state.afficheTogoWeek)state.afficheMixOn=false;render();}
+function afficheTogoWeekStart(){const d=afficheDateObj();const w=(d.getDay()+6)%7;d.setDate(d.getDate()-w);d.setHours(0,0,0,0);return d;}
+function shiftAfficheTogoWeek(n){const d=afficheTogoWeekStart();d.setDate(d.getDate()+7*n);state.afficheDate=afficheDateISO(d);render();}
+function setAfficheTogoStyle(v){state.afficheTogoStyle=v;render();}
+function afficheTogoWeekCardsHTML(){
+  const st=afficheTogoWeekStart();const p2=x=>String(x).padStart(2,'0');
+  const DJ=['DIMANCHE','LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI'];
+  const en=new Date(st);en.setDate(en.getDate()+6);const fm=d=>p2(d.getDate())+'/'+p2(d.getMonth()+1);
+  let nDone=0,nAll=0;
+  const sec=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(st);d.setDate(d.getDate()+i);
+    const list=tirageJourEntriesForDate(d).entries.filter(e=>e.country==='Togo').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+    list.forEach(e=>{nAll++;if(e.done)nDone++;});
+    sec.push(`<div style="margin-bottom:14px"><div style="background:linear-gradient(90deg,#0F4A24,#23763F);color:#FDE047;font-weight:900;padding:6px 12px;border-radius:10px;font-size:14px;display:flex;justify-content:space-between"><span>${DJ[d.getDay()]}</span><span>${fm(d)}/${d.getFullYear()} · ${list.filter(e=>e.done).length}/${list.length} tirés</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:4px 14px">${list.map(e=>afficheTogoCardHTML(e,d)).join('')||'<div style="padding:8px;color:#9CA3AF">Aucun tirage</div>'}</div></div>`);
+  }
+  return {head:`${fm(st)} → ${fm(en)}/${en.getFullYear()}`,nDone,nAll,body:sec.join('')};
+}
+function afficheTogoWeekHTML(){
+  const st=afficheTogoWeekStart();const p2=x=>String(x).padStart(2,'0');
+  const DJ=['DIMANCHE','LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI'];
+  const en=new Date(st);en.setDate(en.getDate()+6);
+  const fm=d=>p2(d.getDate())+'/'+p2(d.getMonth()+1);
+  const ball=(v,m)=>{const ok=v!=null&&!isNaN(v);return `<span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;box-sizing:border-box;font-weight:900;font-size:13px;${m?'background:#fff;color:#7A1F2F;border:2px solid #9B3042':'background:radial-gradient(circle at 35% 30%,#2E9E4B,#0F4A24 75%);color:#fff;border:2px solid #0F4A24'}">${ok?p2(v):''}</span>`;};
+  let nDone=0,nAll=0;
+  const days=[];
+  for(let i=0;i<7;i++){
+    const d=new Date(st);d.setDate(d.getDate()+i);
+    const list=tirageJourEntriesForDate(d).entries.filter(e=>e.country==='Togo').sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+    const rows=list.map(e=>{
+      nAll++;if(e.done)nDone++;
+      const nm=String(e.gdef.name).replace(/^[^A-Za-zÀ-ÿ0-9]+/,'').replace(/^TG\s+/,'').replace(/\s+(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI|SAMEDI|DIMANCHE)$/,'');
+      const hl=hourLabel(e.hour)||'';
+      const r=e.row;const n=r?r.n:[NaN,NaN,NaN,NaN,NaN];
+      const m=r&&r.m?r.m.filter(v=>v!=null&&!isNaN(v)):[];
+      const tno=r&&r.t?` <span style="color:#6B7280;font-weight:600;font-size:10px">N°${r.t}</span>`:'';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-top:1px solid #E5E7EB;flex-wrap:wrap">
+        <span style="width:46px;font-weight:800;color:#0F4A24;font-size:12px">${hl}</span>
+        <span style="width:96px;font-weight:800;font-size:12px;color:#111">${nm}${tno}</span>
+        <span style="display:flex;gap:4px;flex-wrap:wrap">${e.done?n.map(v=>ball(v,false)).join('')+(m.length?'<span style="width:8px"></span>'+m.map(v=>ball(v,true)).join(''):''):'<span style="font-size:11px;color:#B45309;font-style:italic">⏳ pas encore publié</span>'}</span>
+      </div>`;
+    }).join('');
+    days.push(`<div style="border:2px solid #0F4A24;border-radius:10px;overflow:hidden;background:#fff;break-inside:avoid">
+      <div style="background:linear-gradient(90deg,#0F4A24,#23763F);color:#FDE047;font-weight:900;padding:5px 10px;font-size:13px;display:flex;justify-content:space-between"><span>${DJ[d.getDay()]}</span><span>${fm(d)}/${d.getFullYear()}</span></div>
+      ${rows||'<div style="padding:8px;color:#9CA3AF;font-size:12px">Aucun tirage</div>'}
+    </div>`);
+  }
+  const btn='padding:6px 12px;border-radius:8px;border:1.5px solid #0F4A24;background:#fff;font-weight:800;cursor:pointer';
+  return `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><button onclick="shiftAfficheTogoWeek(-1)" style="${btn}">◀ Semaine</button><input type="date" value="${afficheDateISO(afficheDateObj())}" onchange="setAfficheDate(this.value)" style="padding:5px 8px;border:1.5px solid #0F4A24;border-radius:8px;font-size:13px;font-weight:700"><button onclick="shiftAfficheTogoWeek(1)" style="${btn}">Semaine ▶</button><button onclick="setAfficheDate('')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #64748B;background:#fff;font-size:11px;font-weight:700;cursor:pointer">Cette semaine</button>
+  <button onclick="setAfficheTogoStyle('cards')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #0F4A24;background:${state.afficheTogoStyle!=='compact'?'#0F4A24':'#fff'};color:${state.afficheTogoStyle!=='compact'?'#fff':'#0F4A24'};font-size:11px;font-weight:800;cursor:pointer">🖼️ Affiches officielles</button>
+  <button onclick="setAfficheTogoStyle('compact')" style="padding:6px 10px;border-radius:8px;border:1.5px solid #0F4A24;background:${state.afficheTogoStyle==='compact'?'#0F4A24':'#fff'};color:${state.afficheTogoStyle==='compact'?'#fff':'#0F4A24'};font-size:11px;font-weight:800;cursor:pointer">📋 Compact</button></div>
+  ${state.afficheTogoStyle!=='compact'?(()=>{const w=afficheTogoWeekCardsHTML();return `<div style="background:#FEFCE8;border:3px solid #C9A227;border-radius:14px;padding:12px;max-width:1300px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px"><div style="background:#fff;border-radius:6px;padding:3px 8px;font-weight:900;font-size:13px;color:#1F7A33;border:2px solid #C9A227">LONATO</div><div style="font-weight:900;font-size:clamp(15px,3.6vw,22px);color:#0F4A24">🇹🇬 TOUS LES RÉSULTATS · LUNDI → DIMANCHE</div><div style="font-weight:800;color:#7A1F2F;font-size:15px">${w.head}</div><div style="margin-left:auto;font-size:11px;font-weight:700;color:#0F4A24">${w.nDone}/${w.nAll} tirés</div></div>${w.body}</div>`;})():''}
+  ${state.afficheTogoStyle==='compact'?`<div style="background:#FEFCE8;border:3px solid #C9A227;border-radius:14px;padding:12px;max-width:1100px;box-shadow:0 4px 14px rgba(0,0,0,.2)">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div style="background:#fff;border-radius:6px;padding:3px 8px;font-weight:900;font-size:13px;color:#1F7A33;border:2px solid #C9A227">LONATO</div>
+      <div style="font-weight:900;font-size:clamp(15px,3.6vw,22px);color:#0F4A24">🇹🇬 RÉSULTATS DE LA SEMAINE</div>
+      <div style="font-weight:800;color:#7A1F2F;font-size:15px">${fm(st)} → ${fm(en)}/${en.getFullYear()}</div>
+      <div style="margin-left:auto;font-size:11px;font-weight:700;color:#0F4A24">${nDone}/${nAll} tirés</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:10px">${days.join('')}</div>
+    <div style="font-size:10px;color:#6B7280;margin-top:8px"><b style="color:#0F4A24">●</b> numéros gagnants · <b style="color:#9B3042">○</b> numéros machine / bonus · www.lonato.tg · NUMÉRO VERT 8600</div>
+  </div>`:''}`;
 }
 function afficheDayBody(date,countries){
   if(state.afficheMixOn)return afficheMixPosterHTML(date);
@@ -2269,9 +2349,9 @@ function afficheHTML(){
   const body=nc?`<div style="display:grid;grid-template-columns:repeat(${nc},minmax(340px,1fr));gap:16px;overflow-x:auto;align-items:start">${cols.join('')}</div>`:cols[0];
   return `<div style="padding:calc(150px + env(safe-area-inset-top)) 10px 90px;max-width:${nc===3?'2200px':nc===2?'1500px':'900px'};margin:0 auto">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><div style="font-size:16px;font-weight:800;color:#0F766E">🖼️ Affiches du jour</div><button onclick="state.afficheOpen=false;render()" style="margin-left:auto;width:28px;height:28px;border:none;border-radius:50%;background:#E2E8F0;cursor:pointer">✕</button></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}<button onclick="setAfficheMixOn()" style="padding:7px 12px;border-radius:18px;border:2px solid #B45309;background:${state.afficheMixOn?'#B45309':'#fff'};color:${state.afficheMixOn?'#fff':'#B45309'};font-weight:800;font-size:12px;cursor:pointer">🧩 Affiche perso</button>${cmpBtn(2)}${cmpBtn(3)}${nc?`<button onclick="setAfficheSameDay()" style="padding:7px 12px;border-radius:18px;border:2px solid #EA580C;background:${state.afficheSameDay?'#EA580C':'#fff'};color:${state.afficheSameDay?'#fff':'#EA580C'};font-weight:800;font-size:12px;cursor:pointer">📅 Même jour (semaine -1, -2)</button>`:''}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${AFF_COUNTRIES.map((c,i)=>chip(c,i)).join('')}${chip('Tous','all')}<button onclick="setAfficheTogoWeek()" style="padding:7px 12px;border-radius:18px;border:2px solid #0F4A24;background:${state.afficheTogoWeek?'#0F4A24':'#fff'};color:${state.afficheTogoWeek?'#fff':'#0F4A24'};font-weight:800;font-size:12px;cursor:pointer">🇹🇬 Togo : semaine lun→dim</button><button onclick="setAfficheMixOn()" style="padding:7px 12px;border-radius:18px;border:2px solid #B45309;background:${state.afficheMixOn?'#B45309':'#fff'};color:${state.afficheMixOn?'#fff':'#B45309'};font-weight:800;font-size:12px;cursor:pointer">🧩 Affiche perso</button>${cmpBtn(2)}${cmpBtn(3)}${nc?`<button onclick="setAfficheSameDay()" style="padding:7px 12px;border-radius:18px;border:2px solid #EA580C;background:${state.afficheSameDay?'#EA580C':'#fff'};color:${state.afficheSameDay?'#fff':'#EA580C'};font-weight:800;font-size:12px;cursor:pointer">📅 Même jour (semaine -1, -2)</button>`:''}</div>
     ${state.afficheMixOn?afficheMixControlsHTML():''}
-    ${body}
+    ${state.afficheTogoWeek?afficheTogoWeekHTML():body}
     <div style="font-size:10px;color:#64748B;margin-top:6px">Les cases vides = tirage pas encore enregistré. Cameroun : 7 premiers (dont 2 XTRAS cerclés de rouge) et 5 derniers (machine). Capture d'écran pour partager l'affiche.</div>
   </div>`;
 }

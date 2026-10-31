@@ -2205,6 +2205,10 @@ const AFF_MIX_PRESETS=[
   {n:'Lions + Bénin 18H',k:['cm_lions','bj18']},
   {n:'Sanaga + Bénin 18H',k:['cm_sanaga','bj18']}
 ];
+function afficheMixSaved(){try{return JSON.parse(localStorage.getItem('aff_mix_saved')||'[]');}catch(e){return [];}}
+function afficheMixSaveCur(){const sel=state.afficheMix||[];if(!sel.length){alert("Choisis d'abord des lotos.");return;}const n=prompt("Nom de cette affiche :",sel.map(k=>afficheMixLabel(k).replace(/\s*\(.*$/,'')).join(' + '));if(!n)return;const L=afficheMixSaved().filter(x=>x.n!==n);L.push({n,k:sel.slice()});try{localStorage.setItem('aff_mix_saved',JSON.stringify(L));}catch(e){}render();}
+function afficheMixDelSaved(i){const L=afficheMixSaved();L.splice(i,1);try{localStorage.setItem('aff_mix_saved',JSON.stringify(L));}catch(e){}render();}
+function afficheMixMove(i,d){const a=state.afficheMix||[];const j=i+d;if(j<0||j>=a.length)return;[a[i],a[j]]=[a[j],a[i]];state.afficheMixOrder=true;render();}
 function afficheMixResolve(k,date){const m=/^bj(11|14|18)$/.exec(k);if(!m)return k;return 'bj_'+([0,3,6].includes(date.getDay())?'s':'f')+m[1];}
 function setAfficheMixOn(){state.afficheMixOn=!state.afficheMixOn;if(state.afficheMixOn&&!(state.afficheMix&&state.afficheMix.length))state.afficheMix=['cm_noun','bj18'];render();}
 function setAfficheMix(arr){state.afficheMix=arr.slice();state.afficheMixOn=true;render();}
@@ -2222,11 +2226,14 @@ function afficheMixControlsHTML(){
   return `<div style="background:#FFF7ED;border:1.5px solid #FDBA74;border-radius:12px;padding:8px 10px;margin-bottom:10px">
     <div style="font-weight:800;color:#9A3412;font-size:12px;margin-bottom:6px">🧩 Affiche perso — choisis les lotos à mettre ensemble</div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${AFF_MIX_PRESETS.map(pb).join('')}</div>
+    ${afficheMixSaved().length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px"><span style="font-size:11px;font-weight:800;color:#9A3412">⭐ Mes affiches :</span>${afficheMixSaved().map((p,i)=>`<span style="display:inline-flex;align-items:center;background:#FEF3C7;border:1.5px solid #B45309;border-radius:14px">${pb(p).replace('border-radius:14px;border:1.5px solid #B45309;background:#fff','border-radius:14px 0 0 14px;border:none;background:transparent')}<button onclick="afficheMixDelSaved(${i})" title="Supprimer" style="border:none;background:transparent;cursor:pointer;color:#9A3412;padding:0 7px">✕</button></span>`).join('')}</div>`:''}
     <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
       <select onchange="addAfficheMix(this.value);this.value=''" style="padding:5px;border:1.5px solid #B45309;border-radius:8px;max-width:100%;font-size:12px"><option value="">➕ Ajouter un loto…</option>${opts}</select>
       <button onclick="setAfficheMix([])" style="padding:5px 10px;border-radius:8px;border:1px solid #94A3B8;background:#fff;font-size:11px;cursor:pointer">🗑 Vider</button>
+      <button onclick="afficheMixSaveCur()" style="padding:5px 10px;border-radius:8px;border:1px solid #B45309;background:#B45309;color:#fff;font-size:11px;font-weight:700;cursor:pointer">💾 Enregistrer cette affiche</button>
+      <label style="font-size:11px;color:#9A3412;font-weight:700"><input type="checkbox" ${state.afficheMixOrder?'checked':''} onchange="state.afficheMixOrder=this.checked;render()"> Garder MON ordre (sinon tri par heure)</label>
     </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap">${sel.map(k=>`<span style="background:#B45309;color:#fff;border-radius:12px;padding:3px 4px 3px 10px;font-size:11px;font-weight:700;display:inline-flex;gap:6px;align-items:center">${afficheMixLabel(k)}<button onclick="delAfficheMix('${k}')" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;line-height:1">✕</button></span>`).join('')||'<span style="color:#9A3412;font-size:11px">Aucun loto choisi.</span>'}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap">${sel.map((k,i)=>`<span style="background:#B45309;color:#fff;border-radius:12px;padding:3px 4px 3px 10px;font-size:11px;font-weight:700;display:inline-flex;gap:6px;align-items:center"><button onclick="afficheMixMove(${i},-1)" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;line-height:1">◀</button><button onclick="afficheMixMove(${i},1)" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;line-height:1">▶</button>${afficheMixLabel(k)}<button onclick="delAfficheMix('${k}')" style="border:none;background:rgba(255,255,255,.25);color:#fff;border-radius:50%;width:18px;height:18px;cursor:pointer;line-height:1">✕</button></span>`).join('')||'<span style="color:#9A3412;font-size:11px">Aucun loto choisi.</span>'}</div>
   </div>`;
 }
 function afficheMixPosterHTML(date){
@@ -2234,7 +2241,7 @@ function afficheMixPosterHTML(date){
   const dd=String(date.getDate()).padStart(2,'0')+'/'+String(date.getMonth()+1).padStart(2,'0')+'/'+String(date.getFullYear()).slice(2);
   const found=[],missing=[];
   (state.afficheMix||[]).forEach(k0=>{const k=afficheMixResolve(k0,date);const e=entries.find(x=>x.key===k&&!/veille/.test(x.label));if(e)found.push(e);else{const sib=/^bj_[sf](11|14|18)$/.exec(k);const alt=sib?'bj_'+(k[3]==='s'?'f':'s')+sib[1]:null;if(!(alt&&(state.afficheMix||[]).some(x=>afficheMixResolve(x,date)===alt)&&entries.some(x=>x.key===alt)))missing.push(k);}});
-  found.sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
+  if(!state.afficheMixOrder)found.sort((a,b)=>hourSortKey(a.hour)-hourSortKey(b.hour)||a.label.localeCompare(b.label));
   const sz=window.innerWidth<420?34:36;
   const miss=missing.length?`<div style="font-size:10px;color:#E9FFFC;padding:2px 2px 8px;opacity:.9">Pas de tirage ce jour-là : ${missing.map(k=>String(GAMES[k]?GAMES[k].name:k)).join(', ')}</div>`:'';
   if(!found.length&&!missing.length)return `<div style="margin:10px 0;padding:14px;border-radius:14px;background:#41B7AE;color:#fff;font-weight:700">Choisis au moins un loto.</div>`;

@@ -11702,6 +11702,56 @@ function elmResultHTMLOld(){
     </tr>`;}).join('')}
     </tbody></table></div></div>`;
 }
+// ═══ 🔗 RELATIONS D'UN TIRAGE : on saisit un résultat (ex. 23-41-38-63-73) et on voit, pour chaque numéro,
+// toutes ses classifications (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir),
+// les numéros qui « pointent » vers lui (la liste Numéro|Classe|Valeur du Power Query, filtrée sur Valeur),
+// et les liens directs entre les numéros du tirage saisi.
+function relParse(txt){
+  const out=[];String(txt||'').replace(/\d+/g,m=>{const v=parseInt(m,10);if(v>=1&&v<=90&&!out.includes(v))out.push(v);});
+  return out.slice(0,20);
+}
+function relRev(n){ // numéros m dont une classification vaut n
+  const r=[];
+  for(let m=1;m<=90;m++){if(m===n)continue;const d=elmDerivs(m);ELM_DEF.forEach(c=>{if(d[c.key]===n)r.push({m,c});});}
+  return r;
+}
+function relSetInput(v){state.relInput=v;render();}
+function relFillLast(){if(T.length){state.relInput=T[0].n.join('-');render();}}
+function relPanelHTML(){
+  const nums=relParse(state.relInput);
+  const chip=(c,v,hit)=>`<span style="display:inline-block;margin:1px 2px 1px 0;padding:1px 7px;border-radius:9px;font-size:9.5px;font-weight:600;background:${c.bg};color:${c.fg};${hit?'outline:2px solid #111;':''}">${c.label} <b>${v}</b></span>`;
+  let res='';
+  if(nums.length){
+    // liens directs entre les numéros saisis
+    const links=[];
+    for(let i=0;i<nums.length;i++)for(let j=0;j<nums.length;j++){
+      if(i===j)continue;const a=nums[i],b=nums[j];
+      if(j<i&&false)continue;
+      const d=elmDerivs(a);ELM_DEF.forEach(c=>{if(d[c.key]===b)links.push({a,b,c});});
+    }
+    res+=`<div style="margin:6px 0 4px;font-size:10px;font-weight:700;color:#7C2D12">Liens entre les numéros du tirage (${links.length})</div>`;
+    res+=links.length?`<div style="margin-bottom:6px">${links.map(l=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#FFF7ED;border:1px solid ${l.c.bg}">${l.a} → ${l.b} <span style="color:${l.c.bg}">(${l.c.label})</span></span>`).join('')}</div>`:`<div style="font-size:9.5px;color:#888;margin-bottom:6px">Aucun lien direct entre ces numéros.</div>`;
+    res+=nums.map(n=>{
+      const d=elmDerivs(n),rev=relRev(n);
+      const fwd=ELM_DEF.filter(c=>d[c.key]!==undefined).map(c=>chip(c,d[c.key],nums.includes(d[c.key])&&d[c.key]!==n)).join('');
+      const bk=rev.map(x=>`<span style="display:inline-block;margin:1px 2px 1px 0;padding:1px 6px;border-radius:9px;font-size:9px;font-weight:600;background:#fff;border:1.5px solid ${x.c.bg};color:${x.c.bg};${nums.includes(x.m)?'background:#FEF3C7;':''}">${x.m} <span style="font-weight:500">${x.c.label}</span></span>`).join('');
+      return `<div style="border:1px solid #FED7AA;border-radius:8px;padding:5px 7px;margin-bottom:5px;background:#fff">
+        <div style="font-size:12px;font-weight:800;color:#7C2D12;margin-bottom:2px">${n}</div>
+        <div style="font-size:9px;color:#92400E;font-weight:600">Ses classifications</div><div style="margin-bottom:3px">${fwd||'—'}</div>
+        <div style="font-size:9px;color:#92400E;font-weight:600">Numéros qui pointent vers ${n} (${rev.length})</div><div>${bk||'—'}</div>
+      </div>`;}).join('');
+  }
+  return `<div style="margin-top:10px;border-top:2px dashed #FED7AA;padding-top:7px">
+    <div style="font-size:11px;font-weight:600;color:#7C2D12;margin-bottom:4px">🔗 Relations d'un tirage</div>
+    <div style="font-size:9px;color:#7C2D12;margin-bottom:4px">Saisis un résultat (ex. 23-41-38-63-73) : tu vois toutes les classifications de chaque numéro et les liens entre eux.</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+      <input type="text" inputmode="numeric" value="${(state.relInput||'').replace(/"/g,'')}" placeholder="23 41 38 63 73" onchange="relSetInput(this.value)" style="flex:1;min-width:140px;padding:5px 8px;border:1.5px solid #7C2D12;border-radius:6px;font-size:12px;font-weight:600">
+      <button onclick="relFillLast()" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #7C2D12;background:#FFEDD5;color:#7C2D12;cursor:pointer;font-weight:600">Dernier tirage</button>
+      <button onclick="relSetInput('')" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Vider</button>
+    </div>
+    <div style="max-height:52vh;overflow:auto">${res}</div>
+  </div>`;
+}
 function elmPanelHTML(){
   const mode=state.elmMode||'ligne', act=elmTypes();
   return `<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">
@@ -11740,6 +11790,7 @@ function elmPanelHTML(){
     </div>
     ${genericMultiToggleHTML('elmMulti','elmMultiGames','runElm','#7C2D12','#FFF7ED')}
     ${state.elmMulti?elmMultiResultHTML():elmResultHTML()}
+    ${relPanelHTML()}
   </div>`;
 }
 async function exportElmExcel(){

@@ -11726,6 +11726,11 @@ function relLoadRow(t){
   state.relInput=a.join('-');state.relRowSel=String(r.t);render();
 }
 function relSetGame(k){state.relGame=k;state.relRowSel='';const rows=gameData(relGameKey()).T;if(rows.length)relLoadRow(rows[0].t);else render();}
+function relStep(d){ // d=+1 : tirage plus ancien, d=-1 : plus récent
+  const rows=gameData(relGameKey()).T;if(!rows.length)return;
+  let i=rows.findIndex(x=>String(x.t)===state.relRowSel);if(i<0)i=0;
+  i=Math.max(0,Math.min(rows.length-1,i+d));relLoadRow(rows[i].t);
+}
 function relFillLast(){const rows=gameData(relGameKey()).T;if(rows.length)relLoadRow(rows[0].t);}
 function relPanelHTML(){
   const nums=relParse(state.relInput);
@@ -11739,6 +11744,16 @@ function relPanelHTML(){
       if(j<i&&false)continue;
       const d=elmDerivs(a);ELM_DEF.forEach(c=>{if(d[c.key]===b)links.push({a,b,c});});
     }
+    // Numéros qui REVIENNENT : liés (en classification, dans un sens ou dans l'autre) à au moins 2 numéros du tirage saisi
+    const _fq={};
+    nums.forEach(n=>{
+      const d=elmDerivs(n);
+      ELM_DEF.forEach(c=>{const v=d[c.key];if(v!==undefined&&v!==n){const e=_fq[v]||(_fq[v]={from:new Set(),cl:[]});e.from.add(n);e.cl.push(n+':'+c.label);}});
+      relRev(n).forEach(x=>{const e=_fq[x.m]||(_fq[x.m]={from:new Set(),cl:[]});e.from.add(n);e.cl.push(n+':'+x.c.label+'←');});
+    });
+    const _fqList=Object.entries(_fq).map(([v,e])=>({v:+v,k:e.from.size,n:e.cl.length,from:[...e.from]})).filter(x=>x.k>=2).sort((a,b)=>b.k-a.k||b.n-a.n||a.v-b.v);
+    res+=`<div style="margin:6px 0 4px;font-size:10px;font-weight:700;color:#7C2D12">🔁 Numéros qui reviennent (liés à 2 numéros du tirage ou plus) — ${_fqList.length}</div>`;
+    res+=_fqList.length?`<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:3px">${_fqList.map(x=>`<span title="lié à ${x.from.join(', ')} (${x.n} liens)" style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700;background:${x.k>=3?'#FDE68A':'#FEF3C7'};border:${nums.includes(x.v)?'2px solid #111':'1px solid #F59E0B'};color:#7C2D12">${x.v} <span style="font-weight:500;font-size:9px">×${x.k} (${x.from.join('·')})</span></span>`).join('')}</div>`:`<div style="font-size:9.5px;color:#888;margin-bottom:6px">Aucun numéro commun à plusieurs numéros du tirage.</div>`;
     res+=`<div style="margin:6px 0 4px;font-size:10px;font-weight:700;color:#7C2D12">Liens entre les numéros du tirage (${links.length})</div>`;
     res+=links.length?`<div style="margin-bottom:6px">${links.map(l=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#FFF7ED;border:1px solid ${l.c.bg}">${l.a} → ${l.b} <span style="color:${l.c.bg}">(${l.c.label})</span></span>`).join('')}</div>`:`<div style="font-size:9.5px;color:#888;margin-bottom:6px">Aucun lien direct entre ces numéros.</div>`;
     res+=nums.map(n=>{
@@ -11768,6 +11783,8 @@ function relPanelHTML(){
     </div>
     <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
       <input type="text" inputmode="numeric" value="${(state.relInput||'').replace(/"/g,'')}" placeholder="23 41 38 63 73" onchange="relSetInput(this.value)" style="flex:1;min-width:140px;padding:5px 8px;border:1.5px solid #7C2D12;border-radius:6px;font-size:12px;font-weight:600">
+      <button onclick="relStep(1)" title="Tirage plus ancien" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:700">◀</button>
+      <button onclick="relStep(-1)" title="Tirage plus récent" style="padding:5px 9px;font-size:11px;border-radius:6px;border:1px solid #7C2D12;background:#fff;color:#7C2D12;cursor:pointer;font-weight:700">▶</button>
       <button onclick="relFillLast()" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #7C2D12;background:#FFEDD5;color:#7C2D12;cursor:pointer;font-weight:600">Dernier tirage</button>
       <button onclick="relSetInput('')" style="padding:5px 9px;font-size:10px;border-radius:6px;border:1px solid #C62828;background:#FFEBEE;color:#C62828;cursor:pointer;font-weight:600">Vider</button>
     </div>

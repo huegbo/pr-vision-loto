@@ -12051,6 +12051,52 @@ function ctpPanelHTML(){
   <div style="margin:6px 0"><b>Counterpart attendu</b> (X est sorti récemment) :<div style="margin-top:3px">${chipW1||'—'}</div></div>
   <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:11px"><thead><tr><th>Paire</th><th>X</th><th>Counterpart (+${g1})</th><th>Retour (+${g2})</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucun cas</td></tr>'}</tbody></table></div></div>`;
 }
+// ══════ TERMINAISON ALTERNÉE : une même terminaison (dernier chiffre) revient 1, 2, 1, 2 fois de suite (tirages consécutifs) ══════
+// Option « miroir » : il faut au moins une paire de numéros miroirs (84/48, 12/21, 7/70…) sur l'une des lignes de la fenêtre (schéma + lignes avant/après).
+function trmGameKey(){const k=state.trmGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function trmPattern(){const p=String(state.trmPat||'1,2,1,2').split(/[^0-9]+/).filter(x=>x!=='').map(Number).filter(v=>v>=0&&v<=5);return p.length>=2?p.slice(0,8):[1,2,1,2];}
+function trmMir(n){const r=n<10?n*10:parseInt(String(n).split('').reverse().join(''),10);return(r>=1&&r<=90&&r!==n)?r:0;}
+function trmMirPairs(a){const o=[];for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++)if(trmMir(a[i])===a[j])o.push([a[i],a[j]]);return o;}
+function trmCases(k,pat,bef,aft,needMir){
+  const T=gameData(k).T.slice().reverse(); // ancien → récent
+  const N=T.map(r=>(r.n||[]).slice(0,5).filter(v=>v!=null&&!isNaN(v)));
+  const L=T.length,P=pat.length,cases=[],wait=[];
+  const mirIn=(i)=>{const out=[];for(let j=i-bef;j<=i+P-1+aft;j++){if(j<0||j>=L)continue;const mp=trmMirPairs(N[j]);if(mp.length)out.push({j,mp});}return out;};
+  for(let d=0;d<10;d++){
+    const c=N.map(a=>a.filter(v=>v%10===d).length);
+    for(let i=0;i+P<=L;i++){let ok=true;for(let j=0;j<P;j++)if(c[i+j]!==pat[j]){ok=false;break;}
+      if(!ok)continue;const m=mirIn(i);if(needMir&&!m.length)continue;cases.push({d,i,c,m});}
+    for(let q=P-1;q>=1;q--){const s=L-q;if(s<0)continue;let ok=true;for(let j=0;j<q;j++)if(c[s+j]!==pat[j]){ok=false;break;}
+      if(ok){const m=mirIn(s);if(!needMir||m.length)wait.push({d,s,q,next:pat[q],c,m});break;}}
+  }
+  cases.sort((a,b)=>b.i-a.i||a.d-b.d);
+  return{T,N,cases,wait};
+}
+function trmPanelHTML(){
+  const k=trmGameKey();
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('');
+  const pat=trmPattern();const NN=Math.max(5,Math.min(300,+state.trmN||30));
+  const bef=state.trmBef==null?1:Math.max(0,Math.min(6,+state.trmBef)),aft=state.trmAft==null?1:Math.max(0,Math.min(6,+state.trmAft));
+  const needMir=state.trmMir!==false;
+  const {T,N,cases,wait}=trmCases(k,pat,bef,aft,needMir);
+  const rowsOf=c=>{const out=[];for(let j=-Math.max(bef,2);j<pat.length+Math.max(aft,2);j++){const i=c.i+j;if(i<0||i>=T.length)continue;const r=T[i];const inCase=j>=0&&j<pat.length;
+    const mset=new Set();trmMirPairs(N[i]).forEach(([x,y])=>{mset.add(x);mset.add(y);});
+    out.push(`<tr style="${inCase?'background:#FEF2F2':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">N°${r.t} · ${r.d}/${String(r.y).slice(2)}</td>${N[i].map(v=>{const t=v%10===c.d,m=mset.has(v);return `<td style="text-align:center;padding:1px 5px;${t?'font-weight:700;color:#B91C1C;border:1.5px solid #B91C1C;border-radius:4px;':''}${m?'background:#2F5DB5;color:#fff;border-radius:4px;':''}">${v}</td>`;}).join('')}<td style="text-align:center;color:#555">${inCase?c.c[i]:''}</td></tr>`);}return out.join('');};
+  const blocks=cases.slice(0,NN).map(c=>`<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#B91C1C;font-size:11px">terminaison ${c.d} · ${T[c.i].d}/${String(T[c.i].y).slice(2)} → ${T[c.i+pat.length-1].d}/${String(T[c.i+pat.length-1].y).slice(2)}</div><table style="border-collapse:collapse;font-size:11px">${rowsOf(c)}</table></div>`).join('');
+  const chips=wait.sort((a,b)=>b.q-a.q).map(w=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:9px;background:#FEE2E2;font-size:10.5px">terminaison <b>${w.d}</b> : ${w.c.slice(w.s).join('-')} → prochain tirage : <b>${w.next}</b> numéro(s)${w.m.length?` · miroir ${w.m[0].mp[0].join('/')}`:''}</span>`).join('');
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.trmGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    <label>Schéma <input type="text" value="${pat.join(',')}" onchange="state.trmPat=this.value;render()" style="width:80px" title="nb de numéros de la même terminaison par tirage, ex 1,2,1,2"></label>
+    <label><input type="checkbox" ${needMir?'checked':''} onchange="state.trmMir=this.checked;render()"> miroir obligatoire</label>
+    <label>lignes avant <input type="number" min="0" max="6" value="${bef}" onchange="state.trmBef=+this.value;render()" style="width:42px"></label>
+    <label>après <input type="number" min="0" max="6" value="${aft}" onchange="state.trmAft=+this.value;render()" style="width:42px"></label>
+    <label>Cas affichés <input type="number" min="5" max="300" value="${NN}" onchange="state.trmN=+this.value;render()" style="width:58px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Une même terminaison revient avec <b>${pat.join(' puis ')}</b> numéro(s) sur ${pat.length} tirages consécutifs${needMir?`, <b>et</b> au moins une paire de numéros <b style="color:#2F5DB5">miroirs</b> (84/48, 12/21…) sur l'une des ${pat.length+bef+aft} lignes (${bef} avant + schéma + ${aft} après)`:''}. <b>${cases.length}</b> cas sur ${T.length} tirages. Colonne de droite = nb de numéros de la terminaison.</div>
+  <div style="margin:6px 0"><b>En cours / attendu</b> :<div style="margin-top:3px">${chips||'—'}</div></div>
+  <div>${blocks||'Aucun cas'}</div></div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -14619,6 +14665,7 @@ const SEARCH_SECTIONS=[
   {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},
   {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
   {key:'ctp',icon:'↔️',title:'Counterpart (X → +3 tirages X±45 → +4 tirages X)',desc:'Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient — tous les cas + ceux attendus',color:'#B91C1C',html:()=>`<div style="background:#fff;border:1.5px solid #B91C1C;border-radius:8px;padding:8px;margin-bottom:8px">${ctpPanelHTML()}</div>`},
+  {key:'trm',icon:'🔢',title:'Terminaison alternée (1-2-1-2)',desc:'Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs, avec un numéro miroir sur l\'une des lignes — tous les cas + ceux en cours',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${trmPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -14766,6 +14813,7 @@ function searchHubHTML(){
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
     ['↔️','Counterpart (X → +3 tirages X±45 → +4 tirages X)','Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient : tous les cas + ceux attendus','#B91C1C',"openSearchModule('ctp')"],
+    ['🔢','Terminaison alternée (1-2-1-2)','Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs : tous les cas + ceux en cours','#7C2D12',"openSearchModule('trm')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

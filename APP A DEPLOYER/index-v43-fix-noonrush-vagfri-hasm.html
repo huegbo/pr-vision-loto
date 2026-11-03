@@ -349,6 +349,7 @@ const RAW_CI_AKWABA=window.LOTO_DATA.RAW_CI_AKWABA;
 const RAW_CI_MATINALE=window.LOTO_DATA.RAW_CI_MATINALE;
 const RAW_CI_EMERGENCE=window.LOTO_DATA.RAW_CI_EMERGENCE;
 const RAW_CI_SIKA=window.LOTO_DATA.RAW_CI_SIKA;
+const RAW_CI_SOLEIL=window.LOTO_DATA.RAW_CI_SOLEIL;
 const RAW_CI_PREMIERE_HEURE=window.LOTO_DATA.RAW_CI_PREMIERE_HEURE;
 const RAW_CI_FORTUNE=window.LOTO_DATA.RAW_CI_FORTUNE;
 const RAW_CI_BARAKA=window.LOTO_DATA.RAW_CI_BARAKA;
@@ -583,6 +584,7 @@ const GAMES={
   ci_matinale:{name:'LA MATINALE',icon:'🇨🇮',raw:RAW_CI_MATINALE,hasM:true},
   ci_emergence:{name:'EMERGENCE',icon:'🇨🇮',raw:RAW_CI_EMERGENCE,hasM:true},
   ci_sika:{name:'SIKA',icon:'🇨🇮',raw:RAW_CI_SIKA,hasM:true},
+  ci_soleil:{name:'SOLEIL',icon:'🇨🇮',raw:RAW_CI_SOLEIL,hasM:true},
   ci_premiere_heure:{name:'PREMIERE HEURE',icon:'🇨🇮',raw:RAW_CI_PREMIERE_HEURE,hasM:true},
   ci_fortune:{name:'FORTUNE (CI)',icon:'🇨🇮',raw:RAW_CI_FORTUNE,hasM:true},
   ci_baraka:{name:'BARAKA',icon:'🇨🇮',raw:RAW_CI_BARAKA,hasM:true},
@@ -12007,6 +12009,48 @@ function supPanelHTML(){
   ${hits}
   <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:11px"><thead><tr><th>Tirage</th>${[1,2,3,4,5].map(i=>`<th>P${i}</th>`).join('')}</tr></thead><tbody>${rowsH||'<tr><td colspan="6">Aucune donnée</td></tr>'}</tbody></table></div></div>`;
 }
+// ══════ COUNTERPART : X → (3 tirages plus tard) X±45 → (4 tirages plus tard) X ══════
+// Un numéro X sort au tirage i ; son counterpart (X+45 si X≤45, sinon X−45) sort au tirage i+g1 (défaut 3) ; X revient au tirage i+g1+g2 (défaut 4).
+function ctpGameKey(){const k=state.ctpGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function ctpCp(v){return v<=45?v+45:v-45;}
+function ctpCases(k,g1,g2){
+  const T=gameData(k).T.slice().reverse(); // ancien → récent
+  const N=T.map(r=>(r.n||[]).slice(0,5).filter(v=>v!=null&&!isNaN(v)));
+  const L=T.length,cases=[],w2=[],w1=[];
+  for(let i=0;i<L;i++)N[i].forEach(v=>{
+    const c=ctpCp(v),j=i+g1,l=i+g1+g2;
+    if(j<L){
+      if(!N[j].includes(c))return;
+      if(l<L){if(N[l].includes(v))cases.push({v,c,i,j,l});}
+      else w2.push({v,c,i,j,l,left:l-(L-1)});
+    }else w1.push({v,c,i,j,l,left:j-(L-1)});
+  });
+  cases.sort((a,b)=>b.l-a.l||a.v-b.v);
+  w2.sort((a,b)=>a.left-b.left);w1.sort((a,b)=>a.left-b.left);
+  return{T,cases,w1,w2};
+}
+function ctpPanelHTML(){
+  const k=ctpGameKey();
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('');
+  const N=Math.max(5,Math.min(300,+state.ctpN||30));
+  const g1=Math.max(1,Math.min(30,+state.ctpG1||3)),g2=Math.max(1,Math.min(30,+state.ctpG2||4));
+  const {T,cases,w1,w2}=ctpCases(k,g1,g2);
+  const fmt=(i,v,col)=>{const r=T[i];return `<b style="color:${col}">${v}</b> <span style="color:#666;font-size:9.5px">N°${r.t} · ${r.d}/${String(r.y).slice(2)}</span>`;};
+  const rows=cases.slice(0,N).map(c=>`<tr style="border-top:1px solid #ddd"><td style="padding:3px 4px;text-align:center"><b>${c.v}↔${c.c}</b></td><td style="padding:3px 4px">${fmt(c.i,c.v,'#1D4ED8')}</td><td style="padding:3px 4px">${fmt(c.j,c.c,'#B91C1C')}</td><td style="padding:3px 4px">${fmt(c.l,c.v,'#1D4ED8')}</td></tr>`).join('');
+  const chipW2=w2.slice(0,40).map(w=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:9px;background:#FEE2E2;font-size:10.5px" title="${w.v} (N°${T[w.i].t}) puis ${w.c} (N°${T[w.j].t})">${w.v} → ${w.c} → <b>${w.v}</b> <span style="color:#777">dans ${w.left} tir.</span></span>`).join('');
+  const chipW1=w1.slice(0,40).map(w=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:9px;background:#FEF3C7;font-size:10.5px" title="${w.v} sorti au N°${T[w.i].t}">${w.v} → <b>${w.c}</b>? <span style="color:#777">dans ${w.left} tir.</span></span>`).join('');
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.ctpGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    <label>X → counterpart après <input type="number" min="1" max="30" value="${g1}" onchange="state.ctpG1=+this.value;render()" style="width:46px"> tirages</label>
+    <label>→ retour de X après <input type="number" min="1" max="30" value="${g2}" onchange="state.ctpG2=+this.value;render()" style="width:46px"> tirages</label>
+    <label>Cas affichés <input type="number" min="5" max="300" value="${N}" onchange="state.ctpN=+this.value;render()" style="width:58px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Un numéro <b style="color:#1D4ED8">X</b> sort ; ${g1} tirages après sort son <b>counterpart</b> <b style="color:#B91C1C">X±45</b> ; ${g2} tirages plus tard <b style="color:#1D4ED8">X</b> revient (ex : 44 → 89 → 44). Position libre. <b>${cases.length}</b> cas sur ${T.length} tirages.</div>
+  <div style="margin:6px 0"><b>Retour attendu</b> (X et son counterpart sont sortis, X doit revenir) :<div style="margin-top:3px">${chipW2||'—'}</div></div>
+  <div style="margin:6px 0"><b>Counterpart attendu</b> (X est sorti récemment) :<div style="margin-top:3px">${chipW1||'—'}</div></div>
+  <div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:11px"><thead><tr><th>Paire</th><th>X</th><th>Counterpart (+${g1})</th><th>Retour (+${g2})</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Aucun cas</td></tr>'}</tbody></table></div></div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -14574,6 +14618,7 @@ const SEARCH_SECTIONS=[
   {key:'vtotd',icon:'⚖️',title:'Total ↔ Différence superposé',desc:"Total d'un côté = différence de l'autre, toute position, écart réglable",color:'#7C3AED',html:vtotdPanelHTML},
   {key:'vtt',icon:'🎯',title:'Même Total / Différence entre 2 tirages',desc:'Comparaison à un pas réglable, sans superposition',color:'#0369A1',html:vttPanelHTML},
   {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
+  {key:'ctp',icon:'↔️',title:'Counterpart (X → +3 tirages X±45 → +4 tirages X)',desc:'Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient — tous les cas + ceux attendus',color:'#B91C1C',html:()=>`<div style="background:#fff;border:1.5px solid #B91C1C;border-radius:8px;padding:8px;margin-bottom:8px">${ctpPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -14720,6 +14765,7 @@ function searchHubHTML(){
   }
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
+    ['↔️','Counterpart (X → +3 tirages X±45 → +4 tirages X)','Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient : tous les cas + ceux attendus','#B91C1C',"openSearchModule('ctp')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

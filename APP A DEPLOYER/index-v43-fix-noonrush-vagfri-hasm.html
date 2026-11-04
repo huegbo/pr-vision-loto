@@ -12097,6 +12097,63 @@ function trmPanelHTML(){
   <div style="margin:6px 0"><b>En cours / attendu</b> :<div style="margin-top:3px">${chips||'—'}</div></div>
   <div>${blocks||'Aucun cas'}</div></div>`;
 }
+// ══════ DUO DE TERMINAISONS : 2 terminaisons (ex. 8 et 9) présentes chacune 1 fois par tirage, sur N tirages consécutifs (+ miroir + numéro répété) ══════
+function duoGameKey(){const k=state.duoGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function duoMirPairs(a,b){const o=[];for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++){const x=a[i],y=b[j];if(a===b&&j<=i)continue;if(trmMir(x)===y)o.push([x,y]);}return o;}
+function duoCases(k,P,C,bef,aft,needMir,needRep,fA,fB){
+  const T=gameData(k).T.slice().reverse();
+  const N=T.map(r=>(r.n||[]).slice(0,5).filter(v=>v!=null&&!isNaN(v)));
+  const L=T.length,cases=[],wait=[];
+  const cnt=(i,d)=>N[i].filter(v=>v%10===d).length;
+  const pairs=[];for(let A=0;A<10;A++)for(let B=A+1;B<10;B++){if(fA!=null&&fB!=null&&!((A===fA&&B===fB)||(A===fB&&B===fA)))continue;pairs.push([A,B]);}
+  const info=(i)=>{const lo=Math.max(0,i-bef),hi=Math.min(L-1,i+P-1+aft);const mir=[],seen={},rep=new Set();
+    for(let j=lo;j<=hi;j++){duoMirPairs(N[j],N[j]).forEach(p=>mir.push(p));if(j>lo)duoMirPairs(N[j-1],N[j]).forEach(p=>mir.push(p));}
+    for(let j=i;j<=Math.min(L-1,i+P-1);j++)N[j].forEach(v=>{if(seen[v])rep.add(v);seen[v]=1;});
+    return{mir,rep};};
+  for(const [A,B] of pairs){
+    const ok=i=>cnt(i,A)===C&&cnt(i,B)===C;
+    for(let i=0;i+P<=L;i++){let g=true;for(let j=0;j<P;j++)if(!ok(i+j)){g=false;break;}
+      if(!g)continue;const f=info(i);if(needMir&&!f.mir.length)continue;if(needRep&&!f.rep.size)continue;cases.push({A,B,i,f});}
+    const q=P-1,s0=L-q;if(s0>=0){let g=true;for(let j=0;j<q;j++)if(!ok(s0+j)){g=false;break;}if(g)wait.push({A,B,s:s0,q});}
+  }
+  cases.sort((a,b)=>b.i-a.i||a.A-b.A);
+  return{T,N,cases,wait};
+}
+function duoPanelHTML(){
+  const k=duoGameKey();
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('');
+  const P=Math.max(2,Math.min(8,+state.duoP||4)),C=Math.max(1,Math.min(3,+state.duoC||1));
+  const bef=state.duoBef==null?4:Math.max(0,Math.min(8,+state.duoBef)),aft=state.duoAft==null?10:Math.max(0,Math.min(12,+state.duoAft));
+  const needMir=state.duoMir!==false,needRep=state.duoRep!==false;
+  const NN=Math.max(5,Math.min(300,+state.duoN||30));
+  const fA=(state.duoA===''||state.duoA==null)?null:+state.duoA,fB=(state.duoB===''||state.duoB==null)?null:+state.duoB;
+  const useF=(fA!=null&&fB!=null&&fA!==fB)?[fA,fB]:[null,null];
+  const {T,N,cases,wait}=duoCases(k,P,C,bef,aft,needMir,needRep,useF[0],useF[1]);
+  const dopt=(v)=>`<option value="">auto</option>`+[0,1,2,3,4,5,6,7,8,9].map(d=>`<option value="${d}"${String(v)===String(d)?' selected':''}>${d}</option>`).join('');
+  const rowsOf=c=>{const out=[];const lo=c.i-bef,hi=c.i+P-1+aft;
+    const rep=new Set();{const seen={};for(let j=Math.max(0,c.i);j<=Math.min(T.length-1,c.i+P-1);j++){N[j].forEach(v=>{if(seen[v])rep.add(v);seen[v]=1;});}}
+    for(let j=lo;j<=hi;j++){if(j<0||j>=T.length)continue;const r=T[j];const inCase=j>=c.i&&j<c.i+P;
+      const ms=new Set();duoMirPairs(N[j],N[j]).forEach(([x,y])=>{ms.add(x);ms.add(y);});if(j>lo&&j-1>=0)duoMirPairs(N[j-1],N[j]).forEach(([x,y])=>{ms.add(x);ms.add(y);});if(j<hi&&j+1<T.length)duoMirPairs(N[j],N[j+1]).forEach(([x,y])=>{ms.add(x);ms.add(y);});
+      out.push(`<tr style="${inCase?'background:#FFF7ED':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">N°${r.t} · ${r.d}/${String(r.y).slice(2)}</td>${N[j].map(v=>{const tA=inCase&&v%10===c.A,tB=inCase&&v%10===c.B;let bg='';if(ms.has(v))bg='#6B2FA0';else if(inCase&&rep.has(v))bg='#4FB3A0';else if(tA)bg='#D9483B';else if(tB)bg='#3B82B8';const ol=tA?'outline:2px solid #D9483B;outline-offset:-2px;':tB?'outline:2px solid #3B82B8;outline-offset:-2px;':'';return `<td style="text-align:center;padding:1px 5px;border-radius:4px;${bg?'background:'+bg+';color:#fff;':''}${(tA||tB)?'font-weight:700;':''}${ol}">${v}</td>`;}).join('')}</tr>`);}
+    return out.join('');};
+  const blocks=cases.slice(0,NN).map(c=>`<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">terminaisons ${c.A} + ${c.B} · ${T[c.i].d}/${String(T[c.i].y).slice(2)} → ${T[c.i+P-1].d}/${String(T[c.i+P-1].y).slice(2)}</div><table style="border-collapse:collapse;font-size:11px">${rowsOf(c)}</table></div>`).join('');
+  const chips=wait.map(w=>`<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:9px;background:#FEE2E2;font-size:10.5px">${w.A} + ${w.B} : ${w.q}/${P} tirages déjà → prochain tirage : ${C} en ${w.A} et ${C} en ${w.B}</span>`).join('');
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.duoGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    <label>Terminaisons <select onchange="state.duoA=this.value;render()">${dopt(useF[0]==null?'':useF[0])}</select> + <select onchange="state.duoB=this.value;render()">${dopt(useF[1]==null?'':useF[1])}</select></label>
+    <label>Tirages d'affilée <input type="number" min="2" max="8" value="${P}" onchange="state.duoP=+this.value;render()" style="width:42px"></label>
+    <label>nb par terminaison <input type="number" min="1" max="3" value="${C}" onchange="state.duoC=+this.value;render()" style="width:42px"></label>
+    <label><input type="checkbox" ${needMir?'checked':''} onchange="state.duoMir=this.checked;render()"> miroir</label>
+    <label><input type="checkbox" ${needRep?'checked':''} onchange="state.duoRep=this.checked;render()"> numéro répété</label>
+    <label>lignes avant <input type="number" min="0" max="8" value="${bef}" onchange="state.duoBef=+this.value;render()" style="width:42px"></label>
+    <label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.duoAft=+this.value;render()" style="width:42px"></label>
+    <label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.duoN=+this.value;render()" style="width:58px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Deux terminaisons présentes chacune <b>${C}</b> fois dans chacun des <b>${P}</b> tirages consécutifs${needMir?', avec un numéro <b style="color:#6B2FA0">miroir</b> (même ligne ou lignes voisines) dans la fenêtre':''}${needRep?', et un <b style="color:#2E8B7A">numéro répété</b> dans le schéma':''}. <b>${cases.length}</b> cas sur ${T.length} tirages.</div>
+  <div style="margin:6px 0"><b>En cours</b> (${P-1}/${P} déjà) :<div style="margin-top:3px">${chips||'—'}</div></div>
+  <div>${blocks||'Aucun cas'}</div></div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -14666,6 +14723,7 @@ const SEARCH_SECTIONS=[
   {key:'elm',icon:'🧩',title:'Numéro + son élément',desc:'Un numéro et un de ses dérivés de classification',color:'#7C3AED',html:elmPanelHTML},
   {key:'ctp',icon:'↔️',title:'Counterpart (X → +3 tirages X±45 → +4 tirages X)',desc:'Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient — tous les cas + ceux attendus',color:'#B91C1C',html:()=>`<div style="background:#fff;border:1.5px solid #B91C1C;border-radius:8px;padding:8px;margin-bottom:8px">${ctpPanelHTML()}</div>`},
   {key:'trm',icon:'🔢',title:'Terminaison alternée (1-2-1-2)',desc:'Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs, avec un numéro miroir sur l\'une des lignes — tous les cas + ceux en cours',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${trmPanelHTML()}</div>`},
+  {key:'duo',icon:'🔢',title:'Duo de terminaisons (ex. 8 + 9, 4 tirages d\'affilée)',desc:'Deux terminaisons (ex. 8 et 9) présentes chacune 1 fois par tirage sur 4 tirages d\'affilée, avec miroir et numéro répété — tous les cas + en cours',color:'#6B2FA0',html:()=>`<div style="background:#fff;border:1.5px solid #6B2FA0;border-radius:8px;padding:8px;margin-bottom:8px">${duoPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -14814,6 +14872,7 @@ function searchHubHTML(){
   const cards=[
     ['↔️','Counterpart (X → +3 tirages X±45 → +4 tirages X)','Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient : tous les cas + ceux attendus','#B91C1C',"openSearchModule('ctp')"],
     ['🔢','Terminaison alternée (1-2-1-2)','Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs : tous les cas + ceux en cours','#7C2D12',"openSearchModule('trm')"],
+    ['🔗','Duo de terminaisons (ex. 8 + 9)','Deux terminaisons présentes chacune 1 fois par tirage sur 4 tirages d\'affilée, avec miroir et numéro répété','#6B2FA0',"openSearchModule('duo')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

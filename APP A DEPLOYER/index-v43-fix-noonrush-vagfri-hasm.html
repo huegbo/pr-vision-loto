@@ -12154,6 +12154,310 @@ function duoPanelHTML(){
   <div style="margin:6px 0"><b>En cours</b> (${P-1}/${P} déjà) :<div style="margin-top:3px">${chips||'—'}</div></div>
   <div>${blocks||'Aucun cas'}</div></div>`;
 }
+// ══════ SUPERPOSITION : même numéro (ou miroir) l'un sous l'autre (même colonne) sur 2 tirages consécutifs — écart (tirages/semaines) entre les occurrences ══════
+function ssxGameKey(){const k=state.ssxGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function ssxEvents(k,useSame,useMir){
+  const T=gameData(k).T.slice().reverse();
+  const N=T.map(r=>(r.n||[]).slice(0,5));
+  const ev=[];
+  for(let i=0;i+1<T.length;i++){
+    const hits=[];
+    for(let c=0;c<5;c++){const a=N[i][c],b=N[i+1][c];if(a==null||b==null||isNaN(a)||isNaN(b))continue;
+      if(useSame&&a===b)hits.push({c,a,b,t:'même'});
+      else if(useMir&&trmMir(a)===b)hits.push({c,a,b,t:'miroir'});}
+    if(hits.length)ev.push({i,hits});
+  }
+  return{T,N,ev};
+}
+function ssxAllPanel(){
+  const useSame=state.ssxSame!==false,useMir=state.ssxMir!==false;
+  const g1=Math.max(0,Math.min(60,state.ssxG1==null?4:+state.ssxG1)),g2=Math.max(0,Math.min(60,state.ssxG2==null?5:+state.ssxG2));
+  const seen={},rows=[];
+  Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;
+    const sig=g.name+'|'+(g.raw.length)+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+    let r;try{r=ssxEvents(k,useSame,useMir);}catch(e){return;}
+    const ev=r.ev,T=r.T,L=T.length;if(ev.length<3)return;
+    const gaps=[];for(let j=1;j<ev.length;j++)gaps.push(ev[j].i-ev[j-1].i-2);
+    const match=[];for(let j=2;j<ev.length;j++)if(gaps[j-2]===g1&&gaps[j-1]===g2)match.push(j);
+    const last=ev[ev.length-1],since=(L-1)-(last.i+1);
+    const pend=(gaps.length&&gaps[gaps.length-1]===g1&&since<=g2+1)?(g2+2-since):null;
+    rows.push({k,name:g.name,icon:g.icon||'',n:ev.length,L,T,ev,gaps,match,since,pend,last});});
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const withM=rows.filter(r=>r.match.length).sort((a,b)=>b.match.length-a.match.length);
+  const pend=rows.filter(r=>r.pend!=null).sort((a,b)=>a.pend-b.pend);
+  const mlist=withM.map(r=>`<div style="margin:2px 0"><b>${r.icon} ${r.name}</b> : ${r.match.length} fois — ${r.match.slice(-4).reverse().map(j=>{const a=r.ev[j-2],b=r.ev[j-1],c=r.ev[j];return `${dstr(r.T[a.i])} → ${dstr(r.T[b.i])} → ${dstr(r.T[c.i])}`;}).join(' · ')}</div>`).join('');
+  const plist=pend.map(r=>`<div style="margin:2px 0"><b>${r.icon} ${r.name}</b> : dernier cas ${dstr(r.T[r.last.i])} → ${dstr(r.T[r.last.i+1])} (précédé d'un écart de ${g1}) · ${r.since} tirage(s) depuis · <b style="color:#B91C1C">la superposition est attendue dans ${r.pend} tirage(s)</b></div>`).join('');
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <label><input type="checkbox" checked onchange="state.ssxAll=this.checked;render()"> tous les lotos</label>
+    <label><input type="checkbox" ${useSame?'checked':''} onchange="state.ssxSame=this.checked;render()"> même numéro</label>
+    <label><input type="checkbox" ${useMir?'checked':''} onchange="state.ssxMir=this.checked;render()"> miroir</label>
+    <label>1er écart <input type="number" min="0" max="60" value="${g1}" onchange="state.ssxG1=+this.value;render()" style="width:46px"></label>
+    <label>2e écart <input type="number" min="0" max="60" value="${g2}" onchange="state.ssxG2=+this.value;render()" style="width:46px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Superposition (même numéro ou miroir juste en dessous, même colonne) : 2 occurrences séparées par <b>${g1}</b> tirages, puis la suivante après <b>${g2}</b> tirages. ${rows.length} lotos analysés.</div>
+  <div style="margin:6px 0"><b>En cours</b> (dernier écart = ${g1}, la suivante est attendue après ${g2}) :<div style="margin-top:3px">${plist||'—'}</div></div>
+  <div style="margin:6px 0"><b>Déjà arrivé</b> (${withM.length} lotos) :<div style="margin-top:3px">${mlist||'—'}</div></div></div>`;
+}
+function ssxPanelHTML(){
+  if(state.ssxAll)return ssxAllPanel();
+  const k=ssxGameKey();
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('');
+  const useSame=state.ssxSame!==false,useMir=state.ssxMir!==false,NN=Math.max(5,Math.min(300,+state.ssxN||40));
+  const {T,N,ev}=ssxEvents(k,useSame,useMir);
+  const L=T.length;
+  const gaps=[];for(let j=1;j<ev.length;j++)gaps.push(ev[j].i-ev[j-1].i-2);
+  const last=ev.length?ev[ev.length-1]:null;const since=last?(L-1)-(last.i+1):null;
+  const freq={};gaps.forEach(g=>freq[g]=(freq[g]||0)+1);
+  const fr=Object.keys(freq).map(Number).sort((a,b)=>a-b);
+  const avg=gaps.length?(gaps.reduce((a,b)=>a+b,0)/gaps.length):0;
+  const mode=fr.length?fr.reduce((b,g)=>freq[g]>freq[b]?g:b,fr[0]):null;
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const bef=state.ssxBef==null?4:Math.max(0,Math.min(10,+state.ssxBef)),aft=state.ssxAft==null?5:Math.max(0,Math.min(12,+state.ssxAft));
+  const list=ev.slice().reverse().slice(0,NN).map((e,idx)=>{
+    const pos=ev.length-1-idx;const prev=pos>0?ev[pos-1]:null;const gap=prev?e.i-prev.i-2:null;
+    const rows=[];for(let j=e.i-bef;j<=e.i+1+aft;j++){if(j<0||j>=L)continue;const inC=(j===e.i||j===e.i+1);
+      rows.push(`<tr style="${inC?'background:#FFF7ED':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map((v,c)=>{const h=inC?e.hits.find(x=>x.c===c):null;return `<td style="text-align:center;padding:1px 5px;${h?(h.t==='même'?'background:#3B82B8;color:#fff;':'background:#6B2FA0;color:#fff;')+'border-radius:4px;font-weight:700;':''}">${v}</td>`;}).join('')}</tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">${e.hits.map(h=>h.a===h.b?`${h.a} ↓ ${h.b}`:`${h.a} ↓ ${h.b} (miroir)`).join(', ')} · ${gap==null?'1er cas':'séparé du précédent par '+gap+' tirage'+(gap>1?'s':'')}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <label><input type="checkbox" onchange="state.ssxAll=this.checked;render()"> tous les lotos</label>
+    <select onchange="state.ssxGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    <label><input type="checkbox" ${useSame?'checked':''} onchange="state.ssxSame=this.checked;render()"> même numéro</label>
+    <label><input type="checkbox" ${useMir?'checked':''} onchange="state.ssxMir=this.checked;render()"> miroir</label>
+    <label>tirages avant <input type="number" min="0" max="10" value="${bef}" onchange="state.ssxBef=+this.value;render()" style="width:42px"></label>
+    <label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.ssxAft=+this.value;render()" style="width:42px"></label>
+    <label>tirages avant <input type="number" min="0" max="10" value="${bef}" onchange="state.ssxBef=+this.value;render()" style="width:42px"></label>
+    <label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.ssxAft=+this.value;render()" style="width:42px"></label>
+    <label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.ssxN=+this.value;render()" style="width:58px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Un numéro (même ou miroir) revient <b>juste en dessous</b>, dans la même colonne, au tirage suivant. <b>${ev.length}</b> occurrences sur ${L} tirages. Écart = nombre de tirages (semaines si tirage hebdo) entre deux occurrences.</div>
+  <div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>Depuis la dernière occurrence</b> ${last?`(${dstr(T[last.i])} → ${dstr(T[last.i+1])}) : <b style="color:#B91C1C">${since}</b> tirage(s)`:'—'} · écart moyen <b>${avg.toFixed(1)}</b> · écart le plus fréquent <b>${mode==null?'—':mode}</b><br>
+  Répartition des écarts : ${fr.map(g=>`<span style="display:inline-block;margin:1px 3px;padding:1px 6px;border-radius:8px;background:${g===since?'#FECACA':'#F3F4F6'}">${g} : ${freq[g]}×</span>`).join('')||'—'}</div>
+  <div style="margin-top:4px">${list||'Aucun cas'}</div></div>`;
+}
+// ══════ REPRISE 2+2 : un tirage reprend k numéros du tirage A et k numéros du tirage suivant B (A,B consécutifs), d tirages plus tard ══════
+function rpzCases(k,K,D){
+  const T=gameData(k).T.slice().reverse();
+  const N=T.map(r=>(r.n||[]).slice(0,5));
+  const cases=[];
+  for(let i=D+1;i<T.length;i++){
+    const b=i-D,a=b-1;if(a<0)continue;
+    const A=N[i].filter(v=>N[a].includes(v)),Bq=N[i].filter(v=>N[b].includes(v));
+    const U=new Set([...A,...Bq]);
+    if(A.length>=K&&Bq.length>=K&&U.size>=2*K)cases.push({i,a,b,A,B:Bq});
+  }
+  return{T,N,cases};
+}
+const RPZ_COL=['#D9483B','#3B82F6','#4FB3A0','#7C3AED','#F59E0B','#64748B'];
+function rpzColors(c){const m={};let n=0;[...c.A.slice(0,2),...c.B.filter(v=>!c.A.includes(v)).slice(0,2)].forEach(v=>{m[v]=RPZ_COL[n++];});c.A.concat(c.B).forEach(v=>{if(!m[v])m[v]=RPZ_COL[4];});return m;}
+function rpzPanelHTML(){
+  const k=supGameKey_rpz();
+  const K=Math.max(1,Math.min(3,+state.rpzK||2)),D=Math.max(1,Math.min(60,state.rpzD==null?5:+state.rpzD)),aft=state.rpzAft==null?5:Math.max(0,Math.min(12,+state.rpzAft)),NN=Math.max(5,Math.min(300,+state.rpzN||40));
+  if(state.rpzAll)return rpzAllHTML(K,D);
+  const opts=Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===k?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('');
+  const {T,N,cases}=rpzCases(k,K,D);const L=T.length;
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const list=cases.slice().reverse().slice(0,NN).map(c=>{const col=rpzColors(c);const rows=[];
+    for(let j=c.a;j<=Math.min(L-1,c.i+aft);j++){const src=(j===c.a||j===c.b),tg=j===c.i;
+      rows.push(`<tr style="${tg?'background:#FFF7ED':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map(v=>{const on=(src||tg)&&col[v]&&((j===c.a&&c.A.includes(v))||(j===c.b&&c.B.includes(v))||tg&&(c.A.includes(v)||c.B.includes(v)));return `<td style="text-align:center;padding:1px 5px;${on?'background:'+col[v]+';color:#fff;border-radius:4px;font-weight:700;':''}">${v}</td>`;}).join('')}<td style="font-size:10px;color:#555;padding-left:4px">${N[j].reduce((a,b)=>a+b,0)}</td></tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">${dstr(T[c.i])} reprend ${c.A.join('/')} de ${dstr(T[c.a])} et ${c.B.join('/')} de ${dstr(T[c.b])}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  // sources du prochain tirage
+  const nb=L-D,na=nb-1;const nxt=(na>=0)?`Prochain tirage : attendu ${K} numéro(s) parmi <b>${N[na].join(' ')}</b> (${dstr(T[na])}) et ${K} parmi <b>${N[nb].join(' ')}</b> (${dstr(T[nb])})`:'—';
+  return `<div style="font-size:11px">
+  <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <label><input type="checkbox" onchange="state.rpzAll=this.checked;render()"> tous les lotos</label>
+    <select onchange="state.rpzGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${opts}</select>
+    <label>numéros repris <input type="number" min="1" max="3" value="${K}" onchange="state.rpzK=+this.value;render()" style="width:42px"></label>
+    <label>tirages après la 2e source <input type="number" min="1" max="60" value="${D}" onchange="state.rpzD=+this.value;render()" style="width:46px"></label>
+    <label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.rpzAft=+this.value;render()" style="width:42px"></label>
+    <label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.rpzN=+this.value;render()" style="width:58px"></label>
+  </div>
+  <div style="color:#555;margin-bottom:4px">Un tirage contient <b>${K}</b> numéros du tirage A et <b>${K}</b> numéros du tirage B suivant, <b>${D}</b> tirages plus tard. <b>${cases.length}</b> cas sur ${L} tirages.</div>
+  <div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px">${nxt}</div>
+  <div>${list||'Aucun cas'}</div></div>`;
+}
+function supGameKey_rpz(){const k=state.rpzGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function rpzAllHTML(K,D){
+  const seen={},rows=[];
+  Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;
+    const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+    let r;try{r=rpzCases(k,K,D);}catch(e){return;}if(r.cases.length)rows.push({g,r});});
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  rows.sort((a,b)=>b.r.cases.length-a.r.cases.length);
+  const html=rows.map(({g,r})=>`<div style="margin:2px 0"><b>${g.icon||''} ${g.name}</b> : ${r.cases.length} cas — ${r.cases.slice(-3).reverse().map(c=>`${dstr(r.T[c.a])}+${dstr(r.T[c.b])} → ${dstr(r.T[c.i])}`).join(' · ')}</div>`).join('');
+  return `<div style="font-size:11px"><div style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><label><input type="checkbox" checked onchange="state.rpzAll=this.checked;render()"> tous les lotos</label>
+  <label>numéros repris <input type="number" min="1" max="3" value="${K}" onchange="state.rpzK=+this.value;render()" style="width:42px"></label>
+  <label>tirages après la 2e source <input type="number" min="1" max="60" value="${D}" onchange="state.rpzD=+this.value;render()" style="width:46px"></label></div>
+  <div style="color:#555;margin-bottom:4px">${rows.length} lotos avec au moins un cas.</div>${html||'—'}</div>`;
+}
+// ══════ NUMÉRO 4 FOIS AVEC INTERVALLES : un même numéro revient aux positions i, i+d1, i+d1+d2… (ex. 2,2,3) sans autre sortie entre ══════
+function ivlOffs(){const p=String(state.ivlO==null?'2,2,3':state.ivlO).split(/[^0-9]+/).filter(x=>x!=='').map(Number).filter(v=>v>=1&&v<=60);return p.length>=1?p.slice(0,7):[2,2,3];}
+function ivlCases(k,offs){
+  const T=gameData(k).T.slice().reverse();const N=T.map(r=>(r.n||[]).slice(0,5));const L=T.length;
+  const pos=[0];offs.forEach(o=>pos.push(pos[pos.length-1]+o));const span=pos[pos.length-1];
+  const cases=[],wait=[];
+  for(let i=0;i<L;i++){
+    N[i].forEach(x=>{
+      // cas complet
+      if(i+span<L){let ok=true;for(let t=0;t<=span&&ok;t++){const has=N[i+t].includes(x),need=pos.includes(t);if(has!==need)ok=false;}if(ok)cases.push({i,x});}
+      // en cours : toutes les positions sauf la dernière déjà vérifiées, la dernière dans le futur
+      const q=pos.length-1;const last=i+pos[q-1],nxt=i+span;
+      if(q>=2&&last<L&&nxt>=L){let ok=true;for(let t=0;t<=pos[q-1]&&ok;t++){const has=N[i+t].includes(x),need=pos.includes(t);if(has!==need)ok=false;}
+        if(ok)wait.push({i,x,due:nxt-L+1});}
+    });
+  }
+  return{T,N,cases,wait,pos,span};
+}
+function ivlKey(){const k=state.ivlGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function ivlPanelHTML(){
+  const offs=ivlOffs(),aft=state.ivlAft==null?5:Math.max(0,Math.min(12,+state.ivlAft)),NN=Math.max(5,Math.min(300,+state.ivlN||40));
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const head=(all)=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px"><label><input type="checkbox" ${all?'checked':''} onchange="state.ivlAll=this.checked;render()"> tous les lotos</label>${all?'':`<select onchange="state.ivlGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===ivlKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}<label>Écarts entre sorties <input type="text" value="${offs.join(',')}" onchange="state.ivlO=this.value;render()" style="width:80px" title="ex. 2,2,3 : le numéro sort au tirage i, i+2, i+4, i+7"></label>${all?'':`<label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.ivlAft=+this.value;render()" style="width:42px"></label><label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.ivlN=+this.value;render()" style="width:58px"></label>`}</div>`;
+  if(state.ivlAll){
+    const seen={},rows=[],pend=[];
+    Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+      let r;try{r=ivlCases(k,offs);}catch(e){return;}if(r.cases.length)rows.push({g,r});r.wait.forEach(w=>pend.push({g,r,w}));});
+    rows.sort((a,b)=>b.r.cases.length-a.r.cases.length);pend.sort((a,b)=>a.w.due-b.w.due);
+    return `<div style="font-size:11px">${head(true)}<div style="color:#555;margin-bottom:4px">Un même numéro sort aux tirages i, ${offs.reduce((a,o)=>{a.push((a.length?a[a.length-1]:0)+o);return a;},[]).map(v=>'i+'+v).join(', ')} (et nulle part ailleurs entre ces tirages).</div>
+    <div style="margin:6px 0"><b>En cours</b> :<div>${pend.map(p=>`<div style="margin:2px 0"><b>${p.g.icon||''} ${p.g.name}</b> : n° <b>${p.w.x}</b> depuis ${dstr(p.r.T[p.w.i])} → <b style="color:#B91C1C">attendu dans ${p.w.due} tirage(s)</b></div>`).join('')||'—'}</div></div>
+    <div style="margin:6px 0"><b>Déjà arrivé</b> (${rows.length} lotos) :${rows.map(({g,r})=>`<div style="margin:2px 0"><b>${g.icon||''} ${g.name}</b> : ${r.cases.length} cas — ${r.cases.slice(-3).reverse().map(c=>`n° ${c.x} dès ${dstr(r.T[c.i])}`).join(' · ')}</div>`).join('')||'—'}</div></div>`;
+  }
+  const k=ivlKey();const {T,N,cases,wait,pos,span}=ivlCases(k,offs);const L=T.length;
+  const list=cases.slice().reverse().slice(0,NN).map(c=>{const rows=[];for(let j=c.i;j<=Math.min(L-1,c.i+span+aft);j++){const t=j-c.i,on=pos.includes(t);
+    rows.push(`<tr><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map(v=>`<td style="text-align:center;padding:1px 5px;${on&&v===c.x?'background:#D6558B;color:#fff;border-radius:4px;font-weight:700;':''}">${v}</td>`).join('')}<td style="font-size:10px;color:#555;padding-left:4px">${N[j].reduce((a,b)=>a+b,0)}</td></tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">n° ${c.x} · ${dstr(T[c.i])} → ${dstr(T[c.i+span])}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  const chips=wait.map(w=>`<span style="display:inline-block;margin:2px 4px;padding:2px 7px;border-radius:9px;background:#FEE2E2">n° <b>${w.x}</b> (depuis ${dstr(T[w.i])}) attendu dans <b>${w.due}</b> tirage(s)</span>`).join('');
+  return `<div style="font-size:11px">${head(false)}<div style="color:#555;margin-bottom:4px">Un même numéro sort aux tirages i, ${pos.slice(1).map(v=>'i+'+v).join(', ')} et nulle part ailleurs entre ces tirages. <b>${cases.length}</b> cas sur ${L} tirages.</div><div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>En cours</b> : ${chips||'—'}</div><div>${list||'Aucun cas'}</div></div>`;
+}
+// ══════ ENCADREMENT X·YY·X : X à la même place aux tirages i et i+a+b+c, Y doublé à la même place aux tirages i+a et i+a+b (ex. 3,1,2 → Million 30·85·85·30) ══════
+function ecdOffs(){const p=String(state.ecdO==null?'3,1,2':state.ecdO).split(/[^0-9]+/).filter(x=>x!=='').map(Number).filter(v=>v>=1&&v<=30);return p.length===3?p:[3,1,2];}
+function ecdCases(k,o,same){
+  const T=gameData(k).T.slice().reverse();const N=T.map(r=>(r.n||[]).slice(0,5));const L=T.length;
+  const y1=o[0],y2=o[0]+o[1],span=y2+o[2];const at=(j,v)=>N[j]?N[j].indexOf(v):-1;
+  const cases=[],wait=[];
+  for(let i=0;i+y2<L;i++){
+    N[i].forEach((x,p)=>{
+      N[i+y1].forEach((y,q)=>{
+        if(y===x)return;const q2=at(i+y2,y);if(q2<0||(same&&q2!==q))return;
+        if(i+span<L){const p2=at(i+span,x);if(p2>=0&&(!same||p2===p))cases.push({i,x,y,p,q});}
+        else wait.push({i,x,y,p,q,due:i+span-L+1});
+      });
+    });
+  }
+  return{T,N,cases,wait,y1,y2,span};
+}
+function ecdKey(){const k=state.ecdGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function ecdPanelHTML(){
+  const o=ecdOffs(),same=state.ecdPos!==false,aft=state.ecdAft==null?3:Math.max(0,Math.min(12,+state.ecdAft)),NN=Math.max(5,Math.min(300,+state.ecdN||40));
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;const y1=o[0],y2=o[0]+o[1],span=y2+o[2];
+  const desc=`X sort au tirage i et revient au tirage i+${span}${same?' à la même place':''} ; entre les deux, Y sort aux tirages i+${y1} et i+${y2}${same?' à la même place':''}.`;
+  const head=(all)=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px"><label><input type="checkbox" ${all?'checked':''} onchange="state.ecdAll=this.checked;render()"> tous les lotos</label>${all?'':`<select onchange="state.ecdGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===ecdKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}<label>Écarts X→Y, Y→Y, Y→X <input type="text" value="${o.join(',')}" onchange="state.ecdO=this.value;render()" style="width:60px" title="ex. 3,1,2 : X en i, Y en i+3 et i+4, X en i+6"></label><label><input type="checkbox" ${same?'checked':''} onchange="state.ecdPos=this.checked;render()"> même place</label>${all?'':`<label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.ecdAft=+this.value;render()" style="width:42px"></label><label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.ecdN=+this.value;render()" style="width:58px"></label>`}</div>`;
+  if(state.ecdAll){
+    const seen={},rows=[],pend=[];
+    Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+      let r;try{r=ecdCases(k,o,same);}catch(e){return;}if(r.cases.length)rows.push({g,r});r.wait.forEach(w=>pend.push({g,r,w}));});
+    rows.sort((a,b)=>b.r.cases.length-a.r.cases.length);pend.sort((a,b)=>a.w.due-b.w.due);
+    return `<div style="font-size:11px">${head(true)}<div style="color:#555;margin-bottom:4px">${desc}</div>
+    <div style="margin:6px 0"><b>En cours</b> (Y déjà doublé, X attendu) :<div>${pend.map(p=>`<div style="margin:2px 0"><b>${p.g.icon||''} ${p.g.name}</b> : X <b>${p.w.x}</b> (${dstr(p.r.T[p.w.i])}) · Y ${p.w.y} → <b style="color:#B91C1C">${p.w.x} attendu dans ${p.w.due} tirage(s)</b></div>`).join('')||'—'}</div></div>
+    <div style="margin:6px 0"><b>Déjà arrivé</b> (${rows.length} lotos) :${rows.map(({g,r})=>`<div style="margin:2px 0"><b>${g.icon||''} ${g.name}</b> : ${r.cases.length} cas — ${r.cases.slice(-3).reverse().map(c=>`${c.x}·${c.y}·${c.y}·${c.x} dès ${dstr(r.T[c.i])}`).join(' · ')}</div>`).join('')||'—'}</div></div>`;
+  }
+  const k=ecdKey();const {T,N,cases,wait}=ecdCases(k,o,same);const L=T.length;
+  const list=cases.slice().reverse().slice(0,NN).map(c=>{const rows=[];for(let j=c.i;j<=Math.min(L-1,c.i+span+aft);j++){const t=j-c.i;
+    rows.push(`<tr style="${t===span?'border-bottom:2px solid #1D4ED8;':t===span+1?'border-bottom:2px solid #C00000;':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">${t} · N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map(v=>{const isX=(t===0||t===span)&&v===c.x,isY=(t===y1||t===y2)&&v===c.y;return `<td style="text-align:center;padding:1px 5px;${isX?'background:#D6558B;color:#fff;border-radius:4px;font-weight:700;':isY?'background:#4592B5;color:#fff;border-radius:4px;font-weight:700;':''}">${v}</td>`;}).join('')}<td style="font-size:10px;color:#555;padding-left:4px">${N[j].reduce((a,b)=>a+b,0)}</td></tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">${c.x}·${c.y}·${c.y}·${c.x} · ${dstr(T[c.i])} → ${dstr(T[c.i+span])}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  const chips=wait.map(w=>`<span style="display:inline-block;margin:2px 4px;padding:2px 7px;border-radius:9px;background:#FEE2E2">X <b>${w.x}</b> (${dstr(T[w.i])}, place ${w.p+1}) · Y ${w.y} doublé → ${w.x} attendu dans <b>${w.due}</b> tirage(s)</span>`).join('');
+  return `<div style="font-size:11px">${head(false)}<div style="color:#555;margin-bottom:4px">${desc} <b>${cases.length}</b> cas sur ${L} tirages.</div><div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>En cours</b> : ${chips||'—'}</div><div>${list||'Aucun cas'}</div></div>`;
+}
+// ══════ COUPLE + MIROIR : A (tirage i) puis B (i+1) ; miroir de A en i+m ; A et B reviennent en i+d et i+d+1 (ex. Million 14·30 … 41 … 14·30, d=6, m=3) ══════
+function cpmMir(n){const r=n<10?n*10:+String(n).split('').reverse().join('');return(r>=1&&r<=90&&r!==n)?r:0;}
+function cpmPar(){const d=Math.max(3,Math.min(30,+(state.cpmD==null?6:state.cpmD)||6));const m=Math.max(2,Math.min(d-1,+(state.cpmM==null?3:state.cpmM)||3));return{d,m};}
+function cpmCases(k,d,m){
+  const T=gameData(k).T.slice().reverse();const N=T.map(r=>(r.n||[]).slice(0,5));const L=T.length;
+  const cases=[],wait=[];
+  for(let i=0;i+m<L;i++){
+    N[i].forEach(a=>{const ma=cpmMir(a);if(!ma||!N[i+m].includes(ma))return;
+      N[i+1].forEach(b=>{if(b===a)return;
+        if(i+d+1<L){if(N[i+d].includes(a)&&N[i+d+1].includes(b))cases.push({i,a,b,ma});}
+        else if(i+d<L){if(N[i+d].includes(a))wait.push({i,a,b,ma,due:1,got:1});}
+        else wait.push({i,a,b,ma,due:i+d-L+1,got:0});
+      });
+    });
+  }
+  return{T,N,cases,wait};
+}
+function cpmKey(){const k=state.cpmGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function cpmPanelHTML(){
+  const {d,m}=cpmPar(),aft=state.cpmAft==null?3:Math.max(0,Math.min(12,+state.cpmAft)),NN=Math.max(5,Math.min(300,+state.cpmN||40));
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const desc=`A au tirage i puis B au tirage i+1 ; le miroir de A sort au tirage i+${m} ; A revient au tirage i+${d} et B au tirage i+${d+1} (places libres).`;
+  const head=(all)=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px"><label><input type="checkbox" ${all?'checked':''} onchange="state.cpmAll=this.checked;render()"> tous les lotos</label>${all?'':`<select onchange="state.cpmGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===cpmKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}<label>retour du couple après <input type="number" min="3" max="30" value="${d}" onchange="state.cpmD=+this.value;render()" style="width:42px"></label><label>miroir en i+ <input type="number" min="2" max="29" value="${m}" onchange="state.cpmM=+this.value;render()" style="width:42px"></label>${all?'':`<label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.cpmAft=+this.value;render()" style="width:42px"></label><label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.cpmN=+this.value;render()" style="width:58px"></label>`}</div>`;
+  const wtxt=(w,T)=>w.got?`${w.a} déjà revenu → <b style="color:#B91C1C">${w.b} attendu au prochain tirage</b>`:`<b style="color:#B91C1C">${w.a} attendu dans ${w.due} tirage(s), puis ${w.b}</b>`;
+  if(state.cpmAll){
+    const seen={},rows=[],pend=[];
+    Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+      let r;try{r=cpmCases(k,d,m);}catch(e){return;}if(r.cases.length)rows.push({g,r});r.wait.forEach(w=>pend.push({g,r,w}));});
+    rows.sort((a,b)=>b.r.cases.length-a.r.cases.length);pend.sort((a,b)=>(b.w.got-a.w.got)||(a.w.due-b.w.due));
+    return `<div style="font-size:11px">${head(true)}<div style="color:#555;margin-bottom:4px">${desc}</div>
+    <div style="margin:6px 0"><b>En cours</b> (${pend.length}) :<div>${pend.slice(0,150).map(p=>`<div style="margin:2px 0"><b>${p.g.icon||''} ${p.g.name}</b> : ${p.w.a}·${p.w.b} (${dstr(p.r.T[p.w.i])}), miroir ${p.w.ma} → ${wtxt(p.w)}</div>`).join('')||'—'}</div></div>
+    <div style="margin:6px 0"><b>Déjà arrivé</b> (${rows.length} lotos) :${rows.map(({g,r})=>`<div style="margin:2px 0"><b>${g.icon||''} ${g.name}</b> : ${r.cases.length} cas — ${r.cases.slice(-3).reverse().map(c=>`${c.a}·${c.b} (${c.ma}) dès ${dstr(r.T[c.i])}`).join(' · ')}</div>`).join('')||'—'}</div></div>`;
+  }
+  const k=cpmKey();const {T,N,cases,wait}=cpmCases(k,d,m);const L=T.length;const span=d+1;
+  const list=cases.slice().reverse().slice(0,NN).map(c=>{const rows=[];for(let j=c.i;j<=Math.min(L-1,c.i+span+aft);j++){const t=j-c.i;
+    rows.push(`<tr style="${t===span?'border-bottom:2px solid #1D4ED8;':t===span+1?'border-bottom:2px solid #C00000;':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">${t} · N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map(v=>{const isA=(t===0||t===d)&&v===c.a,isB=(t===1||t===d+1)&&v===c.b,isM=t===m&&v===c.ma;return `<td style="text-align:center;padding:1px 5px;${isA?'background:#D6558B;color:#fff;border-radius:4px;font-weight:700;':isB?'background:#DC4C3E;color:#fff;border-radius:4px;font-weight:700;':isM?'background:#3B82F6;color:#fff;border-radius:4px;font-weight:700;':''}">${v}</td>`;}).join('')}<td style="font-size:10px;color:#555;padding-left:4px">${N[j].reduce((a,b)=>a+b,0)}</td></tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">${c.a}·${c.b} · miroir ${c.ma} · ${dstr(T[c.i])} → ${dstr(T[c.i+span])}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  const chips=wait.slice().sort((x,y)=>(y.got-x.got)||(x.due-y.due)).map(w=>`<span style="display:inline-block;margin:2px 4px;padding:2px 7px;border-radius:9px;background:#FEE2E2">${w.a}·${w.b} (${dstr(T[w.i])}), miroir ${w.ma} → ${wtxt(w)}</span>`).join('');
+  return `<div style="font-size:11px">${head(false)}<div style="color:#555;margin-bottom:4px">${desc} <b>${cases.length}</b> cas sur ${L} tirages.</div><div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>En cours</b> : ${chips||'—'}</div><div>${list||'Aucun cas'}</div></div>`;
+}
+// ══════ RETOUR + DÉRIVÉS : X sort en i et revient en i+d (même place), et ses dérivés choisis sortent à leur écart (ex. Equiv i+3, Bonanza i+5, Partner i+6 ; 0 = n'importe où) (ex. Million 30 → 69 Equiv, 14 Bonanza, 38 Partner → 30) ══════
+const XDR_FAM=[['MIR','Miroir'],['D45','Δ45'],['CNT','Counter'],['BON','Bonanza'],['MLT','Malta'],['KEY','Key'],['TRN','Turning'],['PRT','Partner'],['SHD','Shadow'],['EQV','Equiv'],['CODE','Code']];
+function xdrVal(f,x){let v=0;
+  if(f==='MIR'){v=x<10?x*10:+String(x).split('').reverse().join('');}
+  else if(f==='D45'){v=x<=45?x+45:x-45;}
+  else{const A={CNT,BON,MLT,KEY,TRN,PRT,SHD,EQV,CODE}[f];v=A?parseInt(A[x-1],10):0;}
+  return(v>=1&&v<=90&&v!==x)?v:0;}
+function xdrSel(){const s=state.xdrF==null?['PRT','BON','EQV']:state.xdrF;return XDR_FAM.map(f=>f[0]).filter(f=>s.includes(f));}
+function xdrOff(f){const o=state.xdrT||{PRT:6,BON:5,EQV:3};return Math.max(0,+(o[f]||0));}
+function xdrSetOff(f,v){const o=Object.assign({PRT:6,BON:5,EQV:3},state.xdrT||{});o[f]=Math.max(0,+v||0);state.xdrT=o;render();}
+function xdrToggle(f,on){const s=xdrSel().filter(x=>x!==f);if(on)s.push(f);state.xdrF=s;render();}
+function xdrCases(k,d,fams,same){
+  const T=gameData(k).T.slice().reverse();const N=T.map(r=>(r.n||[]).slice(0,5));const L=T.length;
+  const cases=[],wait=[];if(!fams.length)return{T,N,cases,wait};
+  for(let i=0;i+1<L;i++){
+    N[i].forEach((x,p)=>{
+      const hits=[];for(const f of fams){const v=xdrVal(f,x);if(!v)return;const off=xdrOff(f);const ts=[];if(off){if(off<=d&&i+off<L&&N[i+off].includes(v))ts.push(off);else if(i+off<L||off>d)return;}else{for(let t=1;t<=d&&i+t<L;t++){if(N[i+t].includes(v))ts.push(t);}if(!ts.length)return;}hits.push({f,v,ts,off});}
+      if(i+d<L){const p2=N[i+d].indexOf(x);if(p2>=0&&(!same||p2===p))cases.push({i,x,p,hits});}
+      else if(hits.some(h=>h.ts.length)){let back=false;for(let t=1;i+t<L;t++)if(N[i+t].includes(x))back=true;if(!back)wait.push({i,x,p,hits,due:i+d-L+1});}
+    });
+  }
+  return{T,N,cases,wait};
+}
+function xdrKey(){const k=state.xdrGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function xdrPanelHTML(){
+  const d=Math.max(2,Math.min(30,+(state.xdrD==null?6:state.xdrD)||6)),fams=xdrSel(),same=state.xdrPos!==false;
+  const aft=state.xdrAft==null?3:Math.max(0,Math.min(12,+state.xdrAft)),NN=Math.max(5,Math.min(300,+state.xdrN||40));
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;const lab=f=>(XDR_FAM.find(z=>z[0]===f)||[f,f])[1];
+  const desc=`X sort au tirage i et revient au tirage i+${d}${same?' à la même place':''} ; entre i+1 et i+${d}, ses dérivés sortent : ${fams.map(f=>lab(f)+(xdrOff(f)?' en i+'+xdrOff(f):' (n\'importe où)')).join(', ')||'(aucun choisi)'}.`;
+  const famBox=XDR_FAM.map(([f,l])=>`<label style="white-space:nowrap"><input type="checkbox" ${fams.includes(f)?'checked':''} onchange="xdrToggle('${f}',this.checked)"> ${l}</label>${fams.includes(f)?`<label style="white-space:nowrap">en i+<input type="number" min="0" max="30" value="${xdrOff(f)}" onchange="xdrSetOff('${f}',this.value)" style="width:36px" title="0 = n'importe où entre i+1 et i+${d}"></label>`:''}`).join(' ');
+  const head=(all)=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:4px"><label><input type="checkbox" ${all?'checked':''} onchange="state.xdrAll=this.checked;render()"> tous les lotos</label>${all?'':`<select onchange="state.xdrGame=this.value;render()" style="padding:4px;border:1px solid #888;border-radius:6px;max-width:100%">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===xdrKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}<label>retour de X après <input type="number" min="2" max="30" value="${d}" onchange="state.xdrD=+this.value;render()" style="width:42px"></label><label><input type="checkbox" ${same?'checked':''} onchange="state.xdrPos=this.checked;render()"> même place</label>${all?'':`<label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.xdrAft=+this.value;render()" style="width:42px"></label><label>Cas <input type="number" min="5" max="300" value="${NN}" onchange="state.xdrN=+this.value;render()" style="width:58px"></label>`}</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;color:#333">Dérivés exigés : ${famBox}</div>`;
+  const htxt=h=>h.map(z=>`${lab(z.f)} ${z.v} (${z.ts.length?z.ts.map(t=>'+'+t).join(','):'attendu en +'+z.off})`).join(', ');
+  if(state.xdrAll){
+    const seen={},rows=[],pend=[];
+    Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+      let r;try{r=xdrCases(k,d,fams,same);}catch(e){return;}if(r.cases.length)rows.push({g,r});r.wait.forEach(w=>pend.push({g,r,w}));});
+    rows.sort((a,b)=>b.r.cases.length-a.r.cases.length);pend.sort((a,b)=>a.w.due-b.w.due);
+    return `<div style="font-size:11px">${head(true)}<div style="color:#555;margin-bottom:4px">${desc}</div>
+    <div style="margin:6px 0"><b>En cours</b> (dérivés déjà sortis, X attendu) :<div>${pend.map(p=>`<div style="margin:2px 0"><b>${p.g.icon||''} ${p.g.name}</b> : X <b>${p.w.x}</b> (${dstr(p.r.T[p.w.i])}, place ${p.w.p+1}) · ${htxt(p.w.hits)} → <b style="color:#B91C1C">${p.w.x} attendu dans ${p.w.due} tirage(s)</b></div>`).join('')||'—'}</div></div>
+    <div style="margin:6px 0"><b>Déjà arrivé</b> (${rows.length} lotos) :${rows.map(({g,r})=>`<div style="margin:2px 0"><b>${g.icon||''} ${g.name}</b> : ${r.cases.length} cas — ${r.cases.slice(-3).reverse().map(c=>`${c.x} dès ${dstr(r.T[c.i])}`).join(' · ')}</div>`).join('')||'—'}</div></div>`;
+  }
+  const k=xdrKey();const {T,N,cases,wait}=xdrCases(k,d,fams,same);const L=T.length;
+  const col={MIR:'#6B2FA0',D45:'#F59E0B',CNT:'#2E8B7A',BON:'#E8743B',MLT:'#2E8B7A',KEY:'#2E8B7A',TRN:'#2E8B7A',PRT:'#3B82F6',SHD:'#2E8B7A',EQV:'#E5C33B',CODE:'#2E8B7A'};
+  const list=cases.slice().reverse().slice(0,NN).map(c=>{const rows=[];for(let j=c.i;j<=Math.min(L-1,c.i+d+aft);j++){const t=j-c.i;
+    rows.push(`<tr style="${t===d?'border-bottom:2px solid #1D4ED8;':t===d+1?'border-bottom:2px solid #C00000;':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">${t} · N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map(v=>{const isX=(t===0||t===d)&&v===c.x;const h=c.hits.find(z=>z.ts.includes(t)&&z.v===v);return `<td style="text-align:center;padding:1px 5px;${isX?'background:#3E8E63;color:#fff;border-radius:4px;font-weight:700;':h?`background:${col[h.f]};color:#fff;border-radius:4px;font-weight:700;`:''}" ${h?`title="${lab(h.f)} de ${c.x}"`:''}>${v}</td>`;}).join('')}<td style="font-size:10px;color:#555;padding-left:4px">${N[j].reduce((a,b)=>a+b,0)}</td></tr>`);}
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#7C2D12;font-size:11px">${c.x} → ${htxt(c.hits)} → ${c.x} · ${dstr(T[c.i])} → ${dstr(T[c.i+d])}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  const chips=wait.map(w=>`<span style="display:inline-block;margin:2px 4px;padding:2px 7px;border-radius:9px;background:#FEE2E2">X <b>${w.x}</b> (${dstr(T[w.i])}, place ${w.p+1}) · ${htxt(w.hits)} → ${w.x} attendu dans <b>${w.due}</b> tirage(s)</span>`).join('');
+  return `<div style="font-size:11px">${head(false)}<div style="color:#555;margin-bottom:4px">${desc} <b>${cases.length}</b> cas sur ${L} tirages.</div><div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>En cours</b> : ${chips||'—'}</div><div>${list||'Aucun cas'}</div></div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -14724,6 +15028,12 @@ const SEARCH_SECTIONS=[
   {key:'ctp',icon:'↔️',title:'Counterpart (X → +3 tirages X±45 → +4 tirages X)',desc:'Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient — tous les cas + ceux attendus',color:'#B91C1C',html:()=>`<div style="background:#fff;border:1.5px solid #B91C1C;border-radius:8px;padding:8px;margin-bottom:8px">${ctpPanelHTML()}</div>`},
   {key:'trm',icon:'🔢',title:'Terminaison alternée (1-2-1-2)',desc:'Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs, avec un numéro miroir sur l\'une des lignes — tous les cas + ceux en cours',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${trmPanelHTML()}</div>`},
   {key:'duo',icon:'🔢',title:'Duo de terminaisons (ex. 8 + 9, 4 tirages d\'affilée)',desc:'Deux terminaisons (ex. 8 et 9) présentes chacune 1 fois par tirage sur 4 tirages d\'affilée, avec miroir et numéro répété — tous les cas + en cours',color:'#6B2FA0',html:()=>`<div style="background:#fff;border:1.5px solid #6B2FA0;border-radius:8px;padding:8px;margin-bottom:8px">${duoPanelHTML()}</div>`},
+  {key:'ssx',icon:'🔢',title:'Superposition (même numéro / miroir) + écart en semaines',desc:'Un numéro ou son miroir revient juste en dessous (même colonne) au tirage suivant — liste des cas et nombre de tirages/semaines entre chaque',color:'#0E7490',html:()=>`<div style="background:#fff;border:1.5px solid #0E7490;border-radius:8px;padding:8px;margin-bottom:8px">${ssxPanelHTML()}</div>`},
+  {key:'rpz',icon:'🔢',title:'Reprise 2+2 (2 numéros du tirage A + 2 du tirage B, 5 tirages plus tard)',desc:'Un tirage reprend 2 numéros du tirage A et 2 numéros du tirage suivant B — tous les cas, tous les lotos',color:'#B45309',html:()=>`<div style="background:#fff;border:1.5px solid #B45309;border-radius:8px;padding:8px;margin-bottom:8px">${rpzPanelHTML()}</div>`},
+  {key:'ivl',icon:'🔢',title:'Un numéro 4 fois avec intervalles (ex. 2-2-3)',desc:'Un même numéro sort 4 fois aux tirages i, i+2, i+4, i+7 — tous les cas, tous les lotos, + en cours',color:'#BE185D',html:()=>`<div style="background:#fff;border:1.5px solid #BE185D;border-radius:8px;padding:8px;margin-bottom:8px">${ivlPanelHTML()}</div>`},
+  {key:'ecd',icon:'🖼️',title:'Encadrement X·YY·X (ex. 30·85·85·30)',desc:'X à la même place en i et i+6, Y doublé à la même place en i+3 et i+4 — écarts réglables, tous lotos, + en cours',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${ecdPanelHTML()}</div>`},
+  {key:'cpm',icon:'🪞',title:'Couple + miroir (ex. 14·30 … 41 … 14·30)',desc:'A puis B, miroir de A 3 tirages après, puis A et B reviennent 6 tirages après — réglable, tous lotos, + en cours',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${cpmPanelHTML()}</div>`},
+  {key:'xdr',icon:'🧬',title:'Retour + dérivés (ex. 30 → Equiv, Bonanza, Partner → 30)',desc:'X revient à la même place 6 tirages après, et ses dérivés choisis sortent entre-temps — familles et écart réglables, tous lotos, + en cours',color:'#3E8E63',html:()=>`<div style="background:#fff;border:1.5px solid #3E8E63;border-radius:8px;padding:8px;margin-bottom:8px">${xdrPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -14873,6 +15183,12 @@ function searchHubHTML(){
     ['↔️','Counterpart (X → +3 tirages X±45 → +4 tirages X)','Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient : tous les cas + ceux attendus','#B91C1C',"openSearchModule('ctp')"],
     ['🔢','Terminaison alternée (1-2-1-2)','Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs : tous les cas + ceux en cours','#7C2D12',"openSearchModule('trm')"],
     ['🔗','Duo de terminaisons (ex. 8 + 9)','Deux terminaisons présentes chacune 1 fois par tirage sur 4 tirages d\'affilée, avec miroir et numéro répété','#6B2FA0',"openSearchModule('duo')"],
+    ['⬇️','Superposition + écart en semaines','Même numéro ou miroir l\'un sous l\'autre au tirage suivant, avec le nombre de tirages/semaines entre chaque cas','#0E7490',"openSearchModule('ssx')"],
+    ['🔁','Reprise 2+2 (A + B → 5 tirages après)','Un tirage reprend 2 numéros du tirage A et 2 du tirage suivant B, tous lotos','#B45309',"openSearchModule('rpz')"],
+    ['🎯','Un numéro 4 fois (écarts 2-2-3)','Un même numéro sort 4 fois avec des intervalles précis, tous lotos + en cours','#BE185D',"openSearchModule('ivl')"],
+    ['🖼️','Encadrement X·YY·X (écarts 3-1-2)','X revient à la même place en encadrant un Y doublé (ex. Million 30·85·85·30), tous lotos + en cours','#0F766E',"openSearchModule('ecd')"],
+    ['🪞','Couple + miroir (retour à 6 tirages)','A puis B, miroir de A au milieu, puis A et B reviennent dans le même ordre (ex. Million 14·30 … 41 … 14·30), tous lotos + en cours','#1D4ED8',"openSearchModule('cpm')"],
+    ['🧬','Retour + dérivés (Partner, Bonanza, Equiv…)','X revient à la même place et ses dérivés choisis sortent entre-temps (ex. Million 30 → 69, 14, 38 → 30), tous lotos + en cours','#3E8E63',"openSearchModule('xdr')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

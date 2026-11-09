@@ -107,7 +107,8 @@ th.excel-frozen{z-index:9;}
 .popup-body{display:flex;flex-wrap:wrap;gap:1px 6px;}
 .popup-row{display:flex;align-items:center;gap:2px;line-height:1.2;font-size:9px;white-space:nowrap;}
 .popup-label{color:#9AA6B5;font-weight:normal;}
-@media (max-width:700px){.topnav{flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;scrollbar-width:none;}.topnav::-webkit-scrollbar{display:none;}.topnav>div{flex:0 0 auto !important;min-width:70px !important;}}
+.topstrip{display:none;}
+@media (max-width:700px){.topstrip{display:block;position:fixed;top:0;left:0;right:0;height:calc(10px + env(safe-area-inset-top));background:#16436B;z-index:899;}.topnav{flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#16436B !important;}.topnav::-webkit-scrollbar{display:none;}.topnav>div{flex:0 0 auto !important;min-width:82px !important;font-size:11px !important;color:#fff !important;padding:4px 6px !important;}.topnav>div span:first-child{font-size:18px !important;}}
 .nmenu{position:fixed;z-index:1000;background:#fff;border-radius:13px;box-shadow:0 10px 36px rgba(31,45,61,.35);overflow-y:auto;overflow-x:hidden;max-height:58vh;width:250px;max-width:calc(100vw - 20px);box-sizing:border-box;border:1px solid var(--line);}
 .nmenu-hdr{background:linear-gradient(135deg,#1E3A8A,#1F2D3D);color:var(--accent);font-weight:700;text-align:center;padding:5px;font-size:15px;}
 .nmenu-item{padding:7px 13px;font-size:12px;font-weight:500;cursor:pointer;border-bottom:1px solid #F2F4F8;color:#2C3E50;user-select:none;}
@@ -15799,7 +15800,7 @@ function bottomNavHTML(){
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
   ];
-  return`<div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
+  return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:760px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))));
       return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">

@@ -289,6 +289,37 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
           <div class="sc"><div class="scl">Nombre d'immeubles</div><div class="scv">6</div></div>
         </div>
 
+        <!-- DEMANDER A CLAUDE SUR MES LOYERS -->
+        <style>.ask-claude-card:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(0,0,0,.1)}</style>
+        <div class="rc" style="padding:16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <div style="font-weight:700;color:var(--gd);font-size:.9rem">🤖 Demander à Claude sur mes loyers</div>
+            <div style="font-size:.7rem;color:var(--mu)">Réponses instantanées, sans connexion ni clé — calculées depuis vos saisies.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px">
+            <div class="ask-claude-card" onclick="askClaudeImpayes()" style="cursor:pointer;padding:12px;background:#fff1f2;border-radius:8px;border:1px solid #fecdd3;transition:transform .15s">
+              <div style="font-size:1.3rem">🔴</div>
+              <div style="font-weight:700;font-size:.82rem;color:#7f1d1d;margin-top:4px">Qui n'a pas encore payé ce mois ?</div>
+              <div style="font-size:.68rem;color:var(--mu);margin-top:2px">Impayés</div>
+            </div>
+            <div class="ask-claude-card" onclick="askClaudeEncaissements()" style="cursor:pointer;padding:12px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;transition:transform .15s">
+              <div style="font-size:1.3rem">🟢</div>
+              <div style="font-weight:700;font-size:.82rem;color:#14532d;margin-top:4px">Combien j'ai encaissé par immeuble ?</div>
+              <div style="font-size:.68rem;color:var(--mu);margin-top:2px">Encaissements</div>
+            </div>
+            <div class="ask-claude-card" onclick="askClaudeRetards()" style="cursor:pointer;padding:12px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa;transition:transform .15s">
+              <div style="font-size:1.3rem">🟠</div>
+              <div style="font-weight:700;font-size:.82rem;color:#7c2d12;margin-top:4px">Quels locataires paient en retard plusieurs mois de suite ?</div>
+              <div style="font-size:.68rem;color:var(--mu);margin-top:2px">Retards</div>
+            </div>
+            <div class="ask-claude-card" onclick="askClaudeProjection()" style="cursor:pointer;padding:12px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;transition:transform .15s">
+              <div style="font-size:1.3rem">🔵</div>
+              <div style="font-weight:700;font-size:.82rem;color:#1e3a8a;margin-top:4px">Combien il me reste après charges ce mois ?</div>
+              <div style="font-size:.68rem;color:var(--mu);margin-top:2px">Projection</div>
+            </div>
+          </div>
+        </div>
+
         <!-- GRAPHIQUES LIGNE 1 - Flexbox natif -->
         <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
           <div class="rc" style="padding:16px;flex:5;min-width:280px">
@@ -1384,6 +1415,11 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
     </div>
 
     <!-- MODAL MESSAGES WHATSAPP -->
+    <div class="modal fade" id="mAskClaude" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+      <div class="modal-header" style="background:#003087;color:#fff"><h5 class="modal-title fw-bold" id="ac-modal-title">🤖 Demander à Claude</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body" id="ac-modal-body" style="padding:16px"></div>
+    </div></div></div>
+
     <div class="modal fade" id="mWhatsAppTemplates" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
       <div class="modal-header" style="background:#25D366;color:#fff"><h5 class="modal-title fw-bold">💬 Modèles de messages WhatsApp</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body" id="wa-modal-body" style="padding:16px"></div>
@@ -2530,6 +2566,127 @@ function computeStats(){
     return{nom:imm,nb:li.length,lm,en,re,rc};
   });
   return{nbLoc:locs.length,att,enc,res,dep,taux,impayes,si};
+}
+function showAskClaudeModal(title,html){
+  document.getElementById('ac-modal-title').innerHTML=title;
+  document.getElementById('ac-modal-body').innerHTML=html;
+  new bootstrap.Modal(document.getElementById('mAskClaude')).show();
+}
+function askClaudeImpayes(){
+  var mois=getMois();
+  var sais=getSaisies(mois);
+  var list=[];
+  D.locataires.forEach(function(l){
+    if(l.archive||!isLocataireActifPourMois(l,mois))return;
+    var s=sais.find(function(x){return x.id===l.id;});
+    var reste=s?s.reste_du:l.loyer_cc;
+    if(reste<=0)return;
+    list.push({id:l.id,nom:l.nom,immeuble:l.immeuble,reste:reste,statut:s?s.statut:'non_saisi'});
+  });
+  list.sort(function(a,b){return b.reste-a.reste;});
+  var total=list.reduce(function(s,x){return s+x.reste;},0);
+  var html;
+  if(list.length===0){
+    html='<div style="text-align:center;padding:20px;color:#16a34a;font-weight:700">✅ Tout le monde a payé pour '+mois+' !</div>';
+  }else{
+    html='<div style="margin-bottom:10px;font-weight:700;color:#dc2626">'+list.length+' locataire(s) n’ont pas encore payé '+mois+' — '+fmt(total)+' FCFA en attente</div>'
+      +'<table class="table table-sm"><thead><tr><th>Locataire</th><th>Immeuble</th><th>Reste dû</th><th>Statut</th><th></th></tr></thead><tbody>'
+      +list.map(function(x){
+        return '<tr><td>'+x.nom+'</td><td>'+x.immeuble+'</td><td style="color:#dc2626;font-weight:700">'+fmt(x.reste)+' FCFA</td><td>'+(x.statut==='partiel'?'🟡 Partiel':'🔴 Non payé')+'</td>'
+          +'<td><button onclick="envoyerWhatsApp(\''+x.id+'\')" style="border:none;background:none;cursor:pointer;font-size:1.1rem" title="Relancer sur WhatsApp">💬</button></td></tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+  showAskClaudeModal('🔴 Qui n’a pas encore payé ce mois ? ('+mois+')',html);
+}
+function askClaudeEncaissements(){
+  var mois=getMois();
+  var st=computeStats();
+  var html='<div style="margin-bottom:10px;font-weight:700;color:var(--gd)">Total encaissé '+mois+' : '+fmt(st.enc)+' FCFA sur '+fmt(st.att)+' FCFA attendus ('+st.taux+'%)</div>'
+    +'<table class="table table-sm"><thead><tr><th>Immeuble</th><th>Locataires</th><th>Attendu</th><th>Encaissé</th><th>Reste</th><th>Taux</th></tr></thead><tbody>'
+    +st.si.map(function(im){
+      return '<tr><td><strong>'+im.nom+'</strong></td><td>'+im.nb+'</td><td>'+fmt(im.lm)+' FCFA</td>'
+        +'<td style="color:#16a34a;font-weight:700">'+fmt(im.en)+' FCFA</td>'
+        +'<td style="color:'+(im.re>0?'#dc2626':'#6b7280')+'">'+(im.re>0?fmt(im.re)+' FCFA':'—')+'</td>'
+        +'<td>'+im.rc+'%</td></tr>';
+    }).join('')
+    +'</tbody></table>';
+  showAskClaudeModal('🟢 Combien j’ai encaissé par immeuble ? ('+mois+')',html);
+}
+function askClaudeRetards(){
+  var mois=getMois();
+  var today=new Date();
+  var MOIS_MAP={JAN:0,FEV:1,MAR:2,AVR:3,MAI:4,JUN:5,JUL:6,AOU:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  var mp=mois.split(' ');
+  var moisDate=new Date(parseInt(mp[1]),MOIS_MAP[mp[0]],1);
+  var joursRetard=Math.floor((today-moisDate)/(1000*60*60*24));
+  var moisList=sortMois(Object.keys(D.paiements));
+  if(moisList.indexOf(mois)===-1){moisList=sortMois(moisList.concat([mois]));}
+  var idxCur=moisList.indexOf(mois);
+  var sais=getSaisies(mois);
+  var list=[];
+  D.locataires.forEach(function(l){
+    if(l.archive||!isLocataireActifPourMois(l,mois))return;
+    var s=sais.find(function(x){return x.id===l.id;});
+    var resteD=s?s.reste_du:l.loyer_cc;
+    if(resteD<=0)return;
+    // Série de mois CONSÉCUTIFS impayés en remontant depuis le mois courant (s'arrête au premier mois payé)
+    var streak=0,totalDu=0,i=idxCur;
+    while(i>=0){
+      var m=moisList[i];
+      if(isLocataireActifPourMois(l,m)){
+        var sp=(m===mois)?s:(D.paiements[m]||[]).find(function(x){return x.id===l.id;});
+        if(!sp&&m!==mois){i--;continue;}
+        var r=sp?sp.reste_du:l.loyer_cc;
+        if(r>0){streak++;totalDu+=r;}
+        else break;
+      }
+      i--;
+    }
+    if(streak>=2){
+      list.push({id:l.id,nom:l.nom,immeuble:l.immeuble,mois_retard:streak,total_du:totalDu,priorite:getPriorite(totalDu,streak,joursRetard)});
+    }
+  });
+  list.sort(function(a,b){return b.mois_retard-a.mois_retard||b.total_du-a.total_du;});
+  var html;
+  if(list.length===0){
+    html='<div style="text-align:center;padding:20px;color:#16a34a;font-weight:700">✅ Aucun locataire en retard de plusieurs mois de suite !</div>';
+  }else{
+    html='<div style="margin-bottom:10px;font-weight:700;color:#ea580c">'+list.length+' locataire(s) en retard de 2 mois consécutifs ou plus</div>'
+      +'<table class="table table-sm"><thead><tr><th>Locataire</th><th>Immeuble</th><th>Mois de suite</th><th>Total dû</th><th>Priorité</th><th></th></tr></thead><tbody>'
+      +list.map(function(x){
+        return '<tr><td>'+x.nom+'</td><td>'+x.immeuble+'</td><td style="font-weight:700">'+x.mois_retard+' mois</td>'
+          +'<td style="color:#dc2626;font-weight:700">'+fmt(x.total_du)+' FCFA</td>'
+          +'<td style="color:'+getPrioriteColor(x.priorite)+'">'+getPrioriteLabel(x.priorite)+'</td>'
+          +'<td><button onclick="envoyerWhatsApp(\''+x.id+'\')" style="border:none;background:none;cursor:pointer;font-size:1.1rem" title="Relancer sur WhatsApp">💬</button></td></tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+  showAskClaudeModal('🟠 Quels locataires paient en retard plusieurs mois de suite ?',html);
+}
+function askClaudeProjection(){
+  var mois=getMois();
+  var st=computeStats();
+  var allChgs=D.charges&&D.charges[mois]?D.charges[mois]:[];
+  var months2=['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
+  var parseMois2=function(m){var p=m.split(' ');return parseInt(p[1])*12+months2.indexOf(p[0]);};
+  var chgs=allChgs.filter(function(c){return !c.date_fin||parseMois2(mois)<=parseMois2(c.date_fin);});
+  var totalChgs=chgs.reduce(function(s,c){return s+c.montant;},0);
+  var netAttendu=st.att-totalChgs;
+  var netReel=st.enc-totalChgs;
+  var html='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px">'
+    +'<div style="padding:12px;background:#eff6ff;border-radius:8px"><div style="font-size:.72rem;color:var(--mu)">Loyers attendus</div><div style="font-weight:800;font-size:1.1rem;color:#003087">'+fmt(st.att)+' FCFA</div></div>'
+    +'<div style="padding:12px;background:#f0fdf4;border-radius:8px"><div style="font-size:.72rem;color:var(--mu)">Déjà encaissé</div><div style="font-weight:800;font-size:1.1rem;color:#16a34a">'+fmt(st.enc)+' FCFA</div></div>'
+    +'<div style="padding:12px;background:#fff1f2;border-radius:8px"><div style="font-size:.72rem;color:var(--mu)">Charges du mois</div><div style="font-weight:800;font-size:1.1rem;color:#dc2626">-'+fmt(totalChgs)+' FCFA</div></div>'
+    +'<div style="padding:12px;background:#faf5ff;border-radius:8px"><div style="font-size:.72rem;color:var(--mu)">Reste dû (impayés)</div><div style="font-weight:800;font-size:1.1rem;color:#6C3483">'+fmt(st.res)+' FCFA</div></div>'
+    +'</div>'
+    +'<div style="padding:14px;background:linear-gradient(135deg,#003087,#0066CC);border-radius:10px;color:#fff;text-align:center">'
+    +'<div style="font-size:.75rem;opacity:.85">Si tous les loyers du mois rentrent, il vous reste après charges</div>'
+    +'<div style="font-size:1.6rem;font-weight:800;margin-top:4px">'+fmt(netAttendu)+' FCFA</div>'
+    +'<div style="font-size:.72rem;opacity:.85;margin-top:6px">Déjà encaissé net à ce jour : '+fmt(netReel)+' FCFA</div>'
+    +'</div>'
+    +(chgs.length>0?'<div style="margin-top:12px;font-size:.78rem;color:var(--mu)">Charges prises en compte : '+chgs.map(function(c){return c.label+' ('+fmt(c.montant)+' FCFA)';}).join(', ')+'</div>':'');
+  showAskClaudeModal('🔵 Combien il me reste après charges ce mois ? ('+mois+')',html);
 }
 function renderDashRecouvrement(){
   var mois=getMois();

@@ -2240,8 +2240,9 @@ function getSaisies(m){
           }
         }catch(e){}
       }
-      // + arriérés des mois précédents
+      // + arriérés des mois précédents (uniquement les mois où le locataire était déjà actif)
       var arrieres_mois=moisPrecedents.reduce(function(total,mp){
+        if(l2&&!isLocataireActifPourMois(l2,mp))return total;
         const sp=(D.paiements[mp]||[]).find(function(x){return x.id===locId;});
         return total+(sp&&sp.reste_du>0?sp.reste_du:0);
       },0);
@@ -3908,8 +3909,9 @@ function openArch(id){
   document.getElementById('arch-degradations').value=0;
   document.getElementById('arch-notes').value='';
 
-  // Calcul impayés totaux
+  // Calcul impayés totaux (uniquement les mois où le locataire était actif)
   var totalImpayes=Object.keys(D.paiements).reduce(function(tot,m){
+    if(!isLocataireActifPourMois(l,m))return tot;
     var s=(D.paiements[m]||[]).find(function(x){return x.id===id;});
     return tot+(s&&s.reste_du>0?s.reste_du:0);
   },0);
@@ -4482,6 +4484,7 @@ function envoyerWhatsApp(id){
   if(!tel.startsWith('228')&&tel.length===8)tel='228'+tel;
   var b=getB();
   var cumul=Object.keys(D.paiements).reduce(function(tot,m){
+    if(!isLocataireActifPourMois(l,m))return tot;
     var sp=(D.paiements[m]||[]).find(function(x){return x.id===id;});
     return tot+(sp&&sp.reste_du>0?sp.reste_du:0);
   },0);
@@ -6246,7 +6249,7 @@ function restoreLoc(id){
   const {motif,archive_le,date_sortie,...loc}=a;
   D.locataires.push({...loc,date_sortie:'',statut:'Actif'});
   D.archives=D.archives.filter(x=>x.id!==id);
-  Object.keys(D.paiements).forEach(m=>{if(!D.paiements[m].find(s=>s.id===id)){D.paiements[m].push({id:loc.id,locataire:loc.nom,type:loc.type,loyer_du:loc.loyer_hc,charges_dues:loc.charges,loyer_verse:0,charges_versees:0,date_paiement:'',mode:'',statut:'non_saisi',reste_du:loc.loyer_cc});}});
+  Object.keys(D.paiements).forEach(m=>{if(isLocataireActifPourMois(loc,m)&&!D.paiements[m].find(s=>s.id===id)){D.paiements[m].push({id:loc.id,locataire:loc.nom,type:loc.type,loyer_du:loc.loyer_hc,charges_dues:loc.charges,loyer_verse:0,charges_versees:0,date_paiement:'',mode:'',statut:'non_saisi',reste_du:loc.loyer_cc});}});
   save();renderAll();alert('✅ Locataire restauré !');
 }
 function saveAppConfig(){
@@ -9514,6 +9517,7 @@ window.updateApurement=function(){
   setT('ap-date-accord',new Date().toLocaleDateString('fr-FR'));
   setT('ap-sig-b',b.nom||'');setT('ap-sig-l',l.nom||'');
   var totalArrieres=Object.keys(D.paiements).reduce(function(tot,m){
+    if(!isLocataireActifPourMois(l,m))return tot;
     var s=(D.paiements[m]||[]).find(function(x){return x.id===id;});
     return tot+(s&&s.reste_du>0?s.reste_du:0);
   },0);
@@ -9923,7 +9927,9 @@ function populateAcLocSelect(){
   sel.innerHTML='<option value="">— Choisir —</option>'+D.locataires.filter(function(l){return !l.archive;}).map(function(l){return '<option value="'+l.id+'">'+l.id+' — '+l.nom+'</option>';}).join('');
 }
 function estimTotalDu(locId){
+  var l=D.locataires.find(function(x){return x.id===locId;});
   return Object.keys(D.paiements).reduce(function(tot,m){
+    if(l&&!isLocataireActifPourMois(l,m))return tot;
     var s=(D.paiements[m]||[]).find(function(x){return x.id===locId;});
     return tot+(s&&s.reste_du>0?s.reste_du:0);
   },0);

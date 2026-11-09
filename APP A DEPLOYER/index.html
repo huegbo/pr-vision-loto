@@ -6003,6 +6003,29 @@ function pickBlockColor(t,c){
   closePopup();
   render();
 }
+// ── Ligne HORIZONTALE (comme la « ligne verte » d'Excel) : colore toute la rangée à travers tous les blocs d'années ──
+function hbGet(){if(!state._hb||state._hbK!==GAME.key){state._hbK=GAME.key;try{state._hb=JSON.parse(localStorage.getItem('lmj_hbands_'+GAME.key)||'{}')||{};}catch(_){state._hb={};}}return state._hb;}
+function hbSave(){try{localStorage.setItem('lmj_hbands_'+GAME.key,JSON.stringify(state._hb||{}));}catch(_){}}
+function hbPick(ri,c){hbGet()[ri]=c;state.lastBlockColor=c;lsSet('lmj_lastBlockColor',c);hbSave();closePopup();render();}
+function hbRemove(ri){delete hbGet()[ri];hbSave();closePopup();render();}
+function hbClearAll(){state._hb={};hbSave();closePopup();render();}
+function hbMenu(ri,ev){
+  if(ev&&ev.stopPropagation)ev.stopPropagation();
+  const x=ev&&ev.clientX?ev.clientX:20;
+  document.getElementById('popup').style.display='none';
+  const m=document.getElementById('nmenu'),cur=hbGet()[ri];
+  const GREEN='#86EFAC';
+  m.innerHTML=`<div class="nmenu-hdr">➖ Colorer toute la ligne (horizontale)</div>
+    <div style="display:flex;gap:4px;padding:8px 10px;flex-wrap:wrap;max-width:190px">
+      <span onclick="event.stopPropagation();hbPick(${ri},'${GREEN}')" title="Vert" style="width:22px;height:22px;border-radius:5px;cursor:pointer;background:${GREEN};border:${cur===GREEN?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>
+      ${BLOCK_PAL.map(c=>`<span onclick="event.stopPropagation();hbPick(${ri},'${c}')" style="width:22px;height:22px;border-radius:5px;cursor:pointer;background:${c};border:${cur===c?'2.5px solid #1F2D3D':'1.5px solid #ccc'}"></span>`).join('')}
+      <label title="Couleur libre" onclick="event.stopPropagation()" style="width:22px;height:22px;border-radius:5px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);border:1.5px solid #ccc;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden"><span style="font-size:11px">🎨</span><input type="color" value="${state.lastBlockColor||GREEN}" oninput="hbPick(${ri},this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"></label>
+    </div>
+    ${cur?`<div class="nmenu-item" onclick="event.stopPropagation();hbRemove(${ri})">❌ Enlever cette ligne</div>`:''}
+    ${Object.keys(hbGet()).length?`<div class="nmenu-item" onclick="event.stopPropagation();hbClearAll()">🧹 Enlever toutes les lignes</div>`:''}`;
+  m.style.cssText=`display:block;left:${Math.max(10,Math.min(x,window.innerWidth-260))}px;top:calc(50px + env(safe-area-inset-top));visibility:visible;`;
+  document.getElementById('popup-overlay').style.display='block';
+}
 function removeBlockColor(t){
   pushColorUndo();
   delete state.blockRows[t];
@@ -22622,10 +22645,11 @@ function __renderBody(){
         html+=`<tr>`;
         _cs.forEach((c,ci)=>{
           const row=(ri>=c.off)?c.rows[ri-c.off]:undefined;let bg=ri%2===0?'#fff':'#f7f7f7';if(row&&state.caseRows&&state.caseRows[row.t])bg='#FDF2E3';
+          {const _hbv=hbGet()[ri];if(_hbv)bg=_hbv;}
           if(!row){for(let k=0;k<nCells;k++)html+=`<td style="${fz(ci,k)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;width:${widths[k]}px;min-width:${widths[k]}px"></td>`;return;}
           const tc=tC(row.s);
-          html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px">${state.caseLetters&&state.caseLetters[row.t]?`<b style="background:#F59E0B;color:#111;border-radius:3px;padding:0 3px;margin-right:1px">${state.caseLetters[row.t]}</b>`:''}${multiBadgeHTML(row,fCell)}${row.t}</td>`;
-          html+=`<td style="${fz(ci,1)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;color:#666;font-weight:400;font-size:${fCell}px;width:${W_D}px;min-width:${W_D}px">${row.d}</td>`;
+          html+=`<td style="${fz(ci,0)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;font-weight:500;color:#${c.color};font-size:${fCell}px;width:${W_T}px;min-width:${W_T}px;cursor:pointer" title="Clic : colorer toute la ligne (horizontale)" onclick="hbMenu(${ri},event)">${state.caseLetters&&state.caseLetters[row.t]?`<b style="background:#F59E0B;color:#111;border-radius:3px;padding:0 3px;margin-right:1px">${state.caseLetters[row.t]}</b>`:''}${multiBadgeHTML(row,fCell)}${row.t}</td>`;
+          html+=`<td style="${fz(ci,1)}background:${bg};padding-top:${rowPad}px;padding-bottom:${rowPad}px;color:#666;font-weight:400;font-size:${fCell}px;width:${W_D}px;min-width:${W_D}px;cursor:pointer" title="Clic : colorer toute la ligne (horizontale)" onclick="hbMenu(${ri},event)">${row.d}</td>`;
           const _e=elmHLMark(row);
           // Couches "toujours actives" (Miroir même ligne / Miroir superposé / Mêmes numéros superposés) —
           // manquaient en mode Excel car jamais calculées ici (contrairement à la grille Navigation).

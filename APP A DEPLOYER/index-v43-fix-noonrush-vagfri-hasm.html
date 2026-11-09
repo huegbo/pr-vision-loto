@@ -110,6 +110,10 @@ th.excel-frozen{z-index:9;}
 .topstrip{display:none;}
 .topnav{flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .topnav::-webkit-scrollbar{display:none;}
+.topnav-arrow{display:none;position:fixed;z-index:902;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.93);color:#16436B;font-size:22px;font-weight:700;line-height:27px;text-align:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);top:calc(10px + env(safe-area-inset-top) + 13px);user-select:none;-webkit-user-select:none;}
+.topnav.nav-fr{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 36px),transparent);}
+.topnav.nav-fl{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 36px),transparent);}
+.topnav.nav-fl.nav-fr{-webkit-mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);mask-image:linear-gradient(to right,transparent,#000 36px,#000 calc(100% - 36px),transparent);}
 @media (max-width:1100px){.topstrip{display:block;position:fixed;top:0;left:0;right:0;height:calc(10px + env(safe-area-inset-top));background:#16436B;z-index:899;}}
 @media (max-width:1290px){.topnav{background:#16436B !important;}.topnav>div{flex:0 0 auto !important;min-width:82px !important;font-size:11px !important;color:#fff !important;padding:4px 6px !important;}.topnav>div span:first-child{font-size:18px !important;}}
 @media (min-width:1291px){.topnav>div{font-size:10px !important;padding:5px 6px !important;letter-spacing:.1px !important;}.topnav>div span:first-child{font-size:18px !important;}}
@@ -15754,6 +15758,7 @@ function fabGo(action){
   render();
 }
 function goNav(id){
+  window._navLastId=String(id);
   if(id==='compareGames'){goCompareGames();return;}
   if(id==='modules'){const on=state.showSearchHub&&state.hubView==='cyb';state.showSearchHub=!on;if(!on){state.hubView='cyb';state.searchModuleOpen=null;state.cybN=null;}loadHist();}
   else if(id==='search'){const on=state.showSearchHub&&state.hubView!=='cyb';state.showSearchHub=!on;if(!on){state.hubView='all';}loadHist();}
@@ -15807,13 +15812,34 @@ function bottomNavHTML(){
   return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:2200px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
       const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))));
-      return`<div onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
+      return`<div data-id="${id}" onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
       </div>`;
     }).join('')}
-  </div>`;
+  </div><div class="topnav-arrow" id="navArrL" onclick="navScroll(-1)">‹</div><div class="topnav-arrow" id="navArrR" onclick="navScroll(1)">›</div>`;
 }
+window.navScroll=function(d){const el=document.querySelector('.topnav');if(el)el.scrollBy({left:d*el.clientWidth*0.6,behavior:'smooth'});};
+// Menu du haut défilant : mémorise la position entre deux rendus, recentre le bouton cliqué,
+// et affiche un fondu sur le bord où il reste des boutons cachés.
+(function(){
+  let _navL=0;
+  function fixNav(){
+    const el=document.querySelector('.topnav');
+    if(!el||el.dataset.navInit)return;
+    el.dataset.navInit='1';
+    el.scrollLeft=_navL;
+    if(window._navLastId!=null){
+      const a=el.querySelector('[data-id="'+window._navLastId+'"]');
+      if(a){el.scrollLeft=Math.max(0,a.offsetLeft-(el.clientWidth-a.offsetWidth)/2);}
+      window._navLastId=null;
+    }
+    const upd=()=>{_navL=el.scrollLeft;const mx=el.scrollWidth-el.clientWidth;const fl=el.scrollLeft>4,fr=el.scrollLeft<mx-4;el.classList.toggle('nav-fl',fl);el.classList.toggle('nav-fr',fr);const r=el.getBoundingClientRect(),aL=document.getElementById('navArrL'),aR=document.getElementById('navArrR');if(aL){aL.style.display=fl?'block':'none';aL.style.left=(r.left+8)+'px';}if(aR){aR.style.display=fr?'block':'none';aR.style.left=(r.right-38)+'px';}};
+    el.addEventListener('scroll',upd,{passive:true});upd();
+  }
+  function start(){const app=document.getElementById('app');if(!app)return;new MutationObserver(fixNav).observe(app,{childList:true});window.addEventListener('resize',()=>{const e=document.querySelector('.topnav');if(e)e.dispatchEvent(new Event('scroll'));});fixNav();}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
+})();
 function downloadAppButtonHTML(){
   return `<a href="/forecast_loto_90.zip" download="forecast_loto_90.zip" style="position:fixed;top:calc(150px + env(safe-area-inset-top));right:10px;z-index:890;background:linear-gradient(135deg,#E53935,#D81B60);color:#fff;padding:8px 12px;border-radius:12px;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 4px 12px rgba(229,57,53,.4);display:flex;align-items:center;gap:6px;cursor:pointer">⬇️ Télécharger ZIP</a>`;
 }

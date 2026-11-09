@@ -556,10 +556,31 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
     <!-- RECAP -->
     <div id="p-recap" class="pg">
       <div class="pgh" style="border-top:4px solid #1B3A6B"><div class="pgtr"><div class="pgic" style="background:#1B3A6B"><i class="bi bi-list-check"></i></div><div class="pgt">Récapitulatif par locataire</div></div>
-      <div class="pgsu">Cumul calculé à partir de l'historique de saisie.</div></div>
+      <div class="pgsu">Point actualisé des paiements — cumul calculé à partir de l'historique de saisie.</div></div>
       <div class="pgc">
+        <div class="no-print" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px">
+          <div style="background:linear-gradient(135deg,#1B3A6B,#2B6CB0);color:#fff;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:1.3rem;font-weight:800" id="rc-kpi-verse">0 FCFA</div>
+            <div style="font-size:.72rem;opacity:.9">💰 Total encaissé</div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:1.3rem;font-weight:800;color:#dc2626" id="rc-kpi-reste">0 FCFA</div>
+            <div style="font-size:.72rem;color:#555">⚠️ Total restant dû</div>
+          </div>
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:1.3rem;font-weight:800;color:#16a34a" id="rc-kpi-ajour">0</div>
+            <div style="font-size:.72rem;color:#555">✅ Locataires à jour</div>
+          </div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:14px;text-align:center">
+            <div style="font-size:1.3rem;font-weight:800;color:#d97706" id="rc-kpi-retard">0</div>
+            <div style="font-size:.72rem;color:#555">⏳ En retard / en cours</div>
+          </div>
+        </div>
+        <div class="no-print" style="text-align:right;margin-bottom:6px">
+          <span style="font-size:.72rem;color:var(--mu)" id="rc-kpi-date"></span>
+        </div>
         <div class="tw"><div class="table-responsive"><table>
-          <thead><tr><th>Locataire</th><th>Immeuble</th><th>Type</th><th>Loyer</th><th>Versé</th><th>Reste dû</th><th>Taux</th><th>Dépôt</th><th>Statut global</th></tr></thead>
+          <thead><tr><th>Locataire</th><th>Immeuble</th><th>Type</th><th>Loyer</th><th>Versé</th><th>Reste dû</th><th>Taux</th><th>Dépôt</th><th>Statut global</th><th class="no-print"></th></tr></thead>
           <tbody id="rc-tbody"></tbody>
         </table></div></div>
       </div>
@@ -2585,32 +2606,6 @@ function initApp(){
 function renderAll(){
   initApp();renderDashboard();renderLocataires();renderSaisie();
 
-  // Ajout automatique KOSSIVI CHARLES si pas encore présent
-  (function(){
-    var ids=['L046','L047','L048'];
-    var exists=ids.some(function(id){return D.locataires.find(function(l){return l.id===id;});});
-    if(exists)return;
-    var today=new Date().toISOString().slice(0,10);
-    var kossivi=[
-      {id:'L046',nom:'KOSSIVI Charles',immeuble:'Soviépé',type:'Chambre Salon 1',loyer_hc:37000,charges:0,loyer_cc:37000,depot:111000,telephone:'22891838299',whatsapp:'22891838299',date_entree:today},
-      {id:'L047',nom:'KOSSIVI Charles',immeuble:'Soviépé',type:'Chambre Salon 2',loyer_hc:40000,charges:0,loyer_cc:40000,depot:120000,telephone:'22891838299',whatsapp:'22891838299',date_entree:today},
-      {id:'L048',nom:'KOSSIVI Charles',immeuble:'Soviépé',type:'Studio',loyer_hc:23000,charges:0,loyer_cc:23000,depot:69000,telephone:'22891838299',whatsapp:'22891838299',date_entree:today}
-    ];
-    kossivi.forEach(function(k){
-      k.adresse=k.immeuble;k.date_sortie='';k.statut='Actif';k.lot='';
-      k.email='';k.profession='';k.garant_nom='';k.garant_tel='';
-      k.duree_bail=12;k.jour_echeance=5;k.meuble='vide';k.peinture='';
-      D.locataires.push(k);
-      Object.keys(D.paiements).forEach(function(m){
-        if(!D.paiements[m].find(function(s){return s.id===k.id;})){
-          D.paiements[m].push({id:k.id,locataire:k.nom,type:k.type,loyer_du:k.loyer_hc,charges_dues:0,loyer_verse:0,charges_versees:0,date_paiement:'',mode:'',statut:'non_saisi',reste_du:k.loyer_cc});
-        }
-      });
-    });
-    save();renderLocataires();renderDashboard();
-    console.log('✅ KOSSIVI Charles (L046, L047, L048) ajoutés');
-  })();
-
   // NOTIFICATION 1er DU MOIS
   (function(){
     var today=new Date();
@@ -3583,6 +3578,7 @@ function renderLocataires(search='',immF='',statutF=''){
       <button class="bgr" style="padding:3px 8px;font-size:.74rem;margin-right:3px" onclick="openArch('${l.id}')"><i class="bi bi-archive"></i></button>
       <button class="bgr" style="padding:3px 8px;font-size:.74rem;color:var(--red)" onclick="delLoc('${l.id}')"><i class="bi bi-trash"></i></button>
       <button style="padding:3px 8px;font-size:.74rem;background:#8b5cf6;color:#fff;border:none;border-radius:5px;margin-left:2px" onclick="genFicheLocataire('${l.id}')" title="Fiche locataire PDF"><i class="bi bi-person-badge"></i></button>
+      <button style="padding:3px 8px;font-size:.74rem;background:#16a34a;color:#fff;border:none;border-radius:5px;margin-left:2px" onclick="genPointPaiementPDF('${l.id}')" title="Point de paiement PDF"><i class="bi bi-receipt"></i></button>
       <button style="padding:3px 8px;font-size:.74rem;background:#0ea5e9;color:#fff;border:none;border-radius:5px;margin-left:2px" onclick="genLienPortail('${l.id}')" title="Lien portail locataire">🔗</button>
       ${l.cni_link?`<a href="${l.cni_link}" target="_blank" style="padding:3px 8px;font-size:.74rem;background:#0ea5e9;color:#fff;border-radius:5px;text-decoration:none;margin-left:2px" title="Voir scan CNI 🪪"><i class="bi bi-card-image"></i></a>`:''}
       ${l.ressource_link?`<a href="${l.ressource_link}" target="_blank" style="padding:3px 8px;font-size:.74rem;background:#8b5cf6;color:#fff;border-radius:5px;text-decoration:none;margin-left:2px" title="Personne ressource 👤"><i class="bi bi-person-badge"></i></a>`:''}
@@ -4375,7 +4371,7 @@ function genQuittanceMois(id,mois){
   }
 }
 function nextMois(m){var MN=["JAN","FEV","MAR","AVR","MAI","JUN","JUL","AOU","SEP","OCT","NOV","DEC"];var parts=m.trim().split(" ");var idx=MN.indexOf(parts[0]);if(idx===-1)return m;var ni=(idx+1)%12;var ny=ni===0?parseInt(parts[1])+1:parseInt(parts[1]);return MN[ni]+" "+ny;}
-function payerNMois(id,nbMois){if(nbMois<2)return;var moisCourant=getMois();var l=D.locataires.find(function(x){return x.id===id;});if(!l)return;var montantProp=l.loyer_hc+l.charges;var montantSaisi=parseInt(prompt(l.nom+' — Montant pour '+nbMois+' mois :\n(Loyer '+fmt(l.loyer_hc)+' + Charges '+fmt(l.charges)+' FCFA)',montantProp));if(!montantSaisi||isNaN(montantSaisi))return;var sCurrent=getSaisies(moisCourant).find(function(x){return x.id===id;});if(sCurrent&&sCurrent.statut!=="paye"){sCurrent.loyer_verse=Math.min(montantSaisi,l.loyer_hc);sCurrent.charges_versees=Math.max(0,montantSaisi-l.loyer_hc);sCurrent.reste_du=0;sCurrent.statut="paye";if(!sCurrent.date_paiement)sCurrent.date_paiement=new Date().toISOString().slice(0,10);}var m=moisCourant;for(var i=1;i<nbMois;i++){m=nextMois(m);var saisies=getSaisies(m);var s=saisies.find(function(x){return x.id===id;});if(!s){s={id:l.id,locataire:l.nom,type:l.type,loyer_du:l.loyer_hc,charges_dues:l.charges,loyer_verse:0,charges_versees:0,date_paiement:"",mode:"",statut:"non_saisi",reste_du:l.loyer_cc};saisies.push(s);}s.loyer_verse=l.loyer_hc;s.charges_versees=l.charges;s.reste_du=0;s.statut="paye";s.avance_de=moisCourant;s.date_paiement=sCurrent?sCurrent.date_paiement||"":"";s.mode=sCurrent?sCurrent.mode||"":"";}save();renderSaisie();renderDashboard();updateBadge();if(nbMois>1)alert("✅ "+nbMois+" mois enregistrés ! "+moisCourant+" + "+(nbMois-1)+" mois payés d'avance.");}
+function payerNMois(id,nbMois){if(nbMois<2)return;var moisCourant=getMois();var l=D.locataires.find(function(x){return x.id===id;});if(!l)return;if(!confirm('\u26a0\ufe0f Confirmer : marquer '+l.nom+' comme PAY\u00c9 pour '+nbMois+' mois d\'affil\u00e9e \u2014 '+moisCourant+' + '+(nbMois-1)+' mois suivants ?\n\nCeci enregistrera un paiement complet sur chacun de ces mois. \u00c0 utiliser uniquement si ce locataire a r\u00e9ellement vers\u00e9 plusieurs mois d\'avance.')){return;}var montantProp=l.loyer_hc+l.charges;var montantSaisi=parseInt(prompt(l.nom+' — Montant pour '+nbMois+' mois :\n(Loyer '+fmt(l.loyer_hc)+' + Charges '+fmt(l.charges)+' FCFA)',montantProp));if(!montantSaisi||isNaN(montantSaisi))return;var sCurrent=getSaisies(moisCourant).find(function(x){return x.id===id;});if(sCurrent&&sCurrent.statut!=="paye"){sCurrent.loyer_verse=Math.min(montantSaisi,l.loyer_hc);sCurrent.charges_versees=Math.max(0,montantSaisi-l.loyer_hc);sCurrent.reste_du=0;sCurrent.statut="paye";if(!sCurrent.date_paiement)sCurrent.date_paiement=new Date().toISOString().slice(0,10);}var m=moisCourant;for(var i=1;i<nbMois;i++){m=nextMois(m);var saisies=getSaisies(m);var s=saisies.find(function(x){return x.id===id;});if(!s){s={id:l.id,locataire:l.nom,type:l.type,loyer_du:l.loyer_hc,charges_dues:l.charges,loyer_verse:0,charges_versees:0,date_paiement:"",mode:"",statut:"non_saisi",reste_du:l.loyer_cc};saisies.push(s);}s.loyer_verse=l.loyer_hc;s.charges_versees=l.charges;s.reste_du=0;s.statut="paye";s.avance_de=moisCourant;s.date_paiement=sCurrent?sCurrent.date_paiement||"":"";s.mode=sCurrent?sCurrent.mode||"":"";}save();renderSaisie();renderDashboard();updateBadge();if(nbMois>1)alert("✅ "+nbMois+" mois enregistrés ! "+moisCourant+" + "+(nbMois-1)+" mois payés d'avance.");}
 function upSaisie(id,field,val){
   const mois=getMois(),s=getSaisies(mois).find(x=>x.id===id);if(!s)return;
   const v=parseInt(val)||0;
@@ -4417,19 +4413,49 @@ function renderSuivi(){
       <td>${s.reste_du>0?`<span style="color:var(--red)">${fmt(s.reste_du)} FCFA</span>`:'<span style="color:var(--g)">—</span>'}</td></tr>`;
   }).join('');
 }
+function estMoisPasseOuCourant(m){
+  var MN=['JAN','FEV','MAR','AVR','MAI','JUN','JUL','AOU','SEP','OCT','NOV','DEC'];
+  try{
+    var cur=getMois().split(' '),mp=m.split(' ');
+    var curIdx=parseInt(cur[1])*12+MN.indexOf(cur[0]);
+    var mIdx=parseInt(mp[1])*12+MN.indexOf(mp[0]);
+    return mIdx<=curIdx;
+  }catch(e){return true;}
+}
+function computePaiementTotals(l){
+  // IMPORTANT : on ne fait plus confiance aux champs stockés reste_du / report_precedent,
+  // qui se figent au moment de leur premiere creation et ne sont jamais recalcules
+  // ensuite meme si un mois anterieur est corrige par la suite. On recalcule donc le
+  // solde intégralement a partir des montants bruts de chaque mois (loyer_du/charges_dues
+  // vs loyer_verse/charges_versees/perc_avance/remise), qui eux sont toujours a jour.
+  var allMois=sortMois(Object.keys(D.paiements||{}));
+  var totalDu=0,totalVerse=0,hasData=false;
+  allMois.forEach(function(m){
+    if(!estMoisPasseOuCourant(m))return;
+    if(!isLocataireActifPourMois(l,m))return;
+    var s=(D.paiements[m]||[]).find(function(x){return x.id===l.id;});
+    if(!s)return;
+    hasData=true;
+    totalDu+=Number(s.loyer_du||0)+Number(s.charges_dues||0);
+    totalVerse+=Number(s.loyer_verse||0)+Number(s.charges_versees||0)+Number(s.perc_avance||0)+Number(s.remise||0);
+  });
+  totalDu+=Number(l.arrieres_initiaux||0);
+  var reste=Math.max(0,totalDu-totalVerse);
+  return {totalDu:totalDu,totalVerse:totalVerse,reste:reste,hasData:hasData};
+}
 function renderRecap(){
-  const allMois=Object.keys(D.paiements);
   const tbody=document.getElementById('rc-tbody');if(!tbody)return;
+  var sumVerse=0,sumReste=0,nbAJour=0,nbRetard=0;
   tbody.innerHTML=D.locataires.map(l=>{
-    let tv=0,td=0;
-    allMois.forEach(m=>{const s=(D.paiements[m]||[]).find(x=>x.id===l.id);if(s){tv+=s.loyer_verse+s.charges_versees;td+=s.loyer_du+s.charges_dues;}});
-    const reste=Math.max(0,td-tv);
+    const t=computePaiementTotals(l);
+    const tv=t.totalVerse,td=t.totalDu,reste=Math.max(0,t.reste);
     const taux=td>0?Math.round(tv/td*1000)/10:0;
     let statB;
-    if(allMois.length===0||td===0)statB=`<span class="bns">Aucun mois saisi</span>`;
-    else if(taux>=100)statB=`<span class="bex">EXCELLENT</span>`;
-    else if(taux>=50)statB=`<span class="bpa">En cours</span>`;
-    else statB=`<span class="bi2">En retard</span>`;
+    if(!t.hasData||td===0){statB=`<span class="bns">Aucun mois saisi</span>`;}
+    else if(reste<=0){statB=`<span class="bex">EXCELLENT</span>`;nbAJour++;}
+    else if(taux>=50){statB=`<span class="bpa">En cours</span>`;nbRetard++;}
+    else{statB=`<span class="bi2">En retard</span>`;nbRetard++;}
+    sumVerse+=tv;sumReste+=reste;
     return`<tr><td style="font-weight:600">${l.nom}</td><td style="color:var(--mu)">${l.immeuble}</td>
       <td style="font-size:.76rem">${l.type}</td>
       <td>${fmtMoney(l.loyer_cc)}</td>
@@ -4437,8 +4463,14 @@ function renderRecap(){
       <td>${reste>0?`<span style="color:var(--red)">${fmt(reste)} FCFA</span>`:'—'}</td>
       <td>${taux}%</td>
       <td>${l.depot>0?fmt(l.depot)+' FCFA':'—'}</td>
-      <td>${statB}</td></tr>`;
+      <td>${statB}</td>
+      <td class="no-print"><button class="bor" style="padding:3px 8px;font-size:.72rem" onclick="genPointPaiementPDF('${l.id}')" title="Point de paiement PDF"><i class="bi bi-file-earmark-pdf"></i></button></td></tr>`;
   }).join('');
+  var elV=document.getElementById('rc-kpi-verse');if(elV)elV.textContent=fmtMoney(sumVerse);
+  var elR=document.getElementById('rc-kpi-reste');if(elR)elR.textContent=fmtMoney(sumReste);
+  var elA=document.getElementById('rc-kpi-ajour');if(elA)elA.textContent=nbAJour;
+  var elRt=document.getElementById('rc-kpi-retard');if(elRt)elRt.textContent=nbRetard;
+  var elMaj=document.getElementById('rc-kpi-date');if(elMaj)elMaj.textContent='Actualisé le '+new Date().toLocaleString('fr-FR');
 }
 function getBailStatus(l){
   if(!l.date_fin_bail) return null;
@@ -10183,6 +10215,141 @@ function genAvisCongePDF(){
     doc.save(('Avis_Conge_'+(d.l.nom||'')+'_'+(d.l.id||'')).replace(/[^\w\-]+/g,'_')+'.pdf');
   }catch(e){console.error(e);alert('Erreur pendant la génération du PDF.');}
 }
+
+// ===================== MODULE POINT DE PAIEMENT (RELEVÉ LOCATAIRE) =====================
+function buildPointPaiementData(locId){
+  var l=D.locataires.find(function(x){return x.id===locId;});
+  if(!l)return null;
+  var b=getB();
+  var allMois=sortMois(Object.keys(D.paiements||{}));
+  var rows=[];
+  var totalDu=0,totalVerse=0;
+  var arreresInit=Number(l.arrieres_initiaux||0);
+  var cumul=arreresInit;
+  // Solde recalcule integralement mois par mois a partir des montants bruts saisis
+  // (loyer_du/charges_dues vs loyer_verse/charges_versees/perc_avance/remise), sans
+  // jamais relire reste_du/report_precedent qui se figent a leur creation et peuvent
+  // rester faux apres correction d'un mois anterieur.
+  allMois.forEach(function(m){
+    if(!estMoisPasseOuCourant(m))return;
+    if(!isLocataireActifPourMois(l,m))return;
+    var s=(D.paiements[m]||[]).find(function(x){return x.id===l.id;});
+    if(!s)return;
+    var du=Number(s.loyer_du||0)+Number(s.charges_dues||0);
+    var verse=Number(s.loyer_verse||0)+Number(s.charges_versees||0)+Number(s.perc_avance||0)+Number(s.remise||0);
+    totalDu+=du;totalVerse+=verse;
+    cumul+=du-verse;
+    rows.push({mois:m,du:du,verse:verse,solde:cumul,statut:s.statut||'non_saisi'});
+  });
+  var impaye=Math.max(0,cumul);
+  return{
+    l:l,b:b,rows:rows,
+    totalDu:totalDu+arreresInit,
+    totalVerse:totalVerse,
+    arreresInit:arreresInit,
+    impaye:impaye,
+    caution:Number(l.depot||0),
+    dateArrete:new Date().toISOString().slice(0,10)
+  };
+}
+function genPointPaiementPDF(locId){
+  var d=buildPointPaiementData(locId);
+  if(!d){alert('Locataire introuvable.');return;}
+  try{
+    var jsPDFObj=window.jspdf&&window.jspdf.jsPDF?window.jspdf.jsPDF:window.jsPDF;
+    if(!jsPDFObj){alert('Module PDF non chargé.');return;}
+    var doc=new jsPDFObj({unit:'mm',format:'a4'});
+    var bleu=[0,48,135],or=[212,168,67],gris=[107,114,128],noir=[31,41,55],rouge=[220,38,38],vert=[22,163,74];
+    var appName=(D.config&&D.config.app_nom)||'GOODLUCK IMMO INVEST';
+    var ville=(d.b&&d.b.ville)||'Lomé',pays=(d.b&&d.b.pays)||'Togo';
+    var today=new Date().toLocaleDateString('fr-FR');
+
+    doc.setFillColor(bleu[0],bleu[1],bleu[2]);doc.rect(0,0,210,28,'F');
+    try{doc.addImage(LOGO_IMG,'PNG',162,3,40,22);}catch(e){}
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);
+    doc.text(appName,14,12);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text('Gestion locative — '+ville+', '+pays,14,19);
+    doc.setDrawColor(or[0],or[1],or[2]);doc.setLineWidth(1);doc.line(0,28,210,28);
+
+    doc.setTextColor(bleu[0],bleu[1],bleu[2]);doc.setFont('helvetica','bold');doc.setFontSize(15);
+    doc.text('POINT DES PAIEMENTS',105,40,{align:'center'});
+    doc.setDrawColor(or[0],or[1],or[2]);doc.setLineWidth(0.8);doc.line(65,43,145,43);
+
+    var y=52;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text('Arrêté au '+fmtDate(d.dateArrete)+' — Édité le '+today,195,y,{align:'right'});
+
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+    doc.text(String(d.l.nom||''),15,y);
+    y+=6;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text((d.l.immeuble||'')+' — '+(d.l.type||''),15,y);y+=5;
+    doc.text('Entrée le '+fmtDate(d.l.date_entree)+(d.l.telephone?('  —  Tél : '+d.l.telephone):''),15,y);y+=10;
+
+    var rowsPDF=d.rows.map(function(r){
+      return[r.mois,fmt(r.du)+' FCFA',fmt(r.verse)+' FCFA',fmt(r.solde)+' FCFA'];
+    });
+    if(rowsPDF.length===0)rowsPDF=[['—','—','—','—']];
+
+    doc.autoTable({
+      startY:y,
+      head:[['Mois','Loyer + charges dû','Versé','Solde cumulé']],
+      body:rowsPDF,
+      headStyles:{fillColor:bleu,textColor:255,fontStyle:'bold',font:'helvetica',fontSize:9},
+      bodyStyles:{textColor:noir,font:'helvetica',fontSize:8.5},
+      alternateRowStyles:{fillColor:[248,250,252]},
+      columnStyles:{0:{cellWidth:38},1:{cellWidth:48,halign:'right'},2:{cellWidth:48,halign:'right'},3:{cellWidth:46,halign:'right'}},
+      styles:{font:'helvetica',cellPadding:3,lineColor:[229,231,235],lineWidth:0.2},
+      margin:{left:15,right:15},
+      didParseCell:function(data){
+        if(data.section==='body'&&data.column.index===3){
+          var raw=data.row.raw[3];
+          var neg=typeof raw==='string'&&raw.indexOf('-')===0;
+          data.cell.styles.textColor=neg?vert:(raw==='0 FCFA'?gris:rouge);
+          data.cell.styles.fontStyle='bold';
+        }
+      }
+    });
+
+    var ty=(doc.lastAutoTable&&doc.lastAutoTable.finalY?doc.lastAutoTable.finalY:y+20)+10;
+    if(ty>245){doc.addPage();ty=20;}
+
+    var synthRows=[['Total loyers + charges dû depuis l\'entrée',fmt(d.totalDu)+' FCFA',noir]];
+    synthRows.push(['Total réglé',fmt(d.totalVerse)+' FCFA',vert]);
+    synthRows.push(['Caution versée',fmt(d.caution)+' FCFA',gris]);
+
+    doc.setFillColor(248,250,252);doc.rect(15,ty,180,synthRows.length*8+14,'F');
+    doc.setDrawColor(bleu[0],bleu[1],bleu[2]);doc.setLineWidth(0.3);doc.rect(15,ty,180,synthRows.length*8+14,'S');
+    var sy=ty+7;
+    synthRows.forEach(function(r){
+      doc.setTextColor(r[2][0],r[2][1],r[2][2]);doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+      doc.text(r[0],20,sy);
+      doc.setFont('helvetica','bold');
+      doc.text(r[1],190,sy,{align:'right'});
+      sy+=8;
+    });
+    doc.setDrawColor(bleu[0],bleu[1],bleu[2]);doc.setLineWidth(0.4);doc.line(20,sy-2,190,sy-2);
+    var impayeColor=d.impaye>0?rouge:vert;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+    doc.text(d.impaye>0?'= SOLDE RESTANT DÛ':'= SOLDE : À JOUR',20,sy+5);
+    doc.setTextColor(impayeColor[0],impayeColor[1],impayeColor[2]);
+    doc.text(fmt(d.impaye)+' FCFA',190,sy+5,{align:'right'});
+
+    var fy=sy+22;
+    if(fy>270)fy=270;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','italic');doc.setFontSize(7.5);
+    var note='Relevé généré automatiquement à partir des paiements enregistrés dans l\'application à la date d\'édition ci-dessus.';
+    doc.text(doc.splitTextToSize(note,180),15,fy);
+
+    doc.setDrawColor(or[0],or[1],or[2]);doc.setLineWidth(0.6);doc.line(15,284,195,284);
+    doc.setFontSize(7);doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');
+    doc.text(appName+' — Point des paiements — Généré le '+today,105,289,{align:'center'});
+
+    doc.save(('Point_Paiement_'+(d.l.nom||'')+'_'+(d.l.id||'')).replace(/[^\w\-]+/g,'_')+'.pdf');
+  }catch(e){console.error(e);alert('Erreur pendant la génération du PDF.');}
+}
+
 </script>
 </body>
 </html>

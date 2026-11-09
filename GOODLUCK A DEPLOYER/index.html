@@ -1551,7 +1551,10 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
       <div class="pgh" style="border-top:4px solid #0D9488">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div class="pgtr"><div class="pgic" style="background:#0D9488"><i class="bi bi-door-open"></i></div><div class="pgt">Congés locataires</div></div>
-          <button class="bg no-print" onclick="openConge()"><i class="bi bi-plus-lg me-1"></i>Nouveau congé</button>
+          <div class="no-print">
+            <button class="bg" onclick="openConge()"><i class="bi bi-plus-lg me-1"></i>Nouveau congé</button>
+            <button class="bg" style="background:#dc2626;border-color:#dc2626;margin-left:6px" onclick="ouvrirAvisCongeImpayes()"><i class="bi bi-exclamation-triangle me-1"></i>Avis de congé (impayés)</button>
+          </div>
         </div>
         <div class="pgsu">Suivi des préavis de départ et génération de la lettre de congé.</div>
       </div>
@@ -1987,6 +1990,83 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
   </div>
 </div></div></div>
 
+<!-- MODAL AVIS DE CONGE - MISE EN DEMEURE (IMPAYES) -->
+<div class="modal fade" id="mAvisCongeForm" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header" style="background:#0D9488;color:#fff"><h5 class="modal-title fw-bold">⚠️ Avis de congé — Mise en demeure de payer</h5><button class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="row g-3">
+      <div class="col-md-6"><label class="fl">Locataire</label><select class="fs" id="ac-loc" onchange="onAcLocChange()"><option value="">— Choisir —</option></select></div>
+      <div class="col-md-6"><label class="fl">Logement</label><input type="text" class="fi" id="ac-logement" readonly style="background:#f8fafc"></div>
+      <div class="col-12"><div class="alert alert-warning" style="font-size:.8rem;margin-bottom:0"><i class="bi bi-exclamation-triangle me-1"></i>Estimation automatique de l'app (peut être fausse si des mois n'ont pas été saisis) : <strong id="ac-estim">—</strong>. Vérifiez et corrigez le "Solde dû" ci-dessous avant d'envoyer ce document.</div></div>
+      <div class="col-md-6"><label class="fl">Solde dû à ce jour (FCFA)</label><input type="number" class="fi" id="ac-solde-du" value="0" oninput="calcAvisConge()"></div>
+      <div class="col-md-6"><label class="fl">Date d'arrêté du compte</label><input type="date" class="fi" id="ac-date-arrete" onchange="calcAvisConge()"></div>
+      <div class="col-md-4"><label class="fl">Délai de préavis (mois)</label><input type="number" class="fi" id="ac-delai-mois" value="1" min="1" onchange="calcAvisCongeDates()"></div>
+      <div class="col-md-4"><label class="fl">Début du préavis</label><input type="date" class="fi" id="ac-date-debut" onchange="calcAvisCongeDates()"></div>
+      <div class="col-md-4"><label class="fl">Fin du préavis</label><input type="date" class="fi" id="ac-date-fin"></div>
+      <div class="col-md-6"><label class="fl">Loyer du mois de préavis (FCFA)</label><input type="number" class="fi" id="ac-loyer-preavis" value="0" oninput="calcAvisConge()"></div>
+      <div class="col-md-6"><label class="fl">Caution disponible (FCFA)</label><input type="number" class="fi" id="ac-caution" value="0" oninput="calcAvisConge()"></div>
+      <div class="col-12">
+        <div class="row g-2" style="background:#f0fdfa;border-radius:8px;padding:12px;margin-top:4px">
+          <div class="col-6 col-md-3"><div style="font-size:.7rem;color:#6b7280">Solde dû</div><div style="font-weight:700" id="ac-r-solde">0 FCFA</div></div>
+          <div class="col-6 col-md-3"><div style="font-size:.7rem;color:#6b7280">+ Loyer préavis</div><div style="font-weight:700" id="ac-r-loyer">0 FCFA</div></div>
+          <div class="col-6 col-md-3"><div style="font-size:.7rem;color:#6b7280">− Caution retenue</div><div style="font-weight:700;color:#16a34a" id="ac-r-caution">0 FCFA</div></div>
+          <div class="col-6 col-md-3"><div style="font-size:.7rem;color:#6b7280">= Solde restant</div><div style="font-weight:800" id="ac-r-total">0 FCFA</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="bgr" data-bs-dismiss="modal">Annuler</button><button class="bg" style="background:#0D9488;border-color:#0D9488" onclick="apercuAvisConge()"><i class="bi bi-eye me-1"></i>Aperçu du document</button></div>
+</div></div></div>
+
+<!-- MODAL APERCU AVIS DE CONGE -->
+<div class="modal fade" id="mAvisCongeApercu" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title fw-bold">Avis de congé — Mise en demeure de payer</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <div class="ldoc" id="ac-preview" style="padding:0;overflow:hidden">
+      <div style="background:#0D9488;color:#fff;padding:16px 20px">
+        <div style="font-weight:800;font-size:1.05rem" id="ac-p-appname">GOODLUCK IMMO INVEST</div>
+        <div style="font-size:.78rem;opacity:.9" id="ac-p-sub">Gestion locative — Lomé, Togo</div>
+      </div>
+      <div style="background:#0f766e;color:#fff;padding:9px;text-align:center;font-weight:700;letter-spacing:.5px;font-size:.88rem">AVIS DE CONGÉ — MISE EN DEMEURE DE PAYER</div>
+      <div style="padding:20px">
+        <div style="text-align:right;color:var(--mu);font-size:.8rem;font-style:italic;margin-bottom:16px" id="ac-p-date"></div>
+        <div style="margin-bottom:6px;font-size:.78rem"><strong>À l'attention de :</strong> <span id="ac-p-nom"></span></div>
+        <div style="color:var(--mu);font-size:.8rem" id="ac-p-logement"></div>
+        <div style="color:var(--mu);font-size:.8rem;margin-bottom:14px" id="ac-p-tel"></div>
+        <div style="font-weight:700;margin-bottom:12px" id="ac-p-objet"></div>
+        <div style="margin-bottom:10px">Monsieur,</div>
+        <div style="margin-bottom:12px" id="ac-p-corps1"></div>
+        <div style="margin-bottom:12px" id="ac-p-corps2"></div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:.85rem">
+          <tbody id="ac-p-table"></tbody>
+        </table>
+        <div style="font-weight:700;color:#0D9488;margin-bottom:8px" id="ac-p-notif"></div>
+        <ol style="margin-bottom:12px;padding-left:20px" id="ac-p-liste"></ol>
+        <div style="margin-bottom:12px;font-size:.85rem;color:var(--mu)" id="ac-p-avert"></div>
+        <div style="margin-bottom:16px" id="ac-p-dispo"></div>
+        <div>Veuillez agréer, Monsieur, l'expression de mes salutations distinguées.</div>
+        <div style="text-align:right;margin-top:30px">
+          <img src="" id="ac-p-sig-img" style="max-width:140px;max-height:50px" onerror="this.style.display='none'">
+          <div style="font-weight:700;margin-top:4px" id="ac-p-sig-nom"></div>
+          <div style="font-size:.78rem;color:var(--mu)" id="ac-p-sig-info"></div>
+        </div>
+        <div style="margin-top:24px;border:1px solid #e5e7eb;border-radius:8px;padding:12px">
+          <div style="font-weight:700;font-size:.8rem;margin-bottom:8px">ACCUSÉ DE RÉCEPTION DU LOCATAIRE</div>
+          <div style="display:flex;justify-content:space-between;gap:20px;font-size:.8rem;flex-wrap:wrap">
+            <div>Reçu le : ________________________</div>
+            <div>Signature du locataire : ________________________</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="bgr" data-bs-dismiss="modal">Fermer</button>
+    <button class="bor" onclick="imprimerAvisConge()"><i class="bi bi-printer me-1"></i>Imprimer</button>
+    <button class="bg" style="background:#0D9488;border-color:#0D9488" onclick="genAvisCongePDF()"><i class="bi bi-file-earmark-pdf me-1"></i>Télécharger PDF</button>
+  </div>
+</div></div></div>
+
 <!-- MODAL MODIFIER LOCATAIRE -->
 <div class="modal fade" id="mEdit" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
   <div class="modal-header"><h5 class="modal-title fw-bold"><i class="bi bi-pencil me-2"></i>Modifier le locataire</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
@@ -2086,6 +2166,7 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
   </div></div>
   <div class="modal-footer">
     <button style="padding:8px 14px;background:#0D9488;color:#fff;border:none;border-radius:6px;margin-right:6px" onclick="ouvrirCongeDepuisFiche()" title="Enregistrer un congé pour ce locataire"><i class="bi bi-door-open me-1"></i>Congé</button>
+    <button style="padding:8px 14px;background:#dc2626;color:#fff;border:none;border-radius:6px;margin-right:6px" onclick="ouvrirAvisCongeDepuisFiche()" title="Générer un avis de congé pour impayés (mise en demeure)"><i class="bi bi-exclamation-triangle me-1"></i>Avis impayés</button>
     <button style="padding:8px 14px;background:#003087;color:#fff;border:none;border-radius:6px;margin-right:auto" onclick="ouvrirQuittanceDepuisFiche()" title="Ouvrir Quittances & Avis pour ce locataire"><i class="bi bi-receipt me-1"></i>Quittance &amp; Avis</button>
     <button class="bgr" data-bs-dismiss="modal">Annuler</button><button class="bg" onclick="saveLoc()"><i class="bi bi-save me-1"></i>Enregistrer les modifications</button>
   </div>
@@ -9833,6 +9914,260 @@ function genCongePDF(){
       if(bcd){doc.addImage(bcd,'PNG',90,241,30,30);}
     }catch(_){}
     doc.save(('Conge_'+(c.nom||'')+'_'+c.id).replace(/[^\w\-]+/g,'_')+'.pdf');
+  }catch(e){console.error(e);alert('Erreur pendant la génération du PDF.');}
+}
+// ===================== MODULE AVIS DE CONGE - MISE EN DEMEURE (IMPAYES) =====================
+var __acCurrentData=null;
+function populateAcLocSelect(){
+  var sel=document.getElementById('ac-loc');if(!sel)return;
+  sel.innerHTML='<option value="">— Choisir —</option>'+D.locataires.filter(function(l){return !l.archive;}).map(function(l){return '<option value="'+l.id+'">'+l.id+' — '+l.nom+'</option>';}).join('');
+}
+function estimTotalDu(locId){
+  return Object.keys(D.paiements).reduce(function(tot,m){
+    var s=(D.paiements[m]||[]).find(function(x){return x.id===locId;});
+    return tot+(s&&s.reste_du>0?s.reste_du:0);
+  },0);
+}
+function onAcLocChange(){
+  var id=document.getElementById('ac-loc').value;
+  var l=D.locataires.find(function(x){return x.id===id;});
+  var elLog=document.getElementById('ac-logement');if(elLog)elLog.value=l?(l.immeuble+' — '+l.type):'';
+  var elLoyer=document.getElementById('ac-loyer-preavis');if(elLoyer)elLoyer.value=l?l.loyer_cc:0;
+  var elCaution=document.getElementById('ac-caution');if(elCaution)elCaution.value=l?(l.depot||0):0;
+  var elEstim=document.getElementById('ac-estim');
+  if(elEstim)elEstim.textContent=l?(fmt(estimTotalDu(l.id))+' FCFA'):'—';
+  calcAvisConge();
+}
+function calcAvisCongeDates(){
+  var dEl=document.getElementById('ac-date-debut');
+  var dv=dEl?dEl.value:'';
+  var delai=parseInt(document.getElementById('ac-delai-mois').value)||1;
+  if(!dv)return;
+  var dt=new Date(dv);dt.setMonth(dt.getMonth()+delai);
+  var out=document.getElementById('ac-date-fin');if(out)out.value=dt.toISOString().slice(0,10);
+  calcAvisConge();
+}
+function calcAvisConge(){
+  var soldeDu=parseInt(document.getElementById('ac-solde-du').value)||0;
+  var loyerPreavis=parseInt(document.getElementById('ac-loyer-preavis').value)||0;
+  var caution=parseInt(document.getElementById('ac-caution').value)||0;
+  var soldeTotal=soldeDu+loyerPreavis;
+  var cautionRetenue=Math.min(caution,soldeTotal);
+  var soldeRestant=soldeTotal-caution;
+  var set=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v;};
+  set('ac-r-solde',fmt(soldeDu)+' FCFA');
+  set('ac-r-loyer',fmt(loyerPreavis)+' FCFA');
+  set('ac-r-caution','-'+fmt(cautionRetenue)+' FCFA');
+  var elTot=document.getElementById('ac-r-total');
+  if(soldeRestant>0){
+    if(elTot){elTot.textContent=fmt(soldeRestant)+' FCFA à régler';elTot.style.color='#dc2626';}
+  }else{
+    if(elTot){elTot.textContent=fmt(Math.abs(soldeRestant))+' FCFA à restituer';elTot.style.color='#16a34a';}
+  }
+}
+function ouvrirAvisCongeImpayes(locId){
+  populateAcLocSelect();
+  var selLoc=document.getElementById('ac-loc');if(selLoc)selLoc.value=locId||'';
+  onAcLocChange();
+  document.getElementById('ac-solde-du').value=0;
+  document.getElementById('ac-delai-mois').value=1;
+  var today=new Date().toISOString().slice(0,10);
+  document.getElementById('ac-date-arrete').value=today;
+  document.getElementById('ac-date-debut').value=today;
+  calcAvisCongeDates();
+  new bootstrap.Modal(document.getElementById('mAvisCongeForm')).show();
+}
+function ouvrirAvisCongeDepuisFiche(){
+  var id=document.getElementById('edit-id')?document.getElementById('edit-id').value:'';
+  if(!id){alert('Locataire introuvable.');return;}
+  try{
+    var mEditEl=document.getElementById('mEdit');
+    var inst=bootstrap.Modal.getInstance(mEditEl);
+    if(inst)inst.hide();
+  }catch(e){}
+  setTimeout(function(){ouvrirAvisCongeImpayes(id);},350);
+}
+function delaiMoisTxt(n){
+  var mots={1:'UN (1) MOIS',2:'DEUX (2) MOIS',3:'TROIS (3) MOIS',4:'QUATRE (4) MOIS',5:'CINQ (5) MOIS',6:'SIX (6) MOIS'};
+  return mots[n]||(n+' MOIS');
+}
+function buildAvisCongeData(){
+  var id=document.getElementById('ac-loc').value;
+  var l=D.locataires.find(function(x){return x.id===id;});
+  if(!l){alert('Sélectionnez un locataire.');return null;}
+  var b=getB();
+  var soldeDu=parseInt(document.getElementById('ac-solde-du').value)||0;
+  var loyerPreavis=parseInt(document.getElementById('ac-loyer-preavis').value)||0;
+  var caution=parseInt(document.getElementById('ac-caution').value)||0;
+  var delaiMois=parseInt(document.getElementById('ac-delai-mois').value)||1;
+  var dateArrete=document.getElementById('ac-date-arrete').value;
+  var dateDebut=document.getElementById('ac-date-debut').value;
+  var dateFin=document.getElementById('ac-date-fin').value;
+  var soldeTotal=soldeDu+loyerPreavis;
+  var cautionRetenue=Math.min(caution,soldeTotal);
+  var soldeRestant=soldeTotal-caution;
+  return {l:l,b:b,soldeDu:soldeDu,loyerPreavis:loyerPreavis,caution:caution,cautionRetenue:cautionRetenue,
+    delaiMois:delaiMois,delaiTxt:delaiMoisTxt(delaiMois),dateArrete:dateArrete,dateDebut:dateDebut,dateFin:dateFin,
+    soldeTotal:soldeTotal,soldeRestant:soldeRestant};
+}
+function apercuAvisConge(){
+  var d=buildAvisCongeData();if(!d)return;
+  __acCurrentData=d;
+  var appName=(D.config&&D.config.app_nom)||'GOODLUCK IMMO INVEST';
+  var ville=d.b.ville||'Lomé',pays=d.b.pays||'Togo';
+  var today=new Date().toLocaleDateString('fr-FR');
+  document.getElementById('ac-p-appname').textContent=appName;
+  document.getElementById('ac-p-sub').textContent='Gestion locative — '+ville+', '+pays;
+  document.getElementById('ac-p-date').textContent=ville+', le '+today;
+  document.getElementById('ac-p-nom').textContent=d.l.nom||'';
+  document.getElementById('ac-p-logement').textContent='Locataire — '+(d.l.type||'')+' — '+(d.l.immeuble||'');
+  document.getElementById('ac-p-tel').textContent='Tél : '+(d.l.telephone||'');
+  document.getElementById('ac-p-objet').textContent='Objet : Mise en demeure de régler le solde locatif et congé pour libération des lieux';
+  document.getElementById('ac-p-corps1').innerHTML='Je fais suite au décompte de votre compte locatif, arrêté au <strong>'+fmtDate(d.dateArrete)+'</strong>, qui fait apparaître un solde dû de <strong>'+fmt(d.soldeDu)+' FCFA</strong> au titre des loyers et frais impayés.';
+  var corps2;
+  if(d.soldeRestant>0){
+    corps2='Le présent congé portant sur un délai de <strong>'+d.delaiTxt+'</strong> pendant lequel vous continuerez d\'occuper les lieux, le loyer et les frais du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+'), soit <strong>'+fmt(d.loyerPreavis)+' FCFA</strong>, s\'ajoutent à cet arriéré, portant le solde total dû à <strong>'+fmt(d.soldeTotal)+' FCFA</strong>.<br><br>'+
+      'Conformément aux termes de votre bail, votre caution d\'un montant de <strong>'+fmt(d.caution)+' FCFA</strong> sera retenue et imputée sur ce solde. Il restera donc, après imputation de la caution, un solde de <strong>'+fmt(d.soldeRestant)+' FCFA</strong> à votre charge.';
+  }else{
+    corps2='Le présent congé portant sur un délai de <strong>'+d.delaiTxt+'</strong> pendant lequel vous continuerez d\'occuper les lieux, le loyer et les frais du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+'), soit <strong>'+fmt(d.loyerPreavis)+' FCFA</strong>, s\'ajoutent à cet arriéré, portant le solde total dû à <strong>'+fmt(d.soldeTotal)+' FCFA</strong>.<br><br>'+
+      'Conformément aux termes de votre bail, votre caution d\'un montant de <strong>'+fmt(d.caution)+' FCFA</strong> couvre intégralement ce solde. Il vous sera restitué un montant de <strong>'+fmt(Math.abs(d.soldeRestant))+' FCFA</strong> après apurement de votre compte.';
+  }
+  document.getElementById('ac-p-corps2').innerHTML=corps2;
+  var rows=[
+    ['Solde dû au '+fmtDate(d.dateArrete),fmt(d.soldeDu)+' FCFA',''],
+    ['+ Loyer du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+')',fmt(d.loyerPreavis)+' FCFA',''],
+    ['— Caution retenue en compensation',fmt(d.cautionRetenue)+' FCFA','#16a34a']
+  ];
+  var totalLabel=d.soldeRestant>0?'= Solde restant à régler':'= Solde à restituer au locataire';
+  var totalVal=fmt(Math.abs(d.soldeRestant))+' FCFA';
+  var totalColor=d.soldeRestant>0?'#dc2626':'#16a34a';
+  document.getElementById('ac-p-table').innerHTML=rows.map(function(r){
+    return '<tr><td style="padding:6px 0;border-bottom:1px solid #e5e7eb">'+r[0]+'</td><td style="padding:6px 0;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700'+(r[2]?';color:'+r[2]:'')+'">'+r[1]+'</td></tr>';
+  }).join('')+'<tr><td style="padding:8px 0;font-weight:800">'+totalLabel+'</td><td style="padding:8px 0;text-align:right;font-weight:800;color:'+totalColor+'">'+totalVal+'</td></tr>';
+  document.getElementById('ac-p-notif').textContent='Par la présente, je vous notifie un congé de '+d.delaiTxt+' courant du '+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+', pour :';
+  var liste=[];
+  if(d.soldeRestant>0)liste.push('Régler le solde restant dû de '+fmt(d.soldeRestant)+' FCFA (après imputation de la caution) ;');
+  liste.push('Libérer les lieux et restituer les clés du logement.');
+  document.getElementById('ac-p-liste').innerHTML=liste.map(function(li){return '<li>'+li+'</li>';}).join('');
+  document.getElementById('ac-p-avert').textContent='À défaut de règlement du solde éventuellement dû et/ou de libération effective des lieux à la date indiquée ci-dessus, je me réserve le droit d\'engager toute voie de droit utile pour le recouvrement des sommes dues et la reprise des lieux, conformément à la législation en vigueur.';
+  document.getElementById('ac-p-dispo').textContent='Je reste disponible au '+(d.b.telephone||'')+' pour convenir avec vous des modalités de règlement du solde et de restitution des clés.';
+  var sigImg=document.getElementById('ac-p-sig-img');if(sigImg){sigImg.src=SIG_IMG;}
+  document.getElementById('ac-p-sig-nom').textContent=d.b.nom||appName;
+  document.getElementById('ac-p-sig-info').innerHTML='Bailleur — '+appName+'<br>'+(d.b.adresse||'')+', '+ville+' — Tél : '+(d.b.telephone||'');
+  try{bootstrap.Modal.getInstance(document.getElementById('mAvisCongeForm')).hide();}catch(e){}
+  new bootstrap.Modal(document.getElementById('mAvisCongeApercu')).show();
+}
+function imprimerAvisConge(){
+  var d=__acCurrentData;if(!d)return;
+  var html=document.getElementById('ac-preview').innerHTML;
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>Avis de congé — '+(d.l.nom||'')+'</title><style>body{font-family:serif;margin:0;padding:0;font-size:13px;line-height:1.6}</style></head><body>'+html+'</body></html>');
+  w.document.close();
+  setTimeout(function(){w.print();},600);
+}
+function genAvisCongePDF(){
+  var d=__acCurrentData;
+  if(!d){alert('Générez d\'abord un aperçu.');return;}
+  try{
+    var jsPDFObj=window.jspdf&&window.jspdf.jsPDF?window.jspdf.jsPDF:window.jsPDF;
+    if(!jsPDFObj){alert('Module PDF non chargé.');return;}
+    var doc=new jsPDFObj({unit:'mm',format:'a4'});
+    var teal=[13,148,136],tealDark=[15,118,110],gris=[107,114,128],noir=[31,41,55],rouge=[220,38,38],vert=[22,163,74];
+    var appName=(D.config&&D.config.app_nom)||'GOODLUCK IMMO INVEST';
+    var ville=d.b.ville||'Lomé',pays=d.b.pays||'Togo';
+    var today=new Date().toLocaleDateString('fr-FR');
+    doc.setFillColor(teal[0],teal[1],teal[2]);doc.rect(0,0,210,24,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(16);
+    doc.text(appName,15,12);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text('Gestion locative — '+ville+', '+pays,15,19);
+    doc.setFillColor(tealDark[0],tealDark[1],tealDark[2]);doc.rect(0,24,210,10,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(11.5);
+    doc.text('AVIS DE CONGÉ — MISE EN DEMEURE DE PAYER',105,30.5,{align:'center'});
+    var y=44;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');doc.setFontSize(9);
+    doc.text(ville+', le '+today,195,y,{align:'right'});
+    y+=10;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','bold');doc.setFontSize(9.5);
+    doc.text('À l\'attention de :',15,y);
+    doc.setFont('helvetica','normal');
+    doc.text(String(d.l.nom||''),55,y);
+    y+=6;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFontSize(9);
+    doc.text('Locataire — '+(d.l.type||'')+' — '+(d.l.immeuble||''),15,y);y+=5.5;
+    doc.text('Tél : '+(d.l.telephone||''),15,y);y+=12;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','bold');doc.setFontSize(10.5);
+    doc.text('Objet : Mise en demeure de régler le solde locatif et congé pour libération des lieux',15,y,{maxWidth:180});
+    y+=12;
+    doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+    doc.text('Monsieur,',15,y);y+=7;
+    var corps1='Je fais suite au décompte de votre compte locatif, arrêté au '+fmtDate(d.dateArrete)+', qui fait apparaître un solde dû de '+fmt(d.soldeDu)+' FCFA au titre des loyers et frais impayés.';
+    var lines1=doc.splitTextToSize(corps1,180);doc.text(lines1,15,y);y+=lines1.length*4.8+4;
+    var corps2=d.soldeRestant>0?
+      ('Le présent congé portant sur un délai de '+d.delaiTxt+' pendant lequel vous continuerez d\'occuper les lieux, le loyer et les frais du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+'), soit '+fmt(d.loyerPreavis)+' FCFA, s\'ajoutent à cet arriéré, portant le solde total dû à '+fmt(d.soldeTotal)+' FCFA. Conformément aux termes de votre bail, votre caution d\'un montant de '+fmt(d.caution)+' FCFA sera retenue et imputée sur ce solde. Il restera donc, après imputation de la caution, un solde de '+fmt(d.soldeRestant)+' FCFA à votre charge.')
+      :('Le présent congé portant sur un délai de '+d.delaiTxt+' pendant lequel vous continuerez d\'occuper les lieux, le loyer et les frais du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+'), soit '+fmt(d.loyerPreavis)+' FCFA, s\'ajoutent à cet arriéré, portant le solde total dû à '+fmt(d.soldeTotal)+' FCFA. Conformément aux termes de votre bail, votre caution d\'un montant de '+fmt(d.caution)+' FCFA couvre intégralement ce solde. Il vous sera restitué un montant de '+fmt(Math.abs(d.soldeRestant))+' FCFA après apurement de votre compte.');
+    var lines2=doc.splitTextToSize(corps2,180);doc.text(lines2,15,y);y+=lines2.length*4.8+10;
+    var rows=[
+      ['Solde dû au '+fmtDate(d.dateArrete),fmt(d.soldeDu)+' FCFA',noir],
+      ['+ Loyer du mois de préavis ('+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+')',fmt(d.loyerPreavis)+' FCFA',noir],
+      ['— Caution retenue en compensation',fmt(d.cautionRetenue)+' FCFA',vert]
+    ];
+    doc.setFillColor(240,253,250);doc.rect(15,y,180,rows.length*8+10,'F');
+    doc.setDrawColor(teal[0],teal[1],teal[2]);doc.setLineWidth(0.3);doc.rect(15,y,180,rows.length*8+10,'S');
+    var ty=y+7;
+    rows.forEach(function(r){
+      doc.setTextColor(r[2][0],r[2][1],r[2][2]);doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+      doc.text(r[0],20,ty);
+      doc.setFont('helvetica','bold');
+      doc.text(r[1],190,ty,{align:'right'});
+      ty+=8;
+    });
+    doc.setDrawColor(teal[0],teal[1],teal[2]);doc.setLineWidth(0.4);doc.line(20,ty-2,190,ty-2);
+    var totalLabel=d.soldeRestant>0?'= Solde restant à régler':'= Solde à restituer au locataire';
+    var totalColor=d.soldeRestant>0?rouge:vert;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text(totalLabel,20,ty+4);
+    doc.setTextColor(totalColor[0],totalColor[1],totalColor[2]);
+    doc.text(fmt(Math.abs(d.soldeRestant))+' FCFA',190,ty+4,{align:'right'});
+    y=ty+16;
+    doc.setTextColor(teal[0],teal[1],teal[2]);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    var notif='Par la présente, je vous notifie un congé de '+d.delaiTxt+' courant du '+fmtDate(d.dateDebut)+' au '+fmtDate(d.dateFin)+', pour :';
+    var linesN=doc.splitTextToSize(notif,180);doc.text(linesN,15,y);y+=linesN.length*5+6;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+    var num=1;
+    if(d.soldeRestant>0){
+      var item1='1. Régler le solde restant dû de '+fmt(d.soldeRestant)+' FCFA (après imputation de la caution) ;';
+      var l1=doc.splitTextToSize(item1,175);doc.text(l1,18,y);y+=l1.length*4.8+2;
+      num=2;
+    }
+    var item2=num+'. Libérer les lieux et restituer les clés du logement.';
+    var l2=doc.splitTextToSize(item2,175);doc.text(l2,18,y);y+=l2.length*4.8+8;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFontSize(8.5);
+    var avert='À défaut de règlement du solde éventuellement dû et/ou de libération effective des lieux à la date indiquée ci-dessus, je me réserve le droit d\'engager toute voie de droit utile pour le recouvrement des sommes dues et la reprise des lieux, conformément à la législation en vigueur.';
+    var la=doc.splitTextToSize(avert,180);doc.text(la,15,y);y+=la.length*4.3+8;
+    doc.setTextColor(noir[0],noir[1],noir[2]);doc.setFontSize(9.5);
+    var dispo='Je reste disponible au '+(d.b.telephone||'')+' pour convenir avec vous des modalités de règlement du solde et de restitution des clés.';
+    var ld=doc.splitTextToSize(dispo,180);doc.text(ld,15,y);y+=ld.length*4.8+8;
+    doc.text('Veuillez agréer, Monsieur, l\'expression de mes salutations distinguées.',15,y);y+=14;
+    try{doc.addImage(SIG_IMG,'PNG',130,y,45,16);y+=18;}catch(e){y+=18;}
+    doc.setTextColor(teal[0],teal[1],teal[2]);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text(String(d.b.nom||appName),130,y);y+=5;
+    doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text('Bailleur — '+appName,130,y);y+=4.5;
+    doc.text((d.b.adresse||'')+', '+ville+' — Tél : '+(d.b.telephone||''),130,y,{maxWidth:65});
+    y+=16;
+    if(y<245)y=245;
+    doc.setDrawColor(gris[0],gris[1],gris[2]);doc.setLineWidth(0.3);doc.rect(15,y,180,22,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(noir[0],noir[1],noir[2]);
+    doc.text('ACCUSÉ DE RÉCEPTION DU LOCATAIRE',19,y+7);
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    doc.text('Reçu le : ________________________',19,y+16);
+    doc.text('Signature du locataire : ________________________',105,y+16);
+    doc.setDrawColor(teal[0],teal[1],teal[2]);doc.setLineWidth(0.6);doc.line(15,284,195,284);
+    doc.setFontSize(7);doc.setTextColor(gris[0],gris[1],gris[2]);doc.setFont('helvetica','normal');
+    var footer=appName+' — Avis de congé — Généré le '+today;
+    doc.text(footer,105,289,{align:'center'});
+    doc.save(('Avis_Conge_'+(d.l.nom||'')+'_'+(d.l.id||'')).replace(/[^\w\-]+/g,'_')+'.pdf');
   }catch(e){console.error(e);alert('Erreur pendant la génération du PDF.');}
 }
 </script>

@@ -6411,8 +6411,9 @@ function numSpan(n, extra, cid){
   // plain : numéro SANS aucun coloriage (Mode Excel « coloriage sur les 3 dernières lignes seulement »).
   const _plain=!!(extra&&extra.plain);
   if(_plain){extra=Object.assign({},extra,{an:null,isSrc:false,isMirNav:false,mirP:false,superpos:false,repMult:false,elmDup:false,align:false,vert:false,isComm:false,commBg:null,clKey:null,pair:null});}
-  const colC=(cid&&!_plain)?(pane2?state.coloredCells2[cid]:(state.coloredCells[cid]||(state.caseHL&&state.caseHL[cid])||null)):null;
-  const col=_plain?null:(pane2?state.colored2[n]:state.colored[n]);
+  // « plain » masque les couches automatiques mais PAS le coloriage manuel de l'utilisateur (sinon le clic « refuse » de colorier)
+  const colC=cid?(pane2?state.coloredCells2[cid]:(state.coloredCells[cid]||(!_plain&&state.caseHL&&state.caseHL[cid])||null)):null;
+  const col=(pane2?state.colored2[n]:state.colored[n]);
   let bg='transparent',fg=extra&&extra.isM?'#7B1FA2':'#1a1a1a',fs=extra&&extra.fs?extra.fs+'px':(extra&&extra.isM?'12px':'12px'),sh='',bd='none',ul='none',rad='4px',sym='';
   const SYM_MAP={croix:'✕',etoile:'★',coeur:'♥',coche:'✓'};
   const applyHl=c=>{

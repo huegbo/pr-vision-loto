@@ -118,6 +118,12 @@
 .bi2{background:#fee2e2;color:#991b1b;padding:3px 9px;border-radius:20px;font-size:.69rem;font-weight:600;white-space:nowrap;}
 .bns{background:#f3f4f6;color:#6b7280;padding:3px 9px;border-radius:20px;font-size:.69rem;font-weight:500;white-space:nowrap;}
 .bex{background:#dbeafe;color:#003087;padding:3px 9px;border-radius:20px;font-size:.69rem;font-weight:600;}
+.loc-id-badge{display:inline-block;background:#eef2ff;color:#2B6CB0;padding:3px 10px;border-radius:7px;font-size:.73rem;font-weight:700;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.2px;white-space:nowrap;}
+.loc-name-cell{max-width:260px;}
+.loc-name{font-weight:600;font-size:.86rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.3;word-break:break-word;}
+.loc-contact-row{display:flex;align-items:center;gap:7px;margin-top:3px;}
+.loc-contact-link{font-size:.72rem;color:var(--mu);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px;}
+.loc-contact-link:hover{text-decoration:underline;}
 .qkc{background:#fff;border-radius:11px;border:1px solid var(--bd);padding:14px 17px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:.2s;}
 .qkc:hover{border-color:var(--g);}.qki{width:38px;height:38px;border-radius:9px;background:var(--g);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.98rem;flex-shrink:0;}
 .qkt{font-weight:700;font-size:.85rem;}.qks{font-size:.7rem;color:var(--mu);}
@@ -3546,19 +3552,20 @@ function renderLocataires(search='',immF='',statutF=''){
   const sub=document.getElementById('loc-sub');if(sub)sub.textContent=locs.length+' fiche'+(locs.length>1?'s':'');
   const tbody=document.getElementById('loc-tbody');if(!tbody)return;
   tbody.innerHTML=locs.map(l=>`<tr>
-    <td><span style="font-weight:700;color:var(--gd);font-size:.78rem">${l.id}</span></td>
-    <td><span style="font-weight:600">${l.nom}</span><br>
-    ${l.telephone?`<span style="font-size:.73rem">
-      <a href="tel:${l.telephone}" style="color:var(--mu);text-decoration:none;margin-right:4px" title="Appeler">📞${l.telephone}</a>
-      <a href="https://wa.me/${l.telephone.replace(/[\s\+\-]/g,'')}" target="_blank" style="color:#25D366;text-decoration:none" title="WhatsApp">💬</a>
-    </span>`:''}
-    ${l.telephone2?`<br><span style="font-size:.73rem">
-      <a href="tel:${l.telephone2}" style="color:var(--mu);text-decoration:none;margin-right:4px" title="Appeler 2">📞${l.telephone2}</a>
-      <a href="https://wa.me/${l.telephone2.replace(/[\s\+\-]/g,'')}" target="_blank" style="color:#25D366;text-decoration:none" title="WhatsApp">💬</a>
-    </span>`:''}
-    ${l.email?`<br><span style="font-size:.73rem">
-      <a href="mailto:${l.email}?subject=Quittance de loyer&body=Bonjour ${l.nom}" style="color:#0066cc;text-decoration:none" title="Envoyer email">✉️ ${l.email}</a>
-    </span>`:''}</td>
+    <td><span class="loc-id-badge">${l.id}</span></td>
+    <td class="loc-name-cell">
+    <span class="loc-name" title="${(l.nom||'').replace(/"/g,'&quot;')}">${l.nom}</span>
+    ${l.telephone?`<div class="loc-contact-row">
+      <a href="tel:${l.telephone}" class="loc-contact-link" title="Appeler">📞 ${l.telephone}</a>
+      <a href="https://wa.me/${l.telephone.replace(/[\s\+\-]/g,'')}" target="_blank" style="color:#25D366" class="loc-contact-link" title="WhatsApp">💬</a>
+    </div>`:''}
+    ${l.telephone2?`<div class="loc-contact-row">
+      <a href="tel:${l.telephone2}" class="loc-contact-link" title="Appeler 2">📞 ${l.telephone2}</a>
+      <a href="https://wa.me/${l.telephone2.replace(/[\s\+\-]/g,'')}" target="_blank" style="color:#25D366" class="loc-contact-link" title="WhatsApp">💬</a>
+    </div>`:''}
+    ${l.email?`<div class="loc-contact-row">
+      <a href="mailto:${l.email}?subject=Quittance de loyer&body=Bonjour ${l.nom}" class="loc-contact-link" style="color:#0066cc" title="Envoyer email">✉️ ${l.email}</a>
+    </div>`:''}</td>
     <td style="font-size:.82rem">${l.immeuble}</td>
     <td style="font-size:.76rem">${l.type}${l.surface>0?'<br><span style="color:var(--mu);font-size:.7rem">'+l.surface+' m²</span>':''}${l.meuble&&l.meuble!=='vide'?'<br><span style="font-size:.7rem;color:'+(l.meuble==='meuble'?'#d97706':'#0ea5e9')+';font-weight:600">🛋️ '+(l.meuble==='meuble'?'Meublé':'Semi-meublé')+'</span>':''}</td>
     <td style="font-size:.78rem">${fmtDate(l.date_entree)}</td>

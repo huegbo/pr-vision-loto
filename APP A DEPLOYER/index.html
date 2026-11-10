@@ -19529,15 +19529,23 @@ ulLoad();
 function ulCur(){return state.userLists.find(l=>l.id===state._ulSel)||null;}
 function ulClose(){const o=document.getElementById('ul-overlay');if(o)o.remove();}
 function ulChanged(){ulSave();ulRender();render();}
-function ulNew(){const nm=prompt('Nom de la nouvelle liste (ex: HOT, Mes favoris, Retards…) :','');if(!nm||!nm.trim())return;const l={id:Date.now(),name:nm.trim(),nums:{},on:true};state.userLists.push(l);state._ulSel=l.id;ulChanged();}
+function ulNew(){const nm=prompt('Nom de la nouvelle liste (ex: HOT, Mes favoris, Retards…) :','');if(!nm||!nm.trim())return;const l={id:Date.now(),name:nm.trim(),nums:{},on:true};state.userLists.push(l);state._ulSel=l.id;ulSave();ulRender(true);render();}
 function ulRename(k){
   const tgt=(k==='A'||k==='B')?state.lists[k]:state.userLists.find(l=>String(l.id)===String(k));if(!tgt)return;
   const nm=prompt('Nouveau nom de la liste :',tgt.name);if(!nm||!nm.trim())return;tgt.name=nm.trim();ulChanged();
 }
 function ulToggle(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;l.on=!l.on;ulChanged();}
 function ulDelete(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;if(!confirm('Supprimer la liste "'+l.name+'" ('+Object.keys(l.nums).length+' numéros) ?'))return;state.userLists=state.userLists.filter(x=>x.id!==id);if(state._ulSel===id)state._ulSel=null;ulChanged();}
+function listChipsHTML(){
+  const chip=(on,color,label,count,tog,edit)=>`<span style="display:inline-flex;align-items:center;border-radius:12px;border:1.5px solid ${color};background:${on?color:'#fff'};color:${on?'#fff':color};overflow:hidden;font-size:10px;font-weight:700"><span onclick="${tog}" style="padding:2px 6px 2px 8px;cursor:pointer;${on?'':'opacity:.8'}" title="Clic = afficher / masquer cette liste">${on?'👁':'🚫'} ${label} (${count})</span><span onclick="${edit}" style="padding:2px 7px;cursor:pointer;border-left:1px solid ${on?'rgba(255,255,255,.5)':color}" title="Modifier cette liste">✏️</span></span>`;
+  let h=chip(state.lists.A.on,'#0E7490',state.lists.A.name,Object.keys(state.lists.A.nums).length,"ulToggleSys('A')","openRepereGlobal()");
+  h+=chip(state.lists.B.on,'#B45309',state.lists.B.name,Object.keys(state.lists.B.nums).length,"ulToggleSys('B')","openRepere2Global()");
+  state.userLists.forEach(l=>{h+=chip(l.on,'#7C3AED',l.name.replace(/</g,'&lt;'),Object.keys(l.nums).length,`ulToggle(${l.id})`,`ulSelect(${l.id})`);});
+  h+=`<button onclick="ulNew()" style="padding:2px 8px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px dashed #7C3AED;background:#fff;color:#7C3AED" title="Créer une nouvelle liste et la nommer">＋ Nouvelle liste</button>`;
+  return h;
+}
 function ulToggleSys(k){state.lists[k].on=!state.lists[k].on;try{saveListsVisiblePref();}catch(_){}ulRender();render();}
-function ulSelect(id){state._ulSel=id;ulRender();}
+function ulSelect(id){state._ulSel=id;ulRender(true);}
 function ulSetColor(i){state._ulColor=UL_PAL[i];ulRender();}
 function ulCustomColor(hex){state._ulColor=[hex,'#fff'];ulRender();}
 function ulSetShape(sh){state._ulShape=sh;ulRender();}
@@ -19550,8 +19558,9 @@ function ulColorToggle(bg){const l=ulCur();if(!l)return;const g=ulGroups(l).find
 function ulColorOnly(bg){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)delete l.nums[n].off;else l.nums[n].off=true;});ulChanged();}
 function ulColorAll(){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{delete l.nums[n].off;});ulChanged();}
 function ulColorShape(bg,st){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)l.nums[n].style=(st==='fill')?undefined:st;});ulChanged();}
-function ulRender(){
+function ulRender(force){
   let o=document.getElementById('ul-overlay');
+  if(!o&&!force)return;
   if(!o){o=document.createElement('div');o.id='ul-overlay';o.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start';o.onclick=e=>{if(e.target===o)ulClose();};document.body.appendChild(o);}
   const btn='padding:2px 8px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:11px';
   const sys=['A','B'].map(k=>{const l=state.lists[k];return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee"><span onclick="ulToggleSys('${k}')" style="cursor:pointer;font-size:14px" title="Afficher / masquer cette liste dans les tableaux">${l.on?'👁':'🚫'}</span><b style="flex:1;font-size:12px;${l.on?'':'opacity:.5'}">📋 ${l.name} <span style="color:#888;font-weight:400">(${Object.keys(l.nums).length} n°)</span></b><button style="${btn}" onclick="ulRename('${k}')">✏️ Renommer</button><button style="${btn}" onclick="ulClose();${k==='A'?'openRepereGlobal()':'openRepere2Global()'}">Ouvrir</button></div>`;}).join('');
@@ -19573,7 +19582,7 @@ function ulRender(){
   }
   o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:8px"><b style="flex:1;font-size:15px;color:#5B21B6">📚 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div>${sys}${mine}<div style="margin-top:8px"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button></div>${ed}</div>`;
 }
-function openMyLists(){ulRender();}
+function openMyLists(){ulRender(true);}
 function setRep2DefStyle(s){state.rep2DefStyle=s;render();}
 // Clic direct sur un numéro de la grille 1-90 : ajoute/retire ce numéro de la liste 2 avec la
 // couleur actuellement sélectionnée (re-clique avec une autre couleur pour le recolorer).
@@ -21810,13 +21819,9 @@ function anRender(){
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap">
       <span style="font-size:9px;color:#777">Choisis une analyse — les numéros concernés sont colorés dans les colonnes</span>
       <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 6px 3px 10px;border-radius:12px;border:1.5px solid #C2410C;background:#FFF7ED;flex-wrap:wrap">
-        <span style="font-size:9px;font-weight:700;color:#C2410C">📋 Listes de repères</span>
-        <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 ${state.lists.A.name}${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
-        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 ${state.lists.B.name}${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
-        <button onclick="openMyLists()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #7C3AED;background:#fff;color:#7C3AED" title="Créer tes propres listes, les nommer, choisir couleurs et formes">📚 Mes listes${state.userLists.length?` (${state.userLists.length})`:''}</button>
-        <button onclick="setListsVisible(true)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}" title="Affiche les listes A et B partout, sur tous les lotos">✅ Afficher</button>
-        <button onclick="setListsVisible(false)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:${!listsVisible()?'#6B7280':'#fff'};color:${!listsVisible()?'#fff':'#6B7280'}" title="Masque les listes A et B (leur contenu n'est pas effacé)">🚫 Masquer</button>
-        <button onclick="applyRepereToCurrentGame()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:#fff;color:#C2410C" title="Colorie immédiatement tous les numéros de tes listes dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer ici</button>
+        <span style="font-size:9px;font-weight:700;color:#C2410C">📋 Mes listes :</span>
+        ${listChipsHTML()}
+        <button onclick="setListsVisible(!listsVisible())" style="padding:2px 8px;border-radius:12px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:#fff;color:#6B7280" title="Tout afficher / tout masquer d'un coup (le contenu des listes n'est pas effacé)">${listsVisible()?'🚫 Tout masquer':'👁 Tout afficher'}</button>
         <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
         <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>
         ${listDoublons().length?`<button onclick="openDoublonsPanel()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#FEF3C7;color:#92400E" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</button>`:''}

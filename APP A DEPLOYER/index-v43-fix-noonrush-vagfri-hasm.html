@@ -12600,6 +12600,44 @@ function xdrPanelHTML(){
   const chips=wait.map(w=>`<span style="display:inline-block;margin:2px 4px;padding:2px 7px;border-radius:9px;background:#FEE2E2">X <b>${w.x}</b> (${dstr(T[w.i])}, place ${w.p+1}) · ${htxt(w.hits)} → ${w.x} attendu dans <b>${w.due}</b> tirage(s)</span>`).join('');
   return `<div style="font-size:11px">${head(false)}<div style="color:#555;margin-bottom:4px">${desc} <b>${cases.length}</b> cas sur ${L} tirages.</div><div style="margin:4px 0;padding:5px 8px;background:#FFF7ED;border-radius:6px"><b>En cours</b> : ${chips||'—'}</div><div>${list||'Aucun cas'}</div></div>`;
 }
+// ══════ PICKING 5 TIRAGES : une suite de numéros, un par ligne sur des tirages successifs (colonnes libres, verticales ou diagonales), cherchée dans tous les lotos ══════
+function pckSeq(){const p=String(state.pckS==null?'59 24 57 78 40':state.pckS).split(/[^0-9]+/).filter(x=>x!=='').map(Number).filter(v=>v>=1&&v<=90);return p.slice(0,8);}
+function pckFind(k,seq,mode,ord){
+  const T=gameData(k).T.slice().reverse();const N=T.map(r=>(r.n||[]).slice(0,5));const L=T.length,K=seq.length,res=[];if(K<2)return{T,N,res};
+  const perms=[];if(ord){perms.push(seq);}else{const used=new Array(K).fill(false),cur=[];(function rec(){if(cur.length===K){perms.push(cur.slice());return;}for(let q=0;q<K;q++){if(used[q])continue;used[q]=true;cur.push(seq[q]);rec();cur.pop();used[q]=false;}})();}
+  for(let i=0;i+K<=L;i++){
+    for(const p of perms){
+      const cols=[];let ok=true;
+      for(let q=0;q<K&&ok;q++){const c=N[i+q].indexOf(p[q]);if(c<0)ok=false;else cols.push(c);}
+      if(!ok)continue;
+      if(mode==='vert'&&!cols.every(c=>c===cols[0]))continue;
+      if(mode==='diag'&&!(cols.every((c,q)=>c===cols[0]+q)||cols.every((c,q)=>c===cols[0]-q)))continue;
+      res.push({i,p,cols});break;
+    }
+  }
+  return{T,N,res};
+}
+function pckPanelHTML(){
+  const seq=pckSeq(),mode=state.pckM||'libre',ord=state.pckO!==false,aft=state.pckAft==null?6:Math.max(0,Math.min(12,+state.pckAft)),NN=Math.max(5,Math.min(200,+state.pckN||60));
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const head=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px"><label>Suite <input type="text" value="${seq.join(' ')}" onchange="state.pckS=this.value;render()" style="width:150px" title="ex. 59 24 57 78 40 : un numéro par tirage, 5 tirages successifs au moins"></label>
+  <select onchange="state.pckM=this.value;render()" style="padding:3px"><option value="libre"${mode==='libre'?' selected':''}>colonnes libres</option><option value="vert"${mode==='vert'?' selected':''}>verticale (même colonne)</option><option value="diag"${mode==='diag'?' selected':''}>diagonale</option></select>
+  <label><input type="checkbox" ${ord?'checked':''} onchange="state.pckO=this.checked;render()"> dans l'ordre</label>
+  <label>après <input type="number" min="0" max="12" value="${aft}" onchange="state.pckAft=+this.value;render()" style="width:42px"></label><label>Cas <input type="number" min="5" max="200" value="${NN}" onchange="state.pckN=+this.value;render()" style="width:52px"></label></div>`;
+  if(seq.length<5)return `<div style="font-size:11px">${head}Tape au moins 5 numéros (5 tirages successifs au minimum).</div>`;
+  if(!ord&&seq.length>6)return `<div style="font-size:11px">${head}Dans le désordre : 6 numéros au plus.</div>`;
+  const seen={},all=[];
+  Object.keys(GAMES).forEach(k=>{const g=GAMES[k];if(!g||g.n4||g.n6||!g.raw)return;if(/TOUT|_ALL|COMPOSITE/i.test(String(g.key||k)))return;const sig=g.name+'|'+g.raw.length+'|'+g.raw.slice(0,60);if(seen[sig])return;seen[sig]=1;
+    let r;try{r=pckFind(k,seq,mode,ord);}catch(e){return;}r.res.forEach(c=>all.push({g,r,c}));});
+  const dk=r=>{const p=String(r.d).split('/');return (+r.y)*10000+(+p[1]||0)*100+(+p[0]||0);};all.sort((a,b)=>dk(b.r.T[b.c.i])-dk(a.r.T[a.c.i]));
+  const K=seq.length;
+  const list=all.slice(0,NN).map(({g,r,c})=>{const {T,N}=r,L=T.length,rows=[];
+    for(let j=Math.max(0,c.i-2);j<=Math.min(L-1,c.i+K-1+aft);j++){const t=j-c.i;
+      rows.push(`<tr style="${t===K-1?'border-bottom:2px solid #1D4ED8;':t===K?'border-bottom:2px solid #C00000;':''}"><td style="padding:1px 4px;font-size:9.5px;white-space:nowrap">${t} · N°${T[j].t} · ${dstr(T[j])}</td>${N[j].map((v,col)=>`<td style="text-align:center;padding:1px 5px;${t>=0&&t<K&&col===c.cols[t]?'background:#3B82F6;color:#fff;border-radius:4px;font-weight:700;':''}">${v}</td>`).join('')}</tr>`);}
+    const next=c.i+K<L?'':' <b style="color:#B91C1C">· en cours</b>';
+    return `<div style="display:inline-block;vertical-align:top;margin:3px 8px 6px 0;border:1px solid #ddd;border-radius:6px;padding:3px"><div style="font-weight:700;color:#1D4ED8;font-size:11px">${g.icon||''} ${g.name} — ${c.p.map((v,q)=>v+' (N'+(c.cols[q]+1)+')').join(' → ')}${next}</div><table style="border-collapse:collapse;font-size:11px">${rows.join('')}</table></div>`;}).join('');
+  return `<div style="font-size:11px">${head}<div style="color:#555;margin-bottom:4px">Un numéro par ligne sur ${K} tirages successifs, ${mode==='libre'?'colonnes libres':mode==='vert'?'même colonne':'en diagonale'}, ${ord?'dans l\'ordre':'dans n\'importe quel ordre'}. <b>${all.length}</b> cas, tous lotos (les plus récents d'abord). Trait bleu = fin de la suite, trait rouge = tirage suivant.</div>${list||'Aucun cas'}</div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -15176,6 +15214,7 @@ const SEARCH_SECTIONS=[
   {key:'ecd',icon:'🖼️',title:'Encadrement X·YY·X (ex. 30·85·85·30)',desc:'X à la même place en i et i+6, Y doublé à la même place en i+3 et i+4 — écarts réglables, tous lotos, + en cours',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${ecdPanelHTML()}</div>`},
   {key:'cpm',icon:'🪞',title:'Couple + miroir (ex. 14·30 … 41 … 14·30)',desc:'A puis B, miroir de A 3 tirages après, puis A et B reviennent 6 tirages après — réglable, tous lotos, + en cours',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${cpmPanelHTML()}</div>`},
   {key:'xdr',icon:'🧬',title:'Retour + dérivés (ex. 30 → Equiv, Bonanza, Partner → 30)',desc:'X revient à la même place 6 tirages après, et ses dérivés choisis sortent entre-temps — familles et écart réglables, tous lotos, + en cours',color:'#3E8E63',html:()=>`<div style="background:#fff;border:1.5px solid #3E8E63;border-radius:8px;padding:8px;margin-bottom:8px">${xdrPanelHTML()}</div>`},
+  {key:'pck',icon:'🎯',title:'Picking 5 tirages (suite d\'un numéro par ligne)',desc:'Tape une suite (ex. 59 24 57 78 40) : tous les lotos où elle sort sur des tirages successifs, colonnes libres / verticale / diagonale, dans l\'ordre ou non',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${pckPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -15331,6 +15370,7 @@ function searchHubHTML(){
     ['🖼️','Encadrement X·YY·X (écarts 3-1-2)','X revient à la même place en encadrant un Y doublé (ex. Million 30·85·85·30), tous lotos + en cours','#0F766E',"openSearchModule('ecd')"],
     ['🪞','Couple + miroir (retour à 6 tirages)','A puis B, miroir de A au milieu, puis A et B reviennent dans le même ordre (ex. Million 14·30 … 41 … 14·30), tous lotos + en cours','#1D4ED8',"openSearchModule('cpm')"],
     ['🧬','Retour + dérivés (Partner, Bonanza, Equiv…)','X revient à la même place et ses dérivés choisis sortent entre-temps (ex. Million 30 → 69, 14, 38 → 30), tous lotos + en cours','#3E8E63',"openSearchModule('xdr')"],
+    ['🎯','Picking 5 tirages','Une suite d\'un numéro par ligne sur des tirages successifs, cherchée dans tous les lotos (ex. 59-24-57-78-40)','#1D4ED8',"openSearchModule('pck')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

@@ -15286,6 +15286,7 @@ function numPosCardHTML(){
 }
 
 const SEARCH_SECTIONS=[
+  {key:'ldl',icon:'🎱',title:'Loto des listes',desc:'Les listes jouent comme une loto : chaque numéro sorti est coché dans toutes les listes, tirage par tirage ; les listes complètes deviennent des tirages',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${ldlPanelHTML()}</div>`},
   {key:'numpos',icon:'🎯',title:'Numéro avec position',desc:'Un numéro à une position précise (ex : 82 en D4), jeu courant ou tout loto, cas par cas',color:'#B45309',html:numPosCardHTML},
   {key:'cal',icon:'📅',title:'Calendrier (jour + position dans le mois)',desc:'Ex: tous les 1ers lundis du mois, ou le 2e tirage de chaque mois',color:'#0891B2',html:calSectionHTML},
   {key:'cq',icon:'⚡',title:'Cybetcast Query',desc:'Requête avancée texte : position, écart entre lignes, transformations',color:'#0891B2',html:cqSectionHTML},
@@ -15315,7 +15316,6 @@ const SEARCH_SECTIONS=[
   {key:'xdr',icon:'🧬',title:'Retour + dérivés (ex. 30 → Equiv, Bonanza, Partner → 30)',desc:'X revient à la même place 6 tirages après, et ses dérivés choisis sortent entre-temps — familles et écart réglables, tous lotos, + en cours',color:'#3E8E63',html:()=>`<div style="background:#fff;border:1.5px solid #3E8E63;border-radius:8px;padding:8px;margin-bottom:8px">${xdrPanelHTML()}</div>`},
   {key:'pck',icon:'🎯',title:'Picking 5 tirages (suite d\'un numéro par ligne)',desc:'Tape une suite (ex. 59 24 57 78 40) : tous les lotos où elle sort sur des tirages successifs, colonnes libres / verticale / diagonale, dans l\'ordre ou non',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${pckPanelHTML()}</div>`},
   {key:'fxl',icon:'📥',title:'Fichiers Excel des schémas',desc:'Télécharger les Excel « plan unique » faits pour les schémas (picking, ligne verte, suites…)',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${fxlPanelHTML()}</div>`},
-  {key:'ldl',icon:'🎱',title:'Loto des listes',desc:'Les listes jouent comme une loto : chaque numéro sorti est coché dans toutes les listes, tirage par tirage ; les listes complètes deviennent des tirages',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${ldlPanelHTML()}</div>`},
   {key:'dtl',icon:'🔎',title:'Tirages avec des numéros de mes listes',desc:'Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques, mes listes), sur un loto ou tous les lotos du Togo',color:'#7C3AED',html:()=>`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">${dtlPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
@@ -15463,6 +15463,7 @@ function searchHubHTML(){
   }
   // ── Cartes de raccourci (accès rapide, ouvrent directement le module) ──
   const cards=[
+    ['🎱','Loto des listes','Chaque numéro sorti est coché dans toutes les listes ; les listes complètes deviennent des tirages','#0F766E',"openSearchModule('ldl')"],
     ['↔️','Counterpart (X → +3 tirages X±45 → +4 tirages X)','Un numéro, 3 tirages après son counterpart (±45), 4 tirages plus tard il revient : tous les cas + ceux attendus','#B91C1C',"openSearchModule('ctp')"],
     ['🔢','Terminaison alternée (1-2-1-2)','Une même terminaison revient 1, 2, 1, 2 fois sur des tirages consécutifs : tous les cas + ceux en cours','#7C2D12',"openSearchModule('trm')"],
     ['🔗','Duo de terminaisons (ex. 8 + 9)','Deux terminaisons présentes chacune 1 fois par tirage sur 4 tirages d\'affilée, avec miroir et numéro répété','#6B2FA0',"openSearchModule('duo')"],
@@ -15474,7 +15475,6 @@ function searchHubHTML(){
     ['🧬','Retour + dérivés (Partner, Bonanza, Equiv…)','X revient à la même place et ses dérivés choisis sortent entre-temps (ex. Million 30 → 69, 14, 38 → 30), tous lotos + en cours','#3E8E63',"openSearchModule('xdr')"],
     ['🎯','Picking 5 tirages','Une suite d\'un numéro par ligne sur des tirages successifs, cherchée dans tous les lotos (ex. 59-24-57-78-40)','#1D4ED8',"openSearchModule('pck')"],
     ['📥','Fichiers Excel des schémas','Télécharger les Excel faits pour les schémas (picking, ligne verte, suites…)','#0F766E',"openSearchModule('fxl')"],
-    ['🎱','Loto des listes','Chaque numéro sorti est coché dans toutes les listes ; les listes complètes deviennent des tirages','#0F766E',"openSearchModule('ldl')"],
     ['🔎','Tirages avec des numéros de mes listes','Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques…)','#7C3AED',"openSearchModule('dtl')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],

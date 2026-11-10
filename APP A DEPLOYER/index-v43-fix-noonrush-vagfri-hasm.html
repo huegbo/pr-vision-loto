@@ -12655,17 +12655,17 @@ function dtlKind(l){return l.id>=9300001&&l.id<9400000?'obl':(l.id>=9200001&&l.i
 function dtlLists(scope){
   const out=[];
   if(scope==='mes'||scope==='tout'){['A','B'].forEach(k=>{const L=state.lists[k];if(L&&Object.keys(L.nums).length)out.push({name:L.name,nums:Object.keys(L.nums).map(Number)});});}
-  state.userLists.forEach(l=>{const kd=dtlKind(l);if(scope==='tout'||scope===kd||(scope==='pick+prime'&&(kd==='pick'||kd==='prime'))){const seq=kd==='pick'&&typeof PICK_LISTS!=='undefined'?PICK_LISTS[l.id-9100001]:kd==='obl'&&typeof OBL_LISTS!=='undefined'?OBL_LISTS[l.id-9300001]:null;out.push({name:l.name,nums:Object.keys(l.nums).map(Number),id:l.id,seq});}});
+  state.userLists.forEach(l=>{const kd=dtlKind(l);if(scope==='tout'||scope===kd||(scope==='pick+prime'&&(kd==='pick'||kd==='prime'))||(scope==='pick+prime+obl'&&kd!=='mes')){const seq=kd==='pick'&&typeof PICK_LISTS!=='undefined'?PICK_LISTS[l.id-9100001]:kd==='obl'&&typeof OBL_LISTS!=='undefined'?OBL_LISTS[l.id-9300001]:null;out.push({name:l.name,nums:Object.keys(l.nums).map(Number),id:l.id,seq});}});
   return out.filter(l=>l.nums.length);
 }
 function dtlKey(){const k=state.dtlGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
 function dtlPanelHTML(){
-  const K=Math.max(1,Math.min(5,+(state.dtlK||3))),scope=state.dtlS||'pick+prime',NN=Math.max(1,Math.min(200,+(state.dtlN||2))),togo=!!state.dtlTogo;
+  const K=Math.max(1,Math.min(5,+(state.dtlK||3))),scope=state.dtlS||'pick+prime+obl',NN=Math.max(1,Math.min(200,+(state.dtlN||2))),togo=!!state.dtlTogo;
   const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
   const lists=dtlLists(scope);
   const opt=(v,t)=>`<option value="${v}"${scope===v?' selected':''}>${t}</option>`;
   const head=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
-    <select onchange="state.dtlS=this.value;render()" style="padding:3px">${opt('pick+prime','Listes picking + prime')}${opt('pick','Listes picking')}${opt('prime','Listes prime')}${opt('obl','Listes obliques')}${opt('mes','Mes listes')}${opt('tout','Toutes les listes')}</select>
+    <select onchange="state.dtlS=this.value;render()" style="padding:3px">${opt('pick+prime+obl','Picking + prime + obliques')}${opt('pick+prime','Listes picking + prime')}${opt('pick','Listes picking')}${opt('prime','Listes prime')}${opt('obl','Listes obliques')}${opt('mes','Mes listes')}${opt('tout','Toutes les listes')}</select>
     <label>au moins <input type="number" min="1" max="5" value="${K}" onchange="state.dtlK=+this.value;render()" style="width:38px"> n° d'une même liste</label>
     <label><input type="checkbox" ${togo?'checked':''} onchange="state.dtlTogo=this.checked;render()"> tous les lotos du Togo</label>
     ${togo?'':`<select onchange="state.dtlGame=this.value;render()" style="padding:3px;max-width:160px">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===dtlKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}

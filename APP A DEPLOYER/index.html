@@ -708,8 +708,7 @@ function parseBeninAll(){
   return BENIN_ALL_ROWS;
 }
 // ══════ Présentation « 1 ligne = 1 date, 1 colonne = 1 jeu » + sélection de numéros (Cameroun, Togo, Bénin) ══════
-state.gridS={};
-function gs(id){return state.gridS[id]||(state.gridS[id]={view:'grid',sel:null,open:true,N:150});}
+function gs(id){state.gridS=state.gridS||{};return state.gridS[id]||(state.gridS[id]={view:'grid',sel:null,open:true,N:150});}
 function gridSel(id){const g=gs(id);if(!g.sel){g.sel={};for(let v=1;v<=90;v++)g.sel[v]=true;}return g.sel;}
 function gridToggle(id,v){const s=gridSel(id);s[v]=!s[v];render();}
 function gridClear(id){gs(id).sel={};render();}

@@ -19530,61 +19530,87 @@ function ulLoad(){
   ulRebuild();
 }
 ulLoad();
-function ulCur(){return state.userLists.find(l=>l.id===state._ulSel)||null;}
+function listChipsHTML(){
+  const chip=(on,color,label,count,tog,edit)=>`<span style="display:inline-flex;align-items:center;border-radius:12px;border:1.5px solid ${color};background:${on?color:'#fff'};color:${on?'#fff':color};overflow:hidden;font-size:10px;font-weight:700"><span onclick="${tog}" style="padding:2px 6px 2px 8px;cursor:pointer;${on?'':'opacity:.8'}" title="Clic = afficher / masquer cette liste">${on?'👁':'🚫'} ${label} (${count})</span><span onclick="${edit}" style="padding:2px 7px;cursor:pointer;border-left:1px solid ${on?'rgba(255,255,255,.5)':color}" title="Modifier cette liste">✏️</span></span>`;
+  let h=chip(state.lists.A.on,'#0E7490',state.lists.A.name,Object.keys(state.lists.A.nums).length,"ulToggleSys('A')","ulSelect('A')");
+  h+=chip(state.lists.B.on,'#B45309',state.lists.B.name,Object.keys(state.lists.B.nums).length,"ulToggleSys('B')","ulSelect('B')");
+  state.userLists.forEach(l=>{h+=chip(l.on,'#7C3AED',l.name.replace(/</g,'&lt;'),Object.keys(l.nums).length,`ulToggle(${l.id})`,`ulSelect(${l.id})`);});
+  h+=`<button onclick="ulNew()" style="padding:2px 8px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px dashed #7C3AED;background:#fff;color:#7C3AED" title="Créer une nouvelle liste et la nommer">＋ Nouvelle liste</button>`;
+  return h;
+}
+function ulCur(){
+  const sel=state._ulSel;
+  if(sel==='A'||sel==='B'){const L=state.lists[sel];return{sys:sel,name:L.name,nums:L.nums};}
+  return state.userLists.find(l=>l.id===sel)||null;
+}
+function ulAct(l){return l.sys==='A'?state.repereActive:state.repere2Active;}
+function ulOff(l,n){return l.sys?(ulAct(l)[n]===false):!!(l.nums[n]&&l.nums[n].off);}
+function ulSetOff(l,n,off){if(l.sys){ulAct(l)[n]=!off;}else if(off){l.nums[n].off=true;}else{delete l.nums[n].off;}}
+function ulTurnOn(l){if(l.sys)state.lists[l.sys].on=true;else l.on=true;}
+function ulSaveAll(){
+  lsSet('loto_user_lists',JSON.stringify(state.userLists));
+  lsSet('loto_list_names',JSON.stringify({A:state.lists.A.name,B:state.lists.B.name}));
+  try{saveRepereDefinedState();saveRepere2DefinedState();saveListsVisiblePref();}catch(_){}
+  ulRebuild();
+}
 function ulClose(){const o=document.getElementById('ul-overlay');if(o)o.remove();}
-function ulChanged(){ulSave();ulRender();render();}
-function ulNew(){const nm=prompt('Nom de la nouvelle liste (ex: HOT, Mes favoris, Retards…) :','');if(!nm||!nm.trim())return;const l={id:Date.now(),name:nm.trim(),nums:{},on:true};state.userLists.push(l);state._ulSel=l.id;ulSave();ulRender(true);render();}
+function ulChanged(){ulSaveAll();ulRender();render();}
+function ulNew(){const nm=prompt('Nom de la nouvelle liste (ex: HOT, Favoris, Retards…) :','');if(!nm||!nm.trim())return;const l={id:Date.now(),name:nm.trim(),nums:{},on:true};state.userLists.push(l);state._ulSel=l.id;ulSaveAll();ulRender(true);render();}
 function ulRename(k){
   const tgt=(k==='A'||k==='B')?state.lists[k]:state.userLists.find(l=>String(l.id)===String(k));if(!tgt)return;
   const nm=prompt('Nouveau nom de la liste :',tgt.name);if(!nm||!nm.trim())return;tgt.name=nm.trim();ulChanged();
 }
 function ulToggle(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;l.on=!l.on;ulChanged();}
+function ulToggleSys(k){state.lists[k].on=!state.lists[k].on;ulSaveAll();ulRender();render();}
 function ulDelete(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;if(!confirm('Supprimer la liste "'+l.name+'" ('+Object.keys(l.nums).length+' numéros) ?'))return;state.userLists=state.userLists.filter(x=>x.id!==id);if(state._ulSel===id)state._ulSel=null;ulChanged();}
-function listChipsHTML(){
-  const chip=(on,color,label,count,tog,edit)=>`<span style="display:inline-flex;align-items:center;border-radius:12px;border:1.5px solid ${color};background:${on?color:'#fff'};color:${on?'#fff':color};overflow:hidden;font-size:10px;font-weight:700"><span onclick="${tog}" style="padding:2px 6px 2px 8px;cursor:pointer;${on?'':'opacity:.8'}" title="Clic = afficher / masquer cette liste">${on?'👁':'🚫'} ${label} (${count})</span><span onclick="${edit}" style="padding:2px 7px;cursor:pointer;border-left:1px solid ${on?'rgba(255,255,255,.5)':color}" title="Modifier cette liste">✏️</span></span>`;
-  let h=chip(state.lists.A.on,'#0E7490',state.lists.A.name,Object.keys(state.lists.A.nums).length,"ulToggleSys('A')","openRepereGlobal()");
-  h+=chip(state.lists.B.on,'#B45309',state.lists.B.name,Object.keys(state.lists.B.nums).length,"ulToggleSys('B')","openRepere2Global()");
-  state.userLists.forEach(l=>{h+=chip(l.on,'#7C3AED',l.name.replace(/</g,'&lt;'),Object.keys(l.nums).length,`ulToggle(${l.id})`,`ulSelect(${l.id})`);});
-  h+=`<button onclick="ulNew()" style="padding:2px 8px;border-radius:12px;cursor:pointer;font-weight:700;font-size:10px;border:1.5px dashed #7C3AED;background:#fff;color:#7C3AED" title="Créer une nouvelle liste et la nommer">＋ Nouvelle liste</button>`;
-  return h;
-}
-function ulToggleSys(k){state.lists[k].on=!state.lists[k].on;try{saveListsVisiblePref();}catch(_){}ulRender();render();}
 function ulSelect(id){state._ulSel=id;ulRender(true);}
 function ulSetColor(i){state._ulColor=UL_PAL[i];ulRender();}
 function ulCustomColor(hex){state._ulColor=[hex,'#fff'];ulRender();}
 function ulSetShape(sh){state._ulShape=sh;ulRender();}
 function ulMk(){return{bg:state._ulColor[0],fg:state._ulColor[1],style:state._ulShape==='fill'?undefined:state._ulShape};}
-function ulGrid(n){const l=ulCur();if(!l)return;if(l.nums[n])delete l.nums[n];else l.nums[n]=ulMk();ulChanged();}
-function ulPaste(){const l=ulCur();const el=document.getElementById('ul-paste');if(!l||!el)return;const ns=(el.value.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=90);if(!ns.length)return;ns.forEach(n=>{l.nums[n]=ulMk();});el.value='';ulChanged();}
-function ulClear(){const l=ulCur();if(!l)return;if(!confirm('Vider la liste "'+l.name+'" ?'))return;l.nums={};ulChanged();}
-function ulGroups(l){const g={};Object.keys(l.nums).forEach(n=>{const c=l.nums[n];(g[c.bg]=g[c.bg]||{bg:c.bg,fg:c.fg,nums:[]}).nums.push(+n);});return Object.values(g).map(x=>{x.nums.sort((a,b)=>a-b);x.on=x.nums.some(n=>!l.nums[n].off);x.style=l.nums[x.nums[0]].style||'fill';return x;}).sort((a,b)=>b.nums.length-a.nums.length);}
-function ulColorToggle(bg){const l=ulCur();if(!l)return;const g=ulGroups(l).find(x=>x.bg===bg);if(!g)return;g.nums.forEach(n=>{if(g.on)l.nums[n].off=true;else delete l.nums[n].off;});ulChanged();}
-function ulColorOnly(bg){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)delete l.nums[n].off;else l.nums[n].off=true;});ulChanged();}
-function ulColorAll(){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{delete l.nums[n].off;});ulChanged();}
+function ulPut(l,n){l.nums[n]=ulMk();if(l.sys)ulAct(l)[n]=true;ulTurnOn(l);}
+function ulGrid(n){const l=ulCur();if(!l)return;if(l.nums[n]){delete l.nums[n];if(l.sys)delete ulAct(l)[n];}else ulPut(l,n);ulChanged();}
+function ulPaste(){const l=ulCur();const el=document.getElementById('ul-paste');if(!l||!el)return;const ns=(el.value.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=90);if(!ns.length)return;ns.forEach(n=>ulPut(l,n));el.value='';ulChanged();}
+function ulClear(){const l=ulCur();if(!l)return;if(!confirm('Vider la liste "'+l.name+'" ?'))return;Object.keys(l.nums).forEach(n=>{delete l.nums[n];if(l.sys)delete ulAct(l)[n];});ulChanged();}
+function ulGroups(l){const g={};Object.keys(l.nums).forEach(n=>{const c=l.nums[n];(g[c.bg]=g[c.bg]||{bg:c.bg,fg:c.fg,nums:[]}).nums.push(+n);});return Object.values(g).map(x=>{x.nums.sort((a,b)=>a-b);x.on=x.nums.some(n=>!ulOff(l,n));x.style=l.nums[x.nums[0]].style||'fill';return x;}).sort((a,b)=>b.nums.length-a.nums.length);}
+function ulColorToggle(bg){const l=ulCur();if(!l)return;const g=ulGroups(l).find(x=>x.bg===bg);if(!g)return;g.nums.forEach(n=>ulSetOff(l,n,g.on));ulChanged();}
+function ulColorOnly(bg){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>ulSetOff(l,n,l.nums[n].bg!==bg));ulChanged();}
+function ulColorAll(){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>ulSetOff(l,n,false));ulChanged();}
 function ulColorShape(bg,st){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)l.nums[n].style=(st==='fill')?undefined:st;});ulChanged();}
+function ulSnapSave(){const l=ulCur();if(!l||!l.sys)return;saveRepereSnapshot(l.sys);ulRender();}
+function ulSnapLoad(){const l=ulCur();const sel=document.getElementById('ul-snap');if(!l||!l.sys||!sel||!sel.value)return;loadRepereSnapshot(+sel.value);ulRender();}
+function ulSnapDel(){const sel=document.getElementById('ul-snap');if(!sel||!sel.value)return;deleteRepereSnapshot(+sel.value);ulRender();}
+function ulShowClass(on){state.repereShowClass=on;try{saveListStylePref();}catch(_){}ulRender();render();}
 function ulRender(force){
   let o=document.getElementById('ul-overlay');
   if(!o&&!force)return;
   if(!o){o=document.createElement('div');o.id='ul-overlay';o.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start';o.onclick=e=>{if(e.target===o)ulClose();};document.body.appendChild(o);}
-  const btn='padding:2px 8px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:11px';
-  const sys=['A','B'].map(k=>{const l=state.lists[k];return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee"><span onclick="ulToggleSys('${k}')" style="cursor:pointer;font-size:14px" title="Afficher / masquer cette liste dans les tableaux">${l.on?'👁':'🚫'}</span><b style="flex:1;font-size:12px;${l.on?'':'opacity:.5'}">📋 ${l.name} <span style="color:#888;font-weight:400">(${Object.keys(l.nums).length} n°)</span></b><button style="${btn}" onclick="ulRename('${k}')">✏️ Renommer</button><button style="${btn}" onclick="ulClose();${k==='A'?'openRepereGlobal()':'openRepere2Global()'}">Ouvrir</button></div>`;}).join('');
-  const mine=state.userLists.map(l=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee;${state._ulSel===l.id?'background:#F5F3FF;':''}"><span onclick="ulToggle(${l.id})" style="cursor:pointer;font-size:14px" title="Afficher / masquer cette liste dans les tableaux">${l.on?'👁':'🚫'}</span><b style="flex:1;font-size:12px;${l.on?'':'opacity:.5'}">${l.name} <span style="color:#888;font-weight:400">(${Object.keys(l.nums).length} n°)</span></b><button style="${btn}" onclick="ulRename('${l.id}')">✏️</button><button style="${btn}" onclick="ulSelect(${l.id})">Modifier</button><button style="${btn};color:#C62828" onclick="ulDelete(${l.id})">🗑</button></div>`).join('');
+  const btn='padding:3px 9px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:11px';
+  const row=(sel,on,tog,name,count,id,del)=>`<div style="display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid #eee;${state._ulSel===sel?'background:#F5F3FF;border-radius:8px':''}"><span onclick="${tog}" style="cursor:pointer;font-size:16px" title="Afficher / masquer cette liste dans les tableaux">${on?'👁':'🚫'}</span><b style="flex:1;font-size:13px;${on?'':'opacity:.5'}">${name} <span style="color:#888;font-weight:400;font-size:11px">(${count} n°)</span></b><button style="${btn}" onclick="ulRename('${id}')">✏️ Nom</button><button style="${btn};background:#EDE9FE;border-color:#7C3AED;font-weight:700" onclick="ulSelect(${typeof sel==='string'?"'"+sel+"'":sel})">Modifier</button>${del?`<button style="${btn};color:#C62828" onclick="ulDelete(${sel})">🗑</button>`:''}</div>`;
+  const sys=['A','B'].map(k=>{const l=state.lists[k];return row(k,l.on,`ulToggleSys('${k}')`,'📋 '+l.name,Object.keys(l.nums).length,k,false);}).join('');
+  const mine=state.userLists.map(l=>row(l.id,l.on,`ulToggle(${l.id})`,'📋 '+l.name.replace(/</g,'&lt;'),Object.keys(l.nums).length,l.id,true)).join('');
   const cur=ulCur();let ed='';
   if(cur){
     const shapes=UL_SHAPES.map(([k,l])=>`<button onclick="ulSetShape('${k}')" style="${btn};${state._ulShape===k?'background:#EDE9FE;border-color:#7C3AED;font-weight:700':''}">${l}</button>`).join('');
     const pal=UL_PAL.map((c,i)=>`<span onclick="ulSetColor(${i})" style="width:26px;height:26px;border-radius:6px;cursor:pointer;background:${c[0]};border:${state._ulColor[0]===c[0]?'3px solid #111':'1.5px solid #ccc'}"></span>`).join('')+`<label title="Couleur libre" style="width:26px;height:26px;border-radius:6px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);position:relative;overflow:hidden"><input type="color" value="${state._ulColor[0]}" onchange="ulCustomColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"></label>`;
-    const grid=Array.from({length:90},(_,i)=>i+1).map(n=>{const c=cur.nums[n];return `<span onclick="ulGrid(${n})" style="text-align:center;padding:4px 0;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'};opacity:${c&&c.off?.35:1}">${n}</span>`;}).join('');
+    const grid=Array.from({length:90},(_,i)=>i+1).map(n=>{const c=cur.nums[n];return `<span onclick="ulGrid(${n})" style="text-align:center;padding:4px 0;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'};opacity:${c&&ulOff(cur,n)?.35:1}">${n}</span>`;}).join('');
     const gs=ulGroups(cur);
-    const gbar=gs.length?`<div style="margin:8px 0;padding:6px;border:1px dashed #7C3AED;border-radius:8px;background:#FAF5FF"><div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:4px">🎨 Couleurs de cette liste <button style="${btn};margin-left:6px" onclick="ulColorAll()">Tout afficher</button></div>${gs.map(g=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;opacity:${g.on?1:.45}"><span onclick="ulColorToggle('${g.bg}')" style="cursor:pointer;background:${g.bg};color:${g.fg};border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700">${g.on?'👁':'🚫'} ${g.nums.length} n°</span><button style="${btn}" onclick="ulColorOnly('${g.bg}')">seule</button><span style="display:inline-flex;gap:1px">${UL_SHAPES.map(([k,l])=>`<button onclick="ulColorShape('${g.bg}','${k}')" title="${l}" style="padding:1px 5px;font-size:10px;cursor:pointer;border:1px solid ${g.style===k?'#7C3AED':'#ddd'};background:${g.style===k?'#EDE9FE':'#fff'};border-radius:5px">${l.split(' ')[0]}</button>`).join('')}</span><span style="font-size:9px;color:#666">${g.nums.join(' ')}</span></div>`).join('')}</div>`:'';
-    ed=`<div style="margin-top:10px;padding:10px;border:2px solid #7C3AED;border-radius:10px;background:#FDFCFF"><div style="font-weight:700;color:#5B21B6;font-size:13px;margin-bottom:6px">✏️ ${cur.name}</div>
-      <div style="font-size:10px;color:#555;margin-bottom:4px">1. Choisis une couleur et une forme, 2. clique les numéros (reclique pour retirer) ou colle une série.</div>
+    const gbar=gs.length>1?`<div style="margin:8px 0;padding:6px;border:1px dashed #7C3AED;border-radius:8px;background:#FAF5FF"><div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:4px">🎨 Jouer une couleur <button style="${btn};margin-left:6px" onclick="ulColorAll()">Tout afficher</button></div>${gs.map(g=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;opacity:${g.on?1:.45}"><span onclick="ulColorToggle('${g.bg}')" style="cursor:pointer;background:${g.bg};color:${g.fg};border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700">${g.on?'👁':'🚫'} ${g.nums.length} n°</span><button style="${btn}" onclick="ulColorOnly('${g.bg}')">seule</button><span style="display:inline-flex;gap:1px">${UL_SHAPES.map(([k,l])=>`<button onclick="ulColorShape('${g.bg}','${k}')" title="${l}" style="padding:1px 5px;font-size:10px;cursor:pointer;border:1px solid ${g.style===k?'#7C3AED':'#ddd'};background:${g.style===k?'#EDE9FE':'#fff'};border-radius:5px">${l.split(' ')[0]}</button>`).join('')}</span></div>`).join('')}</div>`:'';
+    let snaps='';
+    if(cur.sys){
+      const sl=(state.listSnapshots||[]).filter(x=>(x.listKey==='B'?'B':'A')===cur.sys);
+      snaps=`<div style="margin-top:8px;padding:6px;border:1px solid #E5E7EB;border-radius:8px;background:#F9FAFB"><div style="font-size:10px;font-weight:700;color:#555;margin-bottom:4px">💾 Sauvegardes de cette liste</div><div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><button style="${btn}" onclick="ulSnapSave()">💾 Sauvegarder l'état actuel</button>${sl.length?`<select id="ul-snap" style="padding:3px;border:1px solid #999;border-radius:6px;font-size:11px;max-width:220px">${sl.map(x=>`<option value="${x.id}">${String(x.name).replace(/</g,'&lt;')} (${Object.keys(x.nums).length})</option>`).join('')}</select><button style="${btn}" onclick="ulSnapLoad()">↩ Recharger</button><button style="${btn};color:#C62828" onclick="ulSnapDel()">🗑</button>`:'<span style="font-size:10px;color:#888">aucune sauvegarde</span>'}</div></div>`;
+    }
+    ed=`<div style="margin-top:10px;padding:10px;border:2px solid #7C3AED;border-radius:10px;background:#FDFCFF"><div style="font-weight:700;color:#5B21B6;font-size:13px;margin-bottom:6px">✏️ ${cur.name.replace(/</g,'&lt;')}</div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">① choisis une couleur et une forme ② clique les numéros (reclique = retirer) ou colle une série</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${pal}</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${shapes}</div>
       <div style="display:flex;gap:6px;margin-bottom:8px"><input id="ul-paste" placeholder="ex: 6, 14, 23, 35, 42" style="flex:1;padding:5px;border:1.5px solid #7C3AED;border-radius:6px;font-size:12px"><button onclick="ulPaste()" style="padding:5px 10px;background:#7C3AED;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px">+ Ajouter</button></div>
       <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px">${grid}</div>${gbar}
-      <div style="margin-top:6px"><span style="font-size:10px;color:#666">${Object.keys(cur.nums).length} numéro(s)</span> <button style="${btn};margin-left:8px" onclick="ulClear()">🧹 Vider</button></div></div>`;
+      <div style="margin-top:6px"><span style="font-size:10px;color:#666">${Object.keys(cur.nums).length} numéro(s)</span> <button style="${btn};margin-left:8px" onclick="ulClear()">🧹 Vider</button></div>${snaps}</div>`;
   }
-  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:8px"><b style="flex:1;font-size:15px;color:#5B21B6">📚 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div>${sys}${mine}<div style="margin-top:8px"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button></div>${ed}</div>`;
+  const cls=state.repereShowClass!==false;
+  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:6px"><b style="flex:1;font-size:15px;color:#5B21B6">📋 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div><div style="font-size:10px;color:#666;margin-bottom:6px">👁 = affichée dans les tableaux · 🚫 = masquée · <b>Modifier</b> pour ajouter des numéros</div>${sys}${mine}<div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button><label style="font-size:10px;color:#555;cursor:pointer"><input type="checkbox" ${cls?'checked':''} onchange="ulShowClass(this.checked)"> afficher l'élément (C:80) à côté des numéros</label></div>${ed}</div>`;
 }
 function openMyLists(){ulRender(true);}
 function setRep2DefStyle(s){state.rep2DefStyle=s;render();}

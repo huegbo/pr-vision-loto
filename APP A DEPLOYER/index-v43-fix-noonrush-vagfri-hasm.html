@@ -5452,7 +5452,7 @@ let state={
   // les utilise déjà — mais il n'y a plus qu'UN SEUL espace de stockage réel.
   lists:{
     A:{name:'Liste A', nums:{}, on:false},
-    B:{name:'Liste B', nums:{}, on:false},
+    B:{name:'Liste HOT', nums:{}, on:false},
   },
   listStyle:'fill', // 'fill'|'box'|'underline'|'text' — style unique pour TOUTES les listes, écran + export
   listShowClass:true, // afficher l'élément de classification (ex: C:14) à côté des numéros des listes
@@ -19243,7 +19243,7 @@ function listsStatusBarHTML(){
   return `<div class="card" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;font-size:10px;background:${listsVisible()?'#FFF7ED':'#F3F4F6'};border:1.5px solid ${listsVisible()?'#C2410C':'#ccc'}">
     <span style="font-weight:700;color:${listsVisible()?'#C2410C':'#6B7280'}">📋 Listes ${listsVisible()?'ON':'OFF'}</span>
     <span onclick="openRepereGlobal()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRepereGlobal();}" tabindex="0" role="button" style="color:#0E7490;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste A">L1: ${Object.keys(state.lists.A.nums).length}</span>
-    <span onclick="openRepere2Global()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRepere2Global();}" tabindex="0" role="button" style="color:#B45309;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste B">L2: ${Object.keys(state.lists.B.nums).length}</span>
+    <span onclick="openRepere2Global()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openRepere2Global();}" tabindex="0" role="button" style="color:#B45309;cursor:pointer;text-decoration:underline;text-decoration-style:dotted" title="Ouvrir Liste HOT">HOT: ${Object.keys(state.lists.B.nums).length}</span>
     <span style="color:#555">🎨 ${({fill:'Plein',box:'Encadré',underline:'Souligné',text:'Texte'})[state.listStyle]||'Plein'}</span>
     ${listDoublons().length?`<span onclick="openDoublonsPanel()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDoublonsPanel();}" tabindex="0" role="button" style="cursor:pointer;padding:1px 7px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700" title="Numéros présents dans Liste A ET Liste B">⚠️ ${listDoublons().length} doublon${listDoublons().length>1?'s':''}</span>`:''}
     <button onclick="state.dualViewOn=!state.dualViewOn;if(state.dualViewOn){state.dualViewLeftOn=true;state.dualViewRightOn=true;}saveDualViewPref();render()" style="padding:2px 8px;border-radius:8px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0F766E;background:${state.dualViewOn?'#0F766E':'#fff'};color:${state.dualViewOn?'#fff':'#0F766E'}">🪟 Double vue ${state.dualViewOn?'ON':'OFF'}</button>
@@ -19383,6 +19383,18 @@ function toggleRepereFromMenu(n){
 // instantané mémorise à quelle liste il appartient (listKey), pour charger au bon endroit.
 function loadRepereSnapshots(){
   try{state.listSnapshots=JSON.parse(lsGetOr('loto_list_snapshots','[]'))||[];}catch(_){state.listSnapshots=[];}
+  // Instantané « Liste HOT » (42 numéros, fourni par l'utilisateur le 10/11/2026) — ajouté une seule fois
+  try{
+    if(lsGetOr('loto_hot_seeded','')!=='1'){
+      const B='#1E88E5',R='#E53935',P='#8E24AA',nums={};
+      const put=(arr,bg)=>arr.forEach(n=>{nums[n]={bg,fg:'#fff',style:'fill'};});
+      put([3,4,6,12,13,15,21,22,24,30,31,33,39,40,48,51,57,59,60,66,67,69,75,76,78,84,87],B);
+      put([8,14,35,42,49,53,58,80,85],R);
+      put([23,32,41,68,77,86],P);
+      state.listSnapshots.unshift({id:20261110,name:'Liste HOT (42)',listKey:'B',nums,createdAt:new Date().toISOString()});
+      saveRepereSnapshots();lsSet('loto_hot_seeded','1');
+    }
+  }catch(_){}
 }
 function saveRepereSnapshots(){lsSet('loto_list_snapshots',JSON.stringify(state.listSnapshots));}
 function saveRepereSnapshot(listKey){
@@ -19455,6 +19467,43 @@ function loadRepere2DefinedState(){
   }catch(_){state.repere2Defined={};state.repere2Active={};}
 }
 function setRep2DefColor(c){state.rep2DefColor=c||'';render();}
+// ── Liste HOT : jouer UNE couleur de la liste (afficher/masquer) et lui donner sa propre forme ──
+function hotGroups(){
+  const g={};
+  Object.keys(state.repere2Defined||{}).forEach(n=>{const c=state.repere2Defined[n];(g[c.bg]=g[c.bg]||{bg:c.bg,fg:c.fg,nums:[]}).nums.push(+n);});
+  return Object.values(g).map(x=>{x.nums.sort((a,b)=>a-b);x.on=x.nums.some(n=>state.repere2Active[n]!==false);x.style=state.repere2Defined[x.nums[0]].style||'fill';return x;}).sort((a,b)=>b.nums.length-a.nums.length);
+}
+function hotToggleColor(bg){
+  const g=hotGroups().find(x=>x.bg===bg);if(!g)return;
+  g.nums.forEach(n=>{state.repere2Active[n]=!g.on;});
+  saveRepere2DefinedState();render();
+}
+function hotOnlyColor(bg){
+  hotGroups().forEach(x=>x.nums.forEach(n=>{state.repere2Active[n]=(x.bg===bg);}));
+  saveRepere2DefinedState();render();
+}
+function hotAllColors(){
+  Object.keys(state.repere2Defined).forEach(n=>{state.repere2Active[n]=true;});
+  saveRepere2DefinedState();render();
+}
+function hotShapeColor(bg,st){
+  const g=hotGroups().find(x=>x.bg===bg);if(!g)return;
+  g.nums.forEach(n=>{state.repere2Defined[n].style=(st&&st!=='fill')?st:undefined;});
+  saveRepere2DefinedState();render();
+}
+function hotColorBarHTML(){
+  const gs=hotGroups();if(!gs.length)return '';
+  const shapes=[['fill','🎨'],['box','⬜'],['underline','➖'],['text','🔤'],['croix','✕'],['etoile','★'],['coeur','♥'],['coche','✓']];
+  return `<div style="margin:6px 0 8px;padding:6px;border:1px dashed #B45309;border-radius:8px;background:#FFFBEB">
+    <div style="font-size:10px;font-weight:700;color:#92400E;margin-bottom:4px">🎨 Couleurs de la liste (jouer une couleur, choisir sa forme) <button onclick="hotAllColors()" style="margin-left:6px;padding:1px 7px;font-size:9px;border:1px solid #B45309;background:#fff;color:#B45309;border-radius:8px;cursor:pointer">Tout afficher</button></div>
+    ${gs.map(g=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;opacity:${g.on?1:.45}">
+      <span onclick="hotToggleColor('${g.bg}')" title="Clic = afficher / masquer cette couleur" style="cursor:pointer;background:${g.bg};color:${g.fg};border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700">${g.on?'👁':'🚫'} ${g.nums.length} n°</span>
+      <button onclick="hotOnlyColor('${g.bg}')" title="Jouer seulement cette couleur" style="padding:1px 7px;font-size:9px;border:1px solid #999;background:#fff;border-radius:8px;cursor:pointer">seule</button>
+      <span style="display:inline-flex;gap:1px">${shapes.map(([k,l])=>`<button onclick="hotShapeColor('${g.bg}','${k}')" title="Forme ${k}" style="padding:1px 5px;font-size:10px;cursor:pointer;border:1px solid ${g.style===k?'#B45309':'#ddd'};background:${g.style===k?'#FDE68A':'#fff'};border-radius:5px">${l}</button>`).join('')}</span>
+      <span style="font-size:9px;color:#666">${g.nums.join(' ')}</span>
+    </div>`).join('')}
+  </div>`;
+}
 function setRep2DefStyle(s){state.rep2DefStyle=s;render();}
 // Clic direct sur un numéro de la grille 1-90 : ajoute/retire ce numéro de la liste 2 avec la
 // couleur actuellement sélectionnée (re-clique avec une autre couleur pour le recolorer).
@@ -19675,6 +19724,7 @@ function repere2GlobalHTML(){
         <div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px">
           ${[['','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligner'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']].map(([s,l])=>`<button onclick="setRep2DefStyle('${s}')" style="padding:2px 7px;font-size:9px;font-weight:600;border-radius:7px;cursor:pointer;border:1.5px solid ${state.rep2DefStyle===s?'#B45309':'#ddd'};background:${state.rep2DefStyle===s?'#FFFBEB':'#fff'};color:#333">${l}</button>`).join('')}
         </div>
+        ${hotColorBarHTML()}
         <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;max-width:420px">
           ${Array.from({length:90},(_,i)=>i+1).map(n=>{const c=state.repere2Defined[n];
             return `<span onclick="toggleRepere2Grid(${n})" style="text-align:center;padding:3px 0;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'}">${n}</span>`;}).join('')}
@@ -21694,7 +21744,7 @@ function anRender(){
         <button onclick="setListsVisible(true)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}" title="Affiche les listes A et B partout, sur tous les lotos">✅ Afficher</button>
         <button onclick="setListsVisible(false)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:${!listsVisible()?'#6B7280':'#fff'};color:${!listsVisible()?'#fff':'#6B7280'}" title="Masque les listes A et B (leur contenu n'est pas effacé)">🚫 Masquer</button>
         <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 Liste A${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
-        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 Liste B${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
+        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 Liste HOT${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
         <button onclick="applyRepereToCurrentGame()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:#fff;color:#C2410C" title="Colorie immédiatement tous les numéros de tes listes dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer ici</button>
         <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
         <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>

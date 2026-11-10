@@ -6450,6 +6450,7 @@ function numSpan(n, extra, cid){
   // Numéro repéré (prédéfini, actif) : couleur pleine par défaut (comme un coloriage manuel),
   // modifiable ensuite au clic (le style choisi manuellement — colC/col — reste prioritaire).
   const repereMark=(!_plain&&!_DV_SUPPRESS&&state.repereAlways!==false&&state.repereDefined&&state.repereDefined[n]&&state.repereActive[n]!==false)?state.repereDefined[n]:null;
+  const ulMark=(!_plain&&!_DV_SUPPRESS&&state._ulMap&&state._ulMap[n])||null;
   const repere2Mark=(!_plain&&!_DV_SUPPRESS&&state.repere2Always!==false&&state.repere2Defined&&state.repere2Defined[n]&&state.repere2Active[n]!==false)?state.repere2Defined[n]:null;
   // Priorité à la vue par défaut : les 3 couches toujours actives (miroir même
   // ligne, miroir superposé, mêmes numéros superposés) passent maintenant devant
@@ -6475,6 +6476,7 @@ function numSpan(n, extra, cid){
   // besoin de l'écraser ici au rendu — applyHl lit directement le style correct.
   else if(repereMark)applyHl(repereMark);
   else if(repere2Mark)applyHl(repere2Mark);
+  else if(ulMark)applyHl(ulMark);
   else if(extra&&extra.clKey){
     // numéro dérivé — couleur de sa classification
     const clDef=CL_DEF.find(c=>c.key===extra.clKey);
@@ -15755,6 +15757,7 @@ function fabGo(action){
   else if(action==='undo_color'){undoColorAction();return;}
   else if(action==='repere_global'){openRepereGlobal();return;}
   else if(action==='repere2_global'){openRepere2Global();return;}
+  else if(action==='my_lists'){openMyLists();return;}
   else if(action==='export_coloring'){openColoringExport();return;}
   else if(action==='clear_all_colors'){
     if(confirm("Tout effacer : couleurs, cases coloriées, repères et blocs de couleur pour TOUS les lotos ?\n\nMiroir même ligne, Miroir superposé et Superposition restent actifs (mode par défaut) ; Répétés (2+), Même élément (2+) et Alignement sont éteints (mode par défaut).\n\nCette action peut elle-même être annulée avec ↩️ Annuler juste après.")){
@@ -15904,6 +15907,7 @@ function fabHTML(){
     ['undo_color',state.colorUndoStack.length?'↩️':'↩️','Annuler la dernière coloration'+(state.colorUndoStack.length?' ('+state.colorUndoStack.length+')':' (rien à annuler)'),state.colorUndoStack.length?'#455A64':'#B0BEC5','#fff'],
     ['repere_global','🎯','Voir mes numéros repérés dans tous les lotos','#0E7490','#fff'],
     ['repere2_global','🎯','Ma liste 2 (grille 1-90) dans tous les lotos','#B45309','#fff'],
+    ['my_lists','📚','Mes listes (créer, nommer, couleurs, formes)','#7C3AED','#fff'],
     ['export_coloring','📤','Exporter le coloriage de ce jeu (texte à m\'envoyer)','#0891B2','#fff'],
     ['clear_all_colors','🧹','Tout effacer (efface toutes les couleurs)','#B71C1C','#fff'],
     ['clear_all_blank','🚫','Mode vierge (rien de coloré, miroirs éteints aussi)','#4A148C','#fff'],
@@ -19394,6 +19398,14 @@ function loadRepereSnapshots(){
       put([23,32,41,68,77,86],P);
       state.listSnapshots.unshift({id:20261110,name:'Liste HOT (42)',listKey:'B',nums,createdAt:new Date().toISOString()});
       saveRepereSnapshots();lsSet('loto_hot_seeded','1');
+      // Si la Liste HOT (liste B) est vide, on la remplit directement et on l'active
+      let curB={};try{const d=JSON.parse(lsGetOr('loto_repere2_defined','')||'{}')||{};curB=d.defined||d;}catch(_){}
+      if(!Object.keys(curB).length){
+        lsSet('loto_repere2_defined',JSON.stringify({defined:nums,active:{}}));
+        state.lists.B.nums={...nums};state.repere2Active={};
+        let on={};try{on=JSON.parse(lsGetOr('loto_lists_on','{}'))||{};}catch(_){}
+        on.B=true;lsSet('loto_lists_on',JSON.stringify(on));state.lists.B.on=true;
+      }
     }
   }catch(_){}
 }
@@ -19505,6 +19517,65 @@ function hotColorBarHTML(){
     </div>`).join('')}
   </div>`;
 }
+// ══════ MES LISTES : créer ses propres listes de numéros, les nommer, choisir couleurs et formes ══════
+const UL_PAL=[['#43A047','#fff'],['#81C784','#111'],['#FDD835','#111'],['#E53935','#fff'],['#1E88E5','#fff'],['#8E24AA','#fff'],['#F97316','#fff'],['#EC4899','#fff'],['#14B8A6','#fff'],['#455A64','#fff']];
+const UL_SHAPES=[['fill','🎨 Fond'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte'],['croix','✕ Croix'],['etoile','★ Étoile'],['coeur','♥ Coeur'],['coche','✓ Coche']];
+state.userLists=[];state._ulSel=null;state._ulColor=UL_PAL[4];state._ulShape='fill';state._ulMap={};
+function ulRebuild(){const m={};state.userLists.forEach(l=>{if(!l.on)return;Object.keys(l.nums).forEach(n=>{const c=l.nums[n];if(!c.off&&!m[n])m[n]=c;});});state._ulMap=m;}
+function ulSave(){lsSet('loto_user_lists',JSON.stringify(state.userLists));lsSet('loto_list_names',JSON.stringify({A:state.lists.A.name,B:state.lists.B.name}));ulRebuild();}
+function ulLoad(){
+  try{state.userLists=JSON.parse(lsGetOr('loto_user_lists','[]'))||[];}catch(_){state.userLists=[];}
+  try{const nm=JSON.parse(lsGetOr('loto_list_names','{}'))||{};if(nm.A)state.lists.A.name=nm.A;if(nm.B)state.lists.B.name=nm.B;}catch(_){}
+  ulRebuild();
+}
+ulLoad();
+function ulCur(){return state.userLists.find(l=>l.id===state._ulSel)||null;}
+function ulClose(){const o=document.getElementById('ul-overlay');if(o)o.remove();}
+function ulChanged(){ulSave();ulRender();render();}
+function ulNew(){const nm=prompt('Nom de la nouvelle liste (ex: HOT, Mes favoris, Retards…) :','');if(!nm||!nm.trim())return;const l={id:Date.now(),name:nm.trim(),nums:{},on:true};state.userLists.push(l);state._ulSel=l.id;ulChanged();}
+function ulRename(k){
+  const tgt=(k==='A'||k==='B')?state.lists[k]:state.userLists.find(l=>String(l.id)===String(k));if(!tgt)return;
+  const nm=prompt('Nouveau nom de la liste :',tgt.name);if(!nm||!nm.trim())return;tgt.name=nm.trim();ulChanged();
+}
+function ulToggle(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;l.on=!l.on;ulChanged();}
+function ulDelete(id){const l=state.userLists.find(x=>x.id===id);if(!l)return;if(!confirm('Supprimer la liste "'+l.name+'" ('+Object.keys(l.nums).length+' numéros) ?'))return;state.userLists=state.userLists.filter(x=>x.id!==id);if(state._ulSel===id)state._ulSel=null;ulChanged();}
+function ulSelect(id){state._ulSel=id;ulRender();}
+function ulSetColor(i){state._ulColor=UL_PAL[i];ulRender();}
+function ulCustomColor(hex){state._ulColor=[hex,'#fff'];ulRender();}
+function ulSetShape(sh){state._ulShape=sh;ulRender();}
+function ulMk(){return{bg:state._ulColor[0],fg:state._ulColor[1],style:state._ulShape==='fill'?undefined:state._ulShape};}
+function ulGrid(n){const l=ulCur();if(!l)return;if(l.nums[n])delete l.nums[n];else l.nums[n]=ulMk();ulChanged();}
+function ulPaste(){const l=ulCur();const el=document.getElementById('ul-paste');if(!l||!el)return;const ns=(el.value.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=90);if(!ns.length)return;ns.forEach(n=>{l.nums[n]=ulMk();});el.value='';ulChanged();}
+function ulClear(){const l=ulCur();if(!l)return;if(!confirm('Vider la liste "'+l.name+'" ?'))return;l.nums={};ulChanged();}
+function ulGroups(l){const g={};Object.keys(l.nums).forEach(n=>{const c=l.nums[n];(g[c.bg]=g[c.bg]||{bg:c.bg,fg:c.fg,nums:[]}).nums.push(+n);});return Object.values(g).map(x=>{x.nums.sort((a,b)=>a-b);x.on=x.nums.some(n=>!l.nums[n].off);x.style=l.nums[x.nums[0]].style||'fill';return x;}).sort((a,b)=>b.nums.length-a.nums.length);}
+function ulColorToggle(bg){const l=ulCur();if(!l)return;const g=ulGroups(l).find(x=>x.bg===bg);if(!g)return;g.nums.forEach(n=>{if(g.on)l.nums[n].off=true;else delete l.nums[n].off;});ulChanged();}
+function ulColorOnly(bg){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)delete l.nums[n].off;else l.nums[n].off=true;});ulChanged();}
+function ulColorAll(){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{delete l.nums[n].off;});ulChanged();}
+function ulColorShape(bg,st){const l=ulCur();if(!l)return;Object.keys(l.nums).forEach(n=>{if(l.nums[n].bg===bg)l.nums[n].style=(st==='fill')?undefined:st;});ulChanged();}
+function ulRender(){
+  let o=document.getElementById('ul-overlay');
+  if(!o){o=document.createElement('div');o.id='ul-overlay';o.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);overflow:auto;padding:16px;display:flex;justify-content:center;align-items:flex-start';o.onclick=e=>{if(e.target===o)ulClose();};document.body.appendChild(o);}
+  const btn='padding:2px 8px;border-radius:8px;border:1px solid #999;background:#fff;cursor:pointer;font-size:11px';
+  const sys=['A','B'].map(k=>{const l=state.lists[k];return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee"><b style="flex:1;font-size:12px">📋 ${l.name} <span style="color:#888;font-weight:400">(${Object.keys(l.nums).length} n°)</span></b><button style="${btn}" onclick="ulRename('${k}')">✏️ Renommer</button><button style="${btn}" onclick="ulClose();${k==='A'?'openRepereGlobal()':'openRepere2Global()'}">Ouvrir</button></div>`;}).join('');
+  const mine=state.userLists.map(l=>`<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #eee;${state._ulSel===l.id?'background:#F5F3FF;':''}"><span onclick="ulToggle(${l.id})" style="cursor:pointer;font-size:14px" title="Afficher / masquer cette liste dans les tableaux">${l.on?'👁':'🚫'}</span><b style="flex:1;font-size:12px;${l.on?'':'opacity:.5'}">${l.name} <span style="color:#888;font-weight:400">(${Object.keys(l.nums).length} n°)</span></b><button style="${btn}" onclick="ulRename('${l.id}')">✏️</button><button style="${btn}" onclick="ulSelect(${l.id})">Modifier</button><button style="${btn};color:#C62828" onclick="ulDelete(${l.id})">🗑</button></div>`).join('');
+  const cur=ulCur();let ed='';
+  if(cur){
+    const shapes=UL_SHAPES.map(([k,l])=>`<button onclick="ulSetShape('${k}')" style="${btn};${state._ulShape===k?'background:#EDE9FE;border-color:#7C3AED;font-weight:700':''}">${l}</button>`).join('');
+    const pal=UL_PAL.map((c,i)=>`<span onclick="ulSetColor(${i})" style="width:26px;height:26px;border-radius:6px;cursor:pointer;background:${c[0]};border:${state._ulColor[0]===c[0]?'3px solid #111':'1.5px solid #ccc'}"></span>`).join('')+`<label title="Couleur libre" style="width:26px;height:26px;border-radius:6px;cursor:pointer;background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red);position:relative;overflow:hidden"><input type="color" value="${state._ulColor[0]}" onchange="ulCustomColor(this.value)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"></label>`;
+    const grid=Array.from({length:90},(_,i)=>i+1).map(n=>{const c=cur.nums[n];return `<span onclick="ulGrid(${n})" style="text-align:center;padding:4px 0;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700;background:${c?c.bg:'#f3f4f6'};color:${c?c.fg:'#555'};border:1px solid ${c?c.bg:'#ddd'};opacity:${c&&c.off?.35:1}">${n}</span>`;}).join('');
+    const gs=ulGroups(cur);
+    const gbar=gs.length?`<div style="margin:8px 0;padding:6px;border:1px dashed #7C3AED;border-radius:8px;background:#FAF5FF"><div style="font-size:10px;font-weight:700;color:#5B21B6;margin-bottom:4px">🎨 Couleurs de cette liste <button style="${btn};margin-left:6px" onclick="ulColorAll()">Tout afficher</button></div>${gs.map(g=>`<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;opacity:${g.on?1:.45}"><span onclick="ulColorToggle('${g.bg}')" style="cursor:pointer;background:${g.bg};color:${g.fg};border-radius:10px;padding:1px 9px;font-size:10px;font-weight:700">${g.on?'👁':'🚫'} ${g.nums.length} n°</span><button style="${btn}" onclick="ulColorOnly('${g.bg}')">seule</button><span style="display:inline-flex;gap:1px">${UL_SHAPES.map(([k,l])=>`<button onclick="ulColorShape('${g.bg}','${k}')" title="${l}" style="padding:1px 5px;font-size:10px;cursor:pointer;border:1px solid ${g.style===k?'#7C3AED':'#ddd'};background:${g.style===k?'#EDE9FE':'#fff'};border-radius:5px">${l.split(' ')[0]}</button>`).join('')}</span><span style="font-size:9px;color:#666">${g.nums.join(' ')}</span></div>`).join('')}</div>`:'';
+    ed=`<div style="margin-top:10px;padding:10px;border:2px solid #7C3AED;border-radius:10px;background:#FDFCFF"><div style="font-weight:700;color:#5B21B6;font-size:13px;margin-bottom:6px">✏️ ${cur.name}</div>
+      <div style="font-size:10px;color:#555;margin-bottom:4px">1. Choisis une couleur et une forme, 2. clique les numéros (reclique pour retirer) ou colle une série.</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">${pal}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${shapes}</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px"><input id="ul-paste" placeholder="ex: 6, 14, 23, 35, 42" style="flex:1;padding:5px;border:1.5px solid #7C3AED;border-radius:6px;font-size:12px"><button onclick="ulPaste()" style="padding:5px 10px;background:#7C3AED;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px">+ Ajouter</button></div>
+      <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px">${grid}</div>${gbar}
+      <div style="margin-top:6px"><span style="font-size:10px;color:#666">${Object.keys(cur.nums).length} numéro(s)</span> <button style="${btn};margin-left:8px" onclick="ulClear()">🧹 Vider</button></div></div>`;
+  }
+  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:8px"><b style="flex:1;font-size:15px;color:#5B21B6">📚 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div>${sys}${mine}<div style="margin-top:8px"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button></div>${ed}</div>`;
+}
+function openMyLists(){ulRender();}
 function setRep2DefStyle(s){state.rep2DefStyle=s;render();}
 // Clic direct sur un numéro de la grille 1-90 : ajoute/retire ce numéro de la liste 2 avec la
 // couleur actuellement sélectionnée (re-clique avec une autre couleur pour le recolorer).
@@ -21744,8 +21815,9 @@ function anRender(){
         <span style="font-size:9px;font-weight:700;color:#C2410C">📋 Listes de repères</span>
         <button onclick="setListsVisible(true)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:${listsVisible()?'#C2410C':'#fff'};color:${listsVisible()?'#fff':'#C2410C'}" title="Affiche les listes A et B partout, sur tous les lotos">✅ Afficher</button>
         <button onclick="setListsVisible(false)" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #6B7280;background:${!listsVisible()?'#6B7280':'#fff'};color:${!listsVisible()?'#fff':'#6B7280'}" title="Masque les listes A et B (leur contenu n'est pas effacé)">🚫 Masquer</button>
-        <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 Liste A${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
-        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 Liste HOT${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
+        <button onclick="openRepereGlobal()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #0E7490;background:#fff;color:#0E7490" title="Éditeur de la Liste A : saisie clavier, instantanés, scan multi-jeux">📋 ${state.lists.A.name}${Object.keys(state.lists.A.nums).length?` (${Object.keys(state.lists.A.nums).length})`:''}</button>
+        <button onclick="openRepere2Global()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #B45309;background:#fff;color:#B45309" title="Éditeur de la Liste B : grille 1-90 cliquable">📋 ${state.lists.B.name}${Object.keys(state.lists.B.nums).length?` (${Object.keys(state.lists.B.nums).length})`:''}</button>
+        <button onclick="openMyLists()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #7C3AED;background:#fff;color:#7C3AED" title="Créer tes propres listes, les nommer, choisir couleurs et formes">📚 Mes listes${state.userLists.length?` (${state.userLists.length})`:''}</button>
         <button onclick="applyRepereToCurrentGame()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #C2410C;background:#fff;color:#C2410C" title="Colorie immédiatement tous les numéros de tes listes dans ${GAME.name}, sans avoir à cliquer numéro par numéro">✨ Activer ici</button>
         <span style="display:inline-flex;gap:2px" title="Style d'affichage des listes A et B, écran + export">${[['fill','🎨 Plein'],['box','⬜ Encadré'],['underline','➖ Souligné'],['text','🔤 Texte']].map(([s,lbl])=>`<button onclick="setRepereDisplayStyle('${s}')" style="padding:2px 7px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9px;border:1px solid #C2410C;background:${state.repereDisplayStyle===s?'#C2410C':'#fff'};color:${state.repereDisplayStyle===s?'#fff':'#C2410C'}">${lbl}</button>`).join('')}</span>
         <button onclick="state.repereShowClass=!state.repereShowClass;render()" style="padding:2px 8px;border-radius:9px;cursor:pointer;font-weight:700;font-size:9.5px;border:1px solid #9333EA;background:${state.repereShowClass!==false?'#9333EA':'#fff'};color:${state.repereShowClass!==false?'#fff':'#9333EA'}" title="Afficher/masquer l'élément de classification (ex: C:14) à côté de chaque numéro">🧩 classif.</button>

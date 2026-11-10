@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forecast Lotto</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#F4F6FB;color:#1F2D3D}
+header{background:#0033CC;color:#fff;padding:14px 16px;font-size:20px;font-weight:800;position:sticky;top:0;z-index:20}header span{color:#F59E0B}
+.wrap{max-width:1100px;margin:0 auto;padding:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{padding:8px 14px;border-radius:18px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;font-size:13px;cursor:pointer}
+.chip.on{background:#1E3AC8;color:#fff}
+.sec{background:#fff;border:1px solid #E2E8F0;border-radius:12px;margin-bottom:8px;overflow:hidden}
+.sec>div.h{padding:16px;font-weight:700;font-size:16px;cursor:pointer;display:flex;justify-content:space-between}
+.sec>div.b{padding:10px 12px;border-top:1px solid #EEF1F6}
+table{border-collapse:separate;border-spacing:0;width:100%}th{position:sticky;top:0;background:#F1F5FB;padding:10px;font-size:13px;white-space:nowrap;z-index:3}
+td{text-align:center;padding:9px 8px;white-space:nowrap}
+.ball{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;margin:2px;font-weight:700;font-size:15px;color:#fff;background:linear-gradient(135deg,#3B82F6,#2563EB)}
+.ball.m{width:28px;height:28px;font-size:12px;background:linear-gradient(135deg,#F59E0B,#D97706)}.ball.dim{background:#CBD5E1}
+.banner{background:#1E3AC8;color:#fff;font-weight:700;font-size:16px;padding:12px 14px;border-radius:10px 10px 0 0}
+.num{width:42px;height:42px;border-radius:9px;font-weight:700;font-size:15px;cursor:pointer;border:1px solid #E5E7EB;background:#F3F4F6;color:#374151}.num.on{background:#0033CC;color:#fff;border-color:#0033CC}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid #CBD5E1;background:#fff;cursor:pointer;font-weight:600}
+.scroll{max-height:70vh;overflow:auto;border:1px solid #E2E8F0;border-radius:0 0 10px 10px;background:#fff}
+</style></head><body>
+<header>Forecast <span>Lotto</span></header>
+<div class="wrap" id="app"></div>
+<script src="loto-data.js"></script>
+<script>
+const D=window.LOTO_DATA||{};
+const PAYS={
+ benin:{nom:'🇧🇯 Bénin',raw:'RAW_BENIN_ALL'},
+ cameroun:{nom:'🇨🇲 Cameroun',raw:'RAW_CAMEROUN_ALL'},
+ ghana:{nom:'🇬🇭 Ghana',raw:'RAW_GHANA_ALL'},
+ togo:{nom:'🇹🇬 Togo',games:[["MATINAL LUNDI (9h)", "MATINAL_LUNDI"], ["MATINAL MARDI (9h)", "MATINAL_MARDI"], ["MATINAL MERCREDI (9h)", "MATINAL_MERCREDI"], ["MATINAL JEUDI (9h)", "MATINAL_JEUDI"], ["MATINAL VENDREDI (9h)", "MATINAL_VENDREDI"], ["MATINAL SAMEDI (9h)", "MATINAL_SAMEDI"], ["DIAMANT (13h)", "DIAMANT"], ["GOLD (18h)", "GOLD"], ["CASH (13h)", "CASH"], ["BOOM (18h)", "BOOM"], ["BENZ (13h)", "STR"], ["PRESTIGE (18h)", "PRESTIGE"], ["MILLION (13h)", "MILLION"], ["SUPER (18h)", "SUPER"], ["KADOO (13h)", "KADOO"], ["KING (18h)", "KING"], ["SAM (13h)", "SAM"], ["BINGO (18h)", "BINGO"], ["DETENTE (16h)", "DETENTE"]]},
+ ci:{nom:'🇨🇮 Côte d\'Ivoire',games:[["REVEIL 07H", "CI_REVEIL_07H"], ["REVEIL 08H", "CI_REVEIL_08H"], ["SW1H", "CI_SW1H"], ["SW3H", "CI_SW3H"], ["SOUTRA", "CI_SOUTRA"], ["DIAMANT", "CI_DIAMANT"], ["MOAYE", "CI_MOAYE"], ["AFTERWORK", "CI_AFTERWORK"], ["DIGITAL21H", "CI_DIGITAL21H"], ["DIGITAL22H", "CI_DIGITAL22H"], ["DIGITAL23H", "CI_DIGITAL23H"], ["SIKA", "CI_SIKA"], ["PREMIERE HEURE", "CI_PREMIERE_HEURE"], ["FORTUNE", "CI_FORTUNE"], ["BARAKA", "CI_BARAKA"], ["KADO", "CI_KADO"], ["PRIVILEGE", "CI_PRIVILEGE"], ["MONNI", "CI_MONNI"], ["CASH", "CI_CASH"], ["SOLUTION", "CI_SOLUTION"], ["WARI", "CI_WARI"], ["MONDAY SPECIAL", "CI_MONDAY_SPECIAL"], ["LUCKY TUESDAY", "CI_LUCKY_TUESDAY"], ["MIDWEEK", "CI_MIDWEEK"], ["FORTUNE THURSDAY", "CI_FORTUNE_THURSDAY"], ["FRIDAY BONANZA", "CI_FRIDAY_BONANZA"], ["NATIONAL2", "CI_NATIONAL2"], ["DAYOFF", "CI_DAYOFF"], ["NUIT ETOILEE", "CI_NUIT_ETOILEE"], ["BENEDICTION", "CI_BENEDICTION"], ["PRESTIGE", "CI_PRESTIGE"], ["AWALE", "CI_AWALE"], ["ESPOIR", "CI_ESPOIR"], ["REVEIL", "CI_REVEIL"], ["ETOILE", "CI_ETOILE"], ["AKWABA", "CI_AKWABA"], ["MATINALE", "CI_MATINALE"], ["EMERGENCE", "CI_EMERGENCE"], ["SOLEIL", "CI_SOLEIL"]]},
+ italie:{nom:'🇮🇹 Italie',games:[["Bari", "IT_BARI"], ["Cagliari", "IT_CAGLIARI"], ["Firenze", "IT_FIRENZE"], ["Genova", "IT_GENOVA"], ["Milano", "IT_MILANO"], ["Napoli", "IT_NAPOLI"], ["Palermo", "IT_PALERMO"], ["Roma", "IT_ROMA"], ["Torino", "IT_TORINO"], ["Venezia", "IT_VENEZIA"], ["Nazionale", "IT_NAZIONALE"]]}
+};
+const S={pays:'benin',jeu:null,open:'accueil',view:'grid',sel:null,N:100,tab:'ret',per:0,off:0,selOpen:true};
+const cache={};
+const MS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const f2=v=>String(v).padStart(2,'0');
+const JR=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];const jr=(y,mm,dd)=>JR[new Date(y,mm-1,dd).getDay()];
+function rows(pk){
+  if(cache[pk])return cache[pk];
+  let r;
+  if(PAYS[pk].games){
+    r=[];PAYS[pk].games.forEach(([nom,rk])=>(D['RAW_'+rk]||'').trim().split('\n').filter(x=>x.trim()).forEach(l=>{
+      const p=l.split('|'),n=[3,4,5,6,7].map(i=>+p[i]).filter(Number.isFinite);
+      const m=p.slice(9).filter(v=>v!==undefined&&v!=='').map(Number);
+      r.push({jeu:nom,d:p[1],y:+p[2],n,m:m.length?m:null,k:p[2]+p[1].split('/').reverse().join('')});
+    }));
+    r.sort((x,y)=>y.k.localeCompare(x.k));return cache[pk]=r;
+  }
+  const raw=D[PAYS[pk].raw]||'';
+  r=raw.trim().split('\n').filter(x=>x.trim()).map(l=>{
+    const p=l.split('|'),n=[4,5,6,7,8].map(i=>+p[i]).filter(Number.isFinite);
+    const m=[9,10,11,12,13].map(i=>p[i]).filter(v=>v!==undefined&&v!=='').map(Number);
+    return {jeu:p[1],d:p[2],y:+p[3],n,m:m.length?m:null,k:p[3]+p[2].split('/').reverse().join('')};
+  });
+  r.sort((a,b)=>b.k.localeCompare(a.k));
+  return cache[pk]=r;
+}
+function jeux(pk){const c={};rows(pk).forEach(r=>c[r.jeu]=(c[r.jeu]||0)+1);const g=PAYS[pk].games;return g?g.map(x=>x[0]).filter(n=>c[n]):Object.keys(c).sort();}
+function sel(){if(!S.sel){S.sel={};for(let v=1;v<=90;v++)S.sel[v]=true;}return S.sel;}
+function set(k,v){S[k]=v;if(k==='pays'){S.jeu=null;S.off=0;}draw();}
+function q(k){const f={all:v=>1,odd:v=>v%2,even:v=>!(v%2),a:v=>v<=45,b:v=>v>=46}[k];S.sel={};for(let v=1;v<=90;v++)S.sel[v]=!!f(v);draw();}
+function sec(id,t,body){const o=S.open===id;return `<div class="sec"><div class="h" onclick="S.open=${o?"''":`'${id}'`};draw()"><span>${t}</span><span>${o?'▲':'▼'}</span></div>${o?`<div class="b">${body()}</div>`:''}</div>`;}
+function selPanel(){
+  const s=sel(),n=Object.values(s).filter(Boolean).length;
+  return `<div style="margin-bottom:10px"><div style="background:#E6C200;padding:12px 14px;border-radius:10px;font-weight:700;cursor:pointer" onclick="S.selOpen=!S.selOpen;draw()">▽ Sélectionner les numéros (${n} sélectionnés) <span style="float:right;font-weight:500">${S.selOpen?'Masquer ▲':'Afficher ▼'}</span></div>
+  ${S.selOpen?`<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 0">${Array.from({length:90},(_,i)=>i+1).map(v=>`<button class="num ${s[v]?'on':''}" onclick="sel()[${v}]=!sel()[${v}];draw()">${v}</button>`).join('')}</div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="S.sel={};draw()">Effacer la sélection</button><button class="btn" onclick="const s=sel(),o={};for(let v=1;v<=90;v++)o[v]=!s[v];S.sel=o;draw()">Inverser la sélection</button></div>`:''}
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center"><b style="color:#4B5563">Filtre rapide :</b>${[['all','Tous'],['odd','Impairs'],['even','Pairs'],['a','1-45'],['b','46-90']].map(([k,l])=>`<button class="btn" onclick="q('${k}')">${l}</button>`).join('')}</div></div>`;
+}
+function archives(){
+  const R=rows(S.pays),all=jeux(S.pays);
+  if(!S.jeu||!all.includes(S.jeu))S.jeu=null;
+  const cho=S.chosen&&S.chosen.pk===S.pays?S.chosen.g:(S.pays==='togo'?all.filter(g=>!g.startsWith('MATINAL')).slice(0,6):all.slice(0,6));
+  const games=all.filter(g=>cho.includes(g));
+  const by={},ord=[];R.forEach(r=>{if(!games.includes(r.jeu))return;if(!by[r.k]){by[r.k]={d:r.d,y:r.y,c:{}};ord.push(r.k);}if(!by[r.k].c[r.jeu])by[r.k].c[r.jeu]=r;});
+  const s=sel(),lim=ord.slice(0,S.view==='cards'?Math.round(S.N/3):S.N);
+  const nh=v=>`<span style="color:${s[v]?'#1F2D3D':'#B8BFCC'}">${f2(v)}</span>`;
+  const gs=`<div class="chips">${all.map(g=>`<button class="chip ${cho.includes(g)?'on':''}" onclick="S.chosen={pk:S.pays,g:${JSON.stringify('')}};togg('${g}')">${g}</button>`).join('')}</div>`;
+  let h=`<div class="chips"><button class="chip ${S.view==='grid'?'on':''}" onclick="set('view','grid')">🗓 Tableau par date</button><button class="chip ${S.view==='cards'?'on':''}" onclick="set('view','cards')">🔵 Boules par date</button></div>${gs}${selPanel()}`;
+  const banner=`<div class="banner">Archives des tirages ${PAYS[S.pays].nom} (${ord.length} jours)</div>`;
+  if(S.view==='cards'){h+=banner+lim.map(k=>{const e=by[k],[dd,mm]=e.d.split('/').map(Number);return `<div style="background:#EEF2FB;padding:10px;margin-top:8px;border-radius:10px"><b style="color:#475569">Tirages du ${jr(e.y,mm,dd)}. ${dd} ${MS[mm-1]} ${e.y}</b>${games.filter(g=>e.c[g]).map((g,i)=>{const r=e.c[g];return `<div style="background:${i%2?'#EEF2FB':'#fff'};border-radius:8px;padding:5px 8px;margin-top:3px;display:flex;flex-wrap:wrap;align-items:center;gap:8px"><b style="flex:0 0 190px;width:190px;font-size:14px">${g}</b>${r.n.map(v=>`<span class="ball ${s[v]?'':'dim'}">${f2(v)}</span>`).join('')}${r.m?`<span style="color:#9CA3AF">|</span>`+r.m.map(v=>`<span class="ball m ${s[v]?'':'dim'}">${f2(v)}</span>`).join(''):''}</div>`;}).join('')}</div>`;}).join('');}
+  else h+=banner+`<div class="scroll"><table><thead><tr><th style="left:0;z-index:4">Date</th>${games.map(g=>`<th>${g}</th>`).join('')}</tr></thead><tbody>${lim.map((k,i)=>{const e=by[k],[dd,mm]=e.d.split('/').map(Number);return `<tr><td style="position:sticky;left:0;background:${i%2?'#3B5BDB':'#5B8DEF'};color:#fff;font-weight:700">${jr(e.y,mm,dd)}. ${dd} ${MS[mm-1]} ${e.y}</td>${games.map(g=>{const r=e.c[g];return `<td style="background:${i%2?'#E4EAF7':'#fff'};font-weight:700;letter-spacing:1px">${r?r.n.map(nh).join(' ')+(r.m?` <span style="color:#6D28D9;font-size:12px">· ${r.m.map(f2).join(' ')}</span>`:''):'·'}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table></div>`;
+  if(ord.length>lim.length)h+=`<div style="text-align:center;margin-top:8px"><button class="chip" onclick="S.N+=100;draw()">▼ Voir plus de dates</button></div>`;
+  return h;
+}
+function togg(g){const all=jeux(S.pays);let c=(S.chosen&&S.chosen.pk===S.pays&&S.chosen.l)||null;c=c||(S.pays==='togo'?all.filter(x=>!x.startsWith('MATINAL')).slice(0,6):all.slice(0,6));c=c.includes(g)?c.filter(x=>x!==g):[...c,g];S.chosen={pk:S.pays,g:c,l:c};draw();}
+function oneGame(){const all=jeux(S.pays);if(!S.jeu||!all.includes(S.jeu))S.jeu=all[0];return `<div class="chips">${all.map(g=>`<button class="chip ${S.jeu===g?'on':''}" onclick="set('jeu','${g}')">${g}</button>`).join('')}</div>`;}
+function seq(){return rows(S.pays).filter(r=>r.jeu===S.jeu);}
+function stats(){
+  const T=seq(),N=T.length,P=S.per||N,pos={};
+  for(let v=1;v<=90;v++)pos[v]=[];
+  T.forEach((d,i)=>d.n.forEach(v=>{if(pos[v])pos[v].push(i);}));
+  let rs=Object.entries(pos).map(([v,ps])=>{const cur=ps.length?ps[0]:N;let mx=cur;for(let j=1;j<ps.length;j++)mx=Math.max(mx,ps[j]-ps[j-1]-1);return {v:+v,cur,max:mx,fr:ps.filter(i=>i<P).length};});
+  const key={ret:x=>-x.cur,max:x=>-x.max,fre:x=>-x.fr}[S.tab];rs.sort((a,b)=>key(a)-key(b));
+  const tabs=[['ret','Retardataires'],['max','Retards max'],['fre','Fréquents']];
+  return oneGame()+`<div class="chips">${tabs.map(([k,l])=>`<button class="chip ${S.tab===k?'on':''}" onclick="set('tab','${k}')">${l}</button>`).join('')}</div><div class="chips"><b>Fréquence sur :</b>${[[0,'Tout'],[50,'50'],[100,'100'],[300,'300']].map(([v,l])=>`<button class="chip ${S.per===v?'on':''}" onclick="set('per',${v})">${l}</button>`).join('')}</div><div style="font-size:12px;color:#6B7280">${N} tirages</div><div class="scroll"><table><thead><tr><th>#</th><th>Numéro</th><th>Retard actuel</th><th>Retard max</th><th>Fréquence</th></tr></thead><tbody>${rs.map((x,i)=>`<tr style="background:${i%2?'#EEF2FB':'#fff'}"><td>${i+1}</td><td><span class="ball">${f2(x.v)}</span></td><td style="font-weight:700;color:${x.cur>=x.max?'#B91C1C':'#1F2D3D'}">${x.cur}</td><td>${x.max}</td><td>${x.fr}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function tabellone(){
+  const T=seq().slice(S.off),last={};
+  T.forEach((d,i)=>d.n.forEach((v,j)=>{if(last[v]===undefined)last[v]={d:i,p:j};}));
+  const rs=Object.entries(last).map(([v,x])=>({v:+v,...x})).sort((a,b)=>b.d-a.d||a.v-b.v);
+  const cur=T[0]?T[0].d+'/'+T[0].y:'';
+  return oneGame()+`<div style="font-size:12px;color:#6B7280;font-style:italic;margin-bottom:8px">Chaque numéro est dans la colonne de sa position à sa dernière sortie, sur la ligne de son retard.</div><div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:10px"><button class="btn" style="background:#0033CC;color:#fff" onclick="S.off++;draw()">‹ Précédent</button><b>${cur}</b><button class="btn" style="background:#0033CC;color:#fff" ${S.off<=0?'disabled':''} onclick="S.off--;draw()">Suivant ›</button></div><div class="scroll"><table><thead><tr><th>Retard</th>${[1,2,3,4,5].map(i=>`<th>D${i}</th>`).join('')}</tr></thead><tbody>${rs.map(x=>`<tr><td style="background:#EEF3FD;font-weight:700;color:#0033CC;border:1px solid #E5E7EB">${x.d}</td>${[0,1,2,3,4].map(j=>`<td style="border:1px solid #E5E7EB">${j===x.p?`<span class="ball">${f2(x.v)}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+const COL=['linear-gradient(135deg,#14B8A6,#0F766E)','linear-gradient(135deg,#E6C200,#A67C00)','linear-gradient(135deg,#A8406F,#6B2145)','linear-gradient(135deg,#3B82F6,#1E40AF)','#0A1128'];
+const dball=(v,sz)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:${sz||44}px;height:${sz||44}px;border-radius:50%;margin:3px;font-weight:800;font-size:${(sz||44)*.38}px;color:#fff;background:${COL[v%5]};border:2px solid rgba(255,255,255,.55)">${f2(v)}</span>`;
+S.mine=[];S.gen=null;
+function toggMine(v){const i=S.mine.indexOf(v);if(i>=0)S.mine.splice(i,1);else if(S.mine.length<5)S.mine.push(v);draw();}
+function genComb(){const s=new Set();while(s.size<5)s.add(1+Math.floor(Math.random()*90));S.gen=[...s].sort((a,b)=>a-b);draw();}
+function bars(list,unit,color){const mx=Math.max(1,...list.map(x=>x.val));return list.map((x,i)=>`<div style="margin-bottom:12px"><div style="display:flex;align-items:center;gap:10px;color:#E5E7EB;font-weight:700">${dball(x.v,34)}<span>${i+1}. Numéro ${f2(x.v)}</span><span style="margin-left:auto;font-size:13px">${x.val} ${unit}</span></div><div style="height:8px;border-radius:6px;background:#1A2547;margin-top:4px"><div style="height:8px;border-radius:6px;width:${Math.max(3,x.val/mx*100)}%;background:${color}"></div></div></div>`).join('');}
+function accueil(){
+  const T=seq(),N=T.length;if(!N)return oneGame()+'<p>Pas de données.</p>';
+  const last=T[0],pos={};for(let v=1;v<=90;v++)pos[v]=[];T.forEach((d,i)=>d.n.forEach(v=>pos[v]&&pos[v].push(i)));
+  const st=Object.entries(pos).map(([v,ps])=>({v:+v,cur:ps.length?ps[0]:N,fr:ps.filter(i=>i<100).length}));
+  const ret=[...st].sort((a,b)=>b.cur-a.cur).slice(0,8).map(x=>({v:x.v,val:x.cur}));
+  const fre=[...st].sort((a,b)=>b.fr-a.fr||a.cur-b.cur).slice(0,8).map(x=>({v:x.v,val:x.fr}));
+  const [dd,mm]=last.d.split('/').map(Number);
+  const card='background:#12234A;border:1px solid #1E3160;border-radius:16px;padding:16px;color:#E5E7EB';
+  let ver='';
+  if(S.mine.length===5){const m=new Set(S.mine);const dist=[0,0,0,0,0,0];T.forEach(d=>{dist[d.n.filter(v=>m.has(v)).length]++;});const cl=last.n.filter(v=>m.has(v)).length;
+    ver=`<div style="margin-top:10px">Avec le dernier tirage : <b style="color:#E6C200">${cl} numéro${cl>1?'s':''} commun${cl>1?'s':''}</b><div style="margin-top:6px;font-size:14px">Sur ${N} tirages : ${[1,2,3,4,5].map(k=>`<span style="margin-right:10px">${['','Extrait','Ambo','Terno','Quaterna','Cinquina'][k]} <b>${dist.slice(k).reduce((a,b)=>a+b,0)}</b></span>`).join('')}</div></div>`;}
+  return oneGame()+`<div style="background:#0A1128;border-radius:16px;padding:16px;color:#fff">
+   <div style="display:inline-block;background:#050B1F;border-radius:14px;padding:6px 12px;font-size:12px;font-weight:800;letter-spacing:1px">DERNIER TIRAGE · ${dd} ${MS[mm-1]} ${last.y}</div>
+   <div style="font-size:30px;font-weight:800;margin:10px 0 6px;font-family:Georgia,serif">${S.jeu} <span style="color:#E6C200">— ${PAYS[S.pays].nom}</span></div>
+   <div style="background:#050B1F;border-radius:14px;padding:12px;margin:10px 0">${last.n.map(v=>dball(v,52)).join('')}${last.m?`<span style="color:#9CA3AF;margin:0 8px">|</span>`+last.m.map(v=>dball(v,36)).join(''):''}<div style="color:#9CA3AF;margin-top:6px">${last.n.map(f2).join(' — ')}</div></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px"><div style="${card}"><div style="font-size:11px;color:#9CA3AF;font-weight:800">TIRAGES ANALYSÉS</div><div style="font-size:26px;font-weight:800;font-family:Georgia,serif">${N}</div></div><div style="${card}"><div style="font-size:11px;color:#9CA3AF;font-weight:800">PLUS GRAND RETARD</div><div style="font-size:26px;font-weight:800;font-family:Georgia,serif">${ret[0].val} tirages</div><div style="color:#9CA3AF;font-size:13px">N° ${f2(ret[0].v)}</div></div><div style="${card}"><div style="font-size:11px;color:#9CA3AF;font-weight:800">PLUS FRÉQUENT (100 DERN.)</div><div style="font-size:26px;font-weight:800;font-family:Georgia,serif">${fre[0].val} fois</div><div style="color:#9CA3AF;font-size:13px">N° ${f2(fre[0].v)}</div></div></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px"><div style="${card}"><span style="background:#FEF3C7;color:#92400E;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:800">RETARDATAIRES</span><h3 style="font-family:Georgia,serif;margin:8px 0 2px">Numéros qui ne sortent plus</h3><div style="color:#9CA3AF;font-size:13px;margin-bottom:12px">Tirages depuis la dernière sortie</div>${bars(ret,'tirages','linear-gradient(90deg,#B8860B,#E6C200)')}</div>
+   <div style="${card}"><span style="background:#E0E7FF;color:#1E3A8A;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:800">FRÉQUENTS</span><h3 style="font-family:Georgia,serif;margin:8px 0 2px">Numéros chauds</h3><div style="color:#9CA3AF;font-size:13px;margin-bottom:12px">Sorties sur les 100 derniers tirages</div>${bars(fre,'fois','linear-gradient(90deg,#1E3A8A,#3B82F6)')}</div></div>
+   <div style="${card};margin-top:12px"><h3 style="font-family:Georgia,serif;margin:0 0 8px">Vérifier mes numéros <span style="font-size:13px;color:#9CA3AF">(choisis 5 numéros)</span></h3><div style="display:flex;flex-wrap:wrap;gap:4px">${Array.from({length:90},(_,i)=>i+1).map(v=>`<button onclick="toggMine(${v})" style="width:38px;height:38px;border-radius:50%;border:1px solid #2B3F78;font-weight:700;cursor:pointer;background:${S.mine.includes(v)?'#E6C200':'#0A1128'};color:${S.mine.includes(v)?'#0A1128':'#E5E7EB'}">${v}</button>`).join('')}</div>${ver}<div style="margin-top:12px"><button onclick="genComb()" style="padding:10px 16px;border:none;border-radius:10px;background:#E6C200;font-weight:800;cursor:pointer">✨ Générer une combinaison au hasard</button> ${S.gen?S.gen.map(v=>dball(v,34)).join(''):''}</div></div>
+   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px">${[['Extrait',1],['Ambo',2],['Terno',3],['Quaterna',4],['Cinquina',5]].map(([n,k])=>`<div style="${card};${k===5?'background:#E6C200;color:#0A1128':''}"><div style="font-size:18px;font-weight:800;font-family:Georgia,serif">${n}</div><div style="font-size:13px">${k} numéro${k>1?'s':''} commun${k>1?'s':''}</div></div>`).join('')}</div>
+   <div style="color:#9CA3AF;font-size:12px;margin-top:10px">Consultation statistique uniquement. Chaque tirage repart de zéro : rien n'annonce le tirage suivant.</div></div>`;
+}
+S.syK=1;
+function syncro(){
+  const T=seq(),N=T.length;if(N<30)return oneGame()+'<p>Pas assez de tirages.</p>';
+  const K=S.syK,cnt={},ca={};
+  for(let i=K;i<N;i++){ // i = tirage "A" (plus ancien), i-K = tirage K plus récent
+    const A=T[i].n,B=T[i-K].n;
+    A.forEach(a=>{ca[a]=(ca[a]||0)+1;B.forEach(b=>{const k=a+'>'+b;cnt[k]=(cnt[k]||0)+1;});});
+  }
+  const top=Object.entries(cnt).map(([k,h])=>{const [a,b]=k.split('>').map(Number);return {a,b,h,p:h/ca[a]*100};}).filter(x=>ca[x.a]>=8).sort((x,y)=>y.p-x.p||y.h-x.h).slice(0,25);
+  const now=[];T[K-1].n.forEach(a=>{Object.entries(cnt).forEach(([k,h])=>{const [x,b]=k.split('>').map(Number);if(x===a&&ca[a]>=8)now.push({a,b,h,p:h/ca[a]*100});});});
+  now.sort((x,y)=>y.p-x.p||y.h-x.h);
+  const tb=(rs)=>`<div class="scroll"><table><thead><tr><th>#</th><th>Numéro A</th><th>→ Numéro B</th><th>Fois</th><th>Sur</th><th>Taux</th></tr></thead><tbody>${rs.map((x,i)=>`<tr style="background:${i%2?'#EEF2FB':'#fff'}"><td>${i+1}</td><td><span class="ball">${f2(x.a)}</span></td><td><span class="ball">${f2(x.b)}</span></td><td>${x.h}</td><td>${ca[x.a]}</td><td style="font-weight:700">${x.p.toFixed(0)}%</td></tr>`).join('')}</tbody></table></div>`;
+  return oneGame()+`<div class="chips"><b>Niveau (écart en tirages) :</b>${[1,2,3,4,5].map(k=>`<button class="chip ${S.syK===k?'on':''}" onclick="set('syK',${k})">${k}</button>`).join('')}</div>
+  <div style="font-size:12px;color:#6B7280;margin-bottom:8px">Synchrone de niveau ${K} : quand A sort, B sort ${K} tirage${K>1?'s':''} plus tard. Taux = part des sorties de A suivies de B (minimum 8 sorties de A). Statistique du passé, pas une prévision.</div>
+  <h4 style="margin:8px 0">Paires les plus synchrones</h4>${tb(top)}
+  <h4 style="margin:14px 0 8px">En cours : A est sorti il y a ${K} tirage${K>1?'s':''} (${T[K-1].d}/${T[K-1].y}) → B attendu aujourd'hui</h4>${tb(now.slice(0,15))}`;
+}
+function draw(){
+  const app=document.getElementById('app');
+  app.innerHTML=`<div class="chips">${Object.keys(PAYS).map(k=>`<button class="chip ${S.pays===k?'on':''}" onclick="set('pays','${k}')">${PAYS[k].nom}</button>`).join('')}</div>`+
+   sec('accueil','🏠 Accueil — dernier tirage',accueil)+sec('archives','Archives',archives)+sec('stats','Statistiques (retards & fréquences)',stats)+sec('tab','Tableau analytique',tabellone)+
+   sec('sync','Synchrones',syncro)+['Sistemi','Previsioni','Personale'].map(t=>`<div class="sec"><div class="h" style="color:#9CA3AF"><span>${{Sistemi:'Systèmes',Previsioni:'Prévisions',Personale:'Personnel'}[t]} — bientôt</span></div></div>`).join('');
+}
+draw();
+</script></body></html>

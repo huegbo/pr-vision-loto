@@ -12678,12 +12678,17 @@ function dtlPanelHTML(){
     const rec=T.slice(0,NN).map(r=>(r.n||[]).slice(0,5));
     const res=lists.map(l=>{const hit=new Set();rec.forEach(n=>n.forEach(v=>{if(l.nums.includes(v))hit.add(v);}));let best=0;
       if(l.id&&(dtlKind({id:l.id})==='pick'||dtlKind({id:l.id})==='obl')){const sq=l.seq;if(sq)for(let m=1;m<sq.length;m++){let ok=true;for(let q=0;q<m;q++){if(!T[m-1-q]||!(T[m-1-q].n||[]).slice(0,5).includes(sq[q])){ok=false;break;}}if(ok)best=m;}}
-      return{l,hit:[...hit],best};}).filter(x=>x.hit.length);
-    res.sort((a,b)=>b.best-a.best||b.hit.length-a.hit.length);
+      let bestD=0,useD=[];const sqD=l.seq;
+      if(sqD){const perm=(arr,m)=>{const r=[];(function rec(cur,used){if(cur.length===m){r.push(cur.slice());return;}arr.forEach((v,i)=>{if(used[i])return;used[i]=1;cur.push(v);rec(cur,used);cur.pop();used[i]=0;});})([],[]);return r;};
+        for(let m=sqD.length-1;m>=2&&!bestD;m--){for(const p of perm(sqD,m)){let ok=true;for(let q=0;q<m;q++){if(!T[m-1-q]||!(T[m-1-q].n||[]).slice(0,5).includes(p[q])){ok=false;break;}}if(ok){bestD=m;useD=p;break;}}}}
+      return{l,hit:[...hit],best,bestD,useD};}).filter(x=>x.hit.length);
+    res.sort((a,b)=>b.best-a.best||b.bestD-a.bestD||b.hit.length-a.hit.length);
     const enc=res.filter(x=>x.best>=2);
+    const encD=res.filter(x=>x.bestD>=2&&x.bestD>x.best);
     const top=res.slice(0,40);
-    return `<div style="font-size:11px">${head}${modeBar}<div style="color:#555;margin-bottom:4px">Sur les ${NN} derniers tirages de ${GAMES[dtlKey()].name} : les listes dont le plus de numéros sont sortis. <b>Picking en cours</b> = les premiers numéros de la liste sont sortis un par tirage, dans l'ordre, jusqu'au dernier tirage.</div>
-    <div style="margin:4px 0;padding:5px 8px;background:#FEE2E2;border-radius:6px"><b>Picking en cours</b> : ${enc.map(x=>{const sq=x.l.seq;return `<div>• <b>${x.l.name.replace(/</g,'&lt;')}</b> : déjà ${sq.slice(0,x.best).join(' → ')} → <b style="color:#B91C1C">attendu ${sq[x.best]}</b></div>`;}).join('')||'—'}</div>
+    return `<div style="font-size:11px">${head}${modeBar}<div style="color:#555;margin-bottom:4px">Sur les ${NN} derniers tirages de ${GAMES[dtlKey()].name} : les listes dont le plus de numéros sont sortis. <b>Picking en cours</b> = des numéros de la liste sont sortis un par tirage jusqu'au dernier tirage : dans l'ordre de la liste, ou dans n'importe quel ordre.</div>
+    <div style="margin:4px 0;padding:5px 8px;background:#FEE2E2;border-radius:6px"><b>Picking en cours — dans l'ordre</b> : ${enc.map(x=>{const sq=x.l.seq;return `<div>• <b>${x.l.name.replace(/</g,'&lt;')}</b> : déjà ${sq.slice(0,x.best).join(' → ')} → <b style="color:#B91C1C">attendu ${sq[x.best]}</b></div>`;}).join('')||'—'}</div>
+    <div style="margin:4px 0;padding:5px 8px;background:#FFEDD5;border-radius:6px"><b>Picking en cours — dans le désordre</b> : ${encD.map(x=>{const rest=x.l.seq.filter(v=>!x.useD.includes(v));return `<div>• <b>${x.l.name.replace(/</g,'&lt;')}</b> : déjà ${x.useD.join(' → ')} (un par tirage) → <b style="color:#C2410C">attendu un de ${rest.join(', ')}</b></div>`;}).join('')||'—'}</div>
     ${top.map(x=>`<div style="padding:3px 2px;border-bottom:1px solid #eee"><b>${x.l.name.replace(/</g,'&lt;')}</b> — <b style="color:#7C3AED">${x.hit.length}/${x.l.nums.length}</b> sortis (${x.hit.sort((a,b)=>a-b).join(' ')})</div>`).join('')}</div>`;
   }
   const keys=togo?Object.keys(GAMES).filter(k=>GAMES[k]&&GAMES[k].icon==='🇹🇬'&&!/matinal_/.test(k)&&!GAMES[k].n4&&!GAMES[k].n6):[dtlKey()];

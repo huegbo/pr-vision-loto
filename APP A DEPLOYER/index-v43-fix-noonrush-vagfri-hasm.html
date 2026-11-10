@@ -15781,6 +15781,8 @@ function fabGo(action){
   else if(action==='new_excel'){createBlankExcelNote();return;}
   render();
 }
+// Les pages plein écran (Affiches, Tirage du jour, Conversion, Pronostic, Classification) s'excluent : en ouvrir une ferme les autres
+function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pronosticOpen','classifTabOpen'].forEach(k=>{state[k]=false;});}
 function goNav(id){
   window._navLastId=String(id);
   if(id==='compareGames'){goCompareGames();return;}
@@ -15795,12 +15797,13 @@ function goNav(id){
   else if(id==='cotedivoire'){state.ciFiltreOpen=!state.ciFiltreOpen;state.showSearchHub=false;}
   else if(id==='italie'){state.itFiltreOpen=!state.itFiltreOpen;state.showSearchHub=false;}
   else if(id==='multi'){state.multiFiltreOpen=!state.multiFiltreOpen;state.showSearchHub=false;}
-  else if(id==='tirageJour'){state.tirageJourOpen=!state.tirageJourOpen;state.showSearchHub=false;}
-  else if(id==='affiche'){const on=!state.afficheOpen;['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen','tirageJourOpen','pronosticOpen','classifTabOpen','conversionOpen'].forEach(k=>{state[k]=false;});state.afficheOpen=on;state.showSearchHub=false;}
-  else if(id==='pronostic'){state.pronosticOpen=!state.pronosticOpen;state.showSearchHub=false;}
-  else if(id==='classif'){state.classifTabOpen=!state.classifTabOpen;state.showSearchHub=false;}
+  else if(id==='tirageJour'){const on=!state.tirageJourOpen;_closePagePanels();state.tirageJourOpen=on;state.showSearchHub=false;}
+  else if(id==='affiche'){const on=!state.afficheOpen;_closePagePanels();['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen','tirageJourOpen','pronosticOpen','classifTabOpen','conversionOpen'].forEach(k=>{state[k]=false;});state.afficheOpen=on;state.showSearchHub=false;}
+  else if(id==='pronostic'){const on=!state.pronosticOpen;_closePagePanels();state.pronosticOpen=on;state.showSearchHub=false;}
+  else if(id==='classif'){const on=!state.classifTabOpen;_closePagePanels();state.classifTabOpen=on;state.showSearchHub=false;}
   else if(id==='conversion'){
     const opening=!state.conversionOpen;
+    _closePagePanels();
     state.conversionOpen=opening;state.showSearchHub=false;
     if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
   }

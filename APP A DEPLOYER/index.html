@@ -12703,6 +12703,41 @@ function dtlPanelHTML(){
     return `<div style="margin:4px 0;padding:5px 7px;border:1px solid #ddd;border-radius:8px"><div style="font-weight:700;color:#1F3864">${b.g.icon||''} ${b.g.name} — N°${b.r.t} · ${dstr(b.r)} : ${b.n.map(v=>`<span style="display:inline-block;min-width:20px;text-align:center;margin:0 1px;padding:0 3px;border-radius:4px;${all.has(v)?'background:#7C3AED;color:#fff':''}">${v}</span>`).join('')}</div>${b.hits.sort((x,y)=>y.inter.length-x.inter.length).map(h=>`<div style="font-size:10.5px;margin-left:8px">• <b>${h.l.name.replace(/</g,'&lt;')}</b> : ${h.inter.length} n° (${h.inter.join(' ')})</div>`).join('')}</div>`;}).join('');
   return `<div style="font-size:11px">${head}${modeBar}<div style="color:#555;margin-bottom:4px">${lists.length} listes vérifiées · <b>${blocks.length}</b> tirage(s) avec au moins ${K} numéros d'une même liste (les plus récents d'abord). Les numéros trouvés sont en violet.</div>${html||'Aucun tirage trouvé.'}</div>`;
 }
+// ══════ LOTO DES LISTES : chaque numéro sorti est coché dans toutes les listes ; les listes complètes deviennent des « tirages » ══════
+function ldlPanelHTML(){
+  const scope=state.ldlS||'pick+prime+obl',NN=Math.max(1,Math.min(300,+(state.ldlN||10)));
+  const gk=(state.ldlGame&&GAMES[state.ldlGame]&&!GAMES[state.ldlGame].n4&&!GAMES[state.ldlGame].n6)?state.ldlGame:dtlKey();
+  let T;try{T=gameData(gk).T;}catch(e){T=[];}
+  const win=T.slice(0,NN).reverse();// du plus ancien au plus récent
+  const step=Math.max(1,Math.min(win.length,+(state.ldlStep||win.length)));
+  const lists=dtlLists(scope);
+  const opt=(v,t)=>`<option value="${v}"${scope===v?' selected':''}>${t}</option>`;
+  const esc=s=>String(s).replace(/</g,'&lt;');
+  const head=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.ldlS=this.value;render()" style="padding:3px">${opt('pick+prime+obl','Picking + prime + obliques')}${opt('pick+prime','Listes picking + prime')}${opt('pick','Listes picking')}${opt('prime','Listes prime')}${opt('obl','Listes obliques')}${opt('mes','Mes listes')}${opt('tout','Toutes les listes')}</select>
+    <select onchange="state.ldlGame=this.value;state.ldlStep=0;render()" style="padding:3px;max-width:160px">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===gk?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>
+    <label>derniers tirages <input type="number" min="1" max="300" value="${NN}" onchange="state.ldlN=+this.value;state.ldlStep=0;render()" style="width:46px"></label></div>`;
+  if(!lists.length||!win.length)return `<div style="font-size:11px">${head}Rien à afficher.</div>`;
+  const bt=(t,v)=>`<button onclick="state.ldlStep=${v};render()" style="padding:2px 9px;border-radius:10px;border:1.5px solid #0F766E;background:#fff;color:#0F766E;font-weight:700;cursor:pointer">${t}</button>`;
+  // cochage tirage par tirage
+  const when={};// numéro -> index du 1er tirage où il est sorti
+  for(let i=0;i<step;i++)(win[i].n||[]).slice(0,5).forEach(v=>{if(when[v]===undefined)when[v]=i;});
+  const cur=(win[step-1].n||[]).slice(0,5);
+  const dstr=r=>`n°${r.id||''} ${r.d||''}/${String(r.y||'').slice(2)}`;
+  const res=lists.map(l=>{const ok=l.nums.filter(v=>when[v]!==undefined);const done=ok.length===l.nums.length?Math.max(...ok.map(v=>when[v])):-1;return{l,ok,done,miss:l.nums.filter(v=>when[v]===undefined),now:l.nums.filter(v=>cur.includes(v))};});
+  const full=res.filter(x=>x.done>=0).sort((a,b)=>b.done-a.done);
+  const four=res.filter(x=>x.done<0&&x.miss.length===1).sort((a,b)=>b.now.length-a.now.length);
+  const three=res.filter(x=>x.done<0&&x.miss.length===2);
+  const chip=(v,x)=>{const c=when[v]!==undefined,n=cur.includes(v);return `<span style="display:inline-block;min-width:20px;text-align:center;margin:0 1px;padding:0 3px;border-radius:4px;font-weight:700;background:${n?'#DC2626':c?'#0F766E':'#eee'};color:${c||n?'#fff':'#999'}">${String(v).padStart(2,'0')}</span>`;};
+  const row=x=>`<div style="padding:2px 0;border-bottom:1px solid #eee">${(x.l.seq||x.l.nums).map(v=>chip(v,x)).join('')} <b>${esc(x.l.name)}</b>${x.done>=0?` — <span style="color:#0F766E">complète au ${dstr(win[x.done])}</span>`:x.miss.length?` — manque <b style="color:#B91C1C">${x.miss.join(', ')}</b>`:''}</div>`;
+  return `<div style="font-size:11px">${head}
+  <div style="color:#555;margin-bottom:4px">Les listes jouent comme une loto : à chaque tirage de ${esc(GAMES[gk].name)}, ses numéros sont cochés dans toutes les listes. Une liste dont tous les numéros sont cochés devient un « tirage ». <span style="background:#DC2626;color:#fff;padding:0 3px;border-radius:3px">rouge</span> = sorti au tirage affiché, <span style="background:#0F766E;color:#fff;padding:0 3px;border-radius:3px">vert</span> = déjà coché avant.</div>
+  <div style="display:flex;gap:5px;align-items:center;margin:4px 0;flex-wrap:wrap">${bt('⏮',1)}${bt('◀',Math.max(1,step-1))}<b>Tirage ${step}/${win.length} : ${dstr(win[step-1])} → ${cur.map(v=>String(v).padStart(2,'0')).join(' ')}</b>${bt('▶',Math.min(win.length,step+1))}${bt('⏭',win.length)}</div>
+  <div style="margin:4px 0;padding:5px 8px;background:#CCFBF1;border-radius:6px"><b>✅ Listes devenues tirages (${full.length})</b>${full.map(row).join('')||'<div>—</div>'}</div>
+  <div style="margin:4px 0;padding:5px 8px;background:#FEE2E2;border-radius:6px"><b>🔥 Il manque 1 numéro (${four.length})</b>${four.slice(0,60).map(row).join('')||'<div>—</div>'}</div>
+  <div style="margin:4px 0;padding:5px 8px;background:#FFEDD5;border-radius:6px"><b>Il manque 2 numéros (${three.length})</b>${three.slice(0,40).map(row).join('')||'<div>—</div>'}</div></div>`;
+}
+
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -15281,6 +15316,7 @@ const SEARCH_SECTIONS=[
   {key:'xdr',icon:'🧬',title:'Retour + dérivés (ex. 30 → Equiv, Bonanza, Partner → 30)',desc:'X revient à la même place 6 tirages après, et ses dérivés choisis sortent entre-temps — familles et écart réglables, tous lotos, + en cours',color:'#3E8E63',html:()=>`<div style="background:#fff;border:1.5px solid #3E8E63;border-radius:8px;padding:8px;margin-bottom:8px">${xdrPanelHTML()}</div>`},
   {key:'pck',icon:'🎯',title:'Picking 5 tirages (suite d\'un numéro par ligne)',desc:'Tape une suite (ex. 59 24 57 78 40) : tous les lotos où elle sort sur des tirages successifs, colonnes libres / verticale / diagonale, dans l\'ordre ou non',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${pckPanelHTML()}</div>`},
   {key:'fxl',icon:'📥',title:'Fichiers Excel des schémas',desc:'Télécharger les Excel « plan unique » faits pour les schémas (picking, ligne verte, suites…)',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${fxlPanelHTML()}</div>`},
+  {key:'ldl',icon:'🎱',title:'Loto des listes',desc:'Les listes jouent comme une loto : chaque numéro sorti est coché dans toutes les listes, tirage par tirage ; les listes complètes deviennent des tirages',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${ldlPanelHTML()}</div>`},
   {key:'dtl',icon:'🔎',title:'Tirages avec des numéros de mes listes',desc:'Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques, mes listes), sur un loto ou tous les lotos du Togo',color:'#7C3AED',html:()=>`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">${dtlPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
@@ -15439,6 +15475,7 @@ function searchHubHTML(){
     ['🧬','Retour + dérivés (Partner, Bonanza, Equiv…)','X revient à la même place et ses dérivés choisis sortent entre-temps (ex. Million 30 → 69, 14, 38 → 30), tous lotos + en cours','#3E8E63',"openSearchModule('xdr')"],
     ['🎯','Picking 5 tirages','Une suite d\'un numéro par ligne sur des tirages successifs, cherchée dans tous les lotos (ex. 59-24-57-78-40)','#1D4ED8',"openSearchModule('pck')"],
     ['📥','Fichiers Excel des schémas','Télécharger les Excel faits pour les schémas (picking, ligne verte, suites…)','#0F766E',"openSearchModule('fxl')"],
+    ['🎱','Loto des listes','Chaque numéro sorti est coché dans toutes les listes ; les listes complètes deviennent des tirages','#0F766E',"openSearchModule('ldl')"],
     ['🔎','Tirages avec des numéros de mes listes','Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques…)','#7C3AED',"openSearchModule('dtl')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],

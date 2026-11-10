@@ -160,11 +160,33 @@ function syncro(){
   <h4 style="margin:8px 0">Paires les plus synchrones</h4>${tb(top)}
   <h4 style="margin:14px 0 8px">En cours : A est sorti il y a ${K} tirage${K>1?'s':''} (${T[K-1].d}/${T[K-1].y}) → B attendu aujourd'hui</h4>${tb(now.slice(0,15))}`;
 }
+S.cs=3;S.cy=3;S.call=true;
+function combos(){
+  const R=rows(S.pays),now=new Date(),cut=S.cy?new Date(now.getFullYear()-S.cy,now.getMonth(),now.getDate()):null;
+  const ck=cut?cut.getFullYear()+f2(cut.getMonth()+1)+f2(cut.getDate()):'';
+  if(!S.jeu)seq();
+  const rs=R.filter(r=>(S.call||r.jeu===S.jeu)&&(!ck||r.k>=ck));
+  const cnt={},last={};
+  rs.forEach(r=>{const n=[...new Set(r.n)].sort((x,y)=>x-y),m=S.cs;
+    const add=k=>{cnt[k]=(cnt[k]||0)+1;if(!last[k])last[k]=r;};
+    if(m===1)n.forEach(a=>add(''+a));
+    else if(m===2){for(let x=0;x<n.length;x++)for(let y=x+1;y<n.length;y++)add(n[x]+'-'+n[y]);}
+    else{for(let x=0;x<n.length;x++)for(let y=x+1;y<n.length;y++)for(let z=y+1;z<n.length;z++)add(n[x]+'-'+n[y]+'-'+n[z]);}
+  });
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]||last[b[0]].k.localeCompare(last[a[0]].k)).slice(0,40);
+  const dist={};Object.values(cnt).forEach(c=>dist[c]=(dist[c]||0)+1);
+  const ch=(on,l,fn)=>`<button class="chip ${on?'on':''}" onclick="${fn}">${l}</button>`;
+  return `<div class="chips"><b>Combinaison :</b>${ch(S.cs===1,'Numéros','set(\'cs\',1)')}${ch(S.cs===2,'Paires (ambe)','set(\'cs\',2)')}${ch(S.cs===3,'Triplets (terne)','set(\'cs\',3)')}</div>
+  <div class="chips"><b>Période :</b>${[[1,'1 an'],[3,'3 ans'],[5,'5 ans'],[0,'Tout']].map(([v,l])=>ch(S.cy===v,l,`set('cy',${v})`)).join('')}</div>
+  <div class="chips"><b>Jeux :</b>${ch(S.call,'Tous les jeux du pays confondus',"set('call',true)")}${ch(!S.call,'Un seul jeu',"set('call',false)")}</div>${S.call?'':oneGame()}
+  <div style="font-size:12px;color:#6B7280;margin-bottom:8px">${rs.length} tirages analysés · ${Object.keys(cnt).length} combinaisons différentes. Plus fréquentes : ${Object.keys(dist).sort((a,b)=>b-a).slice(0,3).map(c=>dist[c]+' sorties '+c+' fois').join(' · ')}. Statistique du passé, pas une prévision.</div>
+  <div class="scroll"><table><thead><tr><th>#</th><th>Combinaison</th><th>Fois</th><th>Dernière sortie</th></tr></thead><tbody>${top.map(([k,c],i)=>{const r=last[k];return `<tr style="background:${i%2?'#EEF2FB':'#fff'}"><td>${i+1}</td><td>${k.split('-').map(v=>`<span class="ball">${f2(+v)}</span>`).join('')}</td><td style="font-weight:700;font-size:16px">${c}</td><td style="font-size:13px">${r.jeu}<br>${r.d}/${r.y}</td></tr>`;}).join('')}</tbody></table></div>`;
+}
 function draw(){
   const app=document.getElementById('app');
   app.innerHTML=`<div class="chips">${Object.keys(PAYS).map(k=>`<button class="chip ${S.pays===k?'on':''}" onclick="set('pays','${k}')">${PAYS[k].nom}</button>`).join('')}</div>`+
    sec('accueil','🏠 Accueil — dernier tirage',accueil)+sec('archives','Archives',archives)+sec('stats','Statistiques (retards & fréquences)',stats)+sec('tab','Tableau analytique',tabellone)+
-   sec('sync','Synchrones',syncro)+['Sistemi','Previsioni','Personale'].map(t=>`<div class="sec"><div class="h" style="color:#9CA3AF"><span>${{Sistemi:'Systèmes',Previsioni:'Prévisions',Personale:'Personnel'}[t]} — bientôt</span></div></div>`).join('');
+   sec('combos','Combinaisons fréquentes (paires, triplets)',combos)+sec('sync','Synchrones',syncro)+['Sistemi','Previsioni','Personale'].map(t=>`<div class="sec"><div class="h" style="color:#9CA3AF"><span>${{Sistemi:'Systèmes',Previsioni:'Prévisions',Personale:'Personnel'}[t]} — bientôt</span></div></div>`).join('');
 }
 draw();
 </script></body></html>

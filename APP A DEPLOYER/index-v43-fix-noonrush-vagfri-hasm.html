@@ -749,7 +749,7 @@ function gridByDateHTML(id,rows,games,title){
     let c=qbar+`<div style="background:#1E3AC8;color:#fff;font-size:17px;font-weight:700;padding:14px 16px;border-radius:12px 12px 0 0">${banner}</div>`;
     lim.forEach(k=>{
       const e=byDate[k],[dd,mm]=e.d.split('/').map(Number);
-      c+=`<div style="background:#EEF2FB;padding:10px 12px;margin-top:10px;border-radius:12px"><div style="font-weight:700;color:#475569;font-size:15px;margin:2px 0 8px 4px">Tirages du ${dd} ${MS[mm-1]} ${e.y}</div>${games.filter(x=>e.cells[x.key]).map((x,i)=>{const r=e.cells[x.key];const ex=(r.m||r.bonus||[]).filter(v=>v!=null);return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${i%2?'#EEF2FB':'#fff'};border-radius:8px;padding:6px 8px;margin-bottom:3px"><div style="min-width:120px;font-weight:700;font-size:14px;color:#1F2D3D">${x.label}</div><div style="display:flex;flex-wrap:wrap;align-items:center">${r.n.map((v,j)=>ball(v,j%2===0,!sel[v])).join('')}${ex.length?`<span style="margin:0 6px;color:#9CA3AF">|</span>`+ex.map(v=>ball(v,false,!sel[v],true)).join(''):''}</div></div>`;}).join('')}</div>`;
+      c+=`<div style="background:#EEF2FB;padding:10px 12px;margin-top:10px;border-radius:12px"><div style="font-weight:700;color:#475569;font-size:15px;margin:2px 0 8px 4px">Tirages du ${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][new Date(e.y,mm-1,dd).getDay()]}. ${dd} ${MS[mm-1]} ${e.y}</div>${games.filter(x=>e.cells[x.key]).map((x,i)=>{const r=e.cells[x.key];const ex=(r.m||r.bonus||[]).filter(v=>v!=null);return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${i%2?'#EEF2FB':'#fff'};border-radius:8px;padding:6px 8px;margin-bottom:3px"><div style="flex:0 0 190px;width:190px;font-weight:700;font-size:14px;color:#1F2D3D">${x.label}</div><div style="display:flex;flex-wrap:wrap;align-items:center">${r.n.map((v,j)=>ball(v,j%2===0,!sel[v])).join('')}${ex.length?`<span style="margin:0 6px;color:#9CA3AF">|</span>`+ex.map(v=>ball(v,false,!sel[v],true)).join(''):''}</div></div>`;}).join('')}</div>`;
     });
     if(order.length>N)c+=`<div style="text-align:center;margin-top:10px"><button onclick="gridMore('${id}')" style="padding:6px 16px;border-radius:14px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;cursor:pointer">▼ Voir plus de dates (${order.length-N} restantes)</button></div>`;
     return c;
@@ -758,7 +758,7 @@ function gridByDateHTML(id,rows,games,title){
   let h=qbar+`<div style="max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><div style="position:sticky;left:0;background:#1E3AC8;color:#fff;text-align:center;font-size:17px;font-weight:700;padding:14px 8px">${banner}</div><table style="border-collapse:separate;border-spacing:0;width:100%"><thead><tr><th style="${th};left:0;z-index:4">Date</th>${games.map(x=>`<th style="${th}">${x.label}</th>`).join('')}</tr></thead><tbody>`;
   lim.forEach((k,ri)=>{
     const e=byDate[k],[dd,mm]=e.d.split('/').map(Number),bg=ri%2===0?'#fff':'#E4EAF7';
-    h+=`<tr><td style="position:sticky;left:0;z-index:2;background:${ri%2===0?'#5B8DEF':'#3B5BDB'};color:#fff;font-weight:700;font-size:14px;padding:12px 10px;white-space:nowrap">${dd} ${MS[mm-1]} ${e.y}</td>${games.map(x=>{const r=e.cells[x.key];const extra=r&&(r.m||r.bonus);return `<td style="background:${bg};text-align:center;font-weight:700;font-size:15px;letter-spacing:1px;padding:10px 12px;white-space:nowrap">${r&&r.n?r.n.map(nh).join(' ')+(extra&&extra.length?` <span style="color:#6D28D9;font-size:12px">· ${extra.filter(v=>v!=null).map(f2).join(' ')}</span>`:''):'<span style="color:#bbb">·</span>'}</td>`;}).join('')}</tr>`;
+    h+=`<tr><td style="position:sticky;left:0;z-index:2;background:${ri%2===0?'#5B8DEF':'#3B5BDB'};color:#fff;font-weight:700;font-size:14px;padding:12px 10px;white-space:nowrap">${['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][new Date(e.y,mm-1,dd).getDay()]}. ${dd} ${MS[mm-1]} ${e.y}</td>${games.map(x=>{const r=e.cells[x.key];const extra=r&&(r.m||r.bonus);return `<td style="background:${bg};text-align:center;font-weight:700;font-size:15px;letter-spacing:1px;padding:10px 12px;white-space:nowrap">${r&&r.n?r.n.map(nh).join(' ')+(extra&&extra.length?` <span style="color:#6D28D9;font-size:12px">· ${extra.filter(v=>v!=null).map(f2).join(' ')}</span>`:''):'<span style="color:#bbb">·</span>'}</td>`;}).join('')}</tr>`;
   });
   h+=`</tbody></table></div>`;
   if(order.length>N)h+=`<div style="text-align:center;margin-top:8px"><button onclick="gridMore('${id}')" style="padding:6px 16px;border-radius:14px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;cursor:pointer">▼ Voir 150 jours de plus (${order.length-N} restants)</button></div>`;
@@ -15340,6 +15340,7 @@ function searchHubHTML(){
     ['🔗','2 numéros collés','Deux numéros côte à côte sur la ligne (ex : 13 + 31)','#4338CA',"openSearchModule('colles2')"],
     ['🔗','3 numéros collés','Trois numéros côte à côte sur la ligne','#4F46E5',"openSearchModule('colles3')"],
     ['🔥','Chauds & froids','Numéros les plus et moins sortis','#0E6272','goHotCold()'],
+    ['⏳','Retards & fréquences','Retard actuel et max, fréquence : numéros, paires, triplets','#1E3AC8','openRetFreq()'],
   ];
   h+=`<div style="margin-bottom:10px;padding:8px 10px;background:#fff;border:2px solid #6D28D9;border-radius:12px">
     <div style="font-size:11px;font-weight:700;color:#6D28D9;margin-bottom:4px">⚡ Accès rapide aux modules</div>
@@ -15920,6 +15921,69 @@ function goNav(id){
 }
 function scrollCQ(){const el=document.getElementById('cq-input');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus();}}
 function scrollTotal(){const el=document.getElementById('ts-input')||document.querySelector('[placeholder*="Total"]');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus();}}
+// ══════ Retards & fréquences (numéros / paires / triplets) — modèle Lottologia ══════
+state.rf={type:1,sort:'ret',per:0,open:false,off:0};
+function openRetFreq(){state.showSearchHub=false;state.rf.open=true;rfRender();}
+function rfClose(){state.rf.open=false;const o=document.getElementById('rf-overlay');if(o)o.remove();}
+function rfSet(k,v){state.rf[k]=v;rfRender();}
+function rfCompute(){
+  const r=state.rf,N=T.length,P=r.per||N,pos={};
+  const add=(key,i)=>{(pos[key]||(pos[key]=[])).push(i);};
+  T.forEach((d,i)=>{
+    const ns=[...new Set((d.n||[]).filter(v=>Number.isFinite(v)&&v>0))].sort((a,b)=>a-b);
+    if(r.type===1)ns.forEach(a=>add(String(a),i));
+    else if(r.type===2){for(let a=0;a<ns.length;a++)for(let b=a+1;b<ns.length;b++)add(ns[a]+'-'+ns[b],i);}
+    else{for(let a=0;a<ns.length;a++)for(let b=a+1;b<ns.length;b++)for(let c=b+1;c<ns.length;c++)add(ns[a]+'-'+ns[b]+'-'+ns[c],i);}
+  });
+  if(r.type===1){const mx=Math.max(90,...T.slice(0,50).flatMap(d=>d.n||[]).filter(Number.isFinite));for(let v=1;v<=mx;v++)if(!pos[v])pos[v]=[];}
+  return Object.entries(pos).map(([k,ps])=>{
+    // ps croissant (0 = tirage le plus récent)
+    const cur=ps.length?ps[0]:N;
+    let mx=cur;for(let j=1;j<ps.length;j++)mx=Math.max(mx,ps[j]-ps[j-1]-1);
+    const fr=ps.filter(i=>i<P).length;
+    return {k,cur:ps.length?cur:N,max:mx,fr,tot:ps.length};
+  });
+}
+function rfTabellone(){
+  const r=state.rf,off=Math.min(Math.max(0,r.off||0),Math.max(0,T.length-1)),D=T.slice(off);
+  const f2=v=>String(v).padStart(2,'0');
+  const last={};
+  D.forEach((d,i)=>{(d.n||[]).forEach((v,j)=>{if(Number.isFinite(v)&&v>0&&last[v]===undefined)last[v]={d:i,p:j};});});
+  const rows=Object.entries(last).map(([v,x])=>({v:+v,d:x.d,p:x.p})).sort((a,b)=>b.d-a.d||a.v-b.v);
+  const np=Math.max(...D.slice(0,30).map(d=>(d.n||[]).length),5);
+  const cur=D[0]?`${D[0].d}/${D[0].y}`:'';
+  const nb=(l,off2,dis)=>`<button ${dis?'disabled':''} onclick="state.rf.off=${off2};rfRender()" style="padding:9px 16px;border-radius:8px;border:none;background:${dis?'#8FA3E8':'#0033CC'};color:#fff;font-weight:700;cursor:pointer">${l}</button>`;
+  const cell='border:1px solid #E5E7EB;height:46px;text-align:center';
+  return `<div style="background:#1E3AC8;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5"><div style="font-weight:700;font-size:16px">🧮 Tableau analytique — ${GAME.name}</div><button onclick="rfClose()" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:none;background:rgba(255,255,255,.2);color:#fff;font-weight:700;cursor:pointer">✕ Fermer</button></div>
+  <div style="padding:12px"><div style="display:flex;gap:6px;margin-bottom:10px"><button onclick="rfSet('type',1)" style="padding:8px 14px;border-radius:18px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;cursor:pointer">← Retour</button></div>
+  <div style="font-size:12px;color:#6B7280;margin-bottom:8px;font-style:italic">Chaque numéro est placé dans la colonne de sa position lors de sa dernière sortie, et sur la ligne de son retard (tirages écoulés depuis).</div>
+  <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px">${nb('‹ Précédent',off+1,off+1>=T.length)}<b style="font-size:16px">${cur}</b>${nb('Suivant ›',off-1,off<=0)}</div>
+  <div style="background:#fff;border-radius:12px;overflow:auto;border:1px solid #E2E8F0"><table style="border-collapse:collapse;width:100%"><thead><tr><th style="background:#E8EEFB;padding:10px;font-size:14px;color:#0033CC">Retard</th>${Array.from({length:np},(_,i)=>`<th style="background:#1E50D8;color:#fff;padding:10px;font-size:14px">D${i+1}</th>`).join('')}</tr></thead><tbody>${rows.map(x=>`<tr><td style="${cell};background:#EEF3FD;font-weight:700;color:#0033CC;font-size:16px;width:80px">${x.d}</td>${Array.from({length:np},(_,j)=>`<td style="${cell}">${j===x.p?`<span style="display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:34px;border-radius:8px;background:#1E50D8;color:#fff;font-weight:700;font-size:16px">${f2(x.v)}</span>`:''}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+}
+function rfRender(){
+  let o=document.getElementById('rf-overlay');
+  if(!state.rf.open){if(o)o.remove();return;}
+  if(!o){o=document.createElement('div');o.id='rf-overlay';o.style.cssText='position:fixed;inset:0;z-index:2000;background:#F4F6FB;overflow:auto;-webkit-overflow-scrolling:touch';document.body.appendChild(o);}
+  const r=state.rf,N=T.length;
+  if(r.type===4){o.innerHTML=rfTabellone();return;}
+  let rows=rfCompute();
+  if(r.type>1)rows=rows.filter(x=>x.tot>=2);
+  const key={ret:x=>-x.cur,max:x=>-x.max,fre:x=>-x.fr,rat:x=>-(x.cur/Math.max(1,x.max))}[r.sort]||(x=>-x.cur);
+  rows.sort((a,b)=>key(a)-key(b));
+  const top=rows.slice(0,r.type===1?90:40);
+  const btn=(on,l,fn)=>`<button onclick="${fn}" style="padding:8px 14px;border-radius:18px;cursor:pointer;font-weight:700;font-size:13px;border:2px solid #1E3AC8;background:${on?'#1E3AC8':'#fff'};color:${on?'#fff':'#1E3AC8'}">${l}</button>`;
+  const ball=v=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;margin:1px;background:linear-gradient(135deg,#3B82F6,#2563EB);color:#fff;font-weight:700;font-size:14px">${String(v).padStart(2,'0')}</span>`;
+  const th='position:sticky;top:0;background:#F1F5FB;padding:9px 8px;font-size:13px;font-weight:700;color:#1F2D3D;border-bottom:2px solid #D6DEEE';
+  o.innerHTML=`<div style="background:#1E3AC8;color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5"><div style="font-weight:700;font-size:16px">⏳ Retards & fréquences — ${GAME.name}</div><button onclick="rfClose()" style="margin-left:auto;padding:6px 12px;border-radius:8px;border:none;background:rgba(255,255,255,.2);color:#fff;font-weight:700;cursor:pointer">✕ Fermer</button></div>
+  <div style="padding:12px">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${btn(r.type===1,'Numéros',"rfSet('type',1)")}${btn(r.type===2,'Paires',"rfSet('type',2)")}${btn(r.type===3,'Triplets',"rfSet('type',3)")}${btn(false,'🧮 Tableau analytique',"rfSet('type',4)")}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${btn(r.sort==='ret','Retard actuel',"rfSet('sort','ret')")}${btn(r.sort==='max','Retard max',"rfSet('sort','max')")}${btn(r.sort==='rat','Proche du max',"rfSet('sort','rat')")}${btn(r.sort==='fre','Fréquence',"rfSet('sort','fre')")}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center"><span style="font-weight:600;color:#4B5563;font-size:13px">Fréquence sur :</span>${[[0,'Tout'],[50,'50'],[100,'100'],[300,'300']].map(([v,l])=>btn(r.per===v,l+(v?' tirages':''),`rfSet('per',${v})`)).join('')}</div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:6px">${N} tirages analysés · retard = nombre de tirages sans sortie${r.type>1?' · seulement les combinaisons sorties au moins 2 fois':''}</div>
+    <div style="background:#fff;border:1px solid #E2E8F0;border-radius:12px;overflow:auto"><table style="border-collapse:collapse;width:100%;text-align:center"><thead><tr><th style="${th}">#</th><th style="${th}">${r.type===1?'Numéro':r.type===2?'Paire':'Triplet'}</th><th style="${th}">Retard actuel</th><th style="${th}">Retard max</th><th style="${th}">Fréquence</th></tr></thead><tbody>${top.map((x,i)=>`<tr style="background:${i%2?'#EEF2FB':'#fff'}"><td style="padding:6px;color:#6B7280;font-size:13px">${i+1}</td><td style="padding:4px 6px">${x.k.split('-').map(ball).join('')}</td><td style="font-weight:700;font-size:15px;color:${x.cur>=x.max&&x.tot?'#B91C1C':'#1F2D3D'}">${x.cur}</td><td style="font-size:14px;color:#4B5563">${x.max}</td><td style="font-size:14px;color:#4B5563">${x.fr}</td></tr>`).join('')}</tbody></table></div>
+    <div style="font-size:11px;color:#9CA3AF;margin-top:8px">Retard actuel en rouge = record battu ou égalé.</div>
+  </div>`;
+}
 function goHotCold(){state.showSearchHub=false;state.tab=2;state.anMode='chauds';render();setTimeout(()=>window.scrollTo({top:0,behavior:'smooth'}),50);}
 function bottomNavHTML(){
   const items=[

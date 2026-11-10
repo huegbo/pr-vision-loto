@@ -15807,6 +15807,7 @@ function goNav(id){
     state.conversionOpen=opening;state.showSearchHub=false;
     if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
   }
+  else if(id==='listes'){openMyLists();return;}
   else{state.tab=id;state.showSearchHub=false;}
   render();
 }
@@ -15821,6 +15822,7 @@ function bottomNavHTML(){
     [2,'📊','Analyses'],
     ['modules','🧩','Modules'],
     ['search','🔎','Recherche'],
+    ['listes','📋','Listes'],
     ['benin','🇧🇯','Bénin'],
     ['ghana','🇬🇭','Ghana'],
     ['ghalpha','🎰','GH Alpha'],

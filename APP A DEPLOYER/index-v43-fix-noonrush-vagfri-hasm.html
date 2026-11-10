@@ -19580,6 +19580,15 @@ function ulColorShape(bg,st){const l=ulCur();if(!l)return;Object.keys(l.nums).fo
 function ulSnapSave(){const l=ulCur();if(!l||!l.sys)return;saveRepereSnapshot(l.sys);ulRender();}
 function ulSnapLoad(){const l=ulCur();const sel=document.getElementById('ul-snap');if(!l||!l.sys||!sel||!sel.value)return;loadRepereSnapshot(+sel.value);ulRender();}
 function ulSnapDel(){const sel=document.getElementById('ul-snap');if(!sel||!sel.value)return;deleteRepereSnapshot(+sel.value);ulRender();}
+function ulWipeAll(){
+  if(!confirm('Tout effacer ?\n\n• Liste A et Liste HOT : tous les numéros\n• Toutes les listes que tu as créées\n• Toutes les sauvegardes\n\nC\'est définitif.'))return;
+  ['A','B'].forEach(k=>{state.lists[k].nums={};state.lists[k].on=false;});
+  state.lists.A.name='Liste A';state.lists.B.name='Liste B';
+  state.repereActive={};state.repere2Active={};
+  state.userLists=[];state._ulSel=null;state.listSnapshots=[];
+  try{saveRepereSnapshots();}catch(_){}
+  ulSaveAll();ulRender();render();
+}
 function ulShowClass(on){state.repereShowClass=on;try{saveListStylePref();}catch(_){}ulRender();render();}
 function ulRender(force){
   let o=document.getElementById('ul-overlay');
@@ -19610,7 +19619,7 @@ function ulRender(force){
       <div style="margin-top:6px"><span style="font-size:10px;color:#666">${Object.keys(cur.nums).length} numéro(s)</span> <button style="${btn};margin-left:8px" onclick="ulClear()">🧹 Vider</button></div>${snaps}</div>`;
   }
   const cls=state.repereShowClass!==false;
-  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:6px"><b style="flex:1;font-size:15px;color:#5B21B6">📋 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div><div style="font-size:10px;color:#666;margin-bottom:6px">👁 = affichée dans les tableaux · 🚫 = masquée · <b>Modifier</b> pour ajouter des numéros</div>${sys}${mine}<div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button><label style="font-size:10px;color:#555;cursor:pointer"><input type="checkbox" ${cls?'checked':''} onchange="ulShowClass(this.checked)"> afficher l'élément (C:80) à côté des numéros</label></div>${ed}</div>`;
+  o.innerHTML=`<div style="background:#fff;border-radius:12px;padding:14px;max-width:560px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;margin-bottom:6px"><b style="flex:1;font-size:15px;color:#5B21B6">📋 Mes listes</b><button onclick="ulClose()" style="${btn};font-size:14px">✕</button></div><div style="font-size:10px;color:#666;margin-bottom:6px">👁 = affichée dans les tableaux · 🚫 = masquée · <b>Modifier</b> pour ajouter des numéros</div>${sys}${mine}<div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button onclick="ulNew()" style="padding:6px 12px;background:#7C3AED;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:12px">➕ Nouvelle liste</button><button onclick="ulWipeAll()" style="padding:6px 10px;background:#fff;color:#C62828;border:1.5px solid #C62828;border-radius:8px;cursor:pointer;font-weight:700;font-size:11px" title="Efface toutes les listes et sauvegardes pour repartir de zéro">🗑 Tout effacer</button><label style="font-size:10px;color:#555;cursor:pointer"><input type="checkbox" ${cls?'checked':''} onchange="ulShowClass(this.checked)"> afficher l'élément (C:80) à côté des numéros</label></div>${ed}</div>`;
 }
 function openMyLists(){ulRender(true);}
 function setRep2DefStyle(s){state.rep2DefStyle=s;render();}

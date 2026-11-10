@@ -706,6 +706,64 @@ function parseBeninAll(){
   });
   return BENIN_ALL_ROWS;
 }
+// ══════ Présentation « 1 ligne = 1 date, 1 colonne = 1 jeu » + sélection de numéros (Cameroun, Togo, Bénin) ══════
+state.gridS={};
+function gs(id){return state.gridS[id]||(state.gridS[id]={view:'grid',sel:null,open:true,N:150});}
+function gridSel(id){const g=gs(id);if(!g.sel){g.sel={};for(let v=1;v<=90;v++)g.sel[v]=true;}return g.sel;}
+function gridToggle(id,v){const s=gridSel(id);s[v]=!s[v];render();}
+function gridClear(id){gs(id).sel={};render();}
+function gridInvert(id){const s=gridSel(id),n={};for(let v=1;v<=90;v++)n[v]=!s[v];gs(id).sel=n;render();}
+function gridQuick(id,k){const f={all:v=>true,odd:v=>v%2===1,even:v=>v%2===0,first:v=>v<=45,second:v=>v>=46}[k]||(v=>true);const n={};for(let v=1;v<=90;v++)n[v]=f(v);gs(id).sel=n;render();}
+function gridSetView(id,v){gs(id).view=v;render();}
+function gridMore(id){gs(id).N+=150;render();}
+function gridToggleOpen(id){gs(id).open=gs(id).open===false;render();}
+function gridToggleHTML(id,color){
+  const g=gs(id);
+  return `<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">${[['grid','🗓 Tableau par date'],['cards','🔵 Boules par date'],['list','☰ Liste détaillée']].map(([v,l])=>`<button onclick="gridSetView('${id}','${v}')" style="padding:5px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid ${color};background:${g.view===v?color:'#fff'};color:${g.view===v?'#fff':color}">${l}</button>`).join('')}</div>`;
+}
+function gridByDateHTML(id,rows,games,title){
+  const g=gs(id),sel=gridSel(id);
+  const MS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  const f2=v=>String(v).padStart(2,'0');
+  const byDate={},order=[];
+  rows.forEach(r=>{const k=r.y+r.d.split('/').reverse().join('');if(!byDate[k]){byDate[k]={y:r.y,d:r.d,cells:{}};order.push(k);}if(!byDate[k].cells[r.jeu])byDate[k].cells[r.jeu]=r;});
+  order.sort((a,b)=>b.localeCompare(a));
+  const cardsMode=g.view==='cards';
+  const N=cardsMode?Math.round(g.N/5):g.N,lim=order.slice(0,N);
+  games=games.filter(x=>lim.some(k=>byDate[k].cells[x.key]));
+  const nh=v=>sel[v]?`<span style="color:#1F2D3D">${f2(v)}</span>`:`<span style="color:#B8BFCC;font-weight:500">${f2(v)}</span>`;
+  const ys=[...new Set(lim.map(k=>byDate[k].y))].sort();
+  const banner=`${title} ${ys.length>1?'de '+ys[0]+' à '+ys[ys.length-1]:(ys[0]||'')} (${order.length} jours)`;
+  const nSel=Object.keys(sel).filter(k=>sel[k]).length;
+  const same=pred=>{for(let v=1;v<=90;v++){if(!!sel[v]!==!!pred(v))return false;}return true;};
+  const quick=[['all','Tous',v=>true],['odd','Impairs',v=>v%2===1],['even','Pairs',v=>v%2===0],['first','1re moitié (1-45)',v=>v<=45],['second','2e moitié (46-90)',v=>v>=46]];
+  const open=g.open!==false;
+  const qb='padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;';
+  const qbar=`<div style="margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">
+    <div onclick="gridToggleOpen('${id}')" style="display:flex;align-items:center;gap:8px;background:#E6C200;color:#1F2D3D;padding:14px 16px;cursor:pointer;font-weight:700;font-size:16px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2D3D" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>Sélectionner les numéros <span style="font-weight:600;opacity:.8">(${nSel} sélectionnés)</span><span style="margin-left:auto;font-weight:500;font-size:14px">${open?'Masquer ▲':'Afficher ▼'}</span></div>
+    ${open?`<div style="padding:12px 14px"><div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px;flex-wrap:wrap"><button onclick="gridClear('${id}')" style="${qb}border:1px solid #CBD5E1;background:#fff;color:#1F2D3D;font-weight:500">Effacer la sélection</button><button onclick="gridInvert('${id}')" style="${qb}border:1px solid #CBD5E1;background:#fff;color:#1F2D3D;font-weight:500">Inverser la sélection</button></div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">${Array.from({length:90},(_,i)=>i+1).map(v=>`<button onclick="gridToggle('${id}',${v})" style="width:46px;height:46px;border-radius:9px;cursor:pointer;font-weight:700;font-size:17px;border:1px solid ${sel[v]?'#0033CC':'#E5E7EB'};background:${sel[v]?'#0033CC':'#F3F4F6'};color:${sel[v]?'#fff':'#374151'}">${v}</button>`).join('')}</div></div>`:''}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #EEF1F6"><span style="font-weight:600;color:#4B5563;font-size:15px">Filtre rapide :</span>${quick.map(([k,l,pr])=>{const on=same(pr);return `<button onclick="gridQuick('${id}','${k}')" style="${qb}border:1px solid ${on?'#0033CC':'#CBD5E1'};background:${on?'#0033CC':'#E5E7EB'};color:${on?'#fff':'#1F2D3D'}">${l}</button>`;}).join('')}</div></div>`;
+  if(cardsMode){
+    const ball=(v,dark,dim,small)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:${small?30:38}px;height:${small?30:38}px;border-radius:9px;margin:2px;font-weight:700;font-size:${small?13:16}px;color:#fff;background:${dim?'#CBD5E1':(small?'linear-gradient(135deg,#F59E0B,#D97706)':(dark?'linear-gradient(135deg,#1E40AF,#1E3A8A)':'linear-gradient(135deg,#3B82F6,#2563EB)'))};box-shadow:0 2px 4px rgba(30,64,175,.25)">${f2(v)}</span>`;
+    let c=qbar+`<div style="background:#1E3AC8;color:#fff;font-size:17px;font-weight:700;padding:14px 16px;border-radius:12px 12px 0 0">${banner}</div>`;
+    lim.forEach(k=>{
+      const e=byDate[k],[dd,mm]=e.d.split('/').map(Number);
+      c+=`<div style="background:#EEF2FB;padding:10px 12px;margin-top:10px;border-radius:12px"><div style="font-weight:700;color:#475569;font-size:15px;margin:2px 0 8px 4px">Tirages du ${dd} ${MS[mm-1]} ${e.y}</div>${games.filter(x=>e.cells[x.key]).map((x,i)=>{const r=e.cells[x.key];const ex=(r.m||r.bonus||[]).filter(v=>v!=null);return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:${i%2?'#EEF2FB':'#fff'};border-radius:8px;padding:6px 8px;margin-bottom:3px"><div style="min-width:120px;font-weight:700;font-size:14px;color:#1F2D3D">${x.label}</div><div style="display:flex;flex-wrap:wrap;align-items:center">${r.n.map((v,j)=>ball(v,j%2===0,!sel[v])).join('')}${ex.length?`<span style="margin:0 6px;color:#9CA3AF">|</span>`+ex.map(v=>ball(v,false,!sel[v],true)).join(''):''}</div></div>`;}).join('')}</div>`;
+    });
+    if(order.length>N)c+=`<div style="text-align:center;margin-top:10px"><button onclick="gridMore('${id}')" style="padding:6px 16px;border-radius:14px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;cursor:pointer">▼ Voir plus de dates (${order.length-N} restantes)</button></div>`;
+    return c;
+  }
+  const th='position:sticky;top:0;z-index:3;background:#F1F5FB;color:#1F2D3D;font-size:14px;font-weight:700;padding:10px 12px;white-space:nowrap;text-align:center;border-bottom:2px solid #D6DEEE';
+  let h=qbar+`<div style="max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><div style="position:sticky;left:0;background:#1E3AC8;color:#fff;text-align:center;font-size:17px;font-weight:700;padding:14px 8px">${banner}</div><table style="border-collapse:separate;border-spacing:0;width:100%"><thead><tr><th style="${th};left:0;z-index:4">Date</th>${games.map(x=>`<th style="${th}">${x.label}</th>`).join('')}</tr></thead><tbody>`;
+  lim.forEach((k,ri)=>{
+    const e=byDate[k],[dd,mm]=e.d.split('/').map(Number),bg=ri%2===0?'#fff':'#E4EAF7';
+    h+=`<tr><td style="position:sticky;left:0;z-index:2;background:${ri%2===0?'#5B8DEF':'#3B5BDB'};color:#fff;font-weight:700;font-size:14px;padding:12px 10px;white-space:nowrap">${dd} ${MS[mm-1]} ${e.y}</td>${games.map(x=>{const r=e.cells[x.key];const extra=r&&(r.m||r.bonus);return `<td style="background:${bg};text-align:center;font-weight:700;font-size:15px;letter-spacing:1px;padding:10px 12px;white-space:nowrap">${r&&r.n?r.n.map(nh).join(' ')+(extra&&extra.length?` <span style="color:#6D28D9;font-size:12px">· ${extra.filter(v=>v!=null).map(f2).join(' ')}</span>`:''):'<span style="color:#bbb">·</span>'}</td>`;}).join('')}</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  if(order.length>N)h+=`<div style="text-align:center;margin-top:8px"><button onclick="gridMore('${id}')" style="padding:6px 16px;border-radius:14px;border:2px solid #1E3AC8;background:#fff;color:#1E3AC8;font-weight:700;cursor:pointer">▼ Voir 150 jours de plus (${order.length-N} restants)</button></div>`;
+  return h;
+}
 function toggleBeninJour(code){
   const i=state.beninJours.indexOf(code);
   if(i>=0)state.beninJours.splice(i,1);else state.beninJours.push(code);
@@ -886,7 +944,8 @@ function beninFiltreHTML(){
       <div style="font-size:9px;color:#6D28D9;margin-top:3px;background:#F5F3FF;border-radius:5px;padding:4px 7px"><b>14H = 10 numéros.</b> Les tirages de 14H (Fortune et Star) se jouent en deux zones : <b>ZONE A</b> (colonnes A1-A5) et <b>ZONE B</b> (colonnes B1-B5). Ce sont deux tirages complets, pas des numéros machine. Aux autres heures il n'y a qu'un seul tirage de 5 numéros. Source : loteriebenin.bj</div>
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    ${gridToggleHTML('benin','#111F3F')}
+    ${gs('benin').view!=='list'?gridByDateHTML('benin',rows,BENIN_JEU_ORDER.filter(k=>state.beninJeux.includes(k)).map(k=>({key:k,label:BENIN_JEU_LABELS[k]})),'Archives des tirages Bénin'):`    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu',"Nom d'origine",'Heure','Date','A1','A2','A3','A4','A5','TOT A','B1','B2','B3','B4','B5','TOT B'].map(h=>`<th style="position:sticky;top:0;background:#111F33;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -908,7 +967,7 @@ function beninFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
@@ -1260,7 +1319,8 @@ function ghanaFiltreHTML(){
       ${dateRangePickerHTML('ghanaDateRange','setGhanaDateRange','#0B2A1E')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    ${gridToggleHTML('ghana','#0B2A1E')}
+    ${gs('ghana').view!=='list'?gridByDateHTML('ghana',rows,GHANA_JEU_ORDER.filter(k=>state.ghanaJeux.includes(k)).map(k=>({key:k,label:GHANA_JEU_LABELS[k]})),'Archives des tirages Ghana'):`    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','M1','M2','M3','M4','M5','TOT.M'].map(h=>`<th style="position:sticky;top:0;background:#0B2A1E;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -1281,7 +1341,7 @@ function ghanaFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
@@ -1358,7 +1418,8 @@ function camerounFiltreHTML(){
       ${dateRangePickerHTML('camerounDateRange','setCamerounDateRange','#2E7D32')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    ${gridToggleHTML('cameroun','#0B2A1E')}
+    ${gs('cameroun').view!=='list'?gridByDateHTML('cameroun',rows,CAMEROUN_JEU_ORDER.filter(k=>state.camerounJeux.includes(k)).map(k=>({key:k,label:CAMEROUN_JEU_LABELS[k]})),'Archives des tirages Cameroun'):`    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','N1','N2','N3','N4','N5','TOT','X1','X2','X3','X4','X5'].map(h=>`<th style="position:sticky;top:0;background:#0B2A1E;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -1377,7 +1438,7 @@ function camerounFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
@@ -2792,7 +2853,8 @@ function togoFiltreHTML(){
     </div>
     ${togoIncidenceHTML(rows)}
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    ${gridToggleHTML('togo','#006A44')}
+    ${gs('togo').view!=='list'?gridByDateHTML('togo',rows,TOGO_JEU_ORDER.filter(k=>state.togoJeux.includes(k)).map(k=>({key:k,label:TOGO_JEU_LABELS[k]})),'Archives des tirages Togo'):`    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT',...Array.from({length:togoMaxBonus},(_,i)=>'M'+(i+1)),...(togoMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#4A2E1A;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -2812,7 +2874,7 @@ function togoFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
@@ -3031,7 +3093,8 @@ function ciFiltreHTML(){
       ${dateRangePickerHTML('ciDateRange','setCIDateRange','#7C2D12')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    ${gridToggleHTML('ci','#7C2D12')}
+    ${gs('ci').view!=='list'?gridByDateHTML('ci',rows,CI_GAMES.filter(g=>state.ciJeux.includes(g.key)).map(g=>({key:g.key,label:CI_JEU_LABELS[g.key]})),'Archives des tirages Côte d\'Ivoire'):`    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Jeu','Date','Event','N1','N2','N3','N4','N5','TOT',...Array.from({length:ciMaxBonus},(_,i)=>'M'+(i+1)),...(ciMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#7C2D12;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -3051,7 +3114,7 @@ function ciFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
@@ -3155,7 +3218,10 @@ function itFiltreHTML(){
       ${dateRangePickerHTML('itDateRange','setITDateRange','#006341')}
     </div>
     <div style="font-size:10px;color:#777;margin-bottom:6px">${rows.length} tirage${rows.length>1?'s':''} correspondant${rows.length>1?'s':''}${rows.length>400?` — <b style="color:#B45309">les 400 plus récents sont affichés</b>, affine les filtres pour voir les autres`:''}</div>
-    <div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      ${[['grid','🗓 Tableau par date (1 ligne = 1 date, 1 colonne = 1 roue)'],['list','☰ Liste détaillée']].map(([v,l])=>`<button onclick="state.itView='${v}';render()" style="padding:5px 12px;font-size:11px;border-radius:14px;cursor:pointer;font-weight:600;border:2px solid #006341;background:${state.itView===v?'#006341':'#fff'};color:${state.itView===v?'#fff':'#006341'}">${l}</button>`).join('')}
+    </div>
+    ${state.itView==='grid'?itGridHTML(rows):`<div style="max-height:65vh;overflow:auto;border:1px solid var(--line);border-radius:10px">
       <table class="excel-tbl"><thead><tr>
         ${['Jour','Roue','Date','Event',...Array.from({length:itMaxN},(_,i)=>'N'+(i+1)),'TOT',...Array.from({length:itMaxBonus},(_,i)=>'M'+(i+1)),...(itMaxBonus?['TOT.M']:[])].map(h=>`<th style="position:sticky;top:0;background:#006341;color:#fff;font-size:9px;padding:5px 4px">${h}</th>`).join('')}
       </tr></thead><tbody>
@@ -3175,10 +3241,51 @@ function itFiltreHTML(){
         </tr>`;
       }).join('')}
       </tbody></table>
-    </div>
+    </div>`}
   </div>
   </div>`;
   return html;
+}
+function itSelGet(){if(!state.itSel){state.itSel={};for(let v=1;v<=90;v++)state.itSel[v]=true;}return state.itSel;}
+function itSelToggle(v){const s=itSelGet();s[v]=!s[v];render();}
+function itSelClear(){state.itSel={};render();}
+function itSelInvert(){const s=itSelGet(),n={};for(let v=1;v<=90;v++)n[v]=!s[v];state.itSel=n;render();}
+function itSelQuick(k){const f={all:v=>true,odd:v=>v%2===1,even:v=>v%2===0,first:v=>v<=45,second:v=>v>=46}[k]||(v=>true);const n={};for(let v=1;v<=90;v++)n[v]=f(v);state.itSel=n;render();}
+// Présentation « archive » : 1 ligne par date, 1 colonne par roue, les numéros côte à côte
+function itGridHTML(rows){
+  const MS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+  const games=IT_GAMES.filter(g=>state.itJeux.includes(g.key));
+  const byDate={},order=[];
+  rows.forEach(r=>{const k=r.y+r.d.split('/').reverse().join('');if(!byDate[k]){byDate[k]={y:r.y,d:r.d,cells:{}};order.push(k);}byDate[k].cells[r.jeu]=r;});
+  order.sort((a,b)=>b.localeCompare(a));
+  const N=state.itGridN||150,lim=order.slice(0,N);
+  const f2=v=>String(v).padStart(2,'0');
+  const nm=g=>g.name.replace(/^IT\s+/i,'').replace(/^(\w)(\w*)$/,(m,a,b)=>a+b.toLowerCase());
+  const sel=itSelGet();
+  const qf=v=>!!sel[v];
+  const numHTML=v=>qf(v)?`<span style="color:#1F2D3D">${f2(v)}</span>`:`<span style="color:#B8BFCC;font-weight:500">${f2(v)}</span>`;
+  const ys=[...new Set(lim.map(k=>byDate[k].y))].sort();
+  const banner=`Archives des tirages ${ys.length>1?'de '+ys[0]+' à '+ys[ys.length-1]:(ys[0]||'')} (${order.length} tirages)`;
+  const nSel=Object.keys(sel).filter(k=>sel[k]).length;
+  const same=pred=>{for(let v=1;v<=90;v++){if(!!sel[v]!==!!pred(v))return false;}return true;};
+  const quick=[['all','Tous',v=>true],['odd','Impairs',v=>v%2===1],['even','Pairs',v=>v%2===0],['first','1re moitié (1-45)',v=>v<=45],['second','2e moitié (46-90)',v=>v>=46]];
+  const open=state.itSelOpen!==false;
+  const qbtn=`padding:9px 16px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;`;
+  const qbar=`<div style="margin-bottom:12px;background:#fff;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden">
+    <div onclick="state.itSelOpen=${open?'false':'true'};render()" style="display:flex;align-items:center;gap:8px;background:#E6C200;color:#1F2D3D;padding:14px 16px;cursor:pointer;font-weight:700;font-size:16px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F2D3D" stroke-width="2"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>Sélectionner les numéros <span style="font-weight:600;opacity:.8">(${nSel} sélectionnés)</span><span style="margin-left:auto;font-weight:500;font-size:14px">${open?'Masquer ▲':'Afficher ▼'}</span></div>
+    ${open?`<div style="padding:12px 14px"><div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:10px"><button onclick="itSelClear()" style="${qbtn}border:1px solid #CBD5E1;background:#fff;color:#1F2D3D;font-weight:500">Effacer la sélection</button><button onclick="itSelInvert()" style="${qbtn}border:1px solid #CBD5E1;background:#fff;color:#1F2D3D;font-weight:500">Inverser la sélection</button></div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">${Array.from({length:90},(_,i)=>i+1).map(v=>`<button onclick="itSelToggle(${v})" style="width:46px;height:46px;border-radius:9px;cursor:pointer;font-weight:700;font-size:17px;border:1px solid ${sel[v]?'#0033CC':'#E5E7EB'};background:${sel[v]?'#0033CC':'#F3F4F6'};color:${sel[v]?'#fff':'#374151'}">${v}</button>`).join('')}</div></div>`:''}
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-top:1px solid #EEF1F6"><span style="font-weight:600;color:#4B5563;font-size:15px">Filtre rapide :</span>${quick.map(([k,l,pr])=>{const on=same(pr);return `<button onclick="itSelQuick('${k}')" style="${qbtn}border:1px solid ${on?'#0033CC':'#CBD5E1'};background:${on?'#0033CC':'#E5E7EB'};color:${on?'#fff':'#1F2D3D'}">${l}</button>`;}).join('')}</div></div>`;
+  const th=`position:sticky;top:0;z-index:3;background:#F1F5FB;color:#1F2D3D;font-size:15px;font-weight:700;padding:10px 12px;white-space:nowrap;text-align:center;border-bottom:2px solid #D6DEEE`;
+  let h=qbar+`<div style="max-height:70vh;overflow:auto;border:1px solid var(--line);border-radius:10px"><div style="position:sticky;left:0;background:#1E3AC8;color:#fff;text-align:center;font-size:17px;font-weight:700;padding:14px 8px">${banner}</div><table style="border-collapse:separate;border-spacing:0;width:100%"><thead><tr><th style="${th};left:0;z-index:4">Date</th>${games.map(g=>`<th style="${th}">${nm(g)}</th>`).join('')}</tr></thead><tbody>`;
+  lim.forEach((k,ri)=>{
+    const e=byDate[k],[dd,mm]=e.d.split('/').map(Number);
+    const bg=ri%2===0?'#fff':'#E4EAF7';
+    h+=`<tr><td style="position:sticky;left:0;z-index:2;background:${ri%2===0?'#5B8DEF':'#3B5BDB'};color:#fff;font-weight:700;font-size:14px;padding:12px 10px;white-space:nowrap">${dd} ${MS[mm-1]} ${e.y}</td>${games.map(g=>{const r=e.cells[g.key];return `<td style="background:${bg};text-align:center;font-weight:700;font-size:15px;letter-spacing:1px;padding:10px 12px;white-space:nowrap;color:#1F2D3D">${r&&r.n?r.n.map(numHTML).join(' ')+(r.bonus&&r.bonus.length?` <span style="color:#6D28D9;font-size:12px">· ${r.bonus.map(f2).join(' ')}</span>`:''):'<span style="color:#bbb">·</span>'}</td>`;}).join('')}</tr>`;
+  });
+  h+=`</tbody></table></div>`;
+  if(order.length>N)h+=`<div style="text-align:center;margin-top:8px"><button onclick="state.itGridN=(state.itGridN||150)+150;render()" style="padding:6px 16px;border-radius:14px;border:2px solid #006341;background:#fff;color:#006341;font-weight:700;cursor:pointer">▼ Voir 150 dates de plus (${order.length-N} restantes)</button></div>`;
+  return h;
 }
 function exportITFiltre(){
   const rows=parseITAll().filter(r=>state.itJours.includes(r.jour)&&state.itJeux.includes(r.jeu)&&dateRangeKeep(r,state.itDateRange));
@@ -5504,7 +5611,7 @@ let state={
   camerounFiltreOpen:false, camerounJours:[...GHANA_JOUR_ORDER], camerounJeux:[...CAMEROUN_JEU_ORDER], camerounDateRange:'all',
   togoFiltreOpen:false, togoJours:[...TOGO_JOUR_ORDER], togoJeux:[...TOGO_JEU_ORDER], togoDateRange:'all',
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
-  itFiltreOpen:false, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
+  itFiltreOpen:false, itView:'grid', itGridN:150, itSel:null, itSelOpen:true, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
   afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:0, afficheDate2:'', afficheDate3:'', afficheSameDay:false, tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles

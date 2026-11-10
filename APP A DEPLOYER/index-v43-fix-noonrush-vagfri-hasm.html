@@ -12650,6 +12650,53 @@ function fxlPanelHTML(){
   const groups=order.filter(k=>cnt[k]&&(!G||G===k)).map(k=>`<div style="margin:8px 0 2px;font-weight:700;color:#0F766E;font-size:12px">📁 Excel ${k}</div>`+FXL_LIST.filter(f=>f[3]===k).map(row).join('')).join('');
   return `<div class="fxl-box" style="font-size:11px"><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${bar}</div><div style="margin-bottom:6px;display:flex;gap:6px;align-items:center"><input type="text" placeholder="Chercher un fichier (ex. picking, miroir, suite…)" value="${(state.fxlQ||'').replace(/"/g,'&quot;')}" oninput="state.fxlQ=this.value;const q=this.value.toLowerCase();this.closest('.fxl-box').querySelectorAll('.fxl-row').forEach(r=>{r.style.display=r.dataset.n.includes(q)?'':'none';})" style="flex:1;padding:5px;border:1px solid #888;border-radius:6px"></div><div style="max-height:60vh;overflow:auto">${groups||'Aucun fichier'}</div><div style="color:#888;margin-top:6px">Rangés par loto (le loto du cas de référence). Copies figées à leur date : elles ne se mettent pas à jour avec les nouveaux tirages.</div></div>`;
 }
+// ══════ DÉTECTION LISTES : tirages qui contiennent plusieurs numéros d'une même liste (picking, prime, obliques, mes listes) ══════
+function dtlKind(l){return l.id>=9300001&&l.id<9400000?'obl':(l.id>=9200001&&l.id<9300000?'prime':(l.id>=9100001&&l.id<9200000?'pick':'mes'));}
+function dtlLists(scope){
+  const out=[];
+  if(scope==='mes'||scope==='tout'){['A','B'].forEach(k=>{const L=state.lists[k];if(L&&Object.keys(L.nums).length)out.push({name:L.name,nums:Object.keys(L.nums).map(Number)});});}
+  state.userLists.forEach(l=>{const kd=dtlKind(l);if(scope==='tout'||scope===kd||(scope==='pick+prime'&&(kd==='pick'||kd==='prime'))){const seq=kd==='pick'&&typeof PICK_LISTS!=='undefined'?PICK_LISTS[l.id-9100001]:kd==='obl'&&typeof OBL_LISTS!=='undefined'?OBL_LISTS[l.id-9300001]:null;out.push({name:l.name,nums:Object.keys(l.nums).map(Number),id:l.id,seq});}});
+  return out.filter(l=>l.nums.length);
+}
+function dtlKey(){const k=state.dtlGame;return(k&&GAMES[k]&&!GAMES[k].n4&&!GAMES[k].n6)?k:((GAME&&!GAME.n4&&!GAME.n6)?GAME.key:Object.keys(GAMES).find(x=>!GAMES[x].n4&&!GAMES[x].n6));}
+function dtlPanelHTML(){
+  const K=Math.max(1,Math.min(5,+(state.dtlK||3))),scope=state.dtlS||'pick+prime',NN=Math.max(1,Math.min(200,+(state.dtlN||2))),togo=!!state.dtlTogo;
+  const dstr=r=>`${r.d}/${String(r.y).slice(2)}`;
+  const lists=dtlLists(scope);
+  const opt=(v,t)=>`<option value="${v}"${scope===v?' selected':''}>${t}</option>`;
+  const head=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px">
+    <select onchange="state.dtlS=this.value;render()" style="padding:3px">${opt('pick+prime','Listes picking + prime')}${opt('pick','Listes picking')}${opt('prime','Listes prime')}${opt('obl','Listes obliques')}${opt('mes','Mes listes')}${opt('tout','Toutes les listes')}</select>
+    <label>au moins <input type="number" min="1" max="5" value="${K}" onchange="state.dtlK=+this.value;render()" style="width:38px"> n° d'une même liste</label>
+    <label><input type="checkbox" ${togo?'checked':''} onchange="state.dtlTogo=this.checked;render()"> tous les lotos du Togo</label>
+    ${togo?'':`<select onchange="state.dtlGame=this.value;render()" style="padding:3px;max-width:160px">${Object.keys(GAMES).filter(x=>!GAMES[x].n4&&!GAMES[x].n6).map(x=>`<option value="${x}"${x===dtlKey()?' selected':''}>${GAMES[x].icon||''} ${GAMES[x].name}</option>`).join('')}</select>`}
+    <label>derniers tirages <input type="number" min="1" max="200" value="${NN}" onchange="state.dtlN=+this.value;render()" style="width:46px"></label></div>`;
+  if(!lists.length)return `<div style="font-size:11px">${head}Aucune liste dans ce choix.</div>`;
+  const modeBar=`<div style="display:flex;gap:4px;margin-bottom:6px">${[['honneur','🏆 Listes à l\'honneur'],['tirages','📋 Tirages trouvés']].map(([k,t])=>`<button onclick="state.dtlMode='${k}';render()" style="padding:3px 9px;border-radius:12px;font-size:10px;cursor:pointer;border:1.5px solid #7C3AED;background:${(state.dtlMode||'honneur')===k?'#7C3AED':'#fff'};color:${(state.dtlMode||'honneur')===k?'#fff':'#7C3AED'};font-weight:700">${t}</button>`).join('')}</div>`;
+  if((state.dtlMode||'honneur')==='honneur'&&!togo){
+    let T;try{T=gameData(dtlKey()).T;}catch(e){T=[];}
+    const rec=T.slice(0,NN).map(r=>(r.n||[]).slice(0,5));
+    const res=lists.map(l=>{const hit=new Set();rec.forEach(n=>n.forEach(v=>{if(l.nums.includes(v))hit.add(v);}));let best=0;
+      if(l.id&&(dtlKind({id:l.id})==='pick'||dtlKind({id:l.id})==='obl')){const sq=l.seq;if(sq)for(let m=1;m<sq.length;m++){let ok=true;for(let q=0;q<m;q++){if(!T[m-1-q]||!(T[m-1-q].n||[]).slice(0,5).includes(sq[q])){ok=false;break;}}if(ok)best=m;}}
+      return{l,hit:[...hit],best};}).filter(x=>x.hit.length);
+    res.sort((a,b)=>b.best-a.best||b.hit.length-a.hit.length);
+    const enc=res.filter(x=>x.best>=2);
+    const top=res.slice(0,40);
+    return `<div style="font-size:11px">${head}${modeBar}<div style="color:#555;margin-bottom:4px">Sur les ${NN} derniers tirages de ${GAMES[dtlKey()].name} : les listes dont le plus de numéros sont sortis. <b>Picking en cours</b> = les premiers numéros de la liste sont sortis un par tirage, dans l'ordre, jusqu'au dernier tirage.</div>
+    <div style="margin:4px 0;padding:5px 8px;background:#FEE2E2;border-radius:6px"><b>Picking en cours</b> : ${enc.map(x=>{const sq=x.l.seq;return `<div>• <b>${x.l.name.replace(/</g,'&lt;')}</b> : déjà ${sq.slice(0,x.best).join(' → ')} → <b style="color:#B91C1C">attendu ${sq[x.best]}</b></div>`;}).join('')||'—'}</div>
+    ${top.map(x=>`<div style="padding:3px 2px;border-bottom:1px solid #eee"><b>${x.l.name.replace(/</g,'&lt;')}</b> — <b style="color:#7C3AED">${x.hit.length}/${x.l.nums.length}</b> sortis (${x.hit.sort((a,b)=>a-b).join(' ')})</div>`).join('')}</div>`;
+  }
+  const keys=togo?Object.keys(GAMES).filter(k=>GAMES[k]&&GAMES[k].icon==='🇹🇬'&&!/matinal_/.test(k)&&!GAMES[k].n4&&!GAMES[k].n6):[dtlKey()];
+  const blocks=[];
+  keys.forEach(k=>{let T;try{T=gameData(k).T;}catch(e){return;}
+    T.slice(0,NN).forEach(r=>{const n=(r.n||[]).slice(0,5);const hits=[];
+      lists.forEach(l=>{const inter=n.filter(v=>l.nums.includes(v));if(inter.length>=K)hits.push({l,inter});});
+      if(hits.length)blocks.push({g:GAMES[k],r,n,hits});});});
+  const dk=r=>{const p=String(r.d).split('/');return (+r.y)*10000+(+p[1]||0)*100+(+p[0]||0);};
+  blocks.sort((a,b)=>dk(b.r)-dk(a.r)||b.hits.length-a.hits.length);
+  const html=blocks.map(b=>{const all=new Set();b.hits.forEach(h=>h.inter.forEach(v=>all.add(v)));
+    return `<div style="margin:4px 0;padding:5px 7px;border:1px solid #ddd;border-radius:8px"><div style="font-weight:700;color:#1F3864">${b.g.icon||''} ${b.g.name} — N°${b.r.t} · ${dstr(b.r)} : ${b.n.map(v=>`<span style="display:inline-block;min-width:20px;text-align:center;margin:0 1px;padding:0 3px;border-radius:4px;${all.has(v)?'background:#7C3AED;color:#fff':''}">${v}</span>`).join('')}</div>${b.hits.sort((x,y)=>y.inter.length-x.inter.length).map(h=>`<div style="font-size:10.5px;margin-left:8px">• <b>${h.l.name.replace(/</g,'&lt;')}</b> : ${h.inter.length} n° (${h.inter.join(' ')})</div>`).join('')}</div>`;}).join('');
+  return `<div style="font-size:11px">${head}${modeBar}<div style="color:#555;margin-bottom:4px">${lists.length} listes vérifiées · <b>${blocks.length}</b> tirage(s) avec au moins ${K} numéros d'une même liste (les plus récents d'abord). Les numéros trouvés sont en violet.</div>${html||'Aucun tirage trouvé.'}</div>`;
+}
 function relPanelHTML(){
   // Automatique : à l'ouverture, le dernier tirage du jeu courant est chargé et toute la stat s'affiche tout de suite.
   if(!state.relInput&&!state.relAutoOff){const _r=gameData(relGameKey()).T[0];if(_r){state.relInput=(_r.n||[]).filter(v=>v!=null&&!isNaN(v)).join('-');state.relRowSel=String(_r.t);}}
@@ -15228,6 +15275,7 @@ const SEARCH_SECTIONS=[
   {key:'xdr',icon:'🧬',title:'Retour + dérivés (ex. 30 → Equiv, Bonanza, Partner → 30)',desc:'X revient à la même place 6 tirages après, et ses dérivés choisis sortent entre-temps — familles et écart réglables, tous lotos, + en cours',color:'#3E8E63',html:()=>`<div style="background:#fff;border:1.5px solid #3E8E63;border-radius:8px;padding:8px;margin-bottom:8px">${xdrPanelHTML()}</div>`},
   {key:'pck',icon:'🎯',title:'Picking 5 tirages (suite d\'un numéro par ligne)',desc:'Tape une suite (ex. 59 24 57 78 40) : tous les lotos où elle sort sur des tirages successifs, colonnes libres / verticale / diagonale, dans l\'ordre ou non',color:'#1D4ED8',html:()=>`<div style="background:#fff;border:1.5px solid #1D4ED8;border-radius:8px;padding:8px;margin-bottom:8px">${pckPanelHTML()}</div>`},
   {key:'fxl',icon:'📥',title:'Fichiers Excel des schémas',desc:'Télécharger les Excel « plan unique » faits pour les schémas (picking, ligne verte, suites…)',color:'#0F766E',html:()=>`<div style="background:#fff;border:1.5px solid #0F766E;border-radius:8px;padding:8px;margin-bottom:8px">${fxlPanelHTML()}</div>`},
+  {key:'dtl',icon:'🔎',title:'Tirages avec des numéros de mes listes',desc:'Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques, mes listes), sur un loto ou tous les lotos du Togo',color:'#7C3AED',html:()=>`<div style="background:#fff;border:1.5px solid #7C3AED;border-radius:8px;padding:8px;margin-bottom:8px">${dtlPanelHTML()}</div>`},
   {key:'sup',icon:'➕',title:'Superposés (haut ± bas)',desc:'Numéro du haut + numéro du bas = total ou soustraction (tirage/machine ou 2 tirages successifs)',color:'#166534',html:()=>`<div style="background:#fff;border:1.5px solid #166534;border-radius:8px;padding:8px;margin-bottom:8px">${supPanelHTML()}</div>`},
   {key:'rel',icon:'🔗',title:"Relations d'un tirage",desc:'Saisis un résultat : classifications de chaque numéro et liens entre eux',color:'#7C2D12',html:()=>`<div style="background:#fff;border:1.5px solid #7C2D12;border-radius:8px;padding:8px;margin-bottom:8px">${relPanelHTML()}</div>`},
   {key:'cet',icon:'🧮',title:'Total numéro + élément',desc:'Numéro + son dérivé (Counter, Code, Miroir…) = un total',color:'#7C3AED',html:cetPanelHTML},
@@ -15385,6 +15433,7 @@ function searchHubHTML(){
     ['🧬','Retour + dérivés (Partner, Bonanza, Equiv…)','X revient à la même place et ses dérivés choisis sortent entre-temps (ex. Million 30 → 69, 14, 38 → 30), tous lotos + en cours','#3E8E63',"openSearchModule('xdr')"],
     ['🎯','Picking 5 tirages','Une suite d\'un numéro par ligne sur des tirages successifs, cherchée dans tous les lotos (ex. 59-24-57-78-40)','#1D4ED8',"openSearchModule('pck')"],
     ['📥','Fichiers Excel des schémas','Télécharger les Excel faits pour les schémas (picking, ligne verte, suites…)','#0F766E',"openSearchModule('fxl')"],
+    ['🔎','Tirages avec des numéros de mes listes','Repère les tirages qui contiennent plusieurs numéros d\'une même liste (picking, prime, obliques…)','#7C3AED',"openSearchModule('dtl')"],
     ['➕','Superposés (haut ± bas)','Numéro du haut + numéro du bas : total / soustraction (tirage+machine, ou 2 tirages successifs)','#166534',"openSearchModule('sup')"],
     ['🔗','Relations d\'un tirage','Tape un résultat : classifications de chaque numéro et liens entre eux','#7C2D12',"openSearchModule('rel')"],
     ['🎯','Numéro avec position','Ex : 82 en position 4 (D4), cas par cas','#B45309',"openSearchModule('numpos')"],

@@ -2387,7 +2387,32 @@ function load(){
 
   D.config.password='20462046';
   D.config.mois_courant=D.config.mois_courant||'MAR 2026';
+  appliquerCorrectionFarida();
   localStorage.setItem(SK,JSON.stringify(D));
+}
+// Correction ponctuelle : Mme BAYOR Farida (TOT-07-L28) n'a pas d'arrieres reels ;
+// un report_precedent errone s'etait accumule progressivement, et novembre 2026,
+// pourtant deja regle, restait marque non saisi. Applique une seule fois (flag en config).
+function appliquerCorrectionFarida(){
+  if(!D||!D.paiements||(D.config&&D.config.fix_farida_nov2026_applied))return;
+  var MOIS_MAP={JAN:0,FEV:1,MAR:2,AVR:3,MAI:4,JUN:5,JUL:6,AOU:7,SEP:8,OCT:9,NOV:10,DEC:11};
+  function sortKey(m){var p=m.split(' ');if(p.length<2||!(p[0] in MOIS_MAP))return -1;return parseInt(p[1])*12+MOIS_MAP[p[0]];}
+  var seuil=sortKey('JUN 2026');
+  var changed=false;
+  Object.keys(D.paiements).forEach(function(m){
+    var s=(D.paiements[m]||[]).find(function(x){return x.id==='TOT-07-L28';});
+    if(!s)return;
+    if(sortKey(m)>=seuil&&s.report_precedent>0){s.report_precedent=0;changed=true;}
+    if(m==='NOV 2026'&&(s.statut!=='paye'||(s.loyer_verse||0)<(s.loyer_du||0))){
+      s.loyer_verse=s.loyer_du||0;s.charges_versees=s.charges_dues||0;changed=true;
+    }
+    var totalDu=(s.loyer_du||0)+(s.charges_dues||0)+(s.report_precedent||0);
+    var totalVerse=(s.loyer_verse||0)+(s.charges_versees||0)+(s.perc_avance||0)+(s.remise||0);
+    var nvReste=Math.max(0,totalDu-totalVerse);
+    var nvStatut=totalVerse>=totalDu?'paye':totalVerse>0?'partiel':'non_saisi';
+    if(nvReste!==s.reste_du||nvStatut!==s.statut){s.reste_du=nvReste;s.statut=nvStatut;changed=true;}
+  });
+  if(changed){if(!D.config)D.config={};D.config.fix_farida_nov2026_applied=true;}
 }
 function save(){
   // Try localForage first (IndexedDB - handles photos, large data)
@@ -4172,6 +4197,14 @@ function updateSaisieGlobaleField(el){
     // Mettre à jour la couleur du select statut
     var selFinal=rowFinal.querySelector('select[data-field="statut"]');
     if(selFinal)selFinal.style.background=s.statut==='paye'?'#f0fdf4':s.statut==='partiel'?'#fffbeb':'#fff';
+    // Mettre a jour les boutons Quittance/Facture (ils ne refletaient pas le nouveau statut)
+    var pdfCell=rowFinal.querySelector('td.no-print');
+    if(pdfCell){
+      pdfCell.innerHTML=(s.statut==='paye'||s.statut==='partiel')?
+        '<button onclick="genQuittanceMois(\'' + locId + '\',\'' + mois + '\')" style="padding:3px 8px;background:#003087;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.72rem" title="Generer quittance PDF">📄 Quittance</button>'
+        +'<button onclick="ouvrirFactureRapide(\'' + locId + '\',\'' + mois + '\')" style="padding:3px 8px;background:#0891b2;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:.72rem;margin-left:3px" title="Generer facture PDF">🧾 Facture</button>'
+        :'<span style="color:#d1d5db;font-size:.72rem">—</span>';
+    }
   }
 
   // Sauvegarde auto
@@ -4255,12 +4288,13 @@ function renderSaisie(){
       return total+(sp&&sp.reste_du>0?sp.reste_du:0);
     },0);
 
-    // Statut style Excel
-    const statB=s.statut==='paye'
-      ?`<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:4px;font-size:.75rem;font-weight:700;background:#dcfce7;color:#166534;border:1px solid #bbf7d0">✅ PAYÉ</span>`
-      :s.statut==='partiel'
-      ?`<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:4px;font-size:.75rem;font-weight:700;background:#fef9c3;color:#854d0e;border:1px solid #fde047">⚠️ PARTIEL</span>`
-      :`<span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:4px;font-size:.75rem;font-weight:700;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">✗ IMPAYÉ</span>`;
+    // Statut style Excel (liste deroulante : permet de forcer le statut manuellement)
+    const statCol={paye:['#dcfce7','#166534','#bbf7d0'],partiel:['#fef9c3','#854d0e','#fde047'],non_saisi:['#fee2e2','#991b1b','#fca5a5']}[s.statut]||['#fee2e2','#991b1b','#fca5a5'];
+    const statB=`<select onchange="forcerStatutMois('${s.id}',this.value)" title="Forcer manuellement le statut" style="padding:3px 6px;border-radius:4px;font-size:.75rem;font-weight:700;cursor:pointer;background:${statCol[0]};color:${statCol[1]};border:1px solid ${statCol[2]}">`+
+      `<option value="paye"${s.statut==='paye'?' selected':''}>✅ PAYÉ</option>`+
+      `<option value="partiel"${s.statut==='partiel'?' selected':''}>⚠️ PARTIEL</option>`+
+      `<option value="non_saisi"${s.statut==='non_saisi'?' selected':''}>✗ IMPAYÉ</option>`+
+      `</select>`;
 
     const resteT=s.reste_du>0?`<span style="color:#C0392B;font-weight:700">${fmt(s.reste_du)} FCFA</span>`:'<span style="color:#16a34a;font-weight:600">—</span>';
     const loyerTotal=arrieres>0?`<span title="Loyer ${fmt(s.loyer_du)} + Arriérés ${fmt(arrieres)}" style="font-size:.76rem">${fmt(s.loyer_du)}<br><span style="color:#dc2626;font-size:.68rem">+${fmt(arrieres)} arr.</span></span>`:`${fmt(s.loyer_du)}`;
@@ -4433,6 +4467,19 @@ function upSaisie(id,field,val){
   const tv=s.loyer_verse+s.charges_versees+(s.perc_avance||0)+(s.remise||0);
   s.reste_du=Math.max(0,td-tv);
   s.statut=tv>=td?'paye':tv>0?'partiel':'non_saisi';
+  save();renderSaisie();renderDashboard();updateBadge();
+}
+function forcerStatutMois(id,val){
+  const mois=getMois(),s=getSaisies(mois).find(function(x){return x.id===id;});if(!s)return;
+  if(val==='paye'){
+    s.loyer_verse=s.loyer_du||0;s.charges_versees=s.charges_dues||0;s.reste_du=0;s.statut='paye';
+  } else if(val==='non_saisi'){
+    s.loyer_verse=0;s.charges_versees=0;s.reste_du=(s.loyer_du||0)+(s.charges_dues||0);s.statut='non_saisi';
+  } else {
+    const td=(s.loyer_du||0)+(s.charges_dues||0)+(s.report_precedent||0);
+    const tv=(s.loyer_verse||0)+(s.charges_versees||0)+(s.perc_avance||0)+(s.remise||0);
+    s.reste_du=Math.max(0,td-tv);s.statut='partiel';
+  }
   save();renderSaisie();renderDashboard();updateBadge();
 }
 function upMode(id,v){const s=getSaisies(getMois()).find(x=>x.id===id);if(s){s.mode=v==='—'?'':v;save();}}
@@ -7978,6 +8025,7 @@ async function loadFromCloud(){
         // Comparer sur le nombre de locataires provoquait une resynchro destructrice de vieilles donnees locales.)
         if(!localTs||cloudTs>localTs){
           D=r;D.config=D.config||clone(INIT.config);D.config.password='20462046';
+          appliquerCorrectionFarida();
           localStorage.setItem(SK,JSON.stringify(D));
           localStorage.setItem('glk_last_sync',cloudTs);
         }

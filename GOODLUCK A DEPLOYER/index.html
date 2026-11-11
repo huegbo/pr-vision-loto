@@ -3286,10 +3286,7 @@ function genFacturePDF(){
   var filename='Facture_'+data.num+'_'+data.nom.replace(/\s+/g,'_')+'.pdf';
   var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
   if(isIOS){
-    var pdfData=doc.output('dataurlstring');
-    var w=window.open();
-    if(w){w.document.write('<html><head><title>'+filename+'</title></head><body style="margin:0"><iframe src="'+pdfData+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');w.document.close();}
-    else{doc.output('datauri');}
+    partagerOuOuvrirPDFiOS(doc, filename);
   } else {
     doc.save(filename);
   }
@@ -4352,22 +4349,41 @@ function genQuittanceMois(id,mois){
     // Détection iOS Safari
     var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
     if(isIOS){
-      // iOS : ouvrir en nouvel onglet avec data URI
-      var pdfData=doc.output('dataurlstring');
-      var w=window.open();
-      if(w){
-        w.document.write('<html><head><title>'+filename+'</title></head><body style="margin:0"><iframe src="'+pdfData+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');
-        w.document.close();
-      } else {
-        // Fallback si popup bloqué
-        doc.output('datauri');
-      }
+      partagerOuOuvrirPDFiOS(doc, filename);
     } else {
       doc.save(filename);
     }
   }catch(e){
     console.error('genQuittanceMois erreur:',e);
     alert('Erreur PDF: '+e.message);
+  }
+}
+
+// Partage natif du PDF (fichier) sur iOS — évite d'exposer une adresse blob: dans le message
+function partagerOuOuvrirPDFiOS(doc, filename){
+  try{
+    var blob = doc.output('blob');
+    var file = new File([blob], filename, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:filename}).catch(function(e){
+        console.error('navigator.share erreur:', e);
+        _ouvrirPDFPopupFallback(doc, filename);
+      });
+      return;
+    }
+  }catch(e){
+    console.error('partagerOuOuvrirPDFiOS erreur:', e);
+  }
+  _ouvrirPDFPopupFallback(doc, filename);
+}
+function _ouvrirPDFPopupFallback(doc, filename){
+  var pdfData = doc.output('dataurlstring');
+  var w = window.open();
+  if(w){
+    w.document.write('<html><head><title>'+filename+'</title></head><body style="margin:0"><iframe src="'+pdfData+'" style="width:100%;height:100vh;border:none"></iframe></body></html>');
+    w.document.close();
+  } else {
+    doc.output('datauri');
   }
 }
 function nextMois(m){var MN=["JAN","FEV","MAR","AVR","MAI","JUN","JUL","AOU","SEP","OCT","NOV","DEC"];var parts=m.trim().split(" ");var idx=MN.indexOf(parts[0]);if(idx===-1)return m;var ni=(idx+1)%12;var ny=ni===0?parseInt(parts[1])+1:parseInt(parts[1]);return MN[ni]+" "+ny;}

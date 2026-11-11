@@ -7942,15 +7942,13 @@ async function loadFromCloud(){
         const cloudTs=rows[0].updated_at;
         const localCount=D.locataires?D.locataires.length:0;
         const cloudCount=r.locataires.length;
-        // Prendre le cloud seulement si plus récent ET pas moins de locataires
-        if((!localTs||cloudTs>localTs)&&cloudCount>=localCount){
+        // Faire confiance au cloud des que sa date de mise a jour est plus recente.
+        // (Le nombre de locataires peut legitimement baisser: archivage, fusion de doublons, etc.
+        // Comparer sur le nombre de locataires provoquait une resynchro destructrice de vieilles donnees locales.)
+        if(!localTs||cloudTs>localTs){
           D=r;D.config=D.config||clone(INIT.config);D.config.password='20462046';
           localStorage.setItem(SK,JSON.stringify(D));
           localStorage.setItem('glk_last_sync',cloudTs);
-        } else if(cloudCount<localCount){
-          // Local a plus de locataires → on resync vers le cloud
-          console.log('Local plus récent ('+localCount+' vs '+cloudCount+') → sync cloud');
-          syncToCloud();
         }
         const now=new Date(cloudTs||Date.now()).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
         if(indicator)indicator.innerHTML='☁️ '+now;

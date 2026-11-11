@@ -2341,19 +2341,22 @@ function getSaisies(m){
 function load(){
   // Try localForage first, then localStorage fallback
   const s=localStorage.getItem(SK);
+  var hadLocalStorage=false;
   if(s){
-    try{D=JSON.parse(s);}
+    try{D=JSON.parse(s);hadLocalStorage=true;}
     catch(e){D=clone(INIT);}
   }else{
     D=clone(INIT);
   }
-  // Also try to load from localForage (async, may have newer data with photos)
-  if(window.localforage){
+  // localForage (IndexedDB) ne sert que si localStorage etait absent/invalide.
+  // On ne compare plus sur le nombre de locataires : un gros IndexedDB perime
+  // (avant un archivage ou une fusion de doublons) ecrasait sinon les bonnes donnees.
+  if(window.localforage && !hadLocalStorage){
     window.localforage.getItem(SK).then(function(val){
       if(val){
         try{
           var parsed=JSON.parse(val);
-          if(parsed&&parsed.locataires&&parsed.locataires.length>=(D.locataires?D.locataires.length:0)){
+          if(parsed&&parsed.locataires){
             D=parsed;renderAll();
           }
         }catch(e){}

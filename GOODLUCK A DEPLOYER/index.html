@@ -1127,7 +1127,13 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
       </div>
       <div class="pgc">
         <div class="row g-3 mb-3">
-          <div class="col-md-4">
+          <div class="col-md-2">
+            <label class="fl">Immeuble</label>
+            <select class="fs" id="sg-immeuble" onchange="filtrerSaisieGlobaleLoc()" style="width:100%">
+              <option value="">— Tous les immeubles —</option>
+            </select>
+          </div>
+          <div class="col-md-3">
             <label class="fl">Locataire</label>
             <select class="fs" id="sg-loc" onchange="renderSaisieGlobale()" style="width:100%">
               <option value="">— Choisir un locataire —</option>
@@ -1151,7 +1157,8 @@ thead th{position:sticky;top:0;z-index:10;background:var(--gd);color:#D4A843 !im
               <option value="JAN/2027">JAN/2027</option><option value="FEV/2027">FEV/2027</option><option value="MAR/2027">MAR/2027</option>
             </select>
           </div>
-          <div class="col-md-4 d-flex align-items-end gap-2">
+          <div class="col-md-2" style=""></div>
+          <div class="col-md-3 d-flex align-items-end gap-2">
             <button class="bg" onclick="sauvegarderSaisieGlobale()" style="background:#7c3aed;border-color:#7c3aed"><i class="bi bi-save me-1"></i>Sauvegarder tout</button>
             <button class="bor" onclick="marquerTousPayes()">✅ Tout marquer payé</button>
           </div>
@@ -4006,9 +4013,30 @@ function isLocataireActifPourMois(l, mois){
 }
 
 function initSaisieGlobale(){
+  var selImm=document.getElementById('sg-immeuble');
+  if(selImm){
+    var imms=[...new Set(D.locataires.filter(function(l){return !l.archive;}).map(function(l){return l.immeuble;}))].sort(function(a,b){return (a||'').localeCompare(b||'');});
+    var prevImm=selImm.value;
+    selImm.innerHTML='<option value="">— Tous les immeubles —</option>'+
+      imms.map(function(im){return '<option value="'+im+'">'+im+'</option>';}).join('');
+    if(imms.indexOf(prevImm)>=0)selImm.value=prevImm;
+  }
   var sel=document.getElementById('sg-loc');if(!sel)return;
+  var immFiltre=selImm?selImm.value:'';
+  var prevLoc=sel.value;
   sel.innerHTML='<option value="">— Choisir un locataire —</option>'+
-    D.locataires.filter(function(l){return !l.archive;})
+    D.locataires.filter(function(l){return !l.archive && (!immFiltre||l.immeuble===immFiltre);})
+    .sort(function(a,b){return a.nom.localeCompare(b.nom);})
+    .map(function(l){return '<option value="'+l.id+'">'+l.id+' — '+l.nom+'</option>';}).join('');
+  if([...sel.options].some(function(o){return o.value===prevLoc;}))sel.value=prevLoc;
+  renderSaisieGlobale();
+}
+function filtrerSaisieGlobaleLoc(){
+  var selImm=document.getElementById('sg-immeuble');
+  var sel=document.getElementById('sg-loc');if(!sel)return;
+  var immFiltre=selImm?selImm.value:'';
+  sel.innerHTML='<option value="">— Choisir un locataire —</option>'+
+    D.locataires.filter(function(l){return !l.archive && (!immFiltre||l.immeuble===immFiltre);})
     .sort(function(a,b){return a.nom.localeCompare(b.nom);})
     .map(function(l){return '<option value="'+l.id+'">'+l.id+' — '+l.nom+'</option>';}).join('');
   renderSaisieGlobale();

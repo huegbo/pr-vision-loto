@@ -3321,7 +3321,7 @@ function genFacturePDF(){
   var filename='Facture_'+data.num+'_'+data.nom.replace(/\s+/g,'_')+'.pdf';
   var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
   if(isIOS){
-    partagerOuOuvrirPDFiOS(doc, filename);
+    partagerOuOuvrirPDFiOS(doc, filename, 'Facture — GOODLUCK IMMO INVEST');
   } else {
     doc.save(filename);
   }
@@ -4414,7 +4414,7 @@ function genQuittanceMois(id,mois){
     // Détection iOS Safari
     var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
     if(isIOS){
-      partagerOuOuvrirPDFiOS(doc, filename);
+      partagerOuOuvrirPDFiOS(doc, filename, 'Quittance de loyer — GOODLUCK IMMO INVEST');
     } else {
       doc.save(filename);
     }
@@ -4425,13 +4425,13 @@ function genQuittanceMois(id,mois){
 }
 
 // Partage natif du PDF (fichier) sur iOS — évite d'exposer une adresse blob: dans le message
-function partagerOuOuvrirPDFiOS(doc, filename){
+function partagerOuOuvrirPDFiOS(doc, filename, texte){
   try{
     // Donnees brutes du PDF (pas de blob intermediaire, donc pas d'adresse blob: a exposer)
     var bytes = new Uint8Array(doc.output('arraybuffer'));
     var file = new File([bytes], filename, {type:'application/pdf', lastModified: Date.now()});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file]}).catch(function(e){
+      navigator.share({files:[file], text: texte||'GOODLUCK IMMO INVEST'}).catch(function(e){
         if(e && e.name === 'AbortError') return; // l'utilisateur a simplement annule
         console.error('navigator.share erreur:', e);
         _ouvrirPDFPopupFallback(doc, filename);

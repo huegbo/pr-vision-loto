@@ -4426,11 +4426,20 @@ function genQuittanceMois(id,mois){
 
 // Partage natif du PDF (fichier) sur iOS — évite d'exposer une adresse blob: dans le message
 function partagerOuOuvrirPDFiOS(doc, filename){
-  // navigator.share() avec fichier declenche un bug connu sur iOS : WhatsApp (et d'autres apps)
-  // ajoute en plus un lien blob: en texte brut dans le message, inutile et perturbant pour les locataires.
-  // On telecharge donc directement le PDF, comme sur les autres plateformes ; il suffit ensuite de le
-  // partager depuis l'app Fichiers (ou en piece jointe manuelle dans WhatsApp), sans lien parasite.
-  doc.save(filename);
+  try{
+    var blob = doc.output('blob');
+    var file = new File([blob], filename, {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file]}).catch(function(e){
+        console.error('navigator.share erreur:', e);
+        _ouvrirPDFPopupFallback(doc, filename);
+      });
+      return;
+    }
+  }catch(e){
+    console.error('partagerOuOuvrirPDFiOS erreur:', e);
+  }
+  _ouvrirPDFPopupFallback(doc, filename);
 }
 function _ouvrirPDFPopupFallback(doc, filename){
   var pdfData = doc.output('dataurlstring');

@@ -4430,7 +4430,7 @@ function partagerOuOuvrirPDFiOS(doc, filename){
     var blob = doc.output('blob');
     var file = new File([blob], filename, {type:'application/pdf'});
     if(navigator.canShare && navigator.canShare({files:[file]})){
-      navigator.share({files:[file]}).catch(function(e){
+      navigator.share({files:[file], title:filename}).catch(function(e){
         console.error('navigator.share erreur:', e);
         _ouvrirPDFPopupFallback(doc, filename);
       });

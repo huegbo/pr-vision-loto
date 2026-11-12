@@ -4427,10 +4427,12 @@ function genQuittanceMois(id,mois){
 // Partage natif du PDF (fichier) sur iOS — évite d'exposer une adresse blob: dans le message
 function partagerOuOuvrirPDFiOS(doc, filename){
   try{
-    var blob = doc.output('blob');
-    var file = new File([blob], filename, {type:'application/pdf'});
+    // Donnees brutes du PDF (pas de blob intermediaire, donc pas d'adresse blob: a exposer)
+    var bytes = new Uint8Array(doc.output('arraybuffer'));
+    var file = new File([bytes], filename, {type:'application/pdf', lastModified: Date.now()});
     if(navigator.canShare && navigator.canShare({files:[file]})){
       navigator.share({files:[file]}).catch(function(e){
+        if(e && e.name === 'AbortError') return; // l'utilisateur a simplement annule
         console.error('navigator.share erreur:', e);
         _ouvrirPDFPopupFallback(doc, filename);
       });

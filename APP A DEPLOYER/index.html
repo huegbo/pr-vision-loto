@@ -184,6 +184,7 @@ input[type=text],input[type=number]{font-family:inherit;}
    • Modules Analyses (dates, bankers, totaux, séquences, terminaisons...)   ~5848-6724
    • Numéros repérés (🎯) : coloriage global, prédéfinis, instantanés        ~6882-7150
    • const AN_DEF / anCalc() / anMark() — module Analyses (chips)            ~7154-7452
+   • Méthodes — Les modules de forecast Cybetcast (cyf*) — onglet 🔮     methPageHTML
    • Ancrage des colonnes (figer l'alignement)                               ~7452
    • Virtualisation des colonnes (scroll performant)                        ~7658
    • Éléments de la classification en exergue                                ~7859
@@ -5613,7 +5614,7 @@ let state={
   ciFiltreOpen:false, ciJours:[...CI_JOUR_ORDER], ciJeux:CI_GAMES.map(g=>g.key), ciDateRange:'all',
   itFiltreOpen:false, itView:'grid', itGridN:150, itSel:null, itSelOpen:true, itJours:[...IT_JOUR_ORDER], itJeux:IT_GAMES.map(g=>g.key), itDateRange:'all',
   multiFiltreOpen:false, multiPays:[...MULTI_PAYS_ORDER], multiJours:[...MULTI_JOUR_ORDER], multiJeux:[...MULTI_JEU_ORDER], multiDateRange:'all',
-  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:0, afficheDate2:'', afficheDate3:'', afficheSameDay:false, tirageJourOpen:true, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
+  afficheOpen:false, afficheDate:'', afficheCountry:'Cameroun', afficheCompare:0, afficheDate2:'', afficheDate3:'', afficheSameDay:false, tirageJourOpen:false, tirageJourDate:'', tirageJourEndDate:'', tirageJourShowAnalyse:false, tirageJourView:'pays',
   // Style du bandeau SUPER 4 CAGNOTTE — choix laissé à l'utilisateur entre les deux derniers styles
   // essayés (02/10/2026 : "ou permettre de switcher" / "entre les deux styles"), via un bouton dans
   // le bandeau lui-même plutôt que d'en imposer un seul définitivement.
@@ -5712,6 +5713,7 @@ let state={
   vertStyle:localStorage.getItem('vertStyle')||'',
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
+  methodesOpen:false,
   // saisie de tirages
   showAdd:false,
   // générateur de grilles
@@ -16063,9 +16065,15 @@ function fabGo(action){
   render();
 }
 // Les pages plein écran (Affiches, Tirage du jour, Conversion, Pronostic, Classification) s'excluent : en ouvrir une ferme les autres
-function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pronosticOpen','classifTabOpen'].forEach(k=>{state[k]=false;});}
+function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pronosticOpen','classifTabOpen','methodesOpen'].forEach(k=>{state[k]=false;});}
 function goNav(id){
   window._navLastId=String(id);
+  if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes')_closePagePanels();
+  // Onglets principaux : fermer aussi les filtres pays, sinon le rendu s'arrête dessus
+  // et le contenu de l'onglet cliqué n'apparaît pas. goNav('0'|'1'|'2') arrive en chaîne.
+  if(['0','1','2','modules','search','compareGames','methodes'].includes(String(id))){
+    ['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen'].forEach(k=>{state[k]=false;});
+  }
   if(id==='compareGames'){goCompareGames();return;}
   if(id==='modules'){const on=state.showSearchHub&&state.hubView==='cyb';state.showSearchHub=!on;if(!on){state.hubView='cyb';state.searchModuleOpen=null;state.cybN=null;}loadHist();}
   else if(id==='search'){const on=state.showSearchHub&&state.hubView!=='cyb';state.showSearchHub=!on;if(!on){state.hubView='all';}loadHist();}
@@ -16088,8 +16096,9 @@ function goNav(id){
     state.conversionOpen=opening;state.showSearchHub=false;
     if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
   }
+  else if(id==='methodes'){const on=!state.methodesOpen;_closePagePanels();state.methodesOpen=on;state.showSearchHub=false;}
   else if(id==='listes'){openMyLists();return;}
-  else{state.tab=id;state.showSearchHub=false;}
+  else{state.tab=/^\d+$/.test(String(id))?+id:id;state.showSearchHub=false;if(+id===0)state.navMode='years';}
   render();
 }
 function scrollCQ(){const el=document.getElementById('cq-input');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus();}}
@@ -16165,6 +16174,7 @@ function bottomNavHTML(){
     ['compareGames','🎮','Comparer lotos'],
     [2,'📊','Analyses'],
     ['modules','🧩','Modules'],
+    ['methodes','🔮','Méthodes'],
     ['search','🔎','Recherche'],
     ['listes','📋','Listes'],
     ['benin','🇧🇯','Bénin'],
@@ -16184,7 +16194,7 @@ function bottomNavHTML(){
   ];
   return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:2200px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))));
+      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='methodes'?state.methodesOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))))));
       return`<div data-id="${id}" onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -22551,6 +22561,826 @@ function settingsPanelHTML(){
 
 // Garde anti-plantages (iPhone/Mac) : évite les re-renders empilés pendant la navigation
 let _renderBusy=false,_renderQueued=false,_renderTimer=null;
+// ══════ Méthodes — « Les modules de forecast » façon Cybetcast (onglet 🔮) ══════
+// Reproduit la logique des modules de l'application Android Cybetcast (analyse de 6 vidéos
+// officielles, voir notes). Tout est calculé sur l'appareil, sur les tirages déjà chargés
+// (GAMES / parseLines / getExtras). Sauvegardes, réglages, nuancier : localStorage uniquement.
+// Aucune écriture Supabase. Les modules non reproduits ici renvoient vers leur équivalent
+// existant de l'onglet Modules (openCyb), ou sont omis.
+const CYF_LS={set:'fl90_cyf_reglages',recent:'fl90_cyf_recents',groups:'fl90_cyf_groupes',nuance:'fl90_cyf_nuancier'};
+const CYF_TOGO=['diamant','gold','cash','boom','benz','prestige','million','super','kadoo','king','sam','bingo','detente'];
+const METH_MIN_HIST=30, METH_MAX_TESTS=800;
+function cyfEsc(s){return String(s==null?'':s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));}
+function cyfLS(k,def){try{const v=JSON.parse(localStorage.getItem(k)||'null');return v==null?def:v;}catch(e){return def;}}
+function cyfLSset(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){alert('Impossible d’enregistrer sur cet appareil (stockage plein ou désactivé).');return false;}}
+function cyfInt(v,d){const n=parseInt(v,10);return Number.isFinite(n)?n:d;}
+// ── Données : lignes d'une loto, de la plus ancienne (L=1) à la plus récente ──
+const CYF_ROWS={};
+function cyfRows(key){
+  const g=GAMES[key];if(!g||!g.raw){const r=[];r.byT={};return r;}
+  const ex=getExtras(key);const sig=g.raw.length+':'+ex.length+':'+(ex[ex.length-1]||'');
+  const c=CYF_ROWS[key];if(c&&c.sig===sig)return c.rows;
+  let base=[],extra=[];
+  try{base=parseLines(g.raw.trim().split('\n').filter(l=>l.trim()),g);extra=parseLines(ex,g);}catch(e){base=[];}
+  const by={};base.concat(extra).forEach(r=>{if(Number.isFinite(r.t)&&Array.isArray(r.n))by[r.t]=r;});
+  const rows=Object.values(by).sort((a,b)=>a.t-b.t).map((r,i)=>({t:r.t,d:r.d||'',y:String(r.y||''),n:r.n.map(v=>(Number.isFinite(v)&&v>=1&&v<=90)?v:null),L:i+1}));
+  rows.byT={};rows.forEach((r,i)=>{rows.byT[r.t]=i;});
+  CYF_ROWS[key]={sig,rows};
+  return rows;
+}
+function cyfSum(r){return r.n.reduce((a,b)=>a+(b||0),0);}
+function cyfK(rows){let k=5;for(let i=rows.length-1;i>=0&&i>rows.length-20;i--)k=Math.max(k,rows[i].n.length);return Math.min(k,6);}
+function cyfName(key){const g=GAMES[key];return g?g.name:key;}
+// ── Réglages ──
+function cyfSet(){
+  const s=cyfLS(CYF_LS.set,{})||{};
+  const fav=(Array.isArray(s.fav)?s.fav:CYF_TOGO).filter(k=>GAMES[k]);
+  return{fav:fav.length?fav:CYF_TOGO.filter(k=>GAMES[k]),avant:Math.max(0,Math.min(50,cyfInt(s.avant,5))),apres:Math.max(0,Math.min(60,cyfInt(s.apres,20))),hors:s.hors==='reduire'?'reduire':'strict'};
+}
+function cyfSaveSet(p){const s=Object.assign(cyfSet(),p);cyfLSset(CYF_LS.set,s);}
+// Résultat d'une opération : entier 1..90 ; hors plage → invalide (strict) ou ramené à 1–90 (−90)
+function cyfFit(v,set){
+  if(!Number.isFinite(v)||!Number.isInteger(v))return null;
+  if(v>=1&&v<=90)return v;
+  if((set||cyfSet()).hors!=='reduire')return null;
+  return((v-1)%90+90)%90+1;
+}
+function cyfOp(a,op,b){
+  if(a==null||b==null)return NaN;
+  switch(op){case '+':return a+b;case '-':return a-b;case '*':return a*b;case '/':return(b!==0&&a%b===0)?a/b:NaN;}
+  return NaN;
+}
+const CYF_OPS=[['+','Plus (+)'],['-','Moins (-)'],['*','Fois (*)'],['/','divisé Par (/)']];
+const CYF_OPSYM={'+':'+','-':'−','*':'×','/':'÷'};
+function cyfTr(x,tr){if(x==null)return null;try{const d=elmDerivs(x);const v=d[tr];return(v>=1&&v<=90)?v:null;}catch(e){return null;}}
+function cyfTrLabel(tr){const e=ELM_DEF.find(d=>d.key===tr);return e?e.label:tr;}
+function cyfPosList(p,k){return p>0?[p-1]:Array.from({length:k},(_,i)=>i);}
+function cyfVal(rows,i,p){const r=rows[i];return r?r.n[p]:null;}
+function cyfDigRoot(v){return 1+((v-1)%9);}
+function cyfFilterOk(y,f){
+  if(!f)return true;
+  if(f.grp&&+f.grp>0&&cyfDigRoot(y)!==+f.grp)return false;
+  if(f.end!==''&&f.end!=null&&+f.end>=0&&y%10!==+f.end)return false;
+  if(f.single&&!(y>=1&&y<=9))return false;
+  if(f.dbl&&!(y%11===0&&y<=88))return false;
+  return true;
+}
+// Liste de lotos pour « Choisir la Loto » ('all' = lotos favorites des Réglages)
+function cyfLotos(v){return v==='all'||!v?cyfSet().fav:(GAMES[v]?[v]:[]);}
+function cyfAddHL(m,i,p,c){(m.hl[i]=m.hl[i]||{});const prio={r:1,c:2,g:2,y:3};const cur=m.hl[i][p];if(!cur||prio[c]>=prio[cur])m.hl[i][p]=c;}
+const CYF_MAX_MATCH=5000;
+
+// ── Moteur « relation » : valeur (ligne i, pos P1) → fonction → valeur (ligne i+week, pos P2) ──
+// spec.fn : {kind:'op',op,k} | {kind:'tr',tr} | {kind:'trop',tr,op,k}
+function cyfApplyFn(x,fn,set){
+  if(x==null)return null;
+  if(fn.kind==='tr')return cyfTr(x,fn.tr);
+  if(fn.kind==='trop'){const t=cyfTr(x,fn.tr);return t==null?null:cyfFit(cyfOp(t,fn.op,fn.k),set);}
+  return cyfFit(cyfOp(x,fn.op,fn.k),set);
+}
+function cyfFnLabel(fn){
+  if(fn.kind==='tr')return cyfTrLabel(fn.tr);
+  if(fn.kind==='trop')return cyfTrLabel(fn.tr)+' '+CYF_OPSYM[fn.op]+' '+fn.k;
+  return CYF_OPSYM[fn.op]+' '+fn.k;
+}
+// Renvoie la liste des couples trouvés pour la relation partant de la ligne base
+function cyfRel(rows,base,R,k,set){
+  const j=base+R.week;if(j<0||j>=rows.length||base<0||base>=rows.length)return[];
+  const out=[];
+  for(const pa of cyfPosList(R.p1,k)){
+    const x=cyfVal(rows,base,pa);if(x==null)continue;
+    const y=cyfApplyFn(x,R.fn,set);if(y==null)continue;
+    if(!cyfFilterOk(y,R.filt))continue;
+    for(const pb of cyfPosList(R.p2,k)){
+      if(j===base&&pb===pa)continue; // même case : ignoré
+      if(cyfVal(rows,j,pb)===y)out.push({i:base,pa,x,j,pb,y});
+    }
+  }
+  return out;
+}
+function cyfBankersOk(rows,res,bankers,k,m){
+  for(const b of bankers||[]){
+    const li=res+b.week;if(li<0||li>=rows.length)return false;
+    let found=-1;for(const p of cyfPosList(b.pos,k)){if(rows[li].n[p]===b.num){found=p;break;}}
+    if(found<0)return false;
+    if(m)cyfAddHL(m,li,found,'c');
+  }
+  return true;
+}
+function cyfMakeMatch(g,base,res,extra){return Object.assign({g,base,res,hl:{},lines:[base,res]},extra||{});}
+// Opération / Transformation simple
+function cyfSearchSimple(q){
+  const set=cyfSet(),out=[];
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g),k=cyfK(rows);
+    for(let i=0;i<rows.length&&out.length<CYF_MAX_MATCH;i++){
+      const hits=cyfRel(rows,i,q.R,k,set);if(!hits.length)continue;
+      const j=i+q.R.week;
+      const m=cyfMakeMatch(g,i,j,{info:hits.map(h=>`D${h.pa+1} ${h.x} ${cyfFnLabel(q.R.fn)} = ${h.y} (D${h.pb+1}, ligne ${rows[j].t})`).join(' · ')});
+      if(!cyfBankersOk(rows,j,q.bankers,k,m))continue;
+      hits.forEach(h=>{cyfAddHL(m,h.i,h.pa,'r');cyfAddHL(m,h.j,h.pb,'y');});
+      (q.bankers||[]).forEach(b=>m.lines.push(j+b.week));
+      m.hits=hits;out.push(m);
+    }
+  }
+  return out;
+}
+// Double opération / double transformation : bloc A sur la ligne i, bloc B sur la ligne i+WeekInter
+function cyfSearchDouble(q){
+  const set=cyfSet(),out=[];
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g),k=cyfK(rows);
+    for(let i=0;i<rows.length&&out.length<CYF_MAX_MATCH;i++){
+      const a=cyfRel(rows,i,q.A,k,set);if(!a.length)continue;
+      const bi=i+q.wi;const b=cyfRel(rows,bi,q.B,k,set);if(!b.length)continue;
+      const res=Math.max(i+q.A.week,bi+q.B.week,i,bi);
+      const m=cyfMakeMatch(g,Math.min(i,bi),res,{info:'A : '+a.map(h=>`${h.x} ${cyfFnLabel(q.A.fn)} = ${h.y}`).join(', ')+' · B : '+b.map(h=>`${h.x} ${cyfFnLabel(q.B.fn)} = ${h.y}`).join(', ')});
+      a.concat(b).forEach(h=>{cyfAddHL(m,h.i,h.pa,'r');cyfAddHL(m,h.j,h.pb,'y');m.lines.push(h.i,h.j);});
+      m.hitsA=a;m.hitsB=b;out.push(m);
+    }
+  }
+  return out;
+}
+// Module 26 : v1 op2 v2 op3 v3 … (de gauche à droite) = valeur (base+WeekRes, PosRes)
+function cyfFormulaHits(rows,base,F,k,set){
+  const D=F.draws;const opts=D.map(d=>{const li=base+d.week;return(li<0||li>=rows.length)?null:cyfPosList(d.pos,k).map(p=>({li,p,v:rows[li].n[p]})).filter(o=>o.v!=null);});
+  if(opts.some(o=>!o||!o.length))return[];
+  const rl=base+F.wr;if(rl<0||rl>=rows.length)return[];
+  const out=[];const pick=[];
+  const rec=(idx,acc)=>{
+    if(out.length>20)return;
+    if(idx===D.length){
+      const v=cyfFit(acc,set);if(v==null)return;
+      for(const p of cyfPosList(F.pr,k)){
+        if(rows[rl].n[p]!==v)continue;
+        if(pick.some(o=>o.li===rl&&o.p===p))continue;
+        out.push({ops:pick.slice(),rl,rp:p,v,raw:acc});
+      }
+      return;
+    }
+    for(const o of opts[idx]){
+      if(pick.some(q=>q.li===o.li&&q.p===o.p))continue;
+      const nv=idx===0?o.v:cyfOp(acc,D[idx].op,o.v);
+      if(!Number.isFinite(nv))continue;
+      pick.push(o);rec(idx+1,nv);pick.pop();
+    }
+  };
+  rec(0,0);
+  return out;
+}
+function cyfFormulaText(F,h){return h.ops.map((o,i)=>(i?` ${CYF_OPSYM[F.draws[i].op]} `:'')+o.v).join('')+' = '+h.v+(h.raw!==h.v?` (${h.raw} ramené)`:'');}
+function cyfSearchFormula(q){
+  const set=cyfSet(),out=[];
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g),k=cyfK(rows);
+    for(let i=0;i<rows.length&&out.length<CYF_MAX_MATCH;i++){
+      const a=cyfFormulaHits(rows,i,q.A,k,set);if(!a.length)continue;
+      let b=[];
+      if(q.B){b=cyfFormulaHits(rows,i+q.wi,q.B,k,set);if(!b.length)continue;}
+      const res=Math.max(i+q.A.wr,q.B?i+q.wi+q.B.wr:-1);
+      const m=cyfMakeMatch(g,i,res,{label:rows[res].t,info:a.map(h=>cyfFormulaText(q.A,h)).join(' · ')+(q.B?' | B : '+b.map(h=>cyfFormulaText(q.B,h)).join(' · '):'')});
+      a.concat(b).forEach(h=>{h.ops.forEach(o=>{cyfAddHL(m,o.li,o.p,'c');m.lines.push(o.li);});cyfAddHL(m,h.rl,h.rp,'y');m.lines.push(h.rl);});
+      m.hitsA=a;m.hitsB=b;out.push(m);
+    }
+  }
+  return out;
+}
+// 2 à 5 Nap sur une ligne
+function cyfSearchNap(q){
+  const out=[];
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g);
+    rows.forEach((r,i)=>{
+      if(out.length>=CYF_MAX_MATCH)return;
+      if(!q.nums.every(x=>r.n.includes(x)))return;
+      const m=cyfMakeMatch(g,i,i,{info:q.nums.join(' - ')});
+      q.nums.forEach(x=>cyfAddHL(m,i,r.n.indexOf(x),'y'));out.push(m);
+    });
+  }
+  return out;
+}
+// Recherche Automatique 8
+function cyfPairs(nums){const v=nums.filter(x=>x!=null),o=[];for(let a=0;a<v.length;a++)for(let b=a+1;b<v.length;b++)o.push([v[a],v[b]]);return o;}
+function cyfShare(a,b){if(!a||!b)return[];const s=new Set(a.n.filter(x=>x!=null));return b.n.filter(x=>x!=null&&s.has(x));}
+function cyfSearchRA8(q){
+  const trows=cyfRows(q.g);const ti=trows.byT[q.t];
+  if(ti==null)return{error:'Tirage N° '+q.t+' introuvable dans '+cyfName(q.g)+'.'};
+  const W=q.win||20,S=q.seuil||8;
+  if(ti-W<0)return{error:'Pas assez de lignes avant le tirage N° '+q.t+' (il en faut '+W+').'};
+  const T0=trows[ti];const pairs=cyfPairs(T0.n);
+  const byComb=q.loto==='comb';const lotos=byComb?cyfSet().fav:cyfLotos(q.loto);
+  const out=[];
+  for(const g of lotos){
+    const rows=cyfRows(g);
+    for(let h=W;h<rows.length&&out.length<CYF_MAX_MATCH;h++){
+      if(g===q.g&&h>=ti)break; // « Exclure à partir du tirage »
+      if(q.inv&&h+W>=rows.length)break;
+      let pairIn=[];
+      if(byComb){pairIn=pairs.filter(([a,b])=>rows[h].n.includes(a)&&rows[h].n.includes(b));if(!pairIn.length)continue;}
+      let cnt=0;const rowsHit=[];
+      for(let o=1;o<=W;o++){
+        const hr=q.inv?h+o:h-o;
+        const sh=cyfShare(trows[ti-o],rows[hr]);
+        if(sh.length){cnt++;rowsHit.push({o,hr,sh});}
+        if(cnt+(W-o)<S)break;
+      }
+      if(cnt<S)continue;
+      const m=cyfMakeMatch(g,h,h,{cnt,pairs:pairIn.map(p=>p.join('-')),info:cnt+' lignes sur '+W+' en commun avec '+cyfName(q.g)+' N° '+q.t+(pairIn.length?' · paire(s) '+pairIn.map(p=>p.join('-')).join(', '):'')});
+      rowsHit.forEach(x=>{x.sh.forEach(v=>cyfAddHL(m,x.hr,rows[x.hr].n.indexOf(v),'y'));m.lines.push(x.hr);});
+      pairIn.forEach(([a,b])=>{cyfAddHL(m,h,rows[h].n.indexOf(a),'g');cyfAddHL(m,h,rows[h].n.indexOf(b),'g');});
+      m.rowsHit=rowsHit;out.push(m);
+    }
+  }
+  return{matches:out,pairs:pairs.map(p=>p.join('-')),byComb,target:{g:q.g,t:q.t,i:ti}};
+}
+// ── Liste des modules (numérotation Cybetcast, version 41 modules) ──
+// map = n° du module équivalent dans l'onglet Modules (CYB44 / openCyb), approx = pas identique
+const CYF_MODS=[
+  {n:1,id:'ligne1',t:'Une Ligne de Tirages'},
+  {n:2,id:'lignes',t:'Plusieurs Lignes de Tirages'},
+  {n:3,id:'derniere',t:'Dernière Ligne de Tirages'},
+  {n:4,id:'nap2',t:'2 Nap sur une Ligne',nap:2},
+  {n:5,id:'nap3',t:'3 Nap sur une Ligne',nap:3},
+  {n:6,id:'nap4',t:'4 Nap sur une Ligne',nap:4},
+  {n:7,id:'nap5',t:'5 Nap sur une Ligne',nap:5},
+  {n:8,map:9,t:'2 Bankers Verticalement Alignés'},
+  {n:9,map:10,t:'3 Bankers Verticalement Alignés'},
+  {n:10,map:11,t:'Plusieurs Bankers Verticalement Alignés'},
+  {n:11,map:12,t:'2 Bankers sur Différentes Lignes - Avec Position'},
+  {n:12,map:13,t:'3 Bankers sur Différentes Lignes - Avec Position'},
+  {n:13,map:14,t:'Plusieurs Bankers sur Différentes Lignes - Avec Position'},
+  {n:17,map:18,t:'Addition de 2 Draws sur une Ligne - Avec Position'},
+  {n:18,map:19,t:'Addition sur Plusieurs Lignes – Avec Position',approx:true},
+  {n:21,id:'tr1',t:'Transformation Simple (Counter, Turning...)'},
+  {n:22,id:'tr2',t:'Double Transformation (Counter, Turning...)'},
+  {n:23,id:'op1',t:'Opération Simple (+, -, x, /)'},
+  {n:24,id:'op2',t:'Double Opération (+, -, x, /)'},
+  {n:25,id:'trop',t:'Transformation (Counter, Turning...) & Opération (+, -, x, /)'},
+  {n:26,id:'dr1',t:'Opérations (Draws & Résultats) - Avec Positions'},
+  {n:27,id:'dr2',t:'Double Opération (Draws & Résultats) - Avec Positions'},
+  {n:28,id:'nontires',t:'Numéros Non Tirés dans l’Année'},
+  {n:33,map:34,t:'Recherche Automatique 4'},
+  {n:'RA8',id:'ra8',t:'Recherche Automatique 8',note:'n° 37 dans la version 43 modules'},
+  {n:37,id:'cmp2',t:'Comparer 2 Plages de Tirages'},
+  {n:38,id:'cmp3',t:'Comparer 3 Plages de Tirages'},
+  {n:39,map:42,t:'Pickin | Oblique'},
+  {n:40,id:'combi',t:'Combinaison de Numéros'},
+  {n:41,id:'bauto',t:'Bankers Automatique'}
+];
+const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});
+const CYF={view:'modules',mod:null,form:{},res:null,selG:null,selK:null,selM:0,tool:null,color:'#FDE047',paint:false,menu:null,grp:null,grpView:'table',statTab:'b',statRes:false,drop:false,info:null};
+function cyfModLabel(m){return(typeof m.n==='number'?m.n+'-) ':m.n+' · ')+m.t;}
+function cyfRecents(){return cyfLS(CYF_LS.recent,[]).filter(id=>CYF_MOD_BY[id]||/^map:/.test(id)).slice(0,6);}
+function cyfPushRecent(id){const r=cyfRecents().filter(x=>x!==id);r.unshift(id);cyfLSset(CYF_LS.recent,r.slice(0,6));}
+function cyfOpenMod(key){
+  CYF.drop=false;
+  if(/^map:/.test(key)){
+    const n=+key.slice(4);cyfPushRecent(key);
+    state.methodesOpen=false;state.showSearchHub=true;state.hubView='cyb';state.searchModuleOpen=null;
+    if(typeof openCyb==='function')openCyb(n);else render();
+    return;
+  }
+  if(!CYF_MOD_BY[key])return;
+  cyfPushRecent(key);CYF.view='modules';CYF.mod=key;CYF.res=null;CYF.selG=null;CYF.selK=null;CYF.selM=0;
+  cyfRefresh();
+  try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
+}
+function cyfRefresh(){const el=document.getElementById('cyf-root');if(el)el.innerHTML=cyfBodyHTML();else render();}
+// ── Formulaires : valeurs mémorisées par module ──
+function cyfF(key,def){const f=CYF.form[CYF.mod]||{};return f[key]!==undefined?f[key]:def;}
+function cyfReadForm(){
+  const box=document.getElementById('cyf-form');if(!box)return CYF.form[CYF.mod]||{};
+  const f=Object.assign({},CYF.form[CYF.mod]||{});
+  box.querySelectorAll('[data-k]').forEach(el=>{f[el.dataset.k]=el.type==='checkbox'?el.checked:el.value;});
+  CYF.form[CYF.mod]=f;return f;
+}
+function cyfFormChanged(el){const f=cyfReadForm();if(el&&el.dataset&&/^g\d?$/.test(el.dataset.k||'')){const sx=el.dataset.k.slice(1);['t'+sx].concat(sx?[]:['ta','tb','ya','yb','y']).forEach(k=>{delete f[k];});}cyfRefresh();}
+const CYF_SEL='padding:9px 10px;border:1.5px solid #9FB8BE;border-radius:8px;font-size:14px;background:#fff;color:#12343B;max-width:100%;min-width:0';
+function cyfField(label,inner,w){return`<label class="cyf-fld" style="${w?'flex:'+w:''}"><span>${label}</span>${inner}</label>`;}
+function cyfSelect(k,opts,val,onchange){return`<select data-k="${k}" style="${CYF_SEL}" ${onchange?'onchange="cyfFormChanged()"':''}>${opts.map(([v,l])=>`<option value="${cyfEsc(v)}" ${String(v)===String(val)?'selected':''}>${cyfEsc(l)}</option>`).join('')}</select>`;}
+function cyfNum(k,val,ph,w){return`<input data-k="${k}" type="number" value="${cyfEsc(val)}" placeholder="${cyfEsc(ph||'')}" style="${CYF_SEL};width:${w||'100%'}">`;}
+function cyfPosOpts(withAny){const o=withAny===false?[]:[['0','Qu’importe']];for(let i=1;i<=5;i++)o.push([String(i),'Position '+i]);return o;}
+const CYF_WEEK_PRESETS=[['-1','Une semaine avant (-1)'],['0','Même ligne (0)'],['1','Une semaine après (1)'],['2','Deux semaines après (2)'],['3','Trois semaines après (3)']];
+function cyfWeek(k,val){return`<div style="display:flex;gap:4px">${cyfNum(k,val,'0','72px')}<select style="${CYF_SEL};flex:1" onchange="const i=this.previousElementSibling;i.value=this.value;this.selectedIndex=0"><option value="">Préréglages…</option>${CYF_WEEK_PRESETS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>`;}
+function cyfGameOpts(withAll,allLabel){
+  const groups={};Object.keys(GAMES).forEach(k=>{const c=gameCountry(k);(groups[c]=groups[c]||[]).push(k);});
+  return{all:withAll,allLabel:allLabel||'Toutes les lotos (favorites)',groups};
+}
+function cyfGameSel(k,val,withAll,allLabel,onchange){
+  const o=cyfGameOpts(withAll,allLabel);
+  let h=`<select data-k="${k}" style="${CYF_SEL};width:100%" ${onchange?'onchange="cyfFormChanged(this)"':''}>`;
+  if(withAll)h+=`<option value="${withAll}" ${val===withAll?'selected':''}>${cyfEsc(o.allLabel)}</option>`;
+  Object.entries(o.groups).forEach(([c,ks])=>{h+=`<optgroup label="${cyfEsc(c)}">`+ks.map(g=>`<option value="${g}" ${g===val?'selected':''}>${cyfEsc(GAMES[g].icon+' '+GAMES[g].name)}</option>`).join('')+'</optgroup>';});
+  return h+'</select>';
+}
+function cyfOpSel(k,val){return cyfSelect(k,CYF_OPS,val||'+');}
+function cyfTrSel(k,val){return cyfSelect(k,ELM_DEF.map(d=>[d.key,d.label]),val||'counter');}
+function cyfBtn(label,act,kind){const st=kind==='ghost'?'background:#fff;color:#0F5A63;border:1.5px solid #0F5A63':kind==='warn'?'background:#fff;color:#B91C1C;border:1.5px solid #FCA5A5':'background:#0F5A63;color:#fff;border:1.5px solid #0F5A63';return`<button onclick="${act}" style="${st};padding:9px 14px;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">${label}</button>`;}
+function cyfLotoField(k,def){return cyfField('Choisir la Loto',cyfGameSel(k||'loto',cyfF(k||'loto',def||'all'),'all'),'1 1 220px');}
+// Bloc relation (Position Draw1 / Week / Opération / Opérande / Position Draw2) — préfixe px
+function cyfRelBlock(px,kind,opts){
+  opts=opts||{};let h='<div class="cyf-row">';
+  h+=cyfField('Position Draw1',cyfSelect(px+'p1',cyfPosOpts(),cyfF(px+'p1','0')));
+  h+=cyfField('Week',cyfWeek(px+'w',cyfF(px+'w',opts.w!=null?opts.w:'0')));
+  if(kind==='tr'||kind==='trop')h+=cyfField('Transformation',cyfTrSel(px+'tr',cyfF(px+'tr','counter')));
+  if(kind==='op'||kind==='trop'){h+=cyfField('Opération',cyfOpSel(px+'op',cyfF(px+'op','+')));h+=cyfField('Opérande',cyfNum(px+'k',cyfF(px+'k','1')));}
+  h+=cyfField('Position Draw 2',cyfSelect(px+'p2',cyfPosOpts(),cyfF(px+'p2','0')));
+  h+='</div>';
+  if(opts.filters){
+    const grp=[['0','N’importe quel groupe']];for(let i=1;i<=9;i++)grp.push([String(i),'Group '+i]);
+    const end=[['','N’importe quel Ending']];for(let i=0;i<=9;i++)end.push([String(i),'Ending '+i]);
+    h+=`<div class="cyf-row cyf-sub">${cyfField('🏷 Le Draw est dans quel groupe',cyfSelect(px+'grp',grp,cyfF(px+'grp','0')))}${cyfField('🏷 Le Draw est terminé par',cyfSelect(px+'end',end,cyfF(px+'end','')))}
+      <label class="cyf-chk"><input type="checkbox" data-k="${px}single" ${cyfF(px+'single',false)?'checked':''}> Le Draw est un Single Number (1-9)</label>
+      <label class="cyf-chk"><input type="checkbox" data-k="${px}dbl" ${cyfF(px+'dbl',false)?'checked':''}> Le Draw est un Double Number (11, 22 … 88)</label></div>`;
+  }
+  return h;
+}
+function cyfReadRel(f,px,kind){
+  const fn=kind==='tr'?{kind:'tr',tr:f[px+'tr']||'counter'}:kind==='trop'?{kind:'trop',tr:f[px+'tr']||'counter',op:f[px+'op']||'+',k:cyfInt(f[px+'k'],0)}:{kind:'op',op:f[px+'op']||'+',k:cyfInt(f[px+'k'],0)};
+  return{p1:cyfInt(f[px+'p1'],0),week:cyfInt(f[px+'w'],0),fn,p2:cyfInt(f[px+'p2'],0),filt:{grp:cyfInt(f[px+'grp'],0),end:f[px+'end']==null?'':f[px+'end'],single:!!f[px+'single'],dbl:!!f[px+'dbl']}};
+}
+function cyfBankersBlock(){
+  const nb=Math.max(0,Math.min(10,cyfInt(cyfF('nbb','0'),0)));
+  const o=[['0','Sans banker']];for(let i=1;i<=10;i++)o.push([String(i),'Avec '+i+' banker'+(i>1?'s':'')]);
+  let h=`<div class="cyf-row">${cyfField('Avec combien de Banker :',`<select data-k="nbb" style="${CYF_SEL}" onchange="cyfFormChanged()">${o.map(([v,l])=>`<option value="${v}" ${+v===nb?'selected':''}>${l}</option>`).join('')}</select>`)}</div>`;
+  for(let i=0;i<nb;i++)h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Banker ${i+1}</b>${cyfField('Week (depuis la ligne résultat)',cyfWeek('bw'+i,cyfF('bw'+i,'0')))}${cyfField('Banker',cyfNum('bn'+i,cyfF('bn'+i,''),'1–90'))}${cyfField('Position',cyfSelect('bp'+i,cyfPosOpts(),cyfF('bp'+i,'0')))}</div>`;
+  return h;
+}
+function cyfReadBankers(f){
+  const nb=Math.max(0,Math.min(10,cyfInt(f.nbb,0))),out=[];
+  for(let i=0;i<nb;i++){const num=cyfInt(f['bn'+i],NaN);if(!(num>=1&&num<=90))return{error:'Banker '+(i+1)+' : entrez un numéro entre 1 et 90.'};out.push({week:cyfInt(f['bw'+i],0),num,pos:cyfInt(f['bp'+i],0)});}
+  return{list:out};
+}
+// Bloc formule (module 26/27)
+function cyfFormulaBlock(px,title){
+  const nd=Math.max(1,Math.min(10,cyfInt(cyfF(px+'nd','2'),2)));
+  const o=[];for(let i=1;i<=10;i++)o.push([String(i),'Avec '+(i===1?'un numéro':i+' numéros')]);
+  let h=title?`<div class="cyf-h3">${title}</div>`:'';
+  h+=`<div class="cyf-row">${cyfField('Avec combien de Draws :',`<select data-k="${px}nd" style="${CYF_SEL}" onchange="cyfFormChanged()">${o.map(([v,l])=>`<option value="${v}" ${+v===nd?'selected':''}>${l}</option>`).join('')}</select>`)}</div>`;
+  for(let i=0;i<nd;i++)h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Draw ${i+1}</b>${cyfField('Week',cyfWeek(px+'w'+i,cyfF(px+'w'+i,String(i===0?0:i))))}${i?cyfField('Opération',cyfOpSel(px+'o'+i,cyfF(px+'o'+i,'+'))):''}${cyfField('Position',cyfSelect(px+'p'+i,cyfPosOpts(),cyfF(px+'p'+i,String(Math.min(5,i+1)))))}</div>`;
+  h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag" style="background:#FDE047;color:#713F12">Résultats</b>${cyfField('Week Resultat',cyfWeek(px+'wr',cyfF(px+'wr','1')))}${cyfField('Position Draw Resultat',cyfSelect(px+'pr',cyfPosOpts(),cyfF(px+'pr','0')))}</div>`;
+  return h;
+}
+function cyfReadFormula(f,px){
+  const nd=Math.max(1,Math.min(10,cyfInt(f[px+'nd'],2)));const draws=[];
+  for(let i=0;i<nd;i++)draws.push({week:cyfInt(f[px+'w'+i],0),op:f[px+'o'+i]||'+',pos:cyfInt(f[px+'p'+i],0)});
+  const any=draws.filter(d=>!d.pos).length;
+  if(any>4)return{error:'Trop de « Qu’importe » (maximum 4 draws en Qu’importe), sinon la recherche est trop lente.'};
+  return{draws,wr:cyfInt(f[px+'wr'],1),pr:cyfInt(f[px+'pr'],0)};
+}
+// ── Formulaires des modules ──
+function cyfFormHTML(id){
+  const m=CYF_MOD_BY[id];let h='';
+  const go=`<div class="cyf-row" style="margin-top:6px">${cyfBtn('↻ Actualiser','cyfRun()')}</div>`;
+  if(id==='ligne1'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('N° Tirage',cyfNum('t',cyfF('t',rows.length?rows[rows.length-1].t:''),'N°'))}</div>`+go;
+  }else if(id==='lignes'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);const mode=cyfF('mode','t');
+    const last=rows.length?rows[rows.length-1]:null;
+    h+=`<div class="cyf-row">${cyfField('Mode',cyfSelect('mode',[['t','Recherche par N° Tirage'],['y','Recherche par Année']],mode,true))}${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}</div>`;
+    h+=mode==='y'?`<div class="cyf-row">${cyfField('Début (année)',cyfNum('ya',cyfF('ya',last?last.y:''),'2025'))}${cyfField('Fin (année)',cyfNum('yb',cyfF('yb',last?last.y:''),'2026'))}</div>`
+      :`<div class="cyf-row">${cyfField('Début (N° tirage)',cyfNum('ta',cyfF('ta',last?Math.max(rows[0].t,last.t-30):''),'N°'))}${cyfField('Fin (N° tirage)',cyfNum('tb',cyfF('tb',last?last.t:''),'N°'))}</div>`;
+    h+=go;
+  }else if(id==='derniere'){
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key),null,null,false),'1 1 220px')}</div>`+go;
+  }else if(m&&m.nap){
+    let ins='';for(let i=0;i<m.nap;i++)ins+=cyfField('Numéro '+(i+1),cyfNum('x'+i,cyfF('x'+i,''),'1–90'));
+    h+=`<div class="cyf-row">${ins}</div><div class="cyf-row">${cyfLotoField()}</div>`+go;
+  }else if(id==='op1'||id==='tr1'||id==='trop'){
+    const kind=id==='op1'?'op':id==='tr1'?'tr':'trop';
+    h+=cyfRelBlock('',kind,{filters:true})+cyfBankersBlock()+`<div class="cyf-row">${cyfLotoField()}</div>`+go;
+  }else if(id==='op2'||id==='tr2'){
+    const kind=id==='op2'?'op':'tr';
+    h+=`<div class="cyf-h3">A</div>`+cyfRelBlock('a',kind)+`<div class="cyf-h3">B</div><div class="cyf-row">${cyfField('Week Inter (de A vers B)',cyfWeek('wi',cyfF('wi','1')))}</div>`+cyfRelBlock('b',kind)+`<div class="cyf-row">${cyfLotoField()}</div>`+go;
+  }else if(id==='dr1'){
+    h+=cyfFormulaBlock('a')+`<div class="cyf-row">${cyfLotoField()}</div>`+go;
+  }else if(id==='dr2'){
+    h+=cyfFormulaBlock('a','A')+`<div class="cyf-h3">B</div><div class="cyf-row">${cyfField('Week Inter (de A vers B)',cyfWeek('wi',cyfF('wi','1')))}</div>`+cyfFormulaBlock('b')+`<div class="cyf-row">${cyfLotoField()}</div>`+go;
+  }else if(id==='nontires'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);const ys=[...new Set(rows.map(r=>r.y))].sort((a,b)=>b-a);
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Année',cyfSelect('y',ys.map(y=>[y,y]),cyfF('y',ys[0]||'')))}</div>`+go;
+  }else if(id==='ra8'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);
+    h+=`<div class="cyf-row">${cyfField('Lotto de Pronostic',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Exclure à partir du tirage (N°)',cyfNum('t',cyfF('t',rows.length?rows[rows.length-1].t:''),'N°'))}</div>
+      <div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('loto',cyfF('loto','comb'),'comb','Par Combinaisons (lotos favorites)'),'1 1 220px')}${cyfField('Lignes comparées',cyfNum('win',cyfF('win','20')))}${cyfField('Minimum de lignes en commun',cyfNum('seuil',cyfF('seuil','8')))}</div>
+      <label class="cyf-chk"><input type="checkbox" data-k="inv" ${cyfF('inv',false)?'checked':''}> Faire une recherche inversée</label>`+go;
+  }else if(id==='cmp2'||id==='cmp3'){
+    const n=id==='cmp2'?2:3;let r='';
+    for(let i=1;i<=n;i++){const g=cyfF('g'+i,GAME.key);const rows=cyfRows(g);r+=`<div class="cyf-row">${cyfField('Loterie '+i,cyfGameSel('g'+i,g,null,null,true),'1 1 200px')}${cyfField('Ligne '+i+' (N° tirage)',cyfNum('t'+i,cyfF('t'+i,rows.length?rows[Math.max(0,rows.length-1-(i-1)*52)].t:''),'N°'))}</div>`;}
+    h+=r+`<div class="cyf-row">${cyfField('Nombre de lignes',cyfNum('nb',cyfF('nb','20')))}${cyfField('Sens',cyfSelect('inv',[['0','Non inversé'],['1','Inversé']],cyfF('inv','0')))}${cyfField('Lignes après la dernière plage',cyfNum('aft',cyfF('aft','3')))}</div>`+go;
+  }else if(id==='combi'){
+    h+=`<div class="cyf-row">${cyfField('Nombre de bankers',cyfNum('nb',cyfF('nb','10')))}</div>`+go;
+  }else if(id==='bauto'){
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Fenêtre (derniers tirages)',cyfNum('w',cyfF('w','50')))}${cyfField('Nombre de bankers',cyfNum('c',cyfF('c','5')))}</div>`+go;
+  }
+  return`<div id="cyf-form" class="cyf-card">${h}</div>`;
+}
+// ── Lancer un module ──
+function cyfRun(){
+  const f=cyfReadForm();const id=CYF.mod;const m=CYF_MOD_BY[id];
+  CYF.res=null;CYF.selG=null;CYF.selK=null;CYF.selM=0;
+  const t0=performance.now();
+  let res=null;
+  try{res=cyfCompute(id,f,m);}catch(e){res={error:'Erreur pendant le calcul : '+(e&&e.message||e)};console.error(e);}
+  if(res)res.ms=Math.round(performance.now()-t0);
+  CYF.res=res;cyfRefresh();
+  setTimeout(()=>{const el=document.getElementById('cyf-res');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'});},40);
+}
+function cyfCompute(id,f,m){
+  if(id==='ligne1'){const rows=cyfRows(f.g);const i=rows.byT[cyfInt(f.t,-1)];if(i==null)return{error:'Tirage N° '+f.t+' introuvable.'};return{kind:'list',g:f.g,from:i,to:i,title:cyfName(f.g)+' ligne '+rows[i].t};}
+  if(id==='derniere'){const rows=cyfRows(f.g||GAME.key);if(!rows.length)return{error:'Aucun tirage.'};return{kind:'list',g:f.g||GAME.key,from:rows.length-1,to:rows.length-1,title:cyfName(f.g||GAME.key)+' ligne '+rows[rows.length-1].t};}
+  if(id==='lignes'){
+    const rows=cyfRows(f.g);let a,b;
+    if(f.mode==='y'){const ya=cyfInt(f.ya,0),yb=cyfInt(f.yb,ya);a=rows.findIndex(r=>+r.y>=Math.min(ya,yb));b=-1;rows.forEach((r,i)=>{if(+r.y<=Math.max(ya,yb))b=i;});}
+    else{const ta=cyfInt(f.ta,0),tb=cyfInt(f.tb,ta);a=rows.findIndex(r=>r.t>=Math.min(ta,tb));b=-1;rows.forEach((r,i)=>{if(r.t<=Math.max(ta,tb))b=i;});}
+    if(a<0||b<a)return{error:'Aucune ligne dans cet intervalle.'};
+    if(b-a>3000)a=b-3000;
+    return{kind:'list',g:f.g,from:a,to:b,title:cyfName(f.g)+' ligne '+rows[a].t+' à '+rows[b].t};
+  }
+  if(m&&m.nap){
+    const nums=[];for(let i=0;i<m.nap;i++){const v=cyfInt(f['x'+i],NaN);if(!(v>=1&&v<=90))return{error:'Entrez '+m.nap+' numéros entre 1 et 90.'};nums.push(v);}
+    if(new Set(nums).size!==nums.length)return{error:'Les numéros doivent être différents.'};
+    return{kind:'search',matches:cyfSearchNap({nums,loto:f.loto}),desc:m.t+' : '+nums.join(' - ')};
+  }
+  if(id==='op1'||id==='tr1'||id==='trop'){
+    const kind=id==='op1'?'op':id==='tr1'?'tr':'trop';const R=cyfReadRel(f,'',kind);const b=cyfReadBankers(f);if(b.error)return{error:b.error};
+    if((kind==='op'||kind==='trop')&&R.fn.op==='/'&&R.fn.k===0)return{error:'Division par zéro.'};
+    return{kind:'search',matches:cyfSearchSimple({R,bankers:b.list,loto:f.loto}),desc:'Draw1 '+(R.p1?'pos '+R.p1:'qu’importe')+' '+cyfFnLabel(R.fn)+' = Draw2 '+(R.p2?'pos '+R.p2:'qu’importe')+' (week '+R.week+')'+(b.list.length?' · '+b.list.length+' banker(s)':'')};
+  }
+  if(id==='op2'||id==='tr2'){
+    const kind=id==='op2'?'op':'tr';const A=cyfReadRel(f,'a',kind),B=cyfReadRel(f,'b',kind);
+    return{kind:'search',matches:cyfSearchDouble({A,B,wi:cyfInt(f.wi,0),loto:f.loto}),desc:'A : '+cyfFnLabel(A.fn)+' (week '+A.week+') · Week Inter '+cyfInt(f.wi,0)+' · B : '+cyfFnLabel(B.fn)+' (week '+B.week+')'};
+  }
+  if(id==='dr1'||id==='dr2'){
+    const A=cyfReadFormula(f,'a');if(A.error)return A;let B=null;
+    if(id==='dr2'){B=cyfReadFormula(f,'b');if(B.error)return B;}
+    return{kind:'search',matches:cyfSearchFormula({A,B,wi:cyfInt(f.wi,0),loto:f.loto}),desc:'Formule '+A.draws.map((d,i)=>(i?CYF_OPSYM[d.op]+' ':'')+'[w'+d.week+(d.pos?' D'+d.pos:' D?')+']').join(' ')+' = [w'+A.wr+(A.pr?' D'+A.pr:' D?')+']'+(B?' · + bloc B':'')};
+  }
+  if(id==='nontires'){
+    const rows=cyfRows(f.g);const ys=rows.filter(r=>r.y===String(f.y));const seen=new Set();ys.forEach(r=>r.n.forEach(v=>v&&seen.add(v)));
+    const miss=[];for(let v=1;v<=90;v++)if(!seen.has(v))miss.push(v);
+    return{kind:'nums',title:cyfName(f.g)+' — '+f.y+' ('+ys.length+' tirages)',nums:miss,label:'Numéros non tirés'};
+  }
+  if(id==='ra8'){
+    const r=cyfSearchRA8({g:f.g,t:cyfInt(f.t,-1),loto:f.loto||'comb',inv:!!f.inv,win:Math.max(5,Math.min(40,cyfInt(f.win,20))),seuil:Math.max(1,cyfInt(f.seuil,8))});
+    if(r.error)return r;
+    return Object.assign({kind:'search',desc:'Recherche Automatique 8 : '+cyfName(f.g)+' N° '+f.t+(f.inv?' (inversée)':'')},r);
+  }
+  if(id==='cmp2'||id==='cmp3'){
+    const n=id==='cmp2'?2:3;const pl=[];
+    for(let i=1;i<=n;i++){const g=f['g'+i],rows=cyfRows(g),ix=rows.byT[cyfInt(f['t'+i],-1)];if(ix==null)return{error:'Ligne '+i+' : tirage N° '+f['t'+i]+' introuvable dans '+cyfName(g)+'.'};pl.push({g,i:ix});}
+    return{kind:'cmp',pl,nb:Math.max(2,Math.min(60,cyfInt(f.nb,20))),inv:f.inv==='1',aft:Math.max(0,Math.min(10,cyfInt(f.aft,3)))};
+  }
+  if(id==='combi'){const n=Math.max(0,Math.min(90,cyfInt(f.nb,0)));return{kind:'combi',n};}
+  if(id==='bauto'){
+    const rows=cyfRows(f.g);const W=Math.max(5,Math.min(1000,cyfInt(f.w,50))),C=Math.max(1,Math.min(20,cyfInt(f.c,5)));
+    const cnt=new Array(91).fill(0);rows.slice(-W).forEach(r=>r.n.forEach(v=>{if(v)cnt[v]++;}));
+    const top=[];for(let v=1;v<=90;v++)top.push(v);top.sort((a,b)=>cnt[b]-cnt[a]||a-b);
+    const desc=rows.slice().reverse().map(r=>({n:r.n.filter(Boolean)}));
+    const pred=h=>{const c=new Array(91).fill(0);h.slice(0,W).forEach(d=>d.n.forEach(v=>c[v]++));const t=[];for(let v=1;v<=90;v++)t.push(v);t.sort((a,b)=>c[b]-c[a]||a-b);return t.slice(0,C);};
+    const bt=methBacktestPredictor(desc,pred,{k:5,maxN:90,warmup:Math.max(METH_MIN_HIST,W),maxTests:400});
+    return{kind:'bauto',g:f.g,W,C,top:top.slice(0,C).map(v=>({v,c:cnt[v]})),bt};
+  }
+  return{error:'Module inconnu.'};
+}
+function methBacktestPredictor(draws,predict,opts){
+  opts=opts||{};const maxN=opts.maxN||90,k=opts.k||5,warmup=opts.warmup||METH_MIN_HIST,maxTests=opts.maxTests||METH_MAX_TESTS;
+  const N=draws.length;let tests=0,anyHit=0,sumHits=0,sumSize=0,emptyOut=0;
+  for(let i=0;i<N-warmup;i++){
+    if(tests>=maxTests)break;
+    const history=draws.slice(i+1);
+    if(history.length<warmup)break;
+    let pred;try{pred=predict(history);}catch(e){pred=null;}
+    const set=new Set((pred||[]).filter(v=>v>=1&&v<=maxN));
+    if(!set.size){emptyOut++;continue;}
+    const actual=draws[i].n||[];let hits=0;actual.forEach(v=>{if(set.has(v))hits++;});
+    tests++;sumSize+=set.size;sumHits+=hits;if(hits>0)anyHit++;
+  }
+  if(!tests)return{tests:0,error:'Pas assez de tirages pour un backtest fiable.'};
+  const avgSize=sumSize/tests,s=Math.max(1,Math.round(avgSize));
+  const baseHit=1-nCr(maxN-s,k)/nCr(maxN,k);
+  const hitRate=anyHit/tests,meanHits=sumHits/tests;
+  const margin=2.5*Math.sqrt((baseHit*(1-baseHit))/tests);
+  const verdict=hitRate>baseHit+margin?'au-dessus du hasard':hitRate<baseHit-margin?'en dessous du hasard':'dans la marge du hasard';
+  return{tests,hitRate,meanHits,base:{hitRate:baseHit},verdict};
+}
+// ── Nuancier (couleurs manuelles par loto / ligne / position) ──
+let CYF_NU=null;
+function cyfNu(){if(!CYF_NU)CYF_NU=cyfLS(CYF_LS.nuance,{})||{};return CYF_NU;}
+function cyfNuKey(g,t,p){return g+'|'+t+'|'+p;}
+// ── Tableau de tirages : L D M Y D1..D5 To ──
+function cyfTableHTML(g,idx,hl,opts){
+  opts=opts||{};const rows=cyfRows(g),k=cyfK(rows),nu=cyfNu();
+  let h=`<div class="cyf-tw"><table class="cyf-tbl"><thead>${opts.cap?`<tr><th colspan="${k+5}" class="cyf-cap">${cyfEsc(opts.cap)}</th></tr>`:''}<tr><th>L</th><th>D</th><th>M</th><th>Y</th>${Array.from({length:k},(_,p)=>`<th>D${p+1}</th>`).join('')}<th>To</th></tr></thead><tbody>`;
+  idx.forEach(i=>{
+    const r=i==null?null:rows[i];
+    if(!r){h+=`<tr class="cyf-pad"><td>·</td><td></td><td></td><td></td>${'<td>·</td>'.repeat(k)}<td></td></tr>`;return;}
+    const [dd,mm]=String(r.d).split('/');const H=(hl&&hl[i])||{};
+    const mk=opts.mark&&opts.mark.has(i);
+    h+=`<tr data-cyf="${g}|${i}" class="${mk?'cyf-mark':''}${opts.after&&opts.after.has(i)?' cyf-aft':''}" title="N° ${r.t} — double-clic ou appui long : actions"><td class="cyf-l">${r.L}</td><td>${cyfEsc(dd||'')}</td><td>${cyfEsc(mm||'')}</td><td>${cyfEsc(r.y)}</td>`;
+    for(let p=0;p<k;p++){const v=r.n[p];const c=H[p];const man=nu[cyfNuKey(g,r.t,p)];h+=`<td data-p="${p}" class="cyf-n${c?' cyf-'+c:''}"${man?` style="background:${man}"`:''}>${v==null?'':v}</td>`;}
+    h+=`<td class="cyf-to">${cyfSum(r)}</td></tr>`;
+  });
+  return h+'</tbody></table></div>';
+}
+function cyfRange(a,b,n){const o=[];for(let i=Math.max(0,a);i<=Math.min(n-1,b);i++)o.push(i);return o;}
+function cyfMatchWindow(m){const set=cyfSet(),rows=cyfRows(m.g);const lo=Math.min.apply(null,m.lines),hi=Math.max.apply(null,m.lines);return cyfRange(lo-set.avant,hi+set.apres,rows.length);}
+// ── Résultats d'une recherche : chips loto/paire → chips N° tirage → tableau ──
+function cyfGroups(res){
+  const gs=new Map();
+  if(res.byComb){res.pairs.forEach(p=>gs.set(p,{key:p,label:p,list:[]}));res.matches.forEach((m,ix)=>m.pairs.forEach(p=>gs.get(p)&&gs.get(p).list.push(ix)));}
+  else res.matches.forEach((m,ix)=>{if(!gs.has(m.g))gs.set(m.g,{key:m.g,label:cyfName(m.g),list:[]});gs.get(m.g).list.push(ix);});
+  return[...gs.values()].filter(x=>x.list.length).sort((a,b)=>b.list.length-a.list.length);
+}
+function cyfMatchLabel(m){const rows=cyfRows(m.g);return m.label!=null?m.label:rows[m.base].t;}
+function cyfSearchResHTML(res){
+  const n=res.matches.length;
+  let h=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${n}${n>=CYF_MAX_MATCH?'+':''})</b><span class="cyf-desc">${cyfEsc(res.desc||'')}</span><span style="flex:1"></span>${n?cyfBtn('📤 Exporter','cyfExport()','ghost')+cyfBtn('💾 Sauvegarder les lignes','cyfSaveLines()','ghost'):''}</div>`;
+  if(res.byComb)h+=`<div class="cyf-note">Paires du tirage cible : ${res.pairs.map(p=>`<span class="cyf-pill">${p}</span>`).join(' ')}</div>`;
+  if(!n)return h+`<div class="cyf-empty">Aucun cas trouvé avec ces paramètres${res.ms!=null?' ('+res.ms+' ms)':''}.</div>`;
+  const groups=cyfGroups(res);
+  if(!CYF.selG||!groups.some(x=>x.key===CYF.selG))CYF.selG=groups[0].key;
+  const G=groups.find(x=>x.key===CYF.selG);
+  h+=`<div class="cyf-chips">${groups.map(x=>`<button class="cyf-chip${x.key===CYF.selG?' on':''}" onclick="CYF.selG='${cyfEsc(x.key)}';CYF.selM=0;cyfRefresh()">${cyfEsc(x.label)} <b>${x.list.length}</b></button>`).join('')}</div>`;
+  const list=G.list.slice().sort((a,b)=>res.matches[b].base-res.matches[a].base);
+  if(CYF.selM>=list.length)CYF.selM=0;
+  const shown=list.slice(0,400);
+  h+=`<div class="cyf-chips cyf-chips2">${shown.map((ix,j)=>`<button class="cyf-chip2${j===CYF.selM?' on':''}" onclick="CYF.selM=${j};cyfRefresh()">${cyfMatchLabel(res.matches[ix])}</button>`).join('')}${list.length>400?`<span class="cyf-note">… ${list.length-400} autres (voir Exporter)</span>`:''}</div>`;
+  const m=res.matches[list[CYF.selM]];const rows=cyfRows(m.g);
+  h+=`<div class="cyf-info">${cyfEsc(cyfName(m.g))} · N° ${rows[m.base].t} (L ${rows[m.base].L}) · ${cyfEsc(m.info||'')}</div>`;
+  h+=cyfTableHTML(m.g,cyfMatchWindow(m),m.hl,{mark:new Set([m.base,m.res]),cap:cyfName(m.g)+' — tirage N° '+cyfMatchLabel(m)});
+  h+=`<div class="cyf-legend"><span class="cyf-r">Draw1</span> <span class="cyf-y">résultat</span> <span class="cyf-c">bankers / draws</span> <span class="cyf-g">paire</span> · double-clic ou appui long sur une ligne pour Sauvegarder / Comparer / prochain Banker</div>`;
+  return h;
+}
+function cyfCmpHTML(res){
+  const P=res.pl.map((p,pi)=>{
+    const rows=cyfRows(p.g);let idx=[];
+    const inv=res.inv&&pi>0;
+    for(let o=res.nb-1;o>=0;o--)idx.push(inv?p.i+o:p.i-o);
+    idx=idx.map(i=>(i>=0&&i<rows.length)?i:null);
+    const aft=[];if(!inv)for(let a=1;a<=res.aft;a++){const i=p.i+a;aft.push(i<rows.length?i:null);}
+    return{g:p.g,rows,idx,aft,inv};
+  });
+  const hl=P.map(()=>({}));let same=0;
+  for(let r=0;r<res.nb;r++){
+    P.forEach((A,ai)=>{const ia=A.idx[r];if(ia==null)return;A.rows[ia].n.forEach((v,pv)=>{if(v==null)return;
+      const hit=P.some((B,bi)=>bi!==ai&&B.idx[r]!=null&&B.rows[B.idx[r]].n.includes(v));
+      if(hit){(hl[ai][ia]=hl[ai][ia]||{})[pv]='y';if(ai===0)same++;}});});
+  }
+  let h=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${same})</b><span class="cyf-desc">numéros identiques au même rang (jaune) · ${res.nb} lignes · ${res.inv?'inversé':'non inversé'}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div><div class="cyf-cmp">`;
+  P.forEach((A,ai)=>{
+    const base=A.rows[res.pl[ai].i];
+    const idx=A.idx.concat(A.inv?[]:A.aft);
+    h+=`<div class="cyf-cmpcol">${cyfTableHTML(A.g,idx,hl[ai],{cap:'Loterie '+(ai+1)+' : '+cyfName(A.g)+' — Ligne '+base.t+(A.inv?' (inversé)':''),mark:new Set([res.pl[ai].i]),after:new Set(A.aft.filter(x=>x!=null))})}</div>`;
+  });
+  return h+`</div><div class="cyf-legend">Les tableaux sont alignés sur leur ligne de base (encadrée). Les lignes grisées en bas sont celles qui ont suivi.</div>`;
+}
+function cyfResHTML(){
+  const res=CYF.res;if(!res)return'';
+  let h='<div id="cyf-res" class="cyf-card">';
+  if(res.error)h+=`<div class="cyf-err">${cyfEsc(res.error)}</div>`;
+  else if(res.kind==='search')h+=cyfSearchResHTML(res);
+  else if(res.kind==='cmp')h+=cyfCmpHTML(res);
+  else if(res.kind==='list'){const rows=cyfRows(res.g);h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.to-res.from+1})</b><span class="cyf-desc">${cyfEsc(res.title)}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div>`+cyfTableHTML(res.g,cyfRange(res.from,res.to,rows.length),null,{cap:res.title});}
+  else if(res.kind==='nums')h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.nums.length})</b><span class="cyf-desc">${cyfEsc(res.label)} — ${cyfEsc(res.title)}</span></div><div class="cyf-balls">${res.nums.map(v=>`<span class="cyf-ball">${v}</span>`).join('')||'<i>Tous les numéros sont sortis.</i>'}</div>`;
+  else if(res.kind==='combi'){const c=k=>nCr(res.n,k).toLocaleString('fr-FR');h+=`<div class="cyf-resbar"><b class="cyf-cnt">Avec ${res.n} bankers</b></div><div class="cyf-grid2">${[2,3,4,5].map(k=>`<div class="cyf-gcell"><div>${k} Nap</div><b>${c(k)}</b></div>`).join('')}</div>`;}
+  else if(res.kind==='bauto'){const b=res.bt;h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.top.length})</b><span class="cyf-desc">${cyfEsc(cyfName(res.g))} — les plus sortis sur les ${res.W} derniers tirages</span></div><div class="cyf-balls">${res.top.map(x=>`<span class="cyf-ball">${x.v}<sub>${x.c}×</sub></span>`).join('')}</div>${b&&b.tests?`<div class="cyf-note">Backtest sur ${b.tests} tirages passés : au moins un numéro sorti dans ${(100*b.hitRate).toFixed(1).replace('.',',')} % des cas, contre ${(100*b.base.hitRate).toFixed(1).replace('.',',')} % au hasard → ${b.verdict}.</div>`:''}`;}
+  return h+'</div>';
+}
+// ── Export CSV ──
+function cyfCsvRows(){
+  const res=CYF.res;if(!res||res.error)return[];
+  const out=[];const push=(label,g,i,mark)=>{const r=cyfRows(g)[i];if(!r)return;const [dd,mm]=String(r.d).split('/');out.push([label,cyfName(g),r.t,r.L,dd||'',mm||'',r.y].concat([0,1,2,3,4].map(p=>r.n[p]==null?'':r.n[p])).concat([cyfSum(r),mark||'']));};
+  if(res.kind==='list')cyfRange(res.from,res.to,cyfRows(res.g).length).forEach(i=>push('',res.g,i));
+  else if(res.kind==='cmp')res.pl.forEach((p,pi)=>{for(let o=res.nb-1;o>=0;o--){const i=(res.inv&&pi>0)?p.i+o:p.i-o;push('Plage '+(pi+1),p.g,i,o===0?'base':'');}});
+  else if(res.kind==='search')res.matches.forEach(m=>{const rows=cyfRows(m.g);const lab='N° '+cyfMatchLabel(m);cyfMatchWindow(m).forEach(i=>{if(out.length<30000)push(lab,m.g,i,i===m.base?'base':i===m.res?'résultat':'');});});
+  return out;
+}
+function cyfExport(){
+  const rows=cyfCsvRows();if(!rows.length){alert('Rien à exporter.');return;}
+  const head=['Cas','Loto','N° tirage','L','D','M','Y','D1','D2','D3','D4','D5','To','Repère'];
+  const csv='\ufeff'+[head].concat(rows).map(r=>r.map(v=>{const s=String(v);return/[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(';')).join('\n');
+  const m=CYF_MOD_BY[CYF.mod];const name='cybetcast-'+(m?String(m.n).toLowerCase():'export')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}catch(e){alert('Export impossible sur cet appareil.');}
+}
+// ── Sauvegarde des tirages (groupes) ──
+function cyfGroupsLoad(){const g=cyfLS(CYF_LS.groups,[]);return Array.isArray(g)?g:[];}
+function cyfGroupsSave(gs){return cyfLSset(CYF_LS.groups,gs);}
+function cyfRowRec(g,i,role){const r=cyfRows(g)[i];return r?{nom:cyfName(g),g,t:r.t,L:r.L,d:r.d,y:r.y,n:r.n.slice(0,5),s:cyfSum(r),role:role||''}:null;}
+function cyfAddToGroup(name,recs){
+  const gs=cyfGroupsLoad();let G=gs.find(x=>x.name===name);
+  if(!G){G={id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name,rows:[],created:new Date().toISOString()};gs.push(G);}
+  const seen=new Set(G.rows.map(r=>r.g+'|'+r.t+'|'+r.role));
+  recs.forEach(r=>{if(r&&!seen.has(r.g+'|'+r.t+'|'+r.role)){G.rows.push(r);seen.add(r.g+'|'+r.t+'|'+r.role);}});
+  return cyfGroupsSave(gs)?G:null;
+}
+function cyfSaveLines(){
+  const res=CYF.res;if(!res||!res.matches||!res.matches.length)return;
+  const nS=prompt('Combien de lignes après la ligne résultat faut-il sauvegarder ?','1');if(nS==null)return;
+  const N=Math.max(0,Math.min(20,cyfInt(nS,1)));
+  const groups=cyfGroups(res);const G=groups.find(x=>x.key===CYF.selG)||groups[0];
+  const m0=res.matches[G.list.slice().sort((a,b)=>res.matches[b].base-res.matches[a].base)[CYF.selM]||G.list[0]];
+  const md=CYF_MOD_BY[CYF.mod];
+  const def='plan-'+(md?String(md.n).toLowerCase():'x')+'-'+(res.target?cyfName(res.target.g)+'-'+res.target.t:cyfName(m0.g)+'-'+cyfMatchLabel(m0)).replace(/\s+/g,'_');
+  const name=(prompt('Nom du groupe de sauvegarde :',def)||'').trim();if(!name)return;
+  const recs=[];res.matches.forEach(m=>{for(let a=0;a<=N;a++)recs.push(cyfRowRec(m.g,m.res+a,a===0?'résultat':'après '+a));});
+  const G2=cyfAddToGroup(name,recs.filter(Boolean));
+  if(G2){CYF.grp=G2.id;alert(recs.filter(Boolean).length+' lignes sauvegardées dans « '+name+' ». Ouvrez « Sauvegarde des tirages » pour les statistiques.');cyfRefresh();}
+}
+function cyfStats(rows,size,withRes){
+  const c=new Map();
+  rows.forEach(r=>{if(!withRes&&r.role==='résultat')return;const v=[...new Set((r.n||[]).filter(x=>x>=1&&x<=90))].sort((a,b)=>a-b);
+    const rec=(st,cur)=>{if(cur.length===size){const k=cur.join('-');c.set(k,(c.get(k)||0)+1);return;}for(let i=st;i<v.length;i++){cur.push(v[i]);rec(i+1,cur);cur.pop();}};rec(0,[]);});
+  return[...c.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],undefined,{numeric:true}));
+}
+function cyfGroupsHTML(){
+  const gs=cyfGroupsLoad();
+  let h=`<div class="cyf-card"><div class="cyf-h2">Sauvegarde des tirages</div>`;
+  if(!gs.length)return h+`<div class="cyf-empty">Aucun groupe. Lancez un module puis « 💾 Sauvegarder les lignes », ou double-cliquez une ligne → « Sauvegarder ce tirage ».</div></div>`;
+  if(!gs.some(g=>g.id===CYF.grp))CYF.grp=gs[gs.length-1].id;
+  const G=gs.find(g=>g.id===CYF.grp);
+  h+=`<div class="cyf-chips">${gs.map(g=>`<button class="cyf-chip${g.id===CYF.grp?' on':''}" onclick="CYF.grp='${g.id}';cyfRefresh()">${cyfEsc(g.name)} <b>${g.rows.length}</b></button>`).join('')}</div>`;
+  h+=`<div class="cyf-row" style="margin:6px 0">${cyfBtn(CYF.grpView==='stats'?'📋 Voir le tableau':'📊 Voir Statistiques',`CYF.grpView=CYF.grpView==='stats'?'table':'stats';cyfRefresh()`)}${cyfBtn('🔗 Combiner plusieurs groupes',"CYF.grpView='combine';cyfRefresh()",'ghost')}${cyfBtn('🗑 Supprimer ce groupe',`cyfDelGroup('${G.id}')`,'warn')}</div>`;
+  if(CYF.grpView==='combine'){
+    h+=`<div class="cyf-sub" style="padding:8px"><div class="cyf-note">Cochez les groupes à copier dans un nouveau groupe :</div>${gs.map(g=>`<label class="cyf-chk"><input type="checkbox" class="cyf-cmb" value="${g.id}"> ${cyfEsc(g.name)} (${g.rows.length})</label>`).join('')}<div class="cyf-row" style="margin-top:6px"><input id="cyf-cmb-name" placeholder="Nom du nouveau groupe" style="${CYF_SEL};flex:1"> ${cyfBtn('Copier','cyfCombine()')}</div></div>`;
+  }else if(CYF.grpView==='stats'){
+    const tabs=[['b','Banker',1],['2','Two Sure',2],['3','Three Nap',3]];const cur=tabs.find(t=>t[0]===CYF.statTab)||tabs[0];
+    const st=cyfStats(G.rows,cur[2],CYF.statRes);
+    h+=`<div class="cyf-chips">${tabs.map(t=>`<button class="cyf-chip${t[0]===cur[0]?' on':''}" onclick="CYF.statTab='${t[0]}';cyfRefresh()">${t[1]}</button>`).join('')}</div><label class="cyf-chk"><input type="checkbox" ${CYF.statRes?'checked':''} onchange="CYF.statRes=this.checked;cyfRefresh()"> Inclure les lignes « résultat » (sinon seulement les lignes qui ont suivi)</label>`;
+    h+=`<div class="cyf-stats">${st.slice(0,80).map(([k,v])=>`<span class="cyf-stat">${k}<b>${v}</b></span>`).join('')||'<i>Aucune donnée.</i>'}</div>`;
+  }else{
+    h+=`<div class="cyf-tw"><table class="cyf-tbl"><thead><tr><th>Nom</th><th>L</th><th>D</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th><th>D5</th><th>To</th><th></th></tr></thead><tbody>${G.rows.map(r=>`<tr${r.role==='résultat'?' class="cyf-mark"':''}><td style="text-align:left">${cyfEsc(r.nom)}</td><td>${r.L}</td><td>${cyfEsc(r.d)}/${cyfEsc(String(r.y).slice(-2))}</td>${[0,1,2,3,4].map(p=>`<td>${r.n[p]==null?'':r.n[p]}</td>`).join('')}<td>${r.s}</td><td style="font-size:10px;color:#64748B">${cyfEsc(r.role||'')}</td></tr>`).join('')}</tbody></table></div>`;
+  }
+  return h+'</div>';
+}
+function cyfDelGroup(id){const gs=cyfGroupsLoad();const G=gs.find(g=>g.id===id);if(!G||!confirm('Supprimer le groupe « '+G.name+' » ('+G.rows.length+' lignes) ?'))return;cyfGroupsSave(gs.filter(g=>g.id!==id));CYF.grp=null;cyfRefresh();}
+function cyfCombine(){
+  const ids=[...document.querySelectorAll('.cyf-cmb:checked')].map(e=>e.value);const name=((document.getElementById('cyf-cmb-name')||{}).value||'').trim();
+  if(ids.length<1||!name){alert('Cochez au moins un groupe et donnez un nom.');return;}
+  const gs=cyfGroupsLoad();const recs=[];gs.filter(g=>ids.includes(g.id)).forEach(g=>g.rows.forEach(r=>recs.push(Object.assign({},r))));
+  const G=cyfAddToGroup(name,recs);if(G){CYF.grp=G.id;CYF.grpView='table';cyfRefresh();}
+}
+// ── Actions sur une ligne (double-clic / appui long) ──
+function cyfRowMenuHTML(){
+  const M=CYF.menu;if(!M)return'';const r=cyfRows(M.g)[M.i];if(!r)return'';
+  const b=(l,a)=>`<button onclick="${a}" style="display:block;width:100%;text-align:left;padding:13px 14px;border:none;border-bottom:1px solid #E2E8F0;background:#fff;font-size:15px;color:#0F3D45;cursor:pointer">${l}</button>`;
+  return`<div class="cyf-ov" onclick="if(event.target===this){CYF.menu=null;cyfRefresh()}"><div class="cyf-pop" data-testid="cyf-rowmenu"><div style="padding:10px 14px;background:#0F5A63;color:#fff;font-weight:600">${cyfEsc(cyfName(M.g))} — N° ${r.t} : ${r.n.filter(v=>v!=null).join(' ')}</div>
+    ${b('💾 Sauvegarder ce tirage N°'+r.t,`cyfSaveRow('${M.g}',${M.i})`)}${b('⇆ Comparer ce tirage N°'+r.t,`cyfCompareRow('${M.g}',${M.i})`)}${b('🔎 Chercher le prochain Banker à partir de T'+r.t,`cyfNextBanker('${M.g}',${M.i})`)}${b('Annuler','CYF.menu=null;cyfRefresh()')}</div></div>`;
+}
+function cyfSaveRow(g,i){CYF.menu=null;const name=(prompt('Sauvegarder dans le groupe :','tirages-sauvés')||'').trim();if(!name){cyfRefresh();return;}const G=cyfAddToGroup(name,[cyfRowRec(g,i,'')]);if(G)CYF.grp=G.id;cyfRefresh();}
+function cyfCompareRow(g,i){
+  CYF.menu=null;const rows=cyfRows(g);const r=rows[i];
+  let g1=g,t1=rows[rows.length-1].t;
+  if(CYF.res&&CYF.res.target){g1=CYF.res.target.g;t1=CYF.res.target.t;}
+  const nb=CYF.res&&CYF.res.kind==='search'&&CYF.mod==='ra8'?cyfInt((CYF.form.ra8||{}).win,20):20;
+  CYF.form.cmp2=Object.assign({},CYF.form.cmp2||{},{g1,t1:String(t1),g2:g,t2:String(r.t),nb:String(nb),inv:'0'});
+  cyfPushRecent('cmp2');CYF.mod='cmp2';CYF.view='modules';
+  CYF.res=cyfCompute('cmp2',CYF.form.cmp2,CYF_MOD_BY.cmp2);cyfRefresh();
+  setTimeout(()=>{const el=document.getElementById('cyf-res');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'});},40);
+}
+function cyfNextBanker(g,i){
+  CYF.menu=null;const rows=cyfRows(g);const r=rows[i];
+  const items=r.n.filter(v=>v!=null).map(v=>{for(let j=i+1;j<rows.length;j++){const p=rows[j].n.indexOf(v);if(p>=0)return{v,t:rows[j].t,gap:j-i,p:p+1};}return{v,t:null};});
+  items.sort((a,b)=>(a.t==null)-(b.t==null)||a.gap-b.gap);
+  CYF.info={title:'Prochain Banker à partir de T'+r.t+' ('+cyfName(g)+')',html:`<table class="cyf-tbl" style="width:100%"><thead><tr><th>Numéro</th><th>Revient au N°</th><th>Après</th><th>Position</th></tr></thead><tbody>${items.map(x=>`<tr><td><b>${x.v}</b></td><td>${x.t==null?'pas encore revenu':x.t}</td><td>${x.t==null?'—':x.gap+' tirage'+(x.gap>1?'s':'')}</td><td>${x.t==null?'—':'D'+x.p}</td></tr>`).join('')}</tbody></table><div class="cyf-note">Le premier numéro qui revient est le « prochain banker » de cette ligne.</div>`};
+  cyfRefresh();
+}
+function cyfInfoHTML(){if(!CYF.info)return'';return`<div class="cyf-ov" onclick="if(event.target===this){CYF.info=null;cyfRefresh()}"><div class="cyf-pop" data-testid="cyf-info"><div style="padding:10px 14px;background:#0F5A63;color:#fff;font-weight:600;display:flex">${cyfEsc(CYF.info.title)}<span style="flex:1"></span><button onclick="CYF.info=null;cyfRefresh()" style="background:none;border:none;color:#fff;font-size:18px;cursor:pointer">✕</button></div><div style="padding:10px;max-height:65vh;overflow:auto">${CYF.info.html}</div></div></div>`;}
+// ── Outils : Calculatrice, Nuancier, Transformations ──
+function cyfCalc(expr){
+  const s=String(expr||'').replace(/\s+/g,'').replace(/[x×X]/g,'*').replace(/÷|:/g,'/').replace(/,/g,'.');
+  if(!s||!/^[0-9+\-*/().]+$/.test(s)||s.length>200)return null;
+  let i=0;
+  const peek=()=>s[i];
+  function factor(){
+    if(peek()==='-'){i++;const v=factor();return v==null?null:-v;}
+    if(peek()==='+'){i++;return factor();}
+    if(peek()==='('){i++;const v=expr2();if(peek()!==')')return null;i++;return v;}
+    const m=/^\d+(\.\d+)?/.exec(s.slice(i));if(!m)return null;i+=m[0].length;return parseFloat(m[0]);
+  }
+  function term(){let v=factor();while(v!=null&&(peek()==='*'||peek()==='/')){const o=s[i++];const w=factor();if(w==null)return null;v=o==='*'?v*w:(w===0?null:v/w);}return v;}
+  function expr2(){let v=term();while(v!=null&&(peek()==='+'||peek()==='-')){const o=s[i++];const w=term();if(w==null)return null;v=o==='+'?v+w:v-w;}return v;}
+  const v=expr2();if(v==null||i!==s.length||!Number.isFinite(v))return null;return Math.round(v*1e9)/1e9;
+}
+function cyfCalcInput(el){const out=document.getElementById('cyf-calc-out');if(!out)return;const v=cyfCalc(el.value);out.textContent=v==null?(el.value.trim()?'expression invalide':''):'= '+String(v).replace('.',',')+(Number.isInteger(v)&&(v<1||v>90)?'  (hors 1–90 ; −90 → '+(((v-1)%90+90)%90+1)+')':'');}
+function cyfTransInput(el){const out=document.getElementById('cyf-tr-out');if(!out)return;const n=cyfInt(el.value,NaN);if(!(n>=1&&n<=90)){out.innerHTML='';return;}const d=elmDerivs(n);out.innerHTML=`<table class="cyf-tbl" style="width:100%"><tbody>${ELM_DEF.map(e=>`<tr><td style="text-align:left"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${e.bg}"></span> ${e.label}</td><td><b>${d[e.key]!=null?d[e.key]:'—'}</b></td></tr>`).join('')}</tbody></table>`;}
+const CYF_PAL=['#FDE047','#67E8F9','#86EFAC','#FCA5A5','#C4B5FD','#FDBA74','#F9A8D4','#94A3B8'];
+function cyfToolHTML(){
+  const strip=`<div class="cyf-tools">${[['calc','🧮','Calculatrice'],['nuance','🎨','Nuancier'],['trans','🔁','Transformations']].map(([k,i,l])=>`<button title="${l}" aria-label="${l}" class="${CYF.tool===k?'on':''}${k==='nuance'&&CYF.paint?' paint':''}" onclick="CYF.tool=CYF.tool==='${k}'?null:'${k}';cyfRefresh()">${i}<span>${l}</span></button>`).join('')}</div>`;
+  let p='';
+  if(CYF.tool==='calc')p=`<div class="cyf-h3">🧮 Calculatrice</div><input id="cyf-calc" placeholder="ex. 57*14-90" oninput="cyfCalcInput(this)" style="${CYF_SEL};width:100%"><div id="cyf-calc-out" style="font-size:18px;font-weight:700;color:#0F5A63;margin-top:6px;min-height:24px"></div><div class="cyf-note">Chiffres, + − × ÷ et parenthèses seulement.</div>`;
+  else if(CYF.tool==='nuance')p=`<div class="cyf-h3">🎨 Nuancier</div><div style="display:flex;flex-wrap:wrap;gap:6px">${CYF_PAL.map(c=>`<button onclick="CYF.color='${c}';CYF.paint=true;cyfRefresh()" style="width:34px;height:34px;border-radius:8px;border:${CYF.color===c?'3px solid #0F172A':'1px solid #CBD5E1'};background:${c};cursor:pointer"></button>`).join('')}<button onclick="CYF.color='';CYF.paint=true;cyfRefresh()" title="Gomme" style="width:34px;height:34px;border-radius:8px;border:${CYF.color===''?'3px solid #0F172A':'1px solid #CBD5E1'};background:#fff;cursor:pointer">⌫</button></div>
+    <label class="cyf-chk" style="margin-top:6px"><input type="checkbox" ${CYF.paint?'checked':''} onchange="CYF.paint=this.checked;cyfRefresh()"> Colorier en cliquant sur les cases</label><div class="cyf-note">Choisissez une couleur puis touchez les numéros des tableaux. Les couleurs restent enregistrées sur l’appareil.</div>${cyfBtn('Effacer tout le coloriage','cyfNuClear()','warn')}`;
+  else if(CYF.tool==='trans')p=`<div class="cyf-h3">🔁 Transformations</div><input type="number" placeholder="Numéro 1–90" oninput="cyfTransInput(this)" style="${CYF_SEL};width:100%"><div id="cyf-tr-out" style="margin-top:6px"></div>`;
+  return strip+(p?`<div class="cyf-panel" data-testid="cyf-panel"><button onclick="CYF.tool=null;cyfRefresh()" style="float:right;background:none;border:none;font-size:18px;cursor:pointer">✕</button>${p}</div>`:'');
+}
+function cyfNuClear(){if(!confirm('Effacer tout le coloriage manuel ?'))return;CYF_NU={};cyfLSset(CYF_LS.nuance,{});cyfRefresh();}
+function cyfCellPaint(td){
+  const tr=td.closest('tr[data-cyf]');if(!tr)return;const [g,i]=tr.dataset.cyf.split('|');const r=cyfRows(g)[+i];if(!r)return;const p=+td.dataset.p;
+  const nu=cyfNu();const k=cyfNuKey(g,r.t,p);
+  if(!CYF.color||nu[k]===CYF.color){delete nu[k];td.style.background='';}else{nu[k]=CYF.color;td.style.background=CYF.color;}
+  cyfLSset(CYF_LS.nuance,nu);
+}
+// Délégation d'événements (installée une seule fois)
+(function(){
+  if(window.__cyfEv)return;window.__cyfEv=true;
+  let lpT=null,lpX=0,lpY=0;
+  const rowOf=e=>e.target&&e.target.closest&&e.target.closest('#cyf-root tr[data-cyf]');
+  const open=tr=>{const [g,i]=tr.dataset.cyf.split('|');CYF.menu={g,i:+i};cyfRefresh();};
+  document.addEventListener('click',e=>{const td=e.target&&e.target.closest&&e.target.closest('#cyf-root td[data-p]');if(td&&CYF.paint&&CYF.tool==='nuance'){cyfCellPaint(td);}});
+  document.addEventListener('dblclick',e=>{const tr=rowOf(e);if(tr){e.preventDefault();open(tr);}});
+  document.addEventListener('touchstart',e=>{const tr=rowOf(e);if(!tr)return;const t=e.touches[0];lpX=t.clientX;lpY=t.clientY;clearTimeout(lpT);lpT=setTimeout(()=>{lpT=null;open(tr);},600);},{passive:true});
+  document.addEventListener('touchmove',e=>{if(!lpT)return;const t=e.touches[0];if(Math.abs(t.clientX-lpX)>10||Math.abs(t.clientY-lpY)>10){clearTimeout(lpT);lpT=null;}},{passive:true});
+  document.addEventListener('touchend',()=>{clearTimeout(lpT);lpT=null;},{passive:true});
+})();
+// ── Réglages ──
+function cyfSettingsHTML(){
+  const s=cyfSet();const fav=new Set(s.fav);
+  const groups={};Object.keys(GAMES).forEach(k=>{const c=gameCountry(k);(groups[c]=groups[c]||[]).push(k);});
+  let h=`<div class="cyf-card" id="cyf-settings"><div class="cyf-h2">⚙ Réglages</div>
+    <div class="cyf-row">${cyfField('Nombre de Lignes avant les résultats',`<input id="cyf-s-av" type="number" value="${s.avant}" style="${CYF_SEL};width:100%">`)}${cyfField('Nombre de Lignes après les résultats',`<input id="cyf-s-ap" type="number" value="${s.apres}" style="${CYF_SEL};width:100%">`)}</div>
+    <div class="cyf-row">${cyfField('Résultat d’opération hors de 1–90',`<select id="cyf-s-hors" style="${CYF_SEL}"><option value="strict" ${s.hors==='strict'?'selected':''}>Strict : doit être entre 1 et 90</option><option value="reduire" ${s.hors==='reduire'?'selected':''}>Réduire à 1–90 (−90)</option></select>`,'1 1 260px')}</div>
+    <div class="cyf-h3" style="margin-top:10px">Filtrer vos Lotos Favoris <span class="cyf-note">(utilisées par « Toutes les lotos » et « Par Combinaisons ») — ${fav.size} cochée(s)</span></div>`;
+  Object.entries(groups).forEach(([c,ks])=>{const n=ks.filter(k=>fav.has(k)).length;
+    h+=`<details class="cyf-det" ${n?'open':''}><summary>${cyfEsc(c)} <b>${n}/${ks.length}</b> <button onclick="event.preventDefault();cyfFavAll(this,true)" class="cyf-mini">tout</button><button onclick="event.preventDefault();cyfFavAll(this,false)" class="cyf-mini">aucun</button></summary><div class="cyf-favs">${ks.map(k=>`<label class="cyf-chk"><input type="checkbox" class="cyf-fav" value="${k}" ${fav.has(k)?'checked':''}> ${cyfEsc(GAMES[k].name)}</label>`).join('')}</div></details>`;});
+  return h+`<div class="cyf-row" style="margin-top:10px">${cyfBtn('Enregistrer les réglages','cyfSaveSettings()')}</div></div>`;
+}
+function cyfFavAll(btn,on){const d=btn.closest('details');d.open=true;d.querySelectorAll('.cyf-fav').forEach(x=>{x.checked=on;});}
+function cyfSaveSettings(){
+  const fav=[...document.querySelectorAll('.cyf-fav:checked')].map(x=>x.value);
+  if(!fav.length){alert('Cochez au moins une loto favorite.');return;}
+  cyfSaveSet({fav,avant:cyfInt(document.getElementById('cyf-s-av').value,5),apres:cyfInt(document.getElementById('cyf-s-ap').value,20),hors:document.getElementById('cyf-s-hors').value});
+  CYF.view='modules';cyfRefresh();
+}
+// ── Page ──
+function cyfModSelectHTML(){
+  const opts=CYF_MODS.map(m=>{const v=m.id||('map:'+m.map);return`<option value="${v}" ${CYF.mod===m.id&&m.id?'selected':''}>${cyfEsc(cyfModLabel(m))}${m.map?(m.approx?' ≈ (onglet Modules)':' → onglet Modules'):''}</option>`;}).join('');
+  return`<select data-testid="cyf-modsel" onchange="if(this.value)cyfOpenMod(this.value)" style="${CYF_SEL};width:100%;font-weight:600;border:2px solid #0F5A63;padding:12px"><option value="">Choisir le module</option>${opts}</select>`;
+}
+function cyfBodyHTML(){
+  const set=cyfSet();const ng=cyfGroupsLoad().length;
+  const nav=(v,l)=>`<button class="cyf-nav${CYF.view===v?' on':''}" onclick="CYF.view='${v}';cyfRefresh()">${l}</button>`;
+  let h=`<div class="cyf-navs">${nav('modules','📚 Modules')}${nav('groups','💾 Sauvegarde des tirages'+(ng?' ('+ng+')':''))}${nav('settings','⚙ Réglages')}</div>`;
+  if(CYF.view==='settings')h+=cyfSettingsHTML();
+  else if(CYF.view==='groups')h+=cyfGroupsHTML();
+  else{
+    h+=`<div class="cyf-card"><div class="cyf-h1">Les modules de forecast</div><div class="cyf-subt">Choisissez un module correspondant à votre plan de recherche/Forecast</div>${cyfModSelectHTML()}`;
+    const rec=cyfRecents();
+    if(rec.length)h+=`<div class="cyf-note" style="margin-top:8px">Les modules récemment ouverts :</div><div class="cyf-chips">${rec.map(id=>{const m=/^map:/.test(id)?CYF_MODS.find(x=>x.map===+id.slice(4)):CYF_MOD_BY[id];return m?`<button class="cyf-chip" onclick="cyfOpenMod('${id}')">${cyfEsc(cyfModLabel(m))}</button>`:'';}).join('')}</div>`;
+    h+=`<div class="cyf-disc">Conventions de joueurs : ces modules décrivent le passé, ils ne prédisent pas le prochain tirage.</div></div>`;
+    if(CYF.mod){const m=CYF_MOD_BY[CYF.mod];h+=`<div class="cyf-modtitle">${cyfEsc(cyfModLabel(m))}${m.note?` <span class="cyf-note">(${cyfEsc(m.note)})</span>`:''}<span style="flex:1"></span><span class="cyf-note">Favoris : ${set.fav.length} loto(s) · avant ${set.avant} / après ${set.apres}${set.hors==='reduire'?' · −90':''}</span></div>`+cyfFormHTML(CYF.mod)+cyfResHTML();}
+  }
+  return h+cyfToolHTML()+cyfRowMenuHTML()+cyfInfoHTML();
+}
+const CYF_CSS=`<style>
+#cyf-root{color:#12343B}
+.cyf-card{background:#fff;border:1px solid #CFE0E3;border-radius:12px;padding:12px;margin:0 0 10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.cyf-h1{font-size:20px;font-weight:700;color:#0F5A63}.cyf-subt{font-size:13px;color:#4B6B70;margin:2px 0 10px}
+.cyf-h2{font-size:17px;font-weight:700;color:#0F5A63;margin-bottom:8px}.cyf-h3{font-size:14px;font-weight:700;color:#0F5A63;margin:8px 0 4px}
+.cyf-navs{display:flex;gap:6px;overflow-x:auto;margin-bottom:10px}.cyf-nav{flex:0 0 auto;padding:9px 13px;border-radius:20px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-weight:600;font-size:13px;cursor:pointer}.cyf-nav.on{background:#0F5A63;color:#fff}
+.cyf-modtitle{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:16px;font-weight:700;color:#fff;background:#0F5A63;border-radius:10px;padding:10px 12px;margin-bottom:8px}.cyf-modtitle .cyf-note{color:#D5ECEF}
+.cyf-row{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:6px}
+.cyf-sub{background:#F1F8F9;border:1px dashed #A7C9CE;border-radius:9px;padding:6px 8px}
+.cyf-fld{display:flex;flex-direction:column;gap:3px;flex:1 1 140px;min-width:130px;font-size:12px;color:#355F66;font-weight:600}
+.cyf-chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#24474D;padding:4px 0;cursor:pointer}
+.cyf-tag{align-self:center;background:#0F5A63;color:#fff;border-radius:6px;padding:4px 8px;font-size:12px}
+.cyf-resbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:8px}.cyf-cnt{font-size:16px;color:#0F5A63}.cyf-desc{font-size:12px;color:#4B6B70}
+.cyf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.cyf-chip{padding:7px 11px;border-radius:18px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-size:13px;cursor:pointer}.cyf-chip b{background:#DC2626;color:#fff;border-radius:10px;padding:0 6px;margin-left:4px;font-size:11px}.cyf-chip.on{background:#0F5A63;color:#fff}
+.cyf-chips2{max-height:120px;overflow-y:auto}.cyf-chip2{padding:6px 9px;border-radius:7px;border:1px solid #94A3B8;background:#F8FAFC;font-size:12.5px;cursor:pointer;min-width:46px}.cyf-chip2.on{background:#FDE047;border-color:#A16207;font-weight:700}
+.cyf-info{font-size:12.5px;color:#24474D;background:#F1F8F9;border-radius:8px;padding:6px 8px;margin:6px 0}
+.cyf-tw{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.cyf-tbl{border-collapse:collapse;font-size:13px;min-width:100%}.cyf-tbl th{background:#E2E8F0;color:#334155;font-weight:700;padding:5px 6px;border:1px solid #CBD5E1;position:sticky;top:0}.cyf-tbl th.cyf-cap{background:#0F5A63;color:#fff;text-align:left}
+.cyf-tbl td{padding:5px 6px;border:1px solid #E2E8F0;text-align:center;white-space:nowrap}.cyf-tbl tbody tr:nth-child(even){background:#F8FAFC}
+.cyf-tbl td.cyf-n{font-weight:600;min-width:26px;cursor:pointer}.cyf-tbl td.cyf-to{color:#64748B}.cyf-tbl td.cyf-l{color:#64748B;font-size:11.5px}
+.cyf-tbl tr.cyf-mark td{border-top:2px solid #0F5A63;border-bottom:2px solid #0F5A63}.cyf-tbl tr.cyf-aft td{opacity:.75;background:#EEF2F7}.cyf-tbl tr.cyf-pad td{color:#CBD5E1}
+.cyf-r{color:#DC2626!important;font-weight:800!important}.cyf-y{background:#FDE047!important}.cyf-c{background:#67E8F9!important}.cyf-g{background:#86EFAC!important}
+.cyf-legend{font-size:11.5px;color:#64748B;margin-top:6px}.cyf-legend span{padding:1px 5px;border-radius:4px}
+.cyf-note{font-size:11.5px;color:#64748B;font-weight:400}.cyf-err{color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:8px}.cyf-empty{color:#64748B;padding:10px;text-align:center}
+.cyf-disc{font-size:11.5px;color:#78350F;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:6px 8px;margin-top:10px}
+.cyf-pill{display:inline-block;background:#DCFCE7;border:1px solid #86EFAC;border-radius:10px;padding:1px 7px;margin:2px;font-size:12px}
+.cyf-balls{display:flex;flex-wrap:wrap;gap:6px}.cyf-ball{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border-radius:17px;background:#0F5A63;color:#fff;font-weight:700;padding:0 6px}.cyf-ball sub{font-size:9px;margin-left:2px;opacity:.8}
+.cyf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:420px}.cyf-gcell{background:#0F766E;color:#fff;border-radius:10px;padding:14px;text-align:center}.cyf-gcell div{font-size:13px;opacity:.9}.cyf-gcell b{font-size:24px}
+.cyf-cmp{display:flex;gap:8px;align-items:flex-end;overflow-x:auto}.cyf-cmpcol{flex:1 0 300px;min-width:0}
+.cyf-stats{display:flex;flex-wrap:wrap;gap:6px}.cyf-stat{display:inline-flex;align-items:center;gap:5px;border:1px solid #CBD5E1;border-radius:8px;padding:5px 8px;font-weight:700;font-size:13px}.cyf-stat b{background:#DC2626;color:#fff;border-radius:9px;padding:0 6px;font-size:11px}
+.cyf-tools{position:fixed;right:4px;top:42%;z-index:70;display:flex;flex-direction:column;gap:6px}.cyf-tools button{width:42px;height:42px;border-radius:12px;border:1.5px solid #0F5A63;background:#fff;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);position:relative}.cyf-tools button span{display:none}.cyf-tools button.on{background:#0F5A63}.cyf-tools button.paint{outline:3px solid #FDE047}
+.cyf-panel{position:fixed;right:52px;top:30%;z-index:71;width:min(300px,78vw);max-height:60vh;overflow:auto;background:#fff;border:1.5px solid #0F5A63;border-radius:12px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.cyf-ov{position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}.cyf-pop{background:#fff;border-radius:12px;overflow:hidden;width:min(440px,100%);box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.cyf-det{border:1px solid #E2E8F0;border-radius:8px;padding:6px 8px;margin:4px 0}.cyf-det summary{cursor:pointer;font-weight:600;font-size:13px}.cyf-favs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0 10px}.cyf-mini{margin-left:6px;font-size:11px;padding:2px 7px;border-radius:8px;border:1px solid #94A3B8;background:#fff;cursor:pointer}
+@media (max-width:600px){.cyf-fld{flex:1 1 44%;min-width:0}.cyf-tbl{font-size:12px}.cyf-tbl td,.cyf-tbl th{padding:4px 3px}.cyf-cmpcol{flex:1 0 88%}}
+</style>`;
+function methPageHTML(){
+  return`<div id="app-content">
+  <div class="header" style="background:#0F5A63;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <div style="font-size:15px;font-weight:700">🔮 Méthodes — Les modules de forecast (Cybetcast)</div>
+      <button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
+    </div>
+  </div>
+  <div data-testid="methodes-page" style="padding:10px 12px calc(80px + env(safe-area-inset-bottom));padding-right:54px">${CYF_CSS}<div id="cyf-root">${cyfBodyHTML()}</div></div>
+  </div>`;
+}
+
 function render(){
   if(_renderBusy){_renderQueued=true;return;}
   if(_renderTimer){clearTimeout(_renderTimer);_renderTimer=null;}
@@ -22724,6 +23554,11 @@ function __renderBody(){
   }
   if(state.classifTabOpen){
     document.getElementById('app').innerHTML=classifTabHTML()+bottomNavHTML()+downloadAppButtonHTML();
+    applyTheme();
+    return;
+  }
+  if(state.methodesOpen){
+    document.getElementById('app').innerHTML=methPageHTML()+bottomNavHTML()+downloadAppButtonHTML();
     applyTheme();
     return;
   }

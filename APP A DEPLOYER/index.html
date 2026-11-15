@@ -22825,7 +22825,8 @@ const CYF_MODS=[
   {n:38,id:'cmp3',t:'Comparer 3 Plages de Tirages'},
   {n:39,map:42,t:'Pickin | Oblique'},
   {n:40,id:'combi',t:'Combinaison de Numéros'},
-  {n:41,id:'bauto',t:'Bankers Automatique'}
+  {n:41,id:'bauto',t:'Bankers Automatique'},
+  {n:'Oculus',id:'balayage',t:'Balayage (Oculus)'}
 ];
 const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});
 const CYF={view:'modules',mod:null,form:{},res:null,selG:null,selK:null,selM:0,tool:null,color:'#FDE047',paint:false,menu:null,grp:null,grpView:'table',statTab:'b',statRes:false,drop:false,info:null};
@@ -22854,7 +22855,7 @@ function cyfReadForm(){
   box.querySelectorAll('[data-k]').forEach(el=>{f[el.dataset.k]=el.type==='checkbox'?el.checked:el.value;});
   CYF.form[CYF.mod]=f;return f;
 }
-function cyfFormChanged(el){const f=cyfReadForm();if(el&&el.dataset&&/^g\d?$/.test(el.dataset.k||'')){const sx=el.dataset.k.slice(1);['t'+sx].concat(sx?[]:['ta','tb','ya','yb','y']).forEach(k=>{delete f[k];});}cyfRefresh();}
+function cyfFormChanged(el){const f=cyfReadForm();if(el&&el.dataset&&/^g\d?$/.test(el.dataset.k||'')){const sx=el.dataset.k.slice(1);['t'+sx].concat(sx?[]:['ta','tb','ya','yb','y','t1','t2','t3','t4','t5','t6']).forEach(k=>{delete f[k];});}cyfRefresh();}
 const CYF_SEL='padding:9px 10px;border:1.5px solid #9FB8BE;border-radius:8px;font-size:14px;background:#fff;color:#12343B;max-width:100%;min-width:0';
 function cyfField(label,inner,w){return`<label class="cyf-fld" style="${w?'flex:'+w:''}"><span>${label}</span>${inner}</label>`;}
 function cyfSelect(k,opts,val,onchange){return`<select data-k="${k}" style="${CYF_SEL}" ${onchange?'onchange="cyfFormChanged()"':''}>${opts.map(([v,l])=>`<option value="${cyfEsc(v)}" ${String(v)===String(val)?'selected':''}>${cyfEsc(l)}</option>`).join('')}</select>`;}
@@ -22973,6 +22974,27 @@ function cyfFormHTML(id){
     h+=`<div class="cyf-row">${cyfField('Nombre de bankers',cyfNum('nb',cyfF('nb','10')))}</div>`+go;
   }else if(id==='bauto'){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Fenêtre (derniers tirages)',cyfNum('w',cyfF('w','50')))}${cyfField('Nombre de bankers',cyfNum('c',cyfF('c','5')))}</div>`+go;
+  }else if(id==='balayage'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);
+    const nt=Math.max(2,Math.min(6,cyfInt(cyfF('nt','2'),2)));
+    const Ndef=cyfInt(cyfF('nb','25'),25);
+    const kind=cyfF('elem','nap');
+    const ntOpts=[];for(let i=2;i<=6;i++)ntOpts.push([String(i),String(i)]);
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Nombre de tranches',cyfSelect('nt',ntOpts,String(nt),true))}</div>`;
+    for(let i=1;i<=nt;i++){
+      const defT=rows.length?rows[Math.max(0,rows.length-1-Math.max(1,Ndef)*i)].t:'';
+      const tv=cyfF('t'+i,defT);const ix=rows.byT[cyfInt(tv,-1)];const r0=ix!=null?rows[ix]:null;
+      h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Tranche ${i}</b>${cyfField('Tirage début (N°)',cyfNum('t'+i,tv,'N°'))}${r0?`<span class="cyf-note" style="align-self:center">${cyfEsc(r0.d)}/${cyfEsc(r0.y)}</span>`:''}</div>`;
+    }
+    h+=`<div class="cyf-row">${cyfField('Nbre de tirages en bas',cyfNum('nb',cyfF('nb','25')))}${cyfField('Élément clé',cyfSelect('elem',[['nap','1bk, 2sure, 3nap'],['tot','Totalité']],kind,true),'1 1 200px')}</div>`;
+    if(kind==='tot'){
+      h+=`<div class="cyf-row">${cyfField('Totalité',cyfNum('tot',cyfF('tot',''),'somme des 5 numéros'))}</div>`;
+    }else{
+      for(let i=1;i<=3;i++)h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">N${i}</b>${cyfField('Numéro N'+i,cyfNum('n'+i,cyfF('n'+i,''),'1–90'))}${cyfField('à la position',cyfSelect('p'+i,[['', '—']].concat([['1','1'],['2','2'],['3','3'],['4','4'],['5','5']]),cyfF('p'+i,'')))}</div>`;
+    }
+    const styles=[['surligner','Surligner'],['encadrer','Encadrer'],['souligner','Souligner'],['texte','Colorier le texte'],['croix','Croix'],['etoile','Étoile'],['coeur','Cœur']];
+    h+=`<div class="cyf-row">${cyfField('Couleur',`<input data-k="col" type="color" value="${cyfEsc(cyfF('col','#FDE047'))}" style="height:40px;width:72px;padding:2px;border:1.5px solid #9FB8BE;border-radius:8px;background:#fff">`)}${cyfField('Style',cyfSelect('stl',styles,cyfF('stl','surligner')))}</div>`;
+    h+=`<div class="cyf-row" style="margin-top:6px">${cyfBtn('Chercher','cyfRun()')}</div>`;
   }
   return`<div id="cyf-form" class="cyf-card">${h}</div>`;
 }
@@ -23042,6 +23064,57 @@ function cyfCompute(id,f,m){
     const bt=methBacktestPredictor(desc,pred,{k:5,maxN:90,warmup:Math.max(METH_MIN_HIST,W),maxTests:400});
     return{kind:'bauto',g:f.g,W,C,top:top.slice(0,C).map(v=>({v,c:cnt[v]})),bt};
   }
+  if(id==='balayage'){
+    const rawN=String(f.nb==null?'':f.nb).trim();
+    const N=parseInt(rawN,10);
+    if(!/^\d+$/.test(rawN)||N<1||N>200)return{error:'Saisie incorrecte'};
+    const g=f.g||GAME.key;const rows=cyfRows(g);
+    if(!rows.length)return{error:'Aucun tirage.'};
+    const nt=Math.max(2,Math.min(6,cyfInt(f.nt,2)));
+    const starts=[];
+    for(let i=1;i<=nt;i++){
+      const t=cyfInt(f['t'+i],-1);const ix=rows.byT[t];
+      if(ix==null)return{error:'Tranche '+i+' : tirage N° '+f['t'+i]+' introuvable dans '+cyfName(g)+'.'};
+      starts.push({t,i:ix});
+    }
+    const kind=f.elem==='tot'?'tot':'nap';
+    let keys;
+    if(kind==='tot'){
+      const rawT=String(f.tot==null?'':f.tot).trim();const tot=parseInt(rawT,10);
+      if(!/^-?\d+$/.test(rawT)||!Number.isFinite(tot))return{error:'Saisie incorrecte'};
+      keys={tot};
+    }else{
+      keys=[];
+      for(let i=1;i<=3;i++){
+        const raw=String(f['n'+i]==null?'':f['n'+i]).trim();if(!raw)continue;
+        const num=parseInt(raw,10);if(!(num>=1&&num<=90))return{error:'Saisie incorrecte'};
+        const pr=String(f['p'+i]==null?'':f['p'+i]).trim();
+        const pos=pr===''?0:parseInt(pr,10);
+        if(pr!==''&&(!(pos>=1&&pos<=5)))return{error:'Saisie incorrecte'};
+        keys.push({num,pos});
+      }
+      if(!keys.length)return{error:'Saisie incorrecte'};
+    }
+    const tr=starts.map(s=>{
+      const idx=[];for(let o=0;o<=N;o++){const j=s.i+o;idx.push(j<rows.length?j:null);}
+      const hl={};let found=false;
+      if(kind==='tot'){
+        idx.forEach(j=>{if(j==null)return;if(cyfSum(rows[j])!==keys.tot)return;found=true;const H=hl[j]={to:'p'};rows[j].n.forEach((_,p)=>{H[p]='p';});});
+      }else{
+        const seen=new Set();
+        keys.forEach((k,ki)=>{
+          idx.forEach(j=>{
+            if(j==null)return;const r=rows[j];
+            if(k.pos){if(r.n[k.pos-1]===k.num){(hl[j]=hl[j]||{})[k.pos-1]='p';seen.add(ki);}}
+            else r.n.forEach((v,p)=>{if(v===k.num){(hl[j]=hl[j]||{})[p]='p';seen.add(ki);}});
+          });
+        });
+        found=seen.size===keys.length;
+      }
+      return{start:s,idx,hl,found};
+    });
+    return{kind:'balayage',g,N,elem:kind,keys,color:f.col||'#FDE047',style:f.stl||'surligner',tr};
+  }
   return{error:'Module inconnu.'};
 }
 function methBacktestPredictor(draws,predict,opts){
@@ -23079,8 +23152,11 @@ function cyfTableHTML(g,idx,hl,opts){
     const [dd,mm]=String(r.d).split('/');const H=(hl&&hl[i])||{};
     const mk=opts.mark&&opts.mark.has(i);
     h+=`<tr data-cyf="${g}|${i}" class="${mk?'cyf-mark':''}${opts.after&&opts.after.has(i)?' cyf-aft':''}" title="N° ${r.t} — double-clic ou appui long : actions"><td class="cyf-l">${r.L}</td><td>${cyfEsc(dd||'')}</td><td>${cyfEsc(mm||'')}</td><td>${cyfEsc(r.y)}</td>`;
-    for(let p=0;p<k;p++){const v=r.n[p];const c=H[p];const man=nu[cyfNuKey(g,r.t,p)];h+=`<td data-p="${p}" class="cyf-n${c?' cyf-'+c:''}"${man?` style="background:${man}"`:''}>${v==null?'':v}</td>`;}
-    h+=`<td class="cyf-to">${cyfSum(r)}</td></tr>`;
+    for(let p=0;p<k;p++){const v=r.n[p];const c=H[p];const man=nu[cyfNuKey(g,r.t,p)];
+      if(opts.paint&&c==='p'){const a=cyfPaintAttrs(opts.paint.color,opts.paint.style);h+=`<td data-p="${p}" class="cyf-n${a.cls||''}" style="${man?'background:'+man+';':''}${a.style||''}">${v==null?'':v}${a.extra||''}</td>`;}
+      else h+=`<td data-p="${p}" class="cyf-n${c?' cyf-'+c:''}"${man?` style="background:${man}"`:''}>${v==null?'':v}</td>`;}
+    const ta=opts.paint&&H.to==='p'?cyfPaintAttrs(opts.paint.color,opts.paint.style):null;
+    h+=`<td class="cyf-to${ta&&ta.cls?ta.cls:''}"${ta?` style="${ta.style||''}"`:''}>${cyfSum(r)}${ta&&ta.extra?ta.extra:''}</td></tr>`;
   });
   return h+'</tbody></table></div>';
 }
@@ -23136,12 +23212,39 @@ function cyfCmpHTML(res){
   });
   return h+`</div><div class="cyf-legend">Les tableaux sont alignés sur leur ligne de base (encadrée). Les lignes grisées en bas sont celles qui ont suivi.</div>`;
 }
+function cyfPaintColor(c){return /^#[0-9A-Fa-f]{6}$/.test(c||'')?c:'#FDE047';}
+function cyfPaintAttrs(color,style){
+  const c=cyfPaintColor(color);
+  switch(style){
+    case 'encadrer': return {style:`outline:2px solid ${c};outline-offset:-2px`};
+    case 'souligner': return {style:`box-shadow:inset 0 -3px 0 ${c}`};
+    case 'texte': return {style:`color:${c};font-weight:800`};
+    case 'croix': return {style:'position:relative',extra:`<span style="position:absolute;left:0;right:0;top:0;bottom:0;display:flex;align-items:center;justify-content:center;color:${c};pointer-events:none;font-weight:800;font-size:16px;opacity:.9">✕</span>`};
+    case 'etoile': return {extra:` <span style="color:${c}">★</span>`};
+    case 'coeur': return {extra:` <span style="color:${c}">♥</span>`};
+    default: return {style:`background:${c}`};
+  }
+}
+function cyfBalayageHTML(res){
+  const paint={color:res.color,style:res.style};
+  const found=res.tr.filter(t=>t.found).length;
+  const desc=(res.elem==='tot'?'Totalité = '+res.keys.tot:res.keys.map(k=>'N'+k.num+(k.pos?' pos '+k.pos:'')).join(', '))+' · '+res.N+' tirages en bas';
+  let h=`<div class="cyf-resbar" data-testid="cyf-balayage-res"><b class="cyf-cnt">Résultat (${found}/${res.tr.length} trouvé${found>1?'s':''})</b><span class="cyf-desc">${cyfEsc(desc)}</span></div><div class="cyf-cmp">`;
+  res.tr.forEach((T,ti)=>{
+    const rows=cyfRows(res.g);const base=rows[T.start.i];
+    const cap='Tranche '+(ti+1)+' : '+cyfName(res.g)+' — N° '+base.t+' ('+base.d+'/'+base.y+')';
+    const badge=T.found?'<span class="cyf-ok">trouvé</span>':'<span class="cyf-no">absent</span>';
+    h+=`<div class="cyf-cmpcol"><div style="margin-bottom:4px">${badge}</div>${cyfTableHTML(res.g,T.idx,T.hl,{cap,mark:new Set([T.start.i]),paint})}</div>`;
+  });
+  return h+`</div><div class="cyf-legend">Chaque tranche commence au tirage de début, puis les ${res.N} tirages suivants. Les cases marquées correspondent à l’élément clé.</div>`;
+}
 function cyfResHTML(){
   const res=CYF.res;if(!res)return'';
   let h='<div id="cyf-res" class="cyf-card">';
   if(res.error)h+=`<div class="cyf-err">${cyfEsc(res.error)}</div>`;
   else if(res.kind==='search')h+=cyfSearchResHTML(res);
   else if(res.kind==='cmp')h+=cyfCmpHTML(res);
+  else if(res.kind==='balayage')h+=cyfBalayageHTML(res);
   else if(res.kind==='list'){const rows=cyfRows(res.g);h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.to-res.from+1})</b><span class="cyf-desc">${cyfEsc(res.title)}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div>`+cyfTableHTML(res.g,cyfRange(res.from,res.to,rows.length),null,{cap:res.title});}
   else if(res.kind==='nums')h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.nums.length})</b><span class="cyf-desc">${cyfEsc(res.label)} — ${cyfEsc(res.title)}</span></div><div class="cyf-balls">${res.nums.map(v=>`<span class="cyf-ball">${v}</span>`).join('')||'<i>Tous les numéros sont sortis.</i>'}</div>`;
   else if(res.kind==='combi'){const c=k=>nCr(res.n,k).toLocaleString('fr-FR');h+=`<div class="cyf-resbar"><b class="cyf-cnt">Avec ${res.n} bankers</b></div><div class="cyf-grid2">${[2,3,4,5].map(k=>`<div class="cyf-gcell"><div>${k} Nap</div><b>${c(k)}</b></div>`).join('')}</div>`;}
@@ -23352,11 +23455,11 @@ const CYF_CSS=`<style>
 .cyf-tw{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .cyf-tbl{border-collapse:collapse;font-size:13px;min-width:100%}.cyf-tbl th{background:#E2E8F0;color:#334155;font-weight:700;padding:5px 6px;border:1px solid #CBD5E1;position:sticky;top:0}.cyf-tbl th.cyf-cap{background:#0F5A63;color:#fff;text-align:left}
 .cyf-tbl td{padding:5px 6px;border:1px solid #E2E8F0;text-align:center;white-space:nowrap}.cyf-tbl tbody tr:nth-child(even){background:#F8FAFC}
-.cyf-tbl td.cyf-n{font-weight:600;min-width:26px;cursor:pointer}.cyf-tbl td.cyf-to{color:#64748B}.cyf-tbl td.cyf-l{color:#64748B;font-size:11.5px}
+.cyf-tbl td.cyf-n{font-weight:600;min-width:26px;cursor:pointer;position:relative}.cyf-tbl td.cyf-to{color:#64748B}.cyf-tbl td.cyf-l{color:#64748B;font-size:11.5px}
 .cyf-tbl tr.cyf-mark td{border-top:2px solid #0F5A63;border-bottom:2px solid #0F5A63}.cyf-tbl tr.cyf-aft td{opacity:.75;background:#EEF2F7}.cyf-tbl tr.cyf-pad td{color:#CBD5E1}
 .cyf-r{color:#DC2626!important;font-weight:800!important}.cyf-y{background:#FDE047!important}.cyf-c{background:#67E8F9!important}.cyf-g{background:#86EFAC!important}
 .cyf-legend{font-size:11.5px;color:#64748B;margin-top:6px}.cyf-legend span{padding:1px 5px;border-radius:4px}
-.cyf-note{font-size:11.5px;color:#64748B;font-weight:400}.cyf-err{color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:8px}.cyf-empty{color:#64748B;padding:10px;text-align:center}
+.cyf-note{font-size:11.5px;color:#64748B;font-weight:400}.cyf-err{color:#B91C1C;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:8px}.cyf-empty{color:#64748B;padding:10px;text-align:center}.cyf-ok{color:#15803D;font-weight:700}.cyf-no{color:#B91C1C;font-weight:700}
 .cyf-disc{font-size:11.5px;color:#78350F;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:6px 8px;margin-top:10px}
 .cyf-pill{display:inline-block;background:#DCFCE7;border:1px solid #86EFAC;border-radius:10px;padding:1px 7px;margin:2px;font-size:12px}
 .cyf-balls{display:flex;flex-wrap:wrap;gap:6px}.cyf-ball{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border-radius:17px;background:#0F5A63;color:#fff;font-weight:700;padding:0 6px}.cyf-ball sub{font-size:9px;margin-left:2px;opacity:.8}

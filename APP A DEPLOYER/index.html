@@ -2464,7 +2464,7 @@ function afficheTogoWeekHTML(){
 }
 function afficheDayBody(date,countries){
   if(state.afficheMixOn)return afficheMixPosterHTML(date);
-  return countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheCMDigitalHTML(date)+afficheSuper4HTML(date):'')).join('');
+  return countries.map(c=>afficheCountryPosterHTML(c,date)+(c==='Cameroun'?afficheSuper4HTML(date)+afficheCMDigitalHTML(date):'')).join('');
 }
 function afficheHTML(){
   const date=afficheDateObj();const C=state.afficheCountry||'Cameroun';

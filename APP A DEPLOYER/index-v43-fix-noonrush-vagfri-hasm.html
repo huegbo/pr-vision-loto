@@ -16074,6 +16074,7 @@ function fabGo(action){
 // Les pages plein écran (Affiches, Tirage du jour, Conversion, Pronostic, Classification) s'excluent : en ouvrir une ferme les autres
 function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pronosticOpen','classifTabOpen','methodesOpen'].forEach(k=>{state[k]=false;});}
 function goNav(id){
+  if(id==='v2'){location.href='v2/';return;}
   window._navLastId=String(id);
   if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes')_closePagePanels();
   // Onglets principaux : fermer aussi les filtres pays, sinon le rendu s'arrête dessus
@@ -16198,6 +16199,7 @@ function bottomNavHTML(){
     ['pronostic','🍀','Pronostic'],
     ['conversion','🧩🔁','Conversion'],
     ['classif','🧬','Classification'],
+    ['v2','📱','Version 2'],
   ];
   return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:2200px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{

@@ -22569,7 +22569,7 @@ let _renderBusy=false,_renderQueued=false,_renderTimer=null;
 // (GAMES / parseLines / getExtras). Sauvegardes, réglages, nuancier : localStorage uniquement.
 // Aucune écriture Supabase. Les modules non reproduits ici renvoient vers leur équivalent
 // existant de l'onglet Modules (openCyb), ou sont omis.
-const CYF_LS={set:'fl90_cyf_reglages',recent:'fl90_cyf_recents',groups:'fl90_cyf_groupes',nuance:'fl90_cyf_nuancier'};
+const CYF_LS={set:'fl90_cyf_reglages',recent:'fl90_cyf_recents',groups:'fl90_cyf_groupes',nuance:'fl90_cyf_nuancier',cmpRel:'fl90_cyf_cmp_rel'};
 const CYF_TOGO=['diamant','gold','cash','boom','benz','prestige','million','super','kadoo','king','sam','bingo','detente'];
 const METH_MIN_HIST=30, METH_MAX_TESTS=800;
 function cyfEsc(s){return String(s==null?'':s).replace(/[&<>"'`]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));}
@@ -22828,7 +22828,10 @@ const CYF_MODS=[
   {n:39,map:42,t:'Pickin | Oblique'},
   {n:40,id:'combi',t:'Combinaison de Numéros'},
   {n:41,id:'bauto',t:'Bankers Automatique'},
-  {n:'Oculus',id:'balayage',t:'Balayage (Oculus)'}
+  {n:'Oculus',id:'balayage',t:'Balayage (Oculus)'},
+  {n:'Oculus',id:'seq',t:'Séquence de numéros',seq:'plain'},
+  {n:'Oculus',id:'seqpos',t:'Séquence de numéros avec position',seq:'pos'},
+  {n:'Oculus',id:'seqtot',t:'Séquence de numéros suivi de totalité',seq:'tot'}
 ];
 const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});
 const CYF={view:'modules',mod:null,form:{},res:null,selG:null,selK:null,selM:0,tool:null,color:'#FDE047',paint:false,menu:null,grp:null,grpView:'table',statTab:'b',statRes:false,drop:false,info:null};
@@ -22997,6 +23000,20 @@ function cyfFormHTML(id){
     const styles=[['surligner','Surligner'],['encadrer','Encadrer'],['souligner','Souligner'],['texte','Colorier le texte'],['croix','Croix'],['etoile','Étoile'],['coeur','Cœur']];
     h+=`<div class="cyf-row">${cyfField('Couleur',`<input data-k="col" type="color" value="${cyfEsc(cyfF('col','#FDE047'))}" style="height:40px;width:72px;padding:2px;border:1.5px solid #9FB8BE;border-radius:8px;background:#fff">`)}${cyfField('Style',cyfSelect('stl',styles,cyfF('stl','surligner')))}</div>`;
     h+=`<div class="cyf-row" style="margin-top:6px">${cyfBtn('Chercher','cyfRun()')}</div>`;
+  }else if(CYF_MOD_BY[id]&&CYF_MOD_BY[id].seq){
+    const mode=CYF_MOD_BY[id].seq;const g=cyfF('g',GAME.key);
+    const ns=Math.max(2,Math.min(5,cyfInt(cyfF('ns','2'),2)));
+    const nsOpts=[];for(let i=2;i<=5;i++)nsOpts.push([String(i),String(i)]);
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Nombre de numéros',cyfSelect('ns',nsOpts,String(ns),true))}</div>`;
+    for(let i=1;i<=ns;i++){
+      h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">S${i}</b>${cyfField('Numéro S'+i,cyfNum('s'+i,cyfF('s'+i,''),'1–90'))}`;
+      if(mode==='pos')h+=cyfField('Position',cyfSelect('sp'+i,[['0','toutes'],['1','1'],['2','2'],['3','3'],['4','4'],['5','5']],cyfF('sp'+i,'0')));
+      h+='</div>';
+    }
+    if(mode==='tot')h+=`<div class="cyf-row">${cyfField('Totalité',cyfNum('tot',cyfF('tot',''),'somme des 5 numéros'))}</div>`;
+    const styles=[['surligner','Surligner'],['encadrer','Encadrer'],['souligner','Souligner'],['texte','Colorier le texte'],['croix','Croix'],['etoile','Étoile'],['coeur','Cœur']];
+    h+=`<div class="cyf-row">${cyfField('Tirages après',cyfNum('aft',cyfF('aft','5')))}${cyfField('Couleur',`<input data-k="col" type="color" value="${cyfEsc(cyfF('col','#FDE047'))}" style="height:40px;width:72px;padding:2px;border:1.5px solid #9FB8BE;border-radius:8px;background:#fff">`)}${cyfField('Style',cyfSelect('stl',styles,cyfF('stl','surligner')))}</div>`;
+    h+=`<div class="cyf-row" style="margin-top:6px">${cyfBtn('Chercher','cyfRun()')}</div>`;
   }
   return`<div id="cyf-form" class="cyf-card">${h}</div>`;
 }
@@ -23065,6 +23082,50 @@ function cyfCompute(id,f,m){
     const pred=h=>{const c=new Array(91).fill(0);h.slice(0,W).forEach(d=>d.n.forEach(v=>c[v]++));const t=[];for(let v=1;v<=90;v++)t.push(v);t.sort((a,b)=>c[b]-c[a]||a-b);return t.slice(0,C);};
     const bt=methBacktestPredictor(desc,pred,{k:5,maxN:90,warmup:Math.max(METH_MIN_HIST,W),maxTests:400});
     return{kind:'bauto',g:f.g,W,C,top:top.slice(0,C).map(v=>({v,c:cnt[v]})),bt};
+  }
+  if(m&&m.seq){
+    const mode=m.seq;
+    const rawA=String(f.aft==null||f.aft===''?'5':f.aft).trim();const aft=parseInt(rawA,10);
+    if(!/^\d+$/.test(rawA)||aft<0||aft>50)return{error:'Saisie incorrecte'};
+    const ns=Math.max(2,Math.min(5,cyfInt(f.ns,2)));const seq=[];
+    for(let i=1;i<=ns;i++){
+      const raw=String(f['s'+i]==null?'':f['s'+i]).trim();const num=parseInt(raw,10);
+      if(!/^\d+$/.test(raw)||!(num>=1&&num<=90))return{error:'Saisie incorrecte'};
+      let pos=0;
+      if(mode==='pos'){
+        const pr=String(f['sp'+i]==null?'':f['sp'+i]).trim();
+        if(pr!==''&&pr!=='0'){pos=parseInt(pr,10);if(!(pos>=1&&pos<=5))return{error:'Saisie incorrecte'};}
+      }
+      seq.push({num,pos});
+    }
+    let tot=null;
+    if(mode==='tot'){
+      const rawT=String(f.tot==null?'':f.tot).trim();tot=parseInt(rawT,10);
+      if(!/^-?\d+$/.test(rawT)||!Number.isFinite(tot))return{error:'Saisie incorrecte'};
+    }
+    const g=f.g||GAME.key;const rows=cyfRows(g);if(!rows.length)return{error:'Aucun tirage.'};
+    const k=seq.length,need=k+(tot!=null?1:0),matches=[],CAP=500;let capped=false;
+    for(let i=rows.length-need;i>=0;i--){
+      const hl={};let ok=true;
+      for(let s=0;s<k;s++){
+        const r=rows[i+s],want=seq[s];let hit=false;
+        if(want.pos){if(r.n[want.pos-1]===want.num){hit=true;(hl[i+s]=hl[i+s]||{})[want.pos-1]='p';}}
+        else r.n.forEach((v,p)=>{if(v===want.num){hit=true;(hl[i+s]=hl[i+s]||{})[p]='p';}});
+        if(!hit){ok=false;break;}
+      }
+      if(!ok)continue;
+      if(tot!=null){
+        const j=i+k;if(cyfSum(rows[j])!==tot)continue;
+        const H=hl[j]={to:'p'};
+      }
+      const r0=rows[i];matches.push({i,t:r0.t,d:r0.d,y:r0.y,hl});
+      if(matches.length>=CAP){capped=true;break;}
+    }
+    const cnt=new Array(91).fill(0);
+    matches.forEach(m0=>{for(let o=0;o<aft;o++){const r=rows[m0.i+k+o];if(r)r.n.forEach(v=>{if(v)cnt[v]++;});}});
+    const freq=[];for(let v=1;v<=90;v++)if(cnt[v])freq.push({v,c:cnt[v]});freq.sort((a,b)=>b.c-a.c||a.v-b.v);
+    const desc=seq.map((s,i)=>'S'+(i+1)+'='+s.num+(s.pos?' pos '+s.pos:'')).join(' → ')+(tot!=null?' · puis totalité '+tot:'')+' · '+cyfName(g);
+    return{kind:'seq',g,mode,seq,tot,aft,color:f.col||'#FDE047',style:f.stl||'surligner',matches,capped,freq:freq.slice(0,10),desc};
   }
   if(id==='balayage'){
     const rawN=String(f.nb==null?'':f.nb).trim();
@@ -23156,7 +23217,7 @@ function cyfTableHTML(g,idx,hl,opts){
     h+=`<tr data-cyf="${g}|${i}" class="${mk?'cyf-mark':''}${opts.after&&opts.after.has(i)?' cyf-aft':''}" title="N° ${r.t} — double-clic ou appui long : actions"><td class="cyf-l">${r.L}</td><td>${cyfEsc(dd||'')}</td><td>${cyfEsc(mm||'')}</td><td>${cyfEsc(r.y)}</td>`;
     for(let p=0;p<k;p++){const v=r.n[p];const c=H[p];const man=nu[cyfNuKey(g,r.t,p)];
       if(opts.paint&&c==='p'){const a=cyfPaintAttrs(opts.paint.color,opts.paint.style);h+=`<td data-p="${p}" class="cyf-n${a.cls||''}" style="${man?'background:'+man+';':''}${a.style||''}">${v==null?'':v}${a.extra||''}</td>`;}
-      else h+=`<td data-p="${p}" class="cyf-n${c?' cyf-'+c:''}"${man?` style="background:${man}"`:''}>${v==null?'':v}</td>`;}
+      else{const info=(c&&typeof c==='object')?c:null;const cls=info?info.cls:c;const st=man?'background:'+man+';':(info&&info.bg?('background:'+info.bg+';'+(info.fg?'color:'+info.fg+';':'')):'');const tit=info&&info.title?` title="${cyfEsc(info.title)}"`:'';h+=`<td data-p="${p}" class="cyf-n${cls?' cyf-'+cls:''}"${st?` style="${st}"`:''}${tit}>${v==null?'':v}</td>`;}}
     const ta=opts.paint&&H.to==='p'?cyfPaintAttrs(opts.paint.color,opts.paint.style):null;
     h+=`<td class="cyf-to${ta&&ta.cls?ta.cls:''}"${ta?` style="${ta.style||''}"`:''}>${cyfSum(r)}${ta&&ta.extra?ta.extra:''}</td></tr>`;
   });
@@ -23191,28 +23252,135 @@ function cyfSearchResHTML(res){
   h+=`<div class="cyf-legend"><span class="cyf-r">Draw1</span> <span class="cyf-y">résultat</span> <span class="cyf-c">bankers / draws</span> <span class="cyf-g">paire</span> · double-clic ou appui long sur une ligne pour Sauvegarder / Comparer / prochain Banker</div>`;
   return h;
 }
-function cyfCmpHTML(res){
+// Types de correspondance affichés dans la comparaison de plages.
+// Identiques d'abord (jaune, priorité max), puis la table officielle ELM_DEF / CL_DEF
+// (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) — on
+// réutilise couleurs, libellés et dérivés existants (elmDerivs), sans recopier les tableaux.
+// Pour un type futur, il suffit d'une entrée dans ELM_DEF (ou ici pour un type hors table).
+function cyfCmpRels(){
+  if(CYF._cmpRels)return CYF._cmpRels;
+  const ident={key:'ident',label:'identiques',singular:'identique',cls:'y',bg:'#FDE047',fg:'#111',test:(a,b)=>a===b};
+  const rest=ELM_DEF.map(d=>({
+    key:d.key,label:d.label,singular:d.label,cls:'cl-'+d.key,bg:d.bg,fg:d.fg,
+    test:(a,b)=>{const da=elmDerivs(a)[d.key],db=elmDerivs(b)[d.key];return(da!=null&&da===b)||(db!=null&&db===a);}
+  }));
+  return CYF._cmpRels=[ident].concat(rest);
+}
+function cyfCmpRelOn(){
+  if(!CYF.cmpRel){
+    const saved=cyfLS(CYF_LS.cmpRel,null);
+    CYF.cmpRel=(saved&&typeof saved==='object'&&!Array.isArray(saved))?Object.assign({},saved):{};
+  }
+  const s=CYF.cmpRel;
+  cyfCmpRels().forEach(r=>{if(s[r.key]===undefined)s[r.key]=true;});
+  return s;
+}
+function cyfCmpRelSave(){cyfLSset(CYF_LS.cmpRel,cyfCmpRelOn());}
+function cyfCmpToggleRel(key,on){
+  cyfCmpRelOn()[key]=!!on;
+  cyfCmpRelSave();
+  cyfCmpPaint();
+}
+function cyfCmpToggleAll(on){
+  const s=cyfCmpRelOn();
+  cyfCmpRels().forEach(r=>s[r.key]=!!on);
+  cyfCmpRelSave();
+  cyfCmpPaint();
+}
+function cyfCmpCountText(counts){
+  return 'Résultat : '+cyfCmpRels().map(r=>{const n=counts[r.key]||0;return n+' '+(n>1?r.label:r.singular);}).join(' · ');
+}
+function cyfCmpCountHTML(counts){
+  const pills=cyfCmpRels().map(r=>{const n=counts[r.key]||0;return `<span class="cyf-cpill${n?'':' zero'}" style="background:${r.bg};color:${r.fg}">${n} ${n>1?r.label:r.singular}</span>`;}).join('');
+  return `<b class="cyf-cnt">Résultat :</b>${pills}`;
+}
+function cyfCmpBuild(res){
+  const rels=cyfCmpRels();
   const P=res.pl.map((p,pi)=>{
     const rows=cyfRows(p.g);let idx=[];
     const inv=res.inv&&pi>0;
     for(let o=res.nb-1;o>=0;o--)idx.push(inv?p.i+o:p.i-o);
     idx=idx.map(i=>(i>=0&&i<rows.length)?i:null);
     const aft=[];if(!inv)for(let a=1;a<=res.aft;a++){const i=p.i+a;aft.push(i<rows.length?i:null);}
-    return{g:p.g,rows,idx,aft,inv};
+    return{g:p.g,rows,idx,aft,inv,max:Math.max(0,rows.length-1)};
   });
-  const hl=P.map(()=>({}));let same=0;
+  const on=cyfCmpRelOn();
+  const hl=P.map(()=>({}));
+  const counts={};rels.forEach(r=>counts[r.key]=0);
   for(let r=0;r<res.nb;r++){
-    P.forEach((A,ai)=>{const ia=A.idx[r];if(ia==null)return;A.rows[ia].n.forEach((v,pv)=>{if(v==null)return;
-      const hit=P.some((B,bi)=>bi!==ai&&B.idx[r]!=null&&B.rows[B.idx[r]].n.includes(v));
-      if(hit){(hl[ai][ia]=hl[ai][ia]||{})[pv]='y';if(ai===0)same++;}});});
+    P.forEach((A,ai)=>{
+      const ia=A.idx[r];if(ia==null)return;
+      const others=[];
+      P.forEach((B,bi)=>{if(bi===ai||B.idx[r]==null)return;B.rows[B.idx[r]].n.forEach(v=>{if(v!=null)others.push(v);});});
+      A.rows[ia].n.forEach((v,pv)=>{
+        if(v==null)return;
+        const hits=rels.filter(rel=>others.some(u=>rel.test(v,u)));
+        if(!hits.length)return;
+        if(ai===0)hits.forEach(rel=>counts[rel.key]++);
+        const shown=hits.find(rel=>on[rel.key]);
+        if(shown){(hl[ai][ia]=hl[ai][ia]||{})[pv]={cls:shown.cls,bg:shown.bg,fg:shown.fg,title:hits.map(rel=>rel.label).join(' · ')};}
+      });
+    });
   }
-  let h=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${same})</b><span class="cyf-desc">numéros identiques au même rang (jaune) · ${res.nb} lignes · ${res.inv?'inversé':'non inversé'}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div><div class="cyf-cmp">`;
+  return{P,hl,counts};
+}
+function cyfCmpSetLine(ai,ni){
+  const res=CYF.res;if(!res||res.kind!=='cmp'||!res.pl[ai])return;
+  const rows=cyfRows(res.pl[ai].g);if(!rows.length)return;
+  ni=Math.max(0,Math.min(rows.length-1,ni|0));
+  if(ni!==res.pl[ai].i){
+    res.pl[ai].i=ni;
+    const f=CYF.form[CYF.mod]=Object.assign({},CYF.form[CYF.mod]||{});
+    f['t'+(ai+1)]=String(rows[ni].t);
+    const inp=document.querySelector('#cyf-form [data-k="t'+(ai+1)+'"]');
+    if(inp)inp.value=String(rows[ni].t);
+  }
+  cyfCmpPaint();
+}
+function cyfCmpShift(ai,delta){const res=CYF.res;if(!res||res.kind!=='cmp'||!res.pl[ai])return;cyfCmpSetLine(ai,res.pl[ai].i+delta);}
+function cyfCmpSlide(ai,val){const res=CYF.res;if(!res||res.kind!=='cmp'||!res.pl[ai])return;const rows=cyfRows(res.pl[ai].g);cyfCmpSetLine(ai,(rows.length-1)-parseInt(val,10));}
+function cyfCmpPaint(){
+  const res=CYF.res;if(!res||res.kind!=='cmp')return;
+  const box=document.getElementById('cyf-res');
+  if(!box||!box.querySelector('#cyf-cmpcol-0')){cyfRefresh();return;}
+  const {P,hl,counts}=cyfCmpBuild(res);
+  const countsEl=box.querySelector('#cyf-cmp-counts');if(countsEl)countsEl.innerHTML=cyfCmpCountHTML(counts);
+  const on=cyfCmpRelOn();
+  box.querySelectorAll('#cyf-cmp-legs input[data-rel]').forEach(el=>{el.checked=!!on[el.dataset.rel];});
   P.forEach((A,ai)=>{
     const base=A.rows[res.pl[ai].i];
     const idx=A.idx.concat(A.inv?[]:A.aft);
-    h+=`<div class="cyf-cmpcol">${cyfTableHTML(A.g,idx,hl[ai],{cap:'Loterie '+(ai+1)+' : '+cyfName(A.g)+' — Ligne '+base.t+(A.inv?' (inversé)':''),mark:new Set([res.pl[ai].i]),after:new Set(A.aft.filter(x=>x!=null))})}</div>`;
+    const cap='Loterie '+(ai+1)+' : '+cyfName(A.g)+' — Ligne '+(base?base.t:'')+(A.inv?' (inversé)':'');
+    const col=box.querySelector('#cyf-cmpcol-'+ai);
+    if(col)col.innerHTML=cyfTableHTML(A.g,idx,hl[ai],{cap,mark:new Set([res.pl[ai].i]),after:new Set(A.aft.filter(x=>x!=null))});
+    const lab=box.querySelector('#cyf-lift-n'+ai);if(lab)lab.textContent=base?'N° '+base.t:'';
+    const sl=box.querySelector('#cyf-lift-sl-'+ai);
+    if(sl){sl.max=A.max;sl.value=A.max-res.pl[ai].i;}
+    const up=box.querySelector('#cyf-lift-up-'+ai);if(up)up.disabled=res.pl[ai].i<=0;
+    const dn=box.querySelector('#cyf-lift-dn-'+ai);if(dn)dn.disabled=res.pl[ai].i>=A.max;
   });
-  return h+`</div><div class="cyf-legend">Les tableaux sont alignés sur leur ligne de base (encadrée). Les lignes grisées en bas sont celles qui ont suivi.</div>`;
+}
+function cyfCmpHTML(res){
+  const {P,hl,counts}=cyfCmpBuild(res);
+  const on=cyfCmpRelOn();
+  const legend=cyfCmpRels().map(r=>`<label class="cyf-chk cyf-cleg" title="Afficher ou masquer : ${cyfEsc(r.label)}"><input type="checkbox" data-rel="${r.key}" ${on[r.key]?'checked':''} onchange="cyfCmpToggleRel('${r.key}',this.checked)"><span class="cyf-cleg-sw" style="background:${r.bg}"></span>${cyfEsc(r.label)}</label>`).join('');
+  let h=`<div class="cyf-resbar" data-testid="cyf-cmp-res"><div class="cyf-cnts" id="cyf-cmp-counts">${cyfCmpCountHTML(counts)}</div><span class="cyf-desc">au même rang · ${res.nb} lignes · ${res.inv?'inversé':'non inversé'}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div><div class="cyf-clegs" id="cyf-cmp-legs" data-testid="cyf-cmp-legs"><button type="button" class="cyf-cleg-btn" data-testid="cyf-cmp-all" onclick="cyfCmpToggleAll(true)">Tout</button><button type="button" class="cyf-cleg-btn" data-testid="cyf-cmp-none" onclick="cyfCmpToggleAll(false)">Aucun</button>${legend}</div><div class="cyf-cmp">`;
+  P.forEach((A,ai)=>{
+    const base=A.rows[res.pl[ai].i];
+    const idx=A.idx.concat(A.inv?[]:A.aft);
+    const cap='Loterie '+(ai+1)+' : '+cyfName(A.g)+' — Ligne '+(base?base.t:'')+(A.inv?' (inversé)':'');
+    const disUp=res.pl[ai].i<=0?' disabled':'';
+    const disDn=res.pl[ai].i>=A.max?' disabled':'';
+    h+=`<div class="cyf-cmpbox"><div class="cyf-cmpcol" id="cyf-cmpcol-${ai}">${cyfTableHTML(A.g,idx,hl[ai],{cap,mark:new Set([res.pl[ai].i]),after:new Set(A.aft.filter(x=>x!=null))})}</div>
+      <div class="cyf-lift" data-testid="cyf-lift-${ai}">
+        <div class="cyf-lift-lab">Ascenseur</div>
+        <button type="button" id="cyf-lift-up-${ai}" class="cyf-lift-btn" title="Vers les tirages plus anciens" aria-label="Plus ancien, Loterie ${ai+1}" onclick="cyfCmpShift(${ai},-1)"${disUp}>▲</button>
+        <input type="range" id="cyf-lift-sl-${ai}" class="cyf-lift-sl" data-testid="cyf-lift-sl-${ai}" min="0" max="${A.max}" value="${A.max-res.pl[ai].i}" step="1" orient="vertical" aria-label="Déplacer les lignes de Loterie ${ai+1}" title="Glisser pour déplacer les lignes" oninput="cyfCmpSlide(${ai},this.value)">
+        <button type="button" id="cyf-lift-dn-${ai}" class="cyf-lift-btn" title="Vers les tirages plus récents" aria-label="Plus récent, Loterie ${ai+1}" onclick="cyfCmpShift(${ai},1)"${disDn}>▼</button>
+        <div class="cyf-lift-n" id="cyf-lift-n${ai}">${base?'N° '+base.t:''}</div>
+      </div></div>`;
+  });
+  return h+`</div><div class="cyf-legend">Les tableaux sont alignés sur leur ligne de base (encadrée). Les lignes grisées en bas sont celles qui ont suivi. L’ascenseur à droite de chaque tableau déplace ses lignes indépendamment : les correspondances se recalculent à chaque mouvement. Cochez ou décochez un type pour l’afficher ou le masquer. Si une case a plusieurs relations, la première case cochée dans la liste est colorée, et toutes apparaissent dans l’infobulle.</div>`;
 }
 function cyfPaintColor(c){return /^#[0-9A-Fa-f]{6}$/.test(c||'')?c:'#FDE047';}
 function cyfPaintAttrs(color,style){
@@ -23240,6 +23408,19 @@ function cyfBalayageHTML(res){
   });
   return h+`</div><div class="cyf-legend">Chaque tranche commence au tirage de début, puis les ${res.N} tirages suivants. Les cases marquées correspondent à l’élément clé.</div>`;
 }
+function cyfSeqHTML(res){
+  const n=res.matches.length,paint={color:res.color,style:res.style},k=res.seq.length;
+  let h=`<div class="cyf-resbar" data-testid="cyf-seq-res"><b class="cyf-cnt">Résultat (${n}${res.capped?'+':''})</b><span class="cyf-desc">${cyfEsc(res.desc||'')}</span></div>`;
+  if(res.freq&&res.freq.length&&res.aft>0)h+=`<div class="cyf-info">Numéros les plus fréquents dans les ${res.aft} tirages suivants : <div class="cyf-balls" style="margin-top:6px">${res.freq.map(x=>`<span class="cyf-ball">${x.v}<sub>${x.c}×</sub></span>`).join('')}</div></div>`;
+  if(!n)return h+`<div class="cyf-empty">Aucun cas trouvé avec ces paramètres${res.ms!=null?' ('+res.ms+' ms)':''}.</div>`;
+  if(CYF.selM>=n)CYF.selM=0;
+  h+=`<div class="cyf-chips cyf-chips2">${res.matches.map((m,j)=>`<button class="cyf-chip2${j===CYF.selM?' on':''}" onclick="CYF.selM=${j};cyfRefresh()">N° ${m.t} — ${cyfEsc(m.d)}/${cyfEsc(m.y)}</button>`).join('')}</div>`;
+  const m=res.matches[CYF.selM],rows=cyfRows(res.g),idx=[],after=new Set(),mark=new Set();
+  for(let o=0;o<k+res.aft;o++){const j=m.i+o;idx.push(j<rows.length?j:null);if(o<k)mark.add(j);else if(j<rows.length&&!(res.tot!=null&&o===k))after.add(j);}
+  const base=rows[m.i];
+  h+=cyfTableHTML(res.g,idx,m.hl,{cap:cyfName(res.g)+' — séquence à partir de N° '+base.t+' ('+base.d+'/'+base.y+')',mark,after,paint});
+  return h+`<div class="cyf-legend">Lignes encadrées : la séquence. Lignes grisées : les ${res.aft} tirages suivants.</div>`;
+}
 function cyfResHTML(){
   const res=CYF.res;if(!res)return'';
   let h='<div id="cyf-res" class="cyf-card">';
@@ -23247,6 +23428,7 @@ function cyfResHTML(){
   else if(res.kind==='search')h+=cyfSearchResHTML(res);
   else if(res.kind==='cmp')h+=cyfCmpHTML(res);
   else if(res.kind==='balayage')h+=cyfBalayageHTML(res);
+  else if(res.kind==='seq')h+=cyfSeqHTML(res);
   else if(res.kind==='list'){const rows=cyfRows(res.g);h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.to-res.from+1})</b><span class="cyf-desc">${cyfEsc(res.title)}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div>`+cyfTableHTML(res.g,cyfRange(res.from,res.to,rows.length),null,{cap:res.title});}
   else if(res.kind==='nums')h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.nums.length})</b><span class="cyf-desc">${cyfEsc(res.label)} — ${cyfEsc(res.title)}</span></div><div class="cyf-balls">${res.nums.map(v=>`<span class="cyf-ball">${v}</span>`).join('')||'<i>Tous les numéros sont sortis.</i>'}</div>`;
   else if(res.kind==='combi'){const c=k=>nCr(res.n,k).toLocaleString('fr-FR');h+=`<div class="cyf-resbar"><b class="cyf-cnt">Avec ${res.n} bankers</b></div><div class="cyf-grid2">${[2,3,4,5].map(k=>`<div class="cyf-gcell"><div>${k} Nap</div><b>${c(k)}</b></div>`).join('')}</div>`;}
@@ -23466,13 +23648,28 @@ const CYF_CSS=`<style>
 .cyf-pill{display:inline-block;background:#DCFCE7;border:1px solid #86EFAC;border-radius:10px;padding:1px 7px;margin:2px;font-size:12px}
 .cyf-balls{display:flex;flex-wrap:wrap;gap:6px}.cyf-ball{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;border-radius:17px;background:#0F5A63;color:#fff;font-weight:700;padding:0 6px}.cyf-ball sub{font-size:9px;margin-left:2px;opacity:.8}
 .cyf-grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:420px}.cyf-gcell{background:#0F766E;color:#fff;border-radius:10px;padding:14px;text-align:center}.cyf-gcell div{font-size:13px;opacity:.9}.cyf-gcell b{font-size:24px}
-.cyf-cmp{display:flex;gap:8px;align-items:flex-end;overflow-x:auto}.cyf-cmpcol{flex:1 0 300px;min-width:0}
+.cyf-cmp{display:flex;gap:8px;align-items:stretch;overflow-x:auto}.cyf-cmpcol{flex:1 0 300px;min-width:0}
+.cyf-cmpbox{display:flex;align-items:stretch;gap:4px;flex:1 0 340px;min-width:0}.cyf-cmpbox .cyf-cmpcol{flex:1 1 auto;min-width:0}
+.cyf-lift{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 48px;padding:6px 3px;background:#F1F8F9;border:1.5px solid #0F5A63;border-radius:10px}
+.cyf-lift-lab{font-size:9px;font-weight:800;color:#0F5A63;text-align:center;line-height:1.15;letter-spacing:.02em}
+.cyf-lift-btn{width:38px;height:38px;border:0;border-radius:8px;background:#0F5A63;color:#fff;font-size:16px;cursor:pointer;touch-action:manipulation;line-height:1}.cyf-lift-btn:disabled{opacity:.35;cursor:default}
+.cyf-lift-sl{-webkit-appearance:slider-vertical;appearance:slider-vertical;writing-mode:vertical-lr;direction:rtl;width:32px;flex:1 1 160px;min-height:130px;height:160px;margin:2px 0;padding:0;background:transparent;cursor:pointer;touch-action:none}
+.cyf-lift-sl::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#0F5A63;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);cursor:grab}
+.cyf-lift-sl::-webkit-slider-runnable-track{width:8px;background:#CFE0E3;border-radius:4px}
+.cyf-lift-n{font-size:10px;font-weight:800;color:#0F5A63;text-align:center;line-height:1.2}
+.cyf-cnts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;width:100%;font-size:13px;color:#0F5A63}.cyf-cnts .cyf-cnt{font-size:15px;margin-right:2px}
+.cyf-cpill{display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:800;line-height:1.45}.cyf-cpill.zero{opacity:.38}
+.cyf-clegs{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:-2px 0 8px}
+.cyf-cleg-btn{padding:4px 9px;border-radius:8px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-size:11.5px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.cyf-cleg{margin:0;padding:2px 6px;border:1px solid #CFE0E3;border-radius:8px;background:#fff;gap:4px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.cyf-cleg input{margin:0;accent-color:#0F5A63}.cyf-cleg-sw{display:inline-block;width:10px;height:10px;border-radius:3px;flex:0 0 10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.cyf-mir{background:#AB47BC!important;color:#fff}
 .cyf-stats{display:flex;flex-wrap:wrap;gap:6px}.cyf-stat{display:inline-flex;align-items:center;gap:5px;border:1px solid #CBD5E1;border-radius:8px;padding:5px 8px;font-weight:700;font-size:13px}.cyf-stat b{background:#DC2626;color:#fff;border-radius:9px;padding:0 6px;font-size:11px}
 .cyf-tools{position:fixed;right:4px;top:42%;z-index:70;display:flex;flex-direction:column;gap:6px}.cyf-tools button{width:42px;height:42px;border-radius:12px;border:1.5px solid #0F5A63;background:#fff;font-size:19px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.15);position:relative}.cyf-tools button span{display:none}.cyf-tools button.on{background:#0F5A63}.cyf-tools button.paint{outline:3px solid #FDE047}
 .cyf-panel{position:fixed;right:52px;top:30%;z-index:71;width:min(300px,78vw);max-height:60vh;overflow:auto;background:#fff;border:1.5px solid #0F5A63;border-radius:12px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .cyf-ov{position:fixed;inset:0;z-index:90;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px}.cyf-pop{background:#fff;border-radius:12px;overflow:hidden;width:min(440px,100%);box-shadow:0 12px 32px rgba(0,0,0,.3)}
 .cyf-det{border:1px solid #E2E8F0;border-radius:8px;padding:6px 8px;margin:4px 0}.cyf-det summary{cursor:pointer;font-weight:600;font-size:13px}.cyf-favs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:0 10px}.cyf-mini{margin-left:6px;font-size:11px;padding:2px 7px;border-radius:8px;border:1px solid #94A3B8;background:#fff;cursor:pointer}
-@media (max-width:600px){.cyf-fld{flex:1 1 44%;min-width:0}.cyf-tbl{font-size:12px}.cyf-tbl td,.cyf-tbl th{padding:4px 3px}.cyf-cmpcol{flex:1 0 88%}}
+@media (max-width:600px){.cyf-fld{flex:1 1 44%;min-width:0}.cyf-tbl{font-size:12px}.cyf-tbl td,.cyf-tbl th{padding:4px 3px}.cyf-cmpcol{flex:1 0 88%}.cyf-cmpbox{flex:1 0 96%}.cyf-lift{flex-basis:46px}.cyf-lift-btn{width:40px;height:40px}}
 </style>`;
 function methPageHTML(){
   return`<div id="app-content">

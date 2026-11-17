@@ -16081,15 +16081,16 @@ function fabGo(action){
 function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pronosticOpen','classifTabOpen','methodesOpen'].forEach(k=>{state[k]=false;});}
 function goNav(id){
   if(id==='v2'){location.href='v2/';return;}
+  if(id==='modules')id='mesmodules';
   window._navLastId=String(id);
   if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes'&&id!=='mesmodules')_closePagePanels();
   // Onglets principaux : fermer aussi les filtres pays, sinon le rendu s'arrête dessus
   // et le contenu de l'onglet cliqué n'apparaît pas. goNav('0'|'1'|'2') arrive en chaîne.
-  if(['0','1','2','modules','search','compareGames','methodes','mesmodules'].includes(String(id))){
+  if(['0','1','2','modules','modules44','search','compareGames','methodes','mesmodules'].includes(String(id))){
     ['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen'].forEach(k=>{state[k]=false;});
   }
   if(id==='compareGames'){goCompareGames();return;}
-  if(id==='modules'){const on=state.showSearchHub&&state.hubView==='cyb';state.showSearchHub=!on;if(!on){state.hubView='cyb';state.searchModuleOpen=null;state.cybN=null;}loadHist();}
+  if(id==='modules44'){const on=state.showSearchHub&&state.hubView==='cyb';state.showSearchHub=!on;if(!on){state.hubView='cyb';state.searchModuleOpen=null;state.cybN=null;}loadHist();}
   else if(id==='search'){const on=state.showSearchHub&&state.hubView!=='cyb';state.showSearchHub=!on;if(!on){state.hubView='all';}loadHist();}
   else if(id==='benin'){state.beninFiltreOpen=!state.beninFiltreOpen;state.showSearchHub=false;}
   else if(id==='ghana'){state.ghanaFiltreOpen=!state.ghanaFiltreOpen;state.showSearchHub=false;}
@@ -24149,7 +24150,7 @@ function methPageHTML(){
   <div class="header" style="background:#0F5A63;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <div style="font-size:15px;font-weight:700">${state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>
-      ${state.cyfSet==='claude'?`<button onclick="goNav('modules')" style="padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">← Liste des 44 modules</button>`:''}<button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
+      ${state.cyfSet==='claude'?`<button onclick="goNav('modules44')" style="padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">← Liste des 44 modules</button>`:''}<button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
     </div>
   </div>
   <div data-testid="methodes-page" style="padding:10px 12px calc(80px + env(safe-area-inset-bottom));padding-right:54px">${CYF_CSS}<div id="cyf-root">${cyfBodyHTML()}</div></div>

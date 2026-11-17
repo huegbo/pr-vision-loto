@@ -15534,6 +15534,7 @@ function searchHubHTML(){
     <select onchange="if(this.value!==''){const f=this.value;this.value='';Function(f)();}" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #6D28D9;border-radius:8px;font-size:13px;font-weight:600;color:#1F2D3D;background:#fff;cursor:pointer">
       <option value="">▾ Choisir un module… (${cards.length})</option>
       ${cards.map(([ic,tit,desc,bg,fn])=>`<option value="${fn.replace(/"/g,'&quot;')}">${ic} ${tit.replace(/</g,'&lt;')}</option>`).join('')}
+      ${typeof quickMyModsHTML==='function'?quickMyModsHTML():''}
     </select>
   </div>`;
   const q=(state.searchModuleQuery||'').toLowerCase().trim();
@@ -23084,6 +23085,9 @@ const CYF_MODS=[
   {n:39,id:'pick',t:'Pickin | Oblique',claude:true}
 ];
 // Méthodes (Grok) : sa liste d'origine. Modules Claude : tous les modules qui tournent ici (ceux de Grok copiés + les 10 refaits), sans renvoi vers l'onglet Modules.
+function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet='claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
+function quickMyModsHTML(){if(typeof CYF_MODS==='undefined')return '';const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);const L=CYF_MODS.filter(m=>m.id).slice().sort((a,b)=>k(a)-k(b));
+  return '<optgroup label="🧩 Modules (nouvelle version)">'+L.map(m=>'<option value="openMyModule(\''+m.id+'\')">🧩 '+(typeof m.n==='number'?m.n+'-) ':'')+String(m.t).replace(/</g,'&lt;')+(m.nap?' ('+m.nap+' numéros sur une ligne)':'')+'</option>').join('')+'</optgroup>';}
 function cyfInSet(m){if(!m)return false;return state.cyfSet==='claude'?!!m.id:!m.claude;}
 function cyfSetList(){const L=CYF_MODS.filter(cyfInSet);if(state.cyfSet!=='claude')return L;const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);return L.slice().sort((a,b)=>k(a)-k(b));}
 const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});

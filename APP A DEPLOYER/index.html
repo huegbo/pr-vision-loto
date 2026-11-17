@@ -19930,30 +19930,38 @@ function ulSaveAll(){
   try{saveRepereDefinedState();saveRepere2DefinedState();saveListsVisiblePref();}catch(_){}
   ulRebuild();
 }
-// Liste affichée dans les tableaux : un menu déroulant à la place de « 🎯 vue repérés ».
-// Choisir une liste l'affiche tout de suite (et masque les autres) ; « Aucune » n'affiche rien.
-function shownListValue(){
-  const on=[];if(state.lists.A.on)on.push('A');if(state.lists.B.on)on.push('B');state.userLists.forEach(l=>{if(l.on)on.push(String(l.id));});
-  return on.length===0?'':(on.length===1?on[0]:'*');
+// Listes affichées dans les tableaux : bouton + panneau (à la place de « 🎯 vue repérés »).
+// Cocher une ou plusieurs listes les affiche tout de suite ; couleur au choix par liste ; ➕ créer, ✏️ modifier.
+function lpAll(){
+  const out=[];
+  if(Object.keys(state.lists.A.nums||{}).length)out.push({key:'A',grp:'Listes principales',name:state.lists.A.name,nums:state.lists.A.nums,on:!!state.lists.A.on});
+  if(Object.keys(state.lists.B.nums||{}).length)out.push({key:'B',grp:'Listes principales',name:state.lists.B.name,nums:state.lists.B.nums,on:!!state.lists.B.on});
+  state.userLists.forEach(l=>{const g=(l.id>=9100001&&l.id<9300000)?'Listes picking':(l.id>=9300001&&l.id<9400000)?'Listes obliques':'Mes listes';out.push({key:String(l.id),grp:g,name:l.name,nums:l.nums,on:!!l.on});});
+  return out;
 }
-function setShownList(v){
-  if(v==='*')return;
-  state.lists.A.on=(v==='A');state.lists.B.on=(v==='B');
-  state.userLists.forEach(l=>{l.on=(String(l.id)===v);});
-  ulSaveAll();render();
-}
+function lpObj(key){return(key==='A'||key==='B')?state.lists[key]:state.userLists.find(l=>String(l.id)===String(key));}
+function lpToggle(key,on){const o=lpObj(key);if(!o)return;o.on=!!on;ulSaveAll();render();}
+function lpNone(){state.lists.A.on=false;state.lists.B.on=false;state.userLists.forEach(l=>{l.on=false;});ulSaveAll();render();}
+function lpFg(hex){const h=hex.replace('#','');const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);return(r*299+g*587+b*114)/1000>150?'#111':'#fff';}
+function lpColor(key,hex){const o=lpObj(key);if(!o||!/^#[0-9a-fA-F]{6}$/.test(hex))return;Object.keys(o.nums).forEach(n=>{o.nums[n]=Object.assign({},o.nums[n],{bg:hex,fg:lpFg(hex)});});o.on=true;ulSaveAll();render();}
+function lpFirstColor(nums){const k=Object.keys(nums)[0];const c=k&&nums[k]&&nums[k].bg;return /^#[0-9a-fA-F]{6}$/.test(c||'')?c:'#7C3AED';}
+function lpEdit(key){openMyLists();ulSelect((key==='A'||key==='B')?key:+key);}
+function lpNew(){openMyLists();ulNew();}
 function listPickerHTML(){
-  const cur=shownListValue();const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  const o=(v,t)=>`<option value="${v}" ${cur===v?'selected':''}>${esc(t)}</option>`;
-  const grp=(lab,arr)=>arr.length?`<optgroup label="${lab}">${arr.map(l=>o(String(l.id),l.name+' ('+Object.keys(l.nums).length+')')).join('')}</optgroup>`:'';
-  const mine=state.userLists.filter(l=>!(l.id>=9100001&&l.id<9400000));
-  const pick=state.userLists.filter(l=>l.id>=9100001&&l.id<9300000);
-  const obl=state.userLists.filter(l=>l.id>=9300001&&l.id<9400000);
-  const sysA=Object.keys(state.lists.A.nums||{}).length,sysB=Object.keys(state.lists.B.nums||{}).length;
-  let opts=o('','Aucune');if(cur==='*')opts+=`<option value="*" selected>(plusieurs listes)</option>`;
-  opts+=`<optgroup label="Listes principales">${sysA?o('A',state.lists.A.name+' ('+sysA+')'):''}${sysB?o('B',state.lists.B.name+' ('+sysB+')'):''}</optgroup>`;
-  opts+=grp('Mes listes',mine)+grp('Listes picking',pick)+grp('Listes obliques',obl);
-  return `<label data-testid="list-picker" style="font-size:10px;display:flex;align-items:center;gap:4px;font-weight:700;color:${cur?'#7C3AED':'#888'}" title="Choisissez la liste dont les numéros sont colorés dans les tableaux. « Aucune » = pas de coloriage de liste.">📋 Liste affichée : <select onchange="setShownList(this.value)" style="max-width:230px;padding:2px 4px;font-size:11px;border:1.5px solid #7C3AED;border-radius:6px;background:#fff;color:#4C1D95;font-weight:600">${opts}</select></label>`;
+  const all=lpAll();const on=all.filter(x=>x.on);const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const btn=`<button type="button" data-testid="list-picker" onclick="state.lpOpen=!state.lpOpen;render()" title="Choisir les listes dont les numéros sont colorés dans les tableaux" style="padding:3px 9px;font-size:10.5px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #7C3AED;background:${on.length?'#7C3AED':'#fff'};color:${on.length?'#fff':'#7C3AED'}">📋 Listes affichées${on.length?' ('+on.length+')':' : aucune'} ${state.lpOpen?'▴':'▾'}</button>`;
+  if(!state.lpOpen)return btn;
+  const q=String(state.lpQ||'').toLowerCase().trim();
+  const row=x=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #F1EEF9"><label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0"><input type="checkbox" ${x.on?'checked':''} onchange="lpToggle('${x.key}',this.checked)"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:${x.on?700:500};color:${x.on?'#4C1D95':'#333'}">${esc(x.name)}</span><span style="color:#888;font-size:10px">(${Object.keys(x.nums).length})</span></label><input type="color" value="${lpFirstColor(x.nums)}" title="Couleur de cette liste" onchange="lpColor('${x.key}',this.value)" style="width:30px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer"><button type="button" onclick="lpEdit('${x.key}')" title="Modifier cette liste (ajouter ou retirer des numéros, renommer)" style="padding:1px 7px;font-size:11px;border-radius:6px;border:1px solid #7C3AED;background:#fff;color:#7C3AED;cursor:pointer">✏️</button></div>`;
+  const shown=all.filter(x=>!q||x.name.toLowerCase().includes(q));
+  const groups=['Listes principales','Mes listes','Listes picking','Listes obliques'];
+  let body='';
+  if(on.length&&!q)body+=`<div style="font-weight:700;color:#7C3AED;margin:4px 0 2px">✔ Affichées maintenant</div>`+on.map(row).join('');
+  groups.forEach(g=>{const L=shown.filter(x=>x.grp===g&&(q||!x.on));if(!L.length)return;const big=L.length>12&&!q;body+=big?`<details style="margin-top:4px"><summary style="cursor:pointer;font-weight:700;color:#5B21B6">${g} (${L.length})</summary>${L.map(row).join('')}</details>`:`<div style="font-weight:700;color:#5B21B6;margin:6px 0 2px">${g}</div>`+L.map(row).join('');});
+  if(!body)body='<div style="color:#888;padding:6px">Aucune liste trouvée.</div>';
+  return btn+`<div data-testid="list-panel" style="flex-basis:100%;margin-top:4px;border:1.5px solid #7C3AED;border-radius:10px;background:#FAF8FF;padding:8px;font-size:11px;max-height:340px;overflow:auto">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px"><input type="text" placeholder="Chercher une liste (ex. 44 72, HOT…)" value="${esc(state.lpQ||'')}" oninput="state.lpQ=this.value;clearTimeout(window._lpT);window._lpT=setTimeout(()=>{render();const i=document.querySelector('[data-testid=list-panel] input[type=text]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250)" style="flex:1;min-width:160px;padding:4px 6px;border:1px solid #C4B5FD;border-radius:6px;font-size:11px"><button type="button" onclick="lpNew()" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:6px;border:none;background:#7C3AED;color:#fff;cursor:pointer">➕ Nouvelle liste</button><button type="button" onclick="lpNone()" style="padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #C62828;background:#fff;color:#C62828;cursor:pointer">Aucune</button><button type="button" onclick="state.lpOpen=false;render()" style="padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #888;background:#fff;color:#555;cursor:pointer">Fermer</button></div>
+    <div style="color:#666;font-size:10px;margin-bottom:4px">Cochez une ou plusieurs listes : elles s'affichent tout de suite. Le carré de couleur change la couleur de toute la liste. ✏️ pour ajouter ou retirer des numéros.</div>${body}</div>`;
 }
 function ulClose(){const o=document.getElementById('ul-overlay');if(o)o.remove();}
 function ulChanged(){ulSaveAll();ulRender();render();}

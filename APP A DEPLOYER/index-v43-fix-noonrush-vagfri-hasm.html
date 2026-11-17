@@ -5590,6 +5590,7 @@ let state={
   mgExportN:parseInt(localStorage.getItem('mgExportN'))||0,
   mgAlignEnd:(function(){try{return localStorage.getItem('mgAlignEnd')==='1';}catch(_){return false;}})(),
   excelColor3:(function(){try{return localStorage.getItem('excelColor3')!=='0';}catch(_){return true;}})(),
+  mgRel:(function(){try{return localStorage.getItem('mgRel')==='1';}catch(_){return false;}})(),
   mgBorderStyle:localStorage.getItem('mgBorderStyle')||'medium', // épaisseur du contour dans l'export Comparer plusieurs lotos : thin/medium/thick
   shiftAfter:null,   // insertion en cours : N° après lequel insérer (renumérotation auto)
   // Module « Séquence libre » : motif vertical, N niveaux, décalage en tirages,
@@ -5721,6 +5722,7 @@ let state={
   // Backtest de stratégies (porté depuis Oracle du Loto)
   backtestStrategy:'chauds_hist', backtestResult:null,
   methodesOpen:false,
+  cyfSet:'grok',
   // saisie de tirages
   showAdd:false,
   // générateur de grilles
@@ -15431,8 +15433,11 @@ const CYB44=[
       ['Numéros Non Tirés dans l’Année','abs90'],
       ['Recherche Automatique 0','auto4~'],['Recherche Automatique 1','auto4~'],['Recherche Automatique 2','auto4~'],['Recherche Automatique 3','auto4~'],['Recherche Automatique 4','auto4'],['Recherche Automatique 5','auto4~'],['Recherche Automatique 6','auto4~'],['Recherche Automatique 7','auto4~'],['Recherche Automatique 8','auto4~'],['Recherche Automatique 9','auto4~'],
       ['Comparer 2 Plages de Tirages','cmp2'],['Comparer 3 Plages de Tirages','cmp3'],['Pickin | Oblique','oblique'],['Numéros de Chance','freq~'],['Combinaison de Numéros','combo~']];
+// Modules (onglet 🧩) : ces numéros de la liste des 44 s'ouvrent dans la nouvelle version (même cadre que Méthodes)
+const CYB_TO_CYF={1:'ligne1',3:'derniere',5:'nap2',6:'nap3',7:'nap4',8:'nap5',9:'bv2',10:'bv3',11:'bvx',12:'bd2',13:'bd3',14:'bdx',18:'add2',19:'addx',20:'tr1',21:'tr2',22:'op1',23:'op2',24:'trop',25:'dr1',26:'dr2',29:'nontires',34:'ra4',38:'ra8',40:'cmp2',41:'cmp3',42:'pick',44:'combi'};
 function openCyb(n){
   const e=CYB44[n-1];if(!e)return;let k=e[1];
+  if(CYB_TO_CYF[n]&&typeof cyfOpenMod==='function'){_closePagePanels();state.showSearchHub=false;state.cyfSet='claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(CYB_TO_CYF[n]);render();return;}
   state.cybN=n;
   if(k==='main'){state.cybN=null;goNav(0);return;}
   if(k==='pass'){state.cybN=null;goNav(0);state.showPass=true;render();return;}
@@ -16076,10 +16081,10 @@ function _closePagePanels(){['afficheOpen','tirageJourOpen','conversionOpen','pr
 function goNav(id){
   if(id==='v2'){location.href='v2/';return;}
   window._navLastId=String(id);
-  if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes')_closePagePanels();
+  if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes'&&id!=='mesmodules')_closePagePanels();
   // Onglets principaux : fermer aussi les filtres pays, sinon le rendu s'arrête dessus
   // et le contenu de l'onglet cliqué n'apparaît pas. goNav('0'|'1'|'2') arrive en chaîne.
-  if(['0','1','2','modules','search','compareGames','methodes'].includes(String(id))){
+  if(['0','1','2','modules','search','compareGames','methodes','mesmodules'].includes(String(id))){
     ['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen'].forEach(k=>{state[k]=false;});
   }
   if(id==='compareGames'){goCompareGames();return;}
@@ -16104,7 +16109,7 @@ function goNav(id){
     state.conversionOpen=opening;state.showSearchHub=false;
     if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
   }
-  else if(id==='methodes'){const on=!state.methodesOpen;_closePagePanels();state.methodesOpen=on;state.showSearchHub=false;}
+  else if(id==='methodes'||id==='mesmodules'){const set=id==='mesmodules'?'claude':'grok';const on=!(state.methodesOpen&&(state.cyfSet||'grok')===set);_closePagePanels();state.methodesOpen=on;state.showSearchHub=false;if(on){state.cyfSet=set;if(CYF.mod&&!cyfInSet(CYF_MOD_BY[CYF.mod])){CYF.mod=null;CYF.res=null;}}}
   else if(id==='listes'){openMyLists();return;}
   else{state.tab=/^\d+$/.test(String(id))?+id:id;state.showSearchHub=false;if(+id===0)state.navMode='years';}
   render();
@@ -16203,7 +16208,7 @@ function bottomNavHTML(){
   ];
   return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:2200px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='modules'?(state.showSearchHub&&state.hubView==='cyb'):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='methodes'?state.methodesOpen:(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub)))))))))))))))));
+      const isActive=id==='modules'?((state.showSearchHub&&state.hubView==='cyb')||(state.methodesOpen&&state.cyfSet==='claude')):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='methodes'?(state.methodesOpen&&state.cyfSet!=='claude'):(id==='mesmodules'?(state.methodesOpen&&state.cyfSet==='claude'):(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))))));
       return`<div data-id="${id}" onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -20887,6 +20892,41 @@ function moveMgColumnFirst(colId){
 // de référence (jeu actif s'il est dans la comparaison, sinon 1re colonne visible) sont colorés PAR VALEUR
 // (dernier tirage rouge, avant-dernier bleu, 3e or ; le plus récent l'emporte), et UNIQUEMENT sur les 3
 // dernières lignes de chaque colonne (lignes alignées horizontalement). Partout ailleurs : aucun coloriage.
+// ══ Comparer lotos : correspondances vivantes (même principe que « Comparer 2 plages » de Grok) ══
+// Chaque case est comparée aux numéros des AUTRES colonnes sur la même ligne : identiques (jaune) puis
+// Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir (couleurs ELM_DEF).
+// Les flèches ▲▼ de chaque colonne décalent ses lignes ; tout se recalcule à chaque mouvement.
+function mgShiftOf(id){return (state.mgShift&&state.mgShift[id])|0;}
+function mgShiftCol(id,d){state.mgShift=Object.assign({},state.mgShift||{});state.mgShift[id]=(state.mgShift[id]|0)+d;render();}
+function mgShiftReset(id){if(state.mgShift){state.mgShift=Object.assign({},state.mgShift);delete state.mgShift[id];}render();}
+function mgRowIndex(c,ri,maxRows){return (state.mgAlignEnd?ri-(maxRows-c.rows.length):ri)+mgShiftOf(c.colId);}
+function mgRelBuild(cols,maxRows){
+  const rels=cyfCmpRels(),on=cyfCmpRelOn();const hl=cols.map(()=>({}));const counts={};rels.forEach(r=>counts[r.key]=0);
+  const vis=[];cols.forEach((c,ci)=>{if(!c.hid)vis.push(ci);});const first=vis[0];
+  for(let ri=0;ri<maxRows;ri++){
+    const R=cols.map(c=>{if(c.hid)return null;const i=mgRowIndex(c,ri,maxRows);return i>=0?c.rows[i]:undefined;});
+    vis.forEach(ci=>{
+      const a=R[ci];if(!a||!a.n)return;
+      const others=[];vis.forEach(cj=>{if(cj===ci||!R[cj]||!R[cj].n)return;R[cj].n.forEach(v=>{if(v!=null&&!isNaN(v))others.push(v);});});
+      if(!others.length)return;
+      a.n.forEach((v,pv)=>{
+        if(v==null||isNaN(v))return;
+        const hits=rels.filter(rel=>others.some(u=>rel.test(v,u)));if(!hits.length)return;
+        if(ci===first)hits.forEach(rel=>counts[rel.key]++);
+        const shown=hits.find(rel=>on[rel.key]);
+        if(shown)(hl[ci][ri]=hl[ci][ri]||{})[pv]={bg:shown.bg,fg:shown.fg};
+      });
+    });
+  }
+  return{hl,counts};
+}
+function mgRelToggle(key,on){cyfCmpRelOn()[key]=!!on;cyfCmpRelSave();render();}
+function mgRelAll(on){const s=cyfCmpRelOn();cyfCmpRels().forEach(r=>{s[r.key]=!!on;});cyfCmpRelSave();render();}
+function mgRelBarHTML(counts){
+  const on=cyfCmpRelOn();
+  const legs=cyfCmpRels().map(r=>{const n=counts[r.key]||0;return `<label style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;border:1px solid #CBD5E1;background:#fff;font-size:11px;cursor:pointer;opacity:${on[r.key]?1:.5}" title="Afficher ou masquer : ${r.label}"><input type="checkbox" ${on[r.key]?'checked':''} onchange="mgRelToggle('${r.key}',this.checked)" style="margin:0"><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${r.bg}"></span>${r.label} <b>${n}</b></label>`;}).join('');
+  return `<div data-testid="mg-rel-bar" style="display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin:6px 0 8px;padding:7px 8px;border:1.5px solid #234B6E;border-radius:10px;background:#F1F5FB"><b style="font-size:12px;color:#234B6E;margin-right:4px">🧬 Correspondances entre colonnes (même ligne) :</b>${legs}<button type="button" onclick="mgRelAll(true)" style="padding:3px 9px;font-size:11px;border-radius:10px;border:1.5px solid #234B6E;background:#fff;color:#234B6E;cursor:pointer">Tout</button><button type="button" onclick="mgRelAll(false)" style="padding:3px 9px;font-size:11px;border-radius:10px;border:1.5px solid #234B6E;background:#fff;color:#234B6E;cursor:pointer">Aucun</button><span style="font-size:10px;color:#555;flex-basis:100%">Les nombres comptent les cases de la 1re colonne. Les flèches ▲▼ au-dessus de chaque colonne décalent ses lignes : les couleurs se recalculent à chaque clic.</span></div>`;
+}
 function mgLast3ColorMap(cols,maxRows,align){
   const anchor=cols.find(c=>!c.hid&&c.key===GAME.key)||cols.find(c=>!c.hid);
   const map={};if(!anchor)return {map,last:-1};
@@ -21079,13 +21119,15 @@ function saveEnvStatesState(){lsSet('loto_envstates',JSON.stringify(state.savedE
 // prochaine ouverture, sans rien avoir à cliquer. Écrite via _doRender() (limitée à 1x/800ms),
 // relue une seule fois juste avant le tout premier rendu (voir loadAutoSavedEnv() plus bas).
 function autoSaveCurrentEnv(){
-  try{ lsSet('loto_autosave_env', JSON.stringify(currentEnvSnapshot())); }catch(_){}
+  try{ const s=currentEnvSnapshot();s._day=new Date().toDateString();lsSet('loto_autosave_env', JSON.stringify(s)); }catch(_){}
 }
 function loadAutoSavedEnv(){
   try{
     const raw=lsGetOr('loto_autosave_env','');
     if(!raw)return;
     const snap=JSON.parse(raw);
+    // Le jeu affiché n'est repris que le même jour : un autre jour, l'appli s'ouvre sur le jeu du jour (defaultGameForToday)
+    if(snap._day!==new Date().toDateString())delete snap.game;
     applyEnvSnapshot(snap);
   }catch(_){}
 }
@@ -22768,6 +22810,155 @@ function cyfSearchNap(q){
   }
   return out;
 }
+// ══ Modules refaits dans le cadre Méthodes (16/11) : Bankers, Additions, RA4, Pickin | Oblique ══
+function cyfClamp(v,a,b,d){return Math.max(a,Math.min(b,cyfInt(v,d)));}
+// Bankers : verticalement alignés (même colonne) ou sur différentes lignes (position propre à chaque banker)
+function cyfSearchBankers(q){
+  const out=[],B=q.list,sgn=q.inv?-1:1;
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g),k=cyfK(rows);
+    for(let i=0;i<rows.length&&out.length<CYF_MAX_MATCH;i++){
+      if(rows[i].n.indexOf(B[0].num)<0)continue;
+      const li=[i];let ok=true;
+      for(let b=1;b<B.length;b++){const l=i+sgn*B[b].week;if(l<0||l>=rows.length){ok=false;break;}li.push(l);}
+      if(!ok)continue;
+      let ps=null;
+      if(q.same){
+        for(const p of cyfPosList(B[0].pos,k)){if(B.every((b,bi)=>rows[li[bi]].n[p]===b.num)){ps=B.map(()=>p);break;}}
+      }else{
+        ps=[];for(let bi=0;bi<B.length;bi++){const p=cyfPosList(B[bi].pos,k).find(p=>rows[li[bi]].n[p]===B[bi].num);if(p==null){ps=null;break;}ps.push(p);}
+      }
+      if(!ps)continue;
+      const lo=Math.min.apply(null,li),hi=Math.max.apply(null,li);
+      const m=cyfMakeMatch(g,lo,hi,{label:rows[hi].t,info:B.map((b,bi)=>b.num+' (D'+(ps[bi]+1)+', N° '+rows[li[bi]].t+')').join(' → ')});
+      m.lines=li.slice();
+      B.forEach((b,bi)=>cyfAddHL(m,li[bi],ps[bi],'c'));
+      out.push(m);
+    }
+  }
+  return out;
+}
+function cyfBankersForm(id){
+  const fixed=/2$/.test(id)?2:/3$/.test(id)?3:0,same=id.charAt(1)==='v';
+  const nb=fixed||cyfClamp(cyfF('nbk','4'),2,10,4);
+  let h='';
+  if(!fixed){const o=[];for(let i=2;i<=10;i++)o.push([String(i),'Avec '+i+' bankers']);h+=`<div class="cyf-row">${cyfField('Avec combien de Banker :',cyfSelect('nbk',o,String(nb),true))}</div>`;}
+  if(same)h+=`<div class="cyf-row">${cyfField('Position (colonne commune)',cyfSelect('pc',cyfPosOpts(),cyfF('pc','0')))}</div>`;
+  for(let i=0;i<nb;i++){
+    h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Banker ${i+1}</b>${i?cyfField('Week (depuis la ligne du Banker 1)',cyfWeek('bw'+i,cyfF('bw'+i,String(i)))):''}${cyfField('Banker',cyfNum('bn'+i,cyfF('bn'+i,''),'1–90'))}${same?'':cyfField('Position',cyfSelect('bp'+i,cyfPosOpts(),cyfF('bp'+i,'0')))}</div>`;
+  }
+  h+=`<label class="cyf-chk"><input type="checkbox" data-k="inv" ${cyfF('inv',false)?'checked':''}> Faire une recherche inversée</label>`;
+  h+=`<div class="cyf-row">${cyfLotoField()}</div>`;
+  return h;
+}
+function cyfBankersCompute(id,f,m){
+  const fixed=/2$/.test(id)?2:/3$/.test(id)?3:0,same=id.charAt(1)==='v';
+  const nb=fixed||cyfClamp(f.nbk,2,10,4);const list=[];const seen=new Set([0]);
+  for(let i=0;i<nb;i++){
+    const num=cyfInt(f['bn'+i],NaN);if(!(num>=1&&num<=90))return{error:'Banker '+(i+1)+' : entrez un numéro entre 1 et 90.'};
+    const week=i?cyfInt(f['bw'+i],i):0;
+    if(i){if(seen.has(week))return{error:'Banker '+(i+1)+' : choisissez une Week différente (une ligne par banker).'};seen.add(week);}
+    list.push({num,week,pos:same?cyfInt(f.pc,0):cyfInt(f['bp'+i],0)});
+  }
+  const desc=m.t+' : '+list.map((b,i)=>b.num+(i?' (week '+b.week+')':'')+(b.pos?' D'+b.pos:'')).join(' · ')+(f.inv?' · inversée':'');
+  return{kind:'search',matches:cyfSearchBankers({list,same,inv:!!f.inv,loto:f.loto}),desc};
+}
+// Additions avec position (formule + uniquement)
+function cyfAddForm(id){
+  let h='';
+  if(id==='add2'){
+    h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Draws</b>${cyfField('Position Draw 1',cyfSelect('pa',cyfPosOpts(),cyfF('pa','1')))}${cyfField('Position Draw 2',cyfSelect('pb',cyfPosOpts(),cyfF('pb','2')))}</div>`;
+  }else{
+    const nd=cyfClamp(cyfF('nd','2'),2,5,2);const o=[];for(let i=2;i<=5;i++)o.push([String(i),i+' draws']);
+    h+=`<div class="cyf-row">${cyfField('Avec combien de Draws :',cyfSelect('nd',o,String(nd),true))}</div>`;
+    for(let i=0;i<nd;i++)h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag">Draw ${i+1}</b>${cyfField('Week',cyfWeek('w'+i,cyfF('w'+i,String(i))))}${cyfField('Position',cyfSelect('p'+i,cyfPosOpts(),cyfF('p'+i,String(Math.min(5,i+1)))))}</div>`;
+  }
+  h+=`<div class="cyf-row cyf-sub"><b class="cyf-tag" style="background:#FDE047;color:#713F12">Résultats</b>${cyfField('Week Resultat',cyfWeek('wr',cyfF('wr','1')))}${cyfField('Position Draw Resultat',cyfSelect('pr',cyfPosOpts(),cyfF('pr','0')))}</div>`;
+  h+=`<div class="cyf-row">${cyfLotoField()}</div><div class="cyf-note">Somme au-delà de 90 : ramenée selon votre réglage (règle des 90).</div>`;
+  return h;
+}
+function cyfAddCompute(id,f,m){
+  let draws;
+  if(id==='add2'){const pa=cyfInt(f.pa,1),pb=cyfInt(f.pb,2);if(pa&&pb&&pa===pb)return{error:'Choisissez deux positions différentes.'};draws=[{week:0,op:'+',pos:pa},{week:0,op:'+',pos:pb}];}
+  else{const nd=cyfClamp(f.nd,2,5,2);draws=[];for(let i=0;i<nd;i++)draws.push({week:cyfInt(f['w'+i],i),op:'+',pos:cyfInt(f['p'+i],0)});}
+  if(draws.filter(d=>!d.pos).length>4)return{error:'Trop de « Qu’importe » (4 au maximum).'};
+  const A={draws,wr:cyfInt(f.wr,1),pr:cyfInt(f.pr,0)};
+  return{kind:'search',matches:cyfSearchFormula({A,B:null,wi:0,loto:f.loto}),desc:m.t+' : '+draws.map(d=>'[w'+d.week+(d.pos?' D'+d.pos:' D?')+']').join(' + ')+' = [w'+A.wr+(A.pr?' D'+A.pr:' D?')+']'};
+}
+// Recherche Automatique 4 : fenêtres de 4 lignes (toutes lotos) dont la 1re ligne partage avec la référence 1 et la 2e avec la référence 2 ;
+// regroupées par numéros partagés ; en jaune les numéros communs des lignes 3 et 4.
+function cyfSearchRA4(q){
+  const tr=cyfRows(q.g);let ex=tr.byT[q.t];if(ex==null)return{error:'Tirage N° '+q.t+' introuvable dans '+cyfName(q.g)+'.'};
+  if(ex<2)return{error:'Pas assez de tirages avant le tirage N° '+q.t+'.'};
+  const R1=tr[ex-2],R2=tr[ex-1];const s1set=new Set(R1.n.filter(Boolean)),s2set=new Set(R2.n.filter(Boolean));
+  const groups=new Map();
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g);
+    for(let h=0;h+3<rows.length;h++){
+      if(g===q.g&&h>=ex-2)break;
+      const a=rows[h],b=rows[h+1];
+      const s1=a.n.filter(v=>v&&s1set.has(v)),s2=b.n.filter(v=>v&&s2set.has(v));
+      if(!s1.length||!s2.length)continue;
+      const gk=s1.slice().sort((x,y)=>x-y).join('·')+' | '+s2.slice().sort((x,y)=>x-y).join('·');
+      if(!groups.has(gk))groups.set(gk,{s1,s2,ws:[],sig:new Set()});
+      const G=groups.get(gk),sig=[0,1,2,3].map(o=>rows[h+o].n.join('.')).join('/');if(G.sig.has(sig))continue;G.sig.add(sig);
+      G.ws.push({g,h});
+    }
+  }
+  const matches=[],labels=[];
+  groups.forEach((G,gk)=>{
+    if(G.ws.length<2)return;
+    const inter=o=>{let s=null;G.ws.forEach(w=>{const n=cyfRows(w.g)[w.h+o].n.filter(Boolean);s=s?new Set([...s].filter(x=>n.includes(x))):new Set(n);});return[...s].sort((x,y)=>x-y);};
+    const c3=inter(2),c4=inter(3);if(!c3.length)return;
+    const label=gk+' → '+c3.join('·');labels.push({label,n:G.ws.length});
+    G.ws.forEach(w=>{
+      if(matches.length>=CYF_MAX_MATCH)return;
+      const rows=cyfRows(w.g);
+      const m=cyfMakeMatch(w.g,w.h,w.h+3,{pairs:[label],label:cyfName(w.g)+' '+rows[w.h].t,info:'ligne 1 partage '+G.s1.join(',')+' avec N° '+R1.t+' · ligne 2 partage '+G.s2.join(',')+' avec N° '+R2.t+' · lignes 3-4 en commun : '+c3.join(',')+(c4.length?' / '+c4.join(','):'')});
+      m.lines=[w.h,w.h+1,w.h+2,w.h+3];
+      rows[w.h].n.forEach((v,p)=>{if(v&&s1set.has(v))cyfAddHL(m,w.h,p,'g');});
+      rows[w.h+1].n.forEach((v,p)=>{if(v&&s2set.has(v))cyfAddHL(m,w.h+1,p,'g');});
+      rows[w.h+2].n.forEach((v,p)=>{if(c3.includes(v))cyfAddHL(m,w.h+2,p,'y');});
+      rows[w.h+3].n.forEach((v,p)=>{if(c4.includes(v))cyfAddHL(m,w.h+3,p,'y');});
+      matches.push(m);
+    });
+  });
+  labels.sort((a,b)=>b.n-a.n);
+  return{byComb:true,pairs:labels.map(x=>x.label),pairsLabel:'Références : N° '+R1.t+' ('+R1.n.join(' ')+') et N° '+R2.t+' ('+R2.n.join(' ')+') — groupes « partagés ligne 1 | ligne 2 → communs ligne 3 »',matches};
+}
+// Pickin | Oblique : les K lignes de référence (jusqu'au tirage choisi) retrouvées dans une autre loto,
+// un numéro commun par ligne, enchaînés verticalement (même colonne), en oblique (colonne ±1) ou librement.
+function cyfSearchPick(q){
+  const ta=cyfRows(q.g);const ti=ta.byT[q.t];if(ti==null)return{error:'Tirage N° '+q.t+' introuvable dans '+cyfName(q.g)+'.'};
+  const K=q.K;if(ti-K+1<0)return{error:'Pas assez de lignes avant le tirage N° '+q.t+'.'};
+  const refs=[];for(let o=K-1;o>=0;o--)refs.push(ta[ti-o]);
+  const out=[];
+  for(const g of cyfLotos(q.loto)){
+    const rows=cyfRows(g);
+    for(let h=K-1;h<rows.length&&out.length<CYF_MAX_MATCH;h++){
+      if(g===q.g&&h>=ti-K+1)break;
+      const cand=[];let ok=true;
+      for(let o=0;o<K;o++){const r=rows[h-K+1+o],R=refs[o];const c=[];r.n.forEach((v,p)=>{if(v!=null&&R.n.includes(v))c.push(p);});if(!c.length){ok=false;break;}cand.push(c);}
+      if(!ok)continue;
+      let path=null;
+      const dfs=(o,acc,dir)=>{if(path)return;if(o===K){path=acc.slice();return;}
+        for(const p of cand[o]){
+          if(o){const d=p-acc[o-1];
+            if(q.mode==='v'&&d!==0)continue;
+            if(q.mode==='o'){if(Math.abs(d)!==1)continue;if(dir&&d!==dir)continue;}
+          }
+          acc.push(p);dfs(o+1,acc,o?p-acc[o-1]:0);acc.pop();
+        }};
+      dfs(0,[],0);
+      if(!path)continue;
+      const lines=[];for(let o=0;o<K;o++)lines.push(h-K+1+o);
+      const m=cyfMakeMatch(g,lines[0],h,{label:rows[h].t,info:path.map((p,o)=>rows[lines[o]].n[p]+' (D'+(p+1)+')').join(' → ')+' · référence '+cyfName(q.g)+' N° '+refs[0].t+' à '+refs[K-1].t});
+      m.lines=lines;path.forEach((p,o)=>cyfAddHL(m,lines[o],p,'c'));
+      out.push(m);
+    }
+  }
+  return{matches:out};
+}
 // Recherche Automatique 8
 function cyfPairs(nums){const v=nums.filter(x=>x!=null),o=[];for(let a=0;a<v.length;a++)for(let b=a+1;b<v.length;b++)o.push([v[a],v[b]]);return o;}
 function cyfShare(a,b){if(!a||!b)return[];const s=new Set(a.n.filter(x=>x!=null));return b.n.filter(x=>x!=null&&s.has(x));}
@@ -22838,12 +23029,26 @@ const CYF_MODS=[
   {n:'Oculus',id:'balayage',t:'Balayage (Oculus)'},
   {n:'Oculus',id:'seq',t:'Séquence de numéros',seq:'plain'},
   {n:'Oculus',id:'seqpos',t:'Séquence de numéros avec position',seq:'pos'},
-  {n:'Oculus',id:'seqtot',t:'Séquence de numéros suivi de totalité',seq:'tot'}
+  {n:'Oculus',id:'seqtot',t:'Séquence de numéros suivi de totalité',seq:'tot'},
+  // ── Modules Claude (onglet 🛠️ Modules Claude, séparé de Méthodes) ──
+  {n:8,id:'bv2',t:'2 Bankers Verticalement Alignés',claude:true},
+  {n:9,id:'bv3',t:'3 Bankers Verticalement Alignés',claude:true},
+  {n:10,id:'bvx',t:'Plusieurs Bankers Verticalement Alignés',claude:true},
+  {n:11,id:'bd2',t:'2 Bankers sur Différentes Lignes - Avec Position',claude:true},
+  {n:12,id:'bd3',t:'3 Bankers sur Différentes Lignes - Avec Position',claude:true},
+  {n:13,id:'bdx',t:'Plusieurs Bankers sur Différentes Lignes - Avec Position',claude:true},
+  {n:17,id:'add2',t:'Addition de 2 Draws sur une Ligne - Avec Position',claude:true},
+  {n:18,id:'addx',t:'Addition sur Plusieurs Lignes – Avec Position',claude:true},
+  {n:33,id:'ra4',t:'Recherche Automatique 4',claude:true},
+  {n:39,id:'pick',t:'Pickin | Oblique',claude:true}
 ];
+// Méthodes (Grok) : sa liste d'origine. Modules Claude : tous les modules qui tournent ici (ceux de Grok copiés + les 10 refaits), sans renvoi vers l'onglet Modules.
+function cyfInSet(m){if(!m)return false;return state.cyfSet==='claude'?!!m.id:!m.claude;}
+function cyfSetList(){const L=CYF_MODS.filter(cyfInSet);if(state.cyfSet!=='claude')return L;const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);return L.slice().sort((a,b)=>k(a)-k(b));}
 const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});
 const CYF={view:'modules',mod:null,form:{},res:null,selG:null,selK:null,selM:0,tool:null,color:'#FDE047',paint:false,menu:null,grp:null,grpView:'table',statTab:'b',statRes:false,drop:false,info:null};
 function cyfModLabel(m){return(typeof m.n==='number'?m.n+'-) ':m.n+' · ')+m.t;}
-function cyfRecents(){return cyfLS(CYF_LS.recent,[]).filter(id=>CYF_MOD_BY[id]||/^map:/.test(id)).slice(0,6);}
+function cyfRecents(){return cyfLS(CYF_LS.recent,[]).filter(id=>(CYF_MOD_BY[id]&&cyfInSet(CYF_MOD_BY[id]))||(/^map:/.test(id)&&state.cyfSet!=='claude')).slice(0,6);}
 function cyfPushRecent(id){const r=cyfRecents().filter(x=>x!==id);r.unshift(id);cyfLSset(CYF_LS.recent,r.slice(0,6));}
 function cyfOpenMod(key){
   CYF.drop=false;
@@ -23008,6 +23213,18 @@ function cyfFormHTML(id){
     const styles=[['surligner','Surligner'],['encadrer','Encadrer'],['souligner','Souligner'],['texte','Colorier le texte'],['croix','Croix'],['etoile','Étoile'],['coeur','Cœur']];
     h+=`<div class="cyf-row">${cyfField('Couleur',`<input data-k="col" type="color" value="${cyfEsc(cyfF('col','#FDE047'))}" style="height:40px;width:72px;padding:2px;border:1.5px solid #9FB8BE;border-radius:8px;background:#fff">`)}${cyfField('Style',cyfSelect('stl',styles,cyfF('stl','surligner')))}</div>`;
     h+=`<div class="cyf-row" style="margin-top:6px">${cyfBtn('Chercher','cyfRun()')}</div>`;
+  }else if(/^b[vd](2|3|x)$/.test(id)){
+    h+=cyfBankersForm(id)+winGo;
+  }else if(id==='add2'||id==='addx'){
+    h+=cyfAddForm(id)+winGo;
+  }else if(id==='ra4'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);
+    h+=`<div class="cyf-row">${cyfField('Lotto de Pronostic',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Exclure à partir du tirage (N°)',cyfNum('t',cyfF('t',rows.length?rows[rows.length-1].t:''),'N°'))}</div><div class="cyf-row">${cyfLotoField()}</div><div class="cyf-note">Les 2 tirages juste avant le tirage exclu servent de référence.</div>`+winGo;
+  }else if(id==='pick'){
+    const g=cyfF('g',GAME.key);const rows=cyfRows(g);
+    h+=`<div class="cyf-row">${cyfField('Loto de référence',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Jusqu’au tirage (N°)',cyfNum('t',cyfF('t',rows.length?rows[rows.length-1].t:''),'N°'))}</div>
+      <div class="cyf-row">${cyfField('Nombre de lignes',cyfSelect('nk',[['2','2'],['3','3'],['4','4'],['5','5']],cyfF('nk','3')))}${cyfField('Sens',cyfSelect('mode',[['o','Oblique (colonne ±1)'],['v','Vertical (même colonne)'],['l','Libre (toutes colonnes)']],cyfF('mode','o')))}</div>
+      <div class="cyf-row">${cyfLotoField()}</div>`+winGo;
   }else if(CYF_MOD_BY[id]&&CYF_MOD_BY[id].seq){
     const mode=CYF_MOD_BY[id].seq;const g=cyfF('g',GAME.key);
     const ns=Math.max(2,Math.min(5,cyfInt(cyfF('ns','2'),2)));
@@ -23038,6 +23255,10 @@ function cyfRun(){
   setTimeout(()=>{const el=document.getElementById('cyf-res');if(el&&el.scrollIntoView)el.scrollIntoView({behavior:'smooth',block:'start'});},40);
 }
 function cyfCompute(id,f,m){
+  if(/^b[vd](2|3|x)$/.test(id))return cyfBankersCompute(id,f,m);
+  if(id==='add2'||id==='addx')return cyfAddCompute(id,f,m);
+  if(id==='ra4'){const r=cyfSearchRA4({g:f.g,t:cyfInt(f.t,-1),loto:f.loto});if(r.error)return r;return Object.assign({kind:'search',desc:'Recherche Automatique 4 : '+cyfName(f.g)+' (exclu à partir du N° '+f.t+')'},r);}
+  if(id==='pick'){const r=cyfSearchPick({g:f.g,t:cyfInt(f.t,-1),K:cyfClamp(f.nk,2,5,3),mode:f.mode||'o',loto:f.loto});if(r.error)return r;return{kind:'search',matches:r.matches,desc:'Pickin | Oblique : '+cyfName(f.g)+' jusqu’au N° '+f.t+' · '+cyfClamp(f.nk,2,5,3)+' lignes · '+({o:'oblique',v:'vertical',l:'libre'}[f.mode||'o'])};}
   if(id==='ligne1'){const rows=cyfRows(f.g);const i=rows.byT[cyfInt(f.t,-1)];if(i==null)return{error:'Tirage N° '+f.t+' introuvable.'};return{kind:'list',g:f.g,from:i,to:i,title:cyfName(f.g)+' ligne '+rows[i].t};}
   if(id==='derniere'){const rows=cyfRows(f.g||GAME.key);if(!rows.length)return{error:'Aucun tirage.'};return{kind:'list',g:f.g||GAME.key,from:rows.length-1,to:rows.length-1,title:cyfName(f.g||GAME.key)+' ligne '+rows[rows.length-1].t};}
   if(id==='lignes'){
@@ -23247,7 +23468,7 @@ function cyfWinParts(m){
   return{main:cyfRange(lo-w.avant,hi,rows.length),after:cyfRange(hi+1,hi+w.apres,rows.length),lo,hi,avant:w.avant,apres:w.apres};
 }
 function cyfMatchWindow(m){const w=cyfWinParts(m);return w.main.concat(w.after);}
-function cyfUsesResultWindow(id,m){m=m||CYF_MOD_BY[id]||{};if(m.nap||m.seq)return true;return['op1','tr1','trop','op2','tr2','dr1','dr2','ra8','cmp2','cmp3'].includes(id);}
+function cyfUsesResultWindow(id,m){m=m||CYF_MOD_BY[id]||{};if(m.nap||m.seq)return true;return['op1','tr1','trop','op2','tr2','dr1','dr2','ra8','cmp2','cmp3','bv2','bv3','bvx','bd2','bd3','bdx','add2','addx','ra4','pick'].includes(id);}
 function cyfWindowFields(){
   const w=cyfModWindow();
   return `<div class="cyf-row cyf-winfields" data-testid="cyf-winfields">${cyfField('Tirages avant',cyfNum('avant',cyfF('avant',w.avant)))}${cyfField('Tirages après',cyfNum('apres',cyfF('apres',w.apres)))}<label class="cyf-fld" style="flex:0 0 auto"><span>&nbsp;</span>${cyfBtn('Appliquer','cyfApplyWindow()')}</label></div>`;
@@ -23298,7 +23519,7 @@ function cyfMatchLabel(m){const rows=cyfRows(m.g);return m.label!=null?m.label:r
 function cyfSearchResHTML(res){
   const n=res.matches.length;
   let h=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${n}${n>=CYF_MAX_MATCH?'+':''})</b><span class="cyf-desc">${cyfEsc(res.desc||'')}</span><span style="flex:1"></span>${n?cyfBtn('📤 Exporter','cyfExport()','ghost')+cyfBtn('💾 Sauvegarder les lignes','cyfSaveLines()','ghost'):''}</div>`;
-  if(res.byComb)h+=`<div class="cyf-note">Paires du tirage cible : ${res.pairs.map(p=>`<span class="cyf-pill">${p}</span>`).join(' ')}</div>`;
+  if(res.byComb)h+=res.pairsLabel?`<div class="cyf-note">${cyfEsc(res.pairsLabel)}</div>`:`<div class="cyf-note">Paires du tirage cible : ${res.pairs.map(p=>`<span class="cyf-pill">${p}</span>`).join(' ')}</div>`;
   if(!n)return h+`<div class="cyf-empty">Aucun cas trouvé avec ces paramètres${res.ms!=null?' ('+res.ms+' ms)':''}.</div>`;
   const groups=cyfGroups(res);
   if(!CYF.selG||!groups.some(x=>x.key===CYF.selG))CYF.selG=groups[0].key;
@@ -23704,7 +23925,7 @@ function cyfSaveSettings(){
 }
 // ── Page ──
 function cyfModSelectHTML(){
-  const opts=CYF_MODS.map(m=>{const v=m.id||('map:'+m.map);return`<option value="${v}" ${CYF.mod===m.id&&m.id?'selected':''}>${cyfEsc(cyfModLabel(m))}${m.map?(m.approx?' ≈ (onglet Modules)':' → onglet Modules'):''}</option>`;}).join('');
+  const opts=cyfSetList().map(m=>{const v=m.id||('map:'+m.map);return`<option value="${v}" ${CYF.mod===m.id&&m.id?'selected':''}>${cyfEsc(cyfModLabel(m))}${m.map?(m.approx?' ≈ (onglet Modules)':' → onglet Modules'):''}</option>`;}).join('');
   return`<select data-testid="cyf-modsel" onchange="if(this.value)cyfOpenMod(this.value)" style="${CYF_SEL};width:100%;font-weight:600;border:2px solid #0F5A63;padding:12px"><option value="">Choisir le module</option>${opts}</select>`;
 }
 function cyfBodyHTML(){
@@ -23782,8 +24003,8 @@ function methPageHTML(){
   return`<div id="app-content">
   <div class="header" style="background:#0F5A63;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-size:15px;font-weight:700">🔮 Méthodes — Les modules de forecast (Cybetcast)</div>
-      <button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
+      <div style="font-size:15px;font-weight:700">${state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>
+      ${state.cyfSet==='claude'?`<button onclick="goNav('modules')" style="padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">← Liste des 44 modules</button>`:''}<button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
     </div>
   </div>
   <div data-testid="methodes-page" style="padding:10px 12px calc(80px + env(safe-area-inset-bottom));padding-right:54px">${CYF_CSS}<div id="cyf-root">${cyfBodyHTML()}</div></div>
@@ -24067,6 +24288,7 @@ function __renderBody(){
         ${[['compact','Compact',9.5,3],['normal','Normal',12,5],['large','Grand',16,8]].map(([k,lbl,fs,pad])=>`<button onclick="state.excelTextSize='${k}';state.excelFontSize=${fs};state.excelRowPad=${pad};localStorage.setItem('excelTextSize','${k}');localStorage.setItem('excelFontSize','${fs}');localStorage.setItem('excelRowPad','${pad}');render()" style="padding:3px 7px;font-size:9px;font-weight:600;cursor:pointer;border:none;background:${state.excelTextSize===k?'#1F2D3D':'#fff'};color:${state.excelTextSize===k?'#fff':'#1F2D3D'}">${lbl}</button>`).join('')}
       </div>`:''}
       ${(state.excelMode&&state.navMode!=='games')?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.excelAlignDate?'#92400E':'#aaa'}" title="Aligne toutes les années sur la même ligne à partir de la date choisie (défaut : 1re semaine de juillet)."><input type="checkbox" ${state.excelAlignDate?'checked':''} onchange="state.excelAlignDate=this.checked;try{localStorage.setItem('excelAlignDate',this.checked?'1':'0')}catch(_){};render()">📅 aligner</label>${state.excelAlignDate?`<span style="display:inline-flex;align-items:center;gap:2px"><input type="number" min="1" max="31" value="${state.alignDay||1}" onchange="setAlignDate('d',this.value);render()" style="width:30px;padding:2px;font-size:10px;text-align:center;border:1px solid #CBD5E1;border-radius:4px">/<input type="number" min="1" max="12" value="${state.alignMonth||7}" onchange="setAlignDate('m',this.value);render()" style="width:30px;padding:2px;font-size:10px;text-align:center;border:1px solid #CBD5E1;border-radius:4px"></span>`:''}`:''}
+      ${(state.excelMode&&state.navMode==='games')?`<label data-testid="mg-rel-toggle" style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:700;color:${state.mgRel?'#234B6E':'#aaa'}" title="Colore les correspondances entre les colonnes sur la même ligne (identiques, Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) et ajoute des flèches ▲▼ pour décaler chaque colonne."><input type="checkbox" ${state.mgRel?'checked':''} onchange="state.mgRel=this.checked;try{localStorage.setItem('mgRel',this.checked?'1':'0')}catch(_){};render()">🧬 correspondances</label>`:''}
       ${(state.excelMode&&state.navMode==='games')?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.mgAlignEnd?'#1D4ED8':'#aaa'}" title="Option : aligne le BAS de toutes les colonnes (leurs derniers tirages sur les mêmes lignes). Décoché (défaut) : colonnes alignées par le haut, les 3 lignes colorées étant les 3 derniers tirages de la colonne de référence."><input type="checkbox" ${state.mgAlignEnd?'checked':''} onchange="state.mgAlignEnd=this.checked;try{localStorage.setItem('mgAlignEnd',this.checked?'1':'0')}catch(_){};render()">⇩ derniers tirages alignés</label>`:''}
       ${state.excelMode?`<label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.excelColor3?'#B91C1C':'#aaa'}" title="Mode Excel : le coloriage (manuel, repérés, miroirs, répétés…) n'est affiché que sur les 3 dernières lignes de chaque tableau."><input type="checkbox" ${state.excelColor3?'checked':''} onchange="state.excelColor3=this.checked;try{localStorage.setItem('excelColor3',this.checked?'1':'0')}catch(_){};render()">🎨 3 dernières lignes</label>`:''}
       <label style="font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px;font-weight:600;color:${state.sideBySide?'#0E7490':'#aaa'}" title="Coché : les années sont juxtaposées côte à côte. Décoché : vue normale, une année sous l'autre en pleine largeur."><input type="checkbox" ${state.sideBySide?'checked':''} onchange="state.sideBySide=this.checked;localStorage.setItem('sideBySide',this.checked?'1':'0');render()">↔️ côte à côte</label>
@@ -24226,6 +24448,7 @@ function __renderBody(){
         const _fv=cols.findIndex(c=>!c.hid); // 1re colonne VISIBLE = celle figée à gauche
         const maxRows=Math.max(1,...cols.map(c=>c.rows.length));
         const _mgC3o=mgLast3ColorMap(cols,maxRows,state.mgAlignEnd);const _mgC3=_mgC3o.map,_mgL3=_mgC3o.last;
+        const _mgRel=state.mgRel?mgRelBuild(cols,maxRows):null;const _mgRelHL=_mgRel?_mgRel.hl:null;
         const _mgCtx=anCalc(); // couches "toujours actives" (miroir, superposition, repérés) — mode par défaut appliqué aussi en comparaison
         const _MG_W_T=40,_MG_W_D=46,_MG_W_N=34,_MG_W_TOT=40;
         const mgWidthsOf=g=>{
@@ -24236,7 +24459,7 @@ function __renderBody(){
         const _mgW0=cols[_fv]?mgWidthsOf(cols[_fv].g):[];
         const _mgLefts0=[];{let acc=0;_mgW0.forEach(w=>{_mgLefts0.push(acc);acc+=w;});}
         const mgFz=(ci,idx)=>ci===_fv?`left:${_mgLefts0[idx]}px;width:${_mgW0[idx]}px;min-width:${_mgW0[idx]}px;`:'';
-        html+=`<div id="col-exmg" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
+        html+=`${_mgRel?mgRelBarHTML(_mgRel.counts):''}<div id="col-exmg" data-scrollkeep="1" style="max-height:72vh;width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px" class="excel-wrap" onmousedown="dragScrollStart(event,'exmg')">
           <table class="excel-tbl"><thead><tr>`;
         cols.forEach((c,ci)=>{
           const nCells=c.hid?1:(c.g.hasM?14:8);const light=isLightBg(c.color);
@@ -24248,11 +24471,19 @@ function __renderBody(){
           const heads=['N°','DATE','N1','N2','N3','N4','N5',(c.g.xtra?'X1':'TOT'),...(c.g.hasM?(c.g.sum10?['N6','N7','N8','N9','N10']:['M1','M2','M3','M4','M5']):[]),...(c.g.hasM?[c.g.xtra?'X2':'TM']:[])];
           heads.forEach((h,hi)=>{html+=`<th class="excel-hd ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,hi)}">${h}</th>`;});
         });
+        if(_mgRel){
+          html+=`</tr><tr>`;
+          cols.forEach((c,ci)=>{
+            const nC=c.hid?1:(c.g.hasM?14:8);if(c.hid){html+=`<th class="excel-hd" style="opacity:.6"></th>`;return;}
+            const sh=mgShiftOf(c.colId);const bs='padding:1px 7px;font-size:12px;border-radius:6px;border:1.5px solid #234B6E;background:#fff;color:#234B6E;cursor:pointer;line-height:1.2';
+            html+=`<th class="excel-hd ${ci===_fv?'excel-frozen':''}" colspan="${nC}" style="${ci===_fv?'left:0px;':''}background:#F1F5FB;white-space:nowrap" data-testid="mg-shift-${ci}"><button type="button" style="${bs}" title="Décaler vers les tirages plus anciens" onclick="mgShiftCol('${c.colId}',-1)">▲</button> <span style="font-size:10px;color:#234B6E;font-weight:700;min-width:44px;display:inline-block;text-align:center">${sh>0?'+'+sh:sh}</span> <button type="button" style="${bs}" title="Décaler vers les tirages plus récents" onclick="mgShiftCol('${c.colId}',1)">▼</button>${sh?` <button type="button" style="${bs}" title="Revenir sans décalage" onclick="mgShiftReset('${c.colId}')">⟲</button>`:''}</th>`;
+          });
+        }
         html+=`</tr></thead><tbody>`;
         for(let ri=0;ri<maxRows;ri++){
           html+=`<tr>`;
           cols.forEach((c,ci)=>{
-            const _ri=state.mgAlignEnd?ri-(maxRows-c.rows.length):ri;const g=c.g,row=_ri>=0?c.rows[_ri]:undefined,nCells=g.hasM?14:8;
+            const _ri=mgShiftOf(c.colId)+(state.mgAlignEnd?ri-(maxRows-c.rows.length):ri);const g=c.g,row=_ri>=0?c.rows[_ri]:undefined,nCells=g.hasM?14:8;
             if(c.hid){html+=`<td class="excel-td" style="background:#ECEFF1"></td>`;return;}
             if(!row){for(let k=0;k<nCells;k++)html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="${mgFz(ci,k)}"></td>`;return;}
             const _in3=ri>=_mgL3-2&&ri<=_mgL3; // les 3 lignes alignées sur les 3 derniers tirages de la colonne de référence
@@ -24263,7 +24494,7 @@ function __renderBody(){
             const _mk=anMark(row,_mgCtx);
             const _bmk=row.m?anMarkBonus(row,_mgCtx):null;
             T=_T0;IDX=_IDX0;
-            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{plain:!!state.excelColor3,rowCol:(state.excelColor3&&_in3&&mgCell3(row,n,_mgC3))?[mgCell3(row,n,_mgC3),'#fff']:null,isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
+            row.n.forEach((n,ni)=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,2+ni)}">${numSpan(n,{plain:!!state.excelColor3,rowCol:(_mgRelHL&&_mgRelHL[ci][ri]&&_mgRelHL[ci][ri][ni])?[_mgRelHL[ci][ri][ni].bg,_mgRelHL[ci][ri][ni].fg]:((state.excelColor3&&_in3&&mgCell3(row,n,_mgC3))?[mgCell3(row,n,_mgC3),'#fff']:null),isSrc:isSearchHit(n,ni),an:_mk[ni]},row.t+'_g'+ci+'_'+ni)}</td>`;});
             html+=g.xtra?`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:700;color:#B71C1C;background:#FFEBEE;${mgFz(ci,7)}">${row.x?row.x[0]:'·'}</td>`:`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="font-weight:500;color:${tc[1]};background:${tc[0]};${mgFz(ci,7)}">${row.s}</td>`;
             if(g.hasM){
               [0,1,2,3,4].forEach(mi=>{html+=`<td class="excel-td ${ci===_fv?'excel-frozen':''}" style="background:${bg};${mgFz(ci,8+mi)}">${row.m?numSpan(row.m[mi],{isM:true,plain:!!state.excelColor3,rowCol:(state.excelColor3&&_in3&&mgCell3(row,row.m[mi],_mgC3))?[mgCell3(row,row.m[mi],_mgC3),'#fff']:null,an:_bmk&&_bmk[mi]},row.t+'_g'+ci+'_m'+mi):'·'}</td>`;});

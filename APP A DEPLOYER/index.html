@@ -23082,9 +23082,64 @@ const CYF_MODS=[
   {n:17,id:'add2',t:'Addition de 2 Draws sur une Ligne - Avec Position',claude:true},
   {n:18,id:'addx',t:'Addition sur Plusieurs Lignes – Avec Position',claude:true},
   {n:33,id:'ra4',t:'Recherche Automatique 4',claude:true},
-  {n:39,id:'pick',t:'Pickin | Oblique',claude:true}
+  {n:39,id:'pick',t:'Pickin | Oblique',claude:true},
+  {n:'Oracle',id:'orbt',t:'Tester une stratégie sur l’historique',claude:true},
+  {n:'Oracle',id:'orpred',t:'Prédictions sauvegardées (vérification automatique)',claude:true}
 ];
 // Méthodes (Grok) : sa liste d'origine. Modules Claude : tous les modules qui tournent ici (ceux de Grok copiés + les 10 refaits), sans renvoi vers l'onglet Modules.
+
+// ── Oracle du Loto (intégré) : stratégies, test sur l'historique, prédictions sauvegardées ──
+function orNums(r){return r.n.slice(0,5).filter(v=>v>=1&&v<=90);}
+function orFreq(rows){const f=new Array(91).fill(0);rows.forEach(r=>orNums(r).forEach(v=>f[v]++));return f;}
+function orGap(rows){const g=new Array(91).fill(rows.length);for(let i=rows.length-1;i>=0;i--){orNums(rows[i]).forEach(v=>{if(g[v]===rows.length)g[v]=rows.length-1-i;});}return g;}
+function orTop(arr,k,asc,excl){const ex=new Set(excl||[]);const L=[];for(let v=1;v<=90;v++)if(!ex.has(v))L.push(v);L.sort((a,b)=>asc?arr[a]-arr[b]||a-b:arr[b]-arr[a]||a-b);return L.slice(0,k);}
+function orPairs(rows,hot){const c=new Array(91).fill(0);rows.forEach(r=>{const n=orNums(r);if(n.includes(hot))n.forEach(v=>{if(v!==hot)c[v]++;});});return c;}
+const OR_STRATS=[
+ {id:'mix',name:'Liste du jour (moitié chauds 30 + moitié retards)',run:(R,k)=>{const a=orTop(orFreq(R.slice(-30)),Math.ceil(k/2));return a.concat(orTop(orGap(R),k-a.length,false,a));}},
+ {id:'h_all',name:'Chauds (tout l’historique)',run:(R,k)=>orTop(orFreq(R),k)},
+ {id:'h50',name:'Chauds récents (50 tirages)',run:(R,k)=>orTop(orFreq(R.slice(-50)),k)},
+ {id:'h20',name:'Chauds récents (20 tirages)',run:(R,k)=>orTop(orFreq(R.slice(-20)),k)},
+ {id:'cold',name:'Froids (les moins sortis)',run:(R,k)=>orTop(orFreq(R),k,true)},
+ {id:'ret',name:'Retards maximums',run:(R,k)=>orTop(orGap(R),k)},
+ {id:'pairs',name:'Paires fréquentes (le plus chaud + ses partenaires)',run:(R,k)=>{const h=orTop(orFreq(R),1)[0];return [h].concat(orTop(orPairs(R,h),k-1,false,[h]));}},
+ {id:'equi',name:'Équilibrée (chauds + retards + froids)',run:(R,k)=>{const nh=Math.max(1,Math.round(k*0.4)),nr=Math.max(1,Math.round(k*0.4));const a=orTop(orFreq(R),nh);const b=orTop(orGap(R),nr,false,a);return a.concat(b,orTop(orFreq(R),k-a.length-b.length,true,a.concat(b)));}}
+];
+const OR_STRAT_BY={};OR_STRATS.forEach(x=>OR_STRAT_BY[x.id]=x);
+function orChance(k){const T=nCr(90,5);const p=[];for(let j=0;j<=5;j++)p.push(j>k?0:nCr(k,j)*nCr(90-k,5-j)/T);return p;}
+function orBall(v,hit){return '<span style="display:inline-block;min-width:26px;padding:3px 5px;margin:2px;border-radius:7px;text-align:center;font-weight:700;'+(hit?'background:#16A34A;color:#fff':'background:#EEF4F5;color:#12343B')+'">'+v+'</span>';}
+function orBacktest(R,st,k,nt){const MIN=30;const start=Math.max(MIN,R.length-nt);const dist=new Array(6).fill(0);let tests=0,sum=0;
+ for(let i=start;i<R.length;i++){const pred=st.run(R.slice(0,i),k);const act=new Set(orNums(R[i]));const h=pred.filter(v=>act.has(v)).length;dist[Math.min(5,h)]++;sum+=h;tests++;}
+ return{tests,avg:tests?sum/tests:0,dist,p1:tests?(tests-dist[0])/tests:0,p2:tests?(dist[2]+dist[3]+dist[4]+dist[5])/tests:0};}
+function orBacktestRes(f){const g=f.g,R=cyfRows(g);if(!R||R.length<40)return{error:'Pas assez de tirages pour ce loto (40 minimum).'};
+ const k=Math.max(1,Math.min(20,cyfInt(f.k,10))),nt=Math.max(20,Math.min(1000,cyfInt(f.nt,200)));const list=f.st&&f.st!=='all'?[OR_STRAT_BY[f.st]].filter(Boolean):OR_STRATS;
+ const ch=orChance(k);const c1=1-ch[0],c2=ch[2]+ch[3]+ch[4]+ch[5];const pc=x=>(x*100).toFixed(1)+' %';
+ const res=list.map(st=>Object.assign({st,next:st.run(R,k)},orBacktest(R,st,k,nt)));res.sort((a,b)=>b.p2-a.p2||b.avg-a.avg);
+ CYF._orNext=res.map(r=>({g,id:r.st.id,name:r.st.name,nums:r.next,afterT:R[R.length-1].t}));
+ const last=R[R.length-1];let h='<div class="cyf-resbar"><b class="cyf-cnt">'+cyfEsc(cyfName(g))+'</b><span class="cyf-desc">listes de '+k+' numéros testées sur les '+res[0].tests+' derniers tirages (jusqu’au T'+last.t+' du '+last.d+'/'+last.y+')</span></div>';
+ h+='<div style="font-size:12.5px;color:#475569;margin:6px 0 10px">Pour chaque tirage, la liste est calculée <b>uniquement avec les tirages d’avant</b>, puis comparée au tirage sorti. Repère : en jouant '+k+' numéros <b>au hasard</b>, on attrape au moins 1 numéro '+pc(c1)+' du temps et au moins 2 numéros (ambe) '+pc(c2)+' du temps.</div>';
+ res.forEach((r,i)=>{const d=r.p2-c2;const col=d>0.01?'#15803D':d<-0.01?'#B91C1C':'#475569';h+='<div style="border:1px solid #E2E8F0;border-radius:10px;padding:8px 10px;margin:6px 0;'+(i===0?'background:#F0FDF4;border-color:#86EFAC':'background:#fff')+'"><div style="font-weight:700;color:#12343B;font-size:13.5px">'+(i===0?'🏆 ':'')+cyfEsc(r.st.name)+'</div><div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:#334155;margin-top:4px"><span>Ambe ou mieux : <b>'+pc(r.p2)+'</b></span><span style="color:'+col+';font-weight:700">'+(d>=0?'+':'')+(d*100).toFixed(1)+' pts vs hasard</span><span>Au moins 1 : '+pc(r.p1)+'</span><span>Moyenne : '+r.avg.toFixed(2)+' n°</span></div><div style="font-size:11px;color:#64748B;margin-top:2px">Tirages avec 0 / 1 / 2 / 3 / 4 / 5 numéros trouvés : '+r.dist.join(' / ')+'</div></div>';});
+ h+='<div style="margin-top:14px;font-weight:700;color:#0F5A63">Listes proposées pour le prochain tirage</div>';
+ res.forEach((r,i)=>{h+='<div style="padding:8px 0;border-bottom:1px solid #EEF2F4"><div style="font-size:12.5px;color:#334155;margin-bottom:3px">'+cyfEsc(r.st.name)+'</div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">'+r.next.map(v=>orBall(v,false)).join('')+'<button onclick="orSaveNext('+i+')" style="margin-left:8px;padding:5px 10px;border-radius:8px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-weight:700;cursor:pointer">💾 Sauvegarder</button></div></div>';});
+ h+='<div style="font-size:11.5px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:8px;margin-top:10px">Ces résultats décrivent le passé : une stratégie qui a fait mieux que le hasard sur une période peut faire moins bien ensuite.</div>';
+ return{kind:'html',html:h};}
+const OR_LS='fl90_oracle_predictions';
+function orPredLoad(){return cyfLS(OR_LS,[]);}
+function orPredSave(L){try{localStorage.setItem(OR_LS,JSON.stringify(L));return true;}catch(e){alert('Sauvegarde impossible sur cet appareil.');return false;}}
+function orAddPred(o){const L=orPredLoad();o.id='p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);o.saved=new Date().toISOString();L.unshift(o);orPredSave(L);}
+function orSaveNext(i){const x=(CYF._orNext||[])[i];if(!x)return;orAddPred({g:x.g,strat:x.name,nums:x.nums.slice(),afterT:x.afterT});alert('Liste sauvegardée. Elle sera vérifiée toute seule au prochain tirage de '+cyfName(x.g)+' (module « Prédictions sauvegardées »).');}
+function orAddManual(){const f=cyfReadForm();const nums=[...new Set(String(f.nums||'').split(/[^0-9]+/).map(Number).filter(v=>v>=1&&v<=90))];if(!nums.length){alert('Entrez au moins un numéro entre 1 et 90.');return;}const R=cyfRows(f.g);if(!R||!R.length)return;orAddPred({g:f.g,strat:'Ma liste',nums,afterT:R[R.length-1].t});f.nums='';CYF.form[CYF.mod]=f;cyfRun();}
+function orDelPred(id){if(!confirm('Supprimer cette prédiction ?'))return;orPredSave(orPredLoad().filter(x=>x.id!==id));cyfRun();}
+const OR_LBL=['Rien','Extrait (1)','Ambe (2)','Terne (3)','Quaterne (4)','Quine (5)'];
+function orPredRes(){const L=orPredLoad();if(!L.length)return{kind:'html',html:'<div class="cyf-resbar"><b class="cyf-cnt">Aucune prédiction</b></div><div style="font-size:13px;color:#475569;margin-top:6px">Enregistrez votre liste ci-dessus, ou sauvegardez une liste proposée dans « Tester une stratégie sur l’historique ». Elle sera comparée toute seule au tirage suivant.</div>'};
+ let done=0,wait=0,amb=0,ext=0;let rows='';
+ L.forEach(p=>{const R=cyfRows(p.g)||[];const r=R.find(x=>x.t>p.afterT);let res,ballHTML;
+  if(r){const act=new Set(orNums(r));const h=p.nums.filter(v=>act.has(v)).length;done++;if(h>=1)ext++;if(h>=2)amb++;ballHTML=p.nums.map(v=>orBall(v,act.has(v))).join('');res='<b style="color:'+(h>=2?'#15803D':h===1?'#B45309':'#64748B')+'">'+OR_LBL[Math.min(5,h)]+'</b><div style="font-size:11px;color:#64748B">T'+r.t+' du '+r.d+'/'+r.y+' : '+orNums(r).join(' ')+'</div>';}
+  else{wait++;ballHTML=p.nums.map(v=>orBall(v,false)).join('');res='<span style="color:#0369A1">⏳ en attente du tirage après T'+p.afterT+'</span>';}
+  rows+='<tr style="border-bottom:1px solid #E2E8F0;vertical-align:top"><td style="padding:6px;font-size:12px;white-space:nowrap">'+cyfEsc(String(p.saved||'').slice(0,10).split('-').reverse().join('/'))+'</td><td style="padding:6px;font-size:12.5px"><b>'+cyfEsc(cyfName(p.g))+'</b><div style="font-size:11px;color:#64748B">'+cyfEsc(p.strat||'')+'</div></td><td style="padding:6px">'+ballHTML+'</td><td style="padding:6px;font-size:12.5px">'+res+'</td><td><button onclick="orDelPred(\''+p.id+'\')" title="Supprimer" style="border:none;background:none;cursor:pointer;font-size:15px">🗑</button></td></tr>';});
+ let h='<div class="cyf-resbar"><b class="cyf-cnt">Prédictions ('+L.length+')</b><span class="cyf-desc">'+done+' vérifiées · '+wait+' en attente'+(done?' · au moins 1 numéro : '+ext+' · ambe ou mieux : '+amb:'')+'</span></div>';
+ h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr style="background:#0F5A63;color:#fff;font-size:12.5px"><th style="padding:6px;text-align:left">Date</th><th style="text-align:left">Loto</th><th style="text-align:left">Numéros (vert = sorti)</th><th style="text-align:left">Résultat</th><th></th></tr>'+rows+'</table></div>';
+ h+='<div style="font-size:11.5px;color:#64748B;margin-top:8px">Les prédictions restent sur cet appareil. Chaque liste est comparée au premier tirage sorti après son enregistrement.</div>';
+ return{kind:'html',html:h};}
 function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet='claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
 function quickMyModsHTML(){if(typeof CYF_MODS==='undefined')return '';const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);const L=CYF_MODS.filter(m=>m.id).slice().sort((a,b)=>k(a)-k(b));
   return '<optgroup label="🧩 Modules (nouvelle version)">'+L.map(m=>'<option value="openMyModule(\''+m.id+'\')">🧩 '+(typeof m.n==='number'?m.n+'-) ':'')+String(m.t).replace(/</g,'&lt;')+(m.nap?' ('+m.nap+' numéros sur une ligne)':'')+'</option>').join('')+'</optgroup>';}
@@ -23233,6 +23288,10 @@ function cyfFormHTML(id){
     const n=id==='cmp2'?2:3;let r='';
     for(let i=1;i<=n;i++){const g=cyfF('g'+i,GAME.key);const rows=cyfRows(g);r+=`<div class="cyf-row">${cyfField('Loterie '+i,cyfGameSel('g'+i,g,null,null,true),'1 1 200px')}${cyfField('Ligne '+i+' (N° tirage)',cyfNum('t'+i,cyfF('t'+i,rows.length?rows[Math.max(0,rows.length-1-(i-1)*52)].t:''),'N°'))}</div>`;}
     h+=r+`<div class="cyf-row">${cyfField('Nombre de lignes',cyfNum('nb',cyfF('nb','20')))}${cyfField('Sens',cyfSelect('inv',[['0','Non inversé'],['1','Inversé']],cyfF('inv','0')))}${cyfField('Lignes avant',cyfNum('bef',cyfF('bef','0')))}${cyfField('Lignes après la dernière plage',cyfNum('aft',cyfF('aft','5')))}<label class="cyf-fld" style="flex:0 0 auto"><span>&nbsp;</span>${cyfBtn('Appliquer','cyfApplyWindow()')}</label></div>`+go;
+  }else if(id==='orbt'){
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Stratégie',cyfSelect('st',[['all','⚖️ Comparer toutes les stratégies']].concat(OR_STRATS.map(x=>[x.id,x.name])),cyfF('st','all')))}</div><div class="cyf-row">${cyfField('Numéros par liste',cyfSelect('k',[['5','5 numéros'],['10','10 numéros'],['15','15 numéros']],cyfF('k','10')))}${cyfField('Tirages testés (les plus récents)',cyfNum('nt',cyfF('nt','200')))}</div>`+go;
+  }else if(id==='orpred'){
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Mes numéros (séparés par des espaces)',`<input data-k="nums" value="${cyfEsc(cyfF('nums',''))}" placeholder="ex : 12 45 78 3 90" style="${CYF_SEL};width:100%">`,'2 1 240px')}</div><div class="cyf-row" style="margin-top:6px;gap:8px;flex-wrap:wrap">${cyfBtn('💾 Enregistrer ma liste','orAddManual()')}${cyfBtn('↻ Vérifier / Actualiser','cyfRun()','ghost')}</div>`;
   }else if(id==='combi'){
     h+=`<div class="cyf-row">${cyfField('Nombre de bankers',cyfNum('nb',cyfF('nb','10')))}</div>`+go;
   }else if(id==='bauto'){
@@ -23348,6 +23407,8 @@ function cyfCompute(id,f,m){
     for(let i=1;i<=n;i++){const g=f['g'+i],rows=cyfRows(g),ix=rows.byT[cyfInt(f['t'+i],-1)];if(ix==null)return{error:'Ligne '+i+' : tirage N° '+f['t'+i]+' introuvable dans '+cyfName(g)+'.'};pl.push({g,i:ix});}
     return{kind:'cmp',pl,nb:Math.max(2,Math.min(60,cyfInt(f.nb,20))),inv:f.inv==='1',bef:Math.max(0,Math.min(60,cyfInt(f.bef,0))),aft:Math.max(0,Math.min(60,cyfInt(f.aft,5)))};
   }
+  if(id==='orbt')return orBacktestRes(f);
+  if(id==='orpred')return orPredRes();
   if(id==='combi'){const n=Math.max(0,Math.min(90,cyfInt(f.nb,0)));return{kind:'combi',n};}
   if(id==='bauto'){
     const rows=cyfRows(f.g);const W=Math.max(5,Math.min(1000,cyfInt(f.w,50))),C=Math.max(1,Math.min(20,cyfInt(f.c,5)));
@@ -23798,6 +23859,7 @@ function cyfResHTML(){
   else if(res.kind==='cmp')h+=cyfCmpHTML(res);
   else if(res.kind==='balayage')h+=cyfBalayageHTML(res);
   else if(res.kind==='seq')h+=cyfSeqHTML(res);
+  else if(res.kind==='html')h+=res.html;
   else if(res.kind==='list'){const rows=cyfRows(res.g);h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.to-res.from+1})</b><span class="cyf-desc">${cyfEsc(res.title)}</span><span style="flex:1"></span>${cyfBtn('📤 Exporter','cyfExport()','ghost')}</div>`+cyfTableHTML(res.g,cyfRange(res.from,res.to,rows.length),null,{cap:res.title});}
   else if(res.kind==='nums')h+=`<div class="cyf-resbar"><b class="cyf-cnt">Résultat (${res.nums.length})</b><span class="cyf-desc">${cyfEsc(res.label)} — ${cyfEsc(res.title)}</span></div><div class="cyf-balls">${res.nums.map(v=>`<span class="cyf-ball">${v}</span>`).join('')||'<i>Tous les numéros sont sortis.</i>'}</div>`;
   else if(res.kind==='combi'){const c=k=>nCr(res.n,k).toLocaleString('fr-FR');h+=`<div class="cyf-resbar"><b class="cyf-cnt">Avec ${res.n} bankers</b></div><div class="cyf-grid2">${[2,3,4,5].map(k=>`<div class="cyf-gcell"><div>${k} Nap</div><b>${c(k)}</b></div>`).join('')}</div>`;}

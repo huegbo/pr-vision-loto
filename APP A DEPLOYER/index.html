@@ -22663,20 +22663,26 @@ function cyfInt(v,d){const n=parseInt(v,10);return Number.isFinite(n)?n:d;}
 // ── Données : lignes d'une loto, de la plus ancienne (L=1) à la plus récente ──
 const CYF_ROWS={};
 function cyfRows(key){
+  if(/#m$/.test(key)){
+    const base=key.slice(0,-2);const c0=CYF_ROWS[key],src=cyfRows(base);
+    if(c0&&c0.src===src)return c0.rows;
+    const rows=src.filter(r=>r.m&&r.m.some(v=>v!=null)).map((r,i)=>({t:r.t,d:r.d,y:r.y,n:r.m.slice(),L:i+1}));
+    rows.byT={};rows.forEach((r,i)=>{rows.byT[r.t]=i;});CYF_ROWS[key]={src,rows};return rows;
+  }
   const g=GAMES[key];if(!g||!g.raw){const r=[];r.byT={};return r;}
   const ex=getExtras(key);const sig=g.raw.length+':'+ex.length+':'+(ex[ex.length-1]||'');
   const c=CYF_ROWS[key];if(c&&c.sig===sig)return c.rows;
   let base=[],extra=[];
   try{base=parseLines(g.raw.trim().split('\n').filter(l=>l.trim()),g);extra=parseLines(ex,g);}catch(e){base=[];}
   const by={};base.concat(extra).forEach(r=>{if(Number.isFinite(r.t)&&Array.isArray(r.n))by[r.t]=r;});
-  const rows=Object.values(by).sort((a,b)=>a.t-b.t).map((r,i)=>({t:r.t,d:r.d||'',y:String(r.y||''),n:r.n.map(v=>(Number.isFinite(v)&&v>=1&&v<=90)?v:null),L:i+1}));
+  const rows=Object.values(by).sort((a,b)=>a.t-b.t).map((r,i)=>({t:r.t,d:r.d||'',y:String(r.y||''),n:r.n.map(v=>(Number.isFinite(v)&&v>=1&&v<=90)?v:null),m:Array.isArray(r.m)?r.m.map(v=>(Number.isFinite(v)&&v>=1&&v<=90)?v:null):null,L:i+1}));
   rows.byT={};rows.forEach((r,i)=>{rows.byT[r.t]=i;});
   CYF_ROWS[key]={sig,rows};
   return rows;
 }
 function cyfSum(r){return r.n.reduce((a,b)=>a+(b||0),0);}
 function cyfK(rows){let k=5;for(let i=rows.length-1;i>=0&&i>rows.length-20;i--)k=Math.max(k,rows[i].n.length);return Math.min(k,6);}
-function cyfName(key){const g=GAMES[key];return g?g.name:key;}
+function cyfName(key){if(/#m$/.test(key)){const b=GAMES[key.slice(0,-2)];return (b?b.name:key)+' Machine Number';}const g=GAMES[key];return g?g.name:key;}
 // ── Réglages ──
 function cyfSet(){
   const s=cyfLS(CYF_LS.set,{})||{};
@@ -22712,7 +22718,7 @@ function cyfFilterOk(y,f){
   return true;
 }
 // Liste de lotos pour « Choisir la Loto » ('all' = lotos favorites des Réglages)
-function cyfLotos(v){return v==='all'||!v?cyfSet().fav:(GAMES[v]?[v]:[]);}
+function cyfLotos(v){const base=v==='all'||!v?cyfSet().fav:(GAMES[v]?[v]:[]);if(state.cyfSet!=='claude')return base;const out=[];base.forEach(k=>{out.push(k);if(GAMES[k]&&GAMES[k].hasM)out.push(k+'#m');});return out;}
 function cyfAddHL(m,i,p,c){(m.hl[i]=m.hl[i]||{});const prio={r:1,c:2,g:2,y:3};const cur=m.hl[i][p];if(!cur||prio[c]>=prio[cur])m.hl[i][p]=c;}
 const CYF_MAX_MATCH=5000;
 
@@ -22840,7 +22846,7 @@ function cyfSearchNap(q){
       if(out.length>=CYF_MAX_MATCH)return;
       if(!q.nums.every(x=>r.n.includes(x)))return;
       const m=cyfMakeMatch(g,i,i,{info:q.nums.join(' - ')});
-      q.nums.forEach(x=>cyfAddHL(m,i,r.n.indexOf(x),'y'));out.push(m);
+      q.nums.forEach(x=>cyfAddHL(m,i,r.n.indexOf(x),state.cyfSet==='claude'?'g':'y'));out.push(m);
     });
   }
   return out;
@@ -23492,10 +23498,10 @@ function cyfRange(a,b,n){const o=[];for(let i=Math.max(0,a);i<=Math.min(n-1,b);i
 function cyfModWindow(id){
   id=id||CYF.mod;const s=cyfSet();
   const all=(cyfLS(CYF_LS.win,{})||{});
-  const saved=(all&&typeof all==='object'&&all[id])||{};
+  const cl=state.cyfSet==='claude';const saved=(all&&typeof all==='object'&&all[cl?id+'@c':id])||{};
   const form=(CYF.form&&CYF.form[id])||{};
   const pick=(k,def)=>{const v=form[k]!=null&&form[k]!==''?form[k]:(saved[k]!=null?saved[k]:def);return Math.max(0,Math.min(60,cyfInt(v,def)));};
-  return{avant:Math.min(50,pick('avant',s.avant)),apres:pick('apres',s.apres)};
+  return{avant:Math.min(50,pick('avant',cl?10:s.avant)),apres:pick('apres',cl?35:s.apres)};
 }
 function cyfWinParts(m){
   const w=cyfModWindow(),rows=cyfRows(m.g);
@@ -23515,7 +23521,7 @@ function cyfSyncWindowFromForm(f){
   if(f.apres!=null&&f.apres!=='')p.apres=Math.max(0,Math.min(60,cyfInt(f.apres,cur.apres)));
   if(!Object.keys(p).length)return;
   const all=Object.assign({},cyfLS(CYF_LS.win,{})||{});
-  all[CYF.mod]=Object.assign({},all[CYF.mod]||{},p);
+  const wk=state.cyfSet==='claude'?CYF.mod+'@c':CYF.mod;all[wk]=Object.assign({},all[wk]||{},p);
   cyfLSset(CYF_LS.win,all);
   const form=CYF.form[CYF.mod]=Object.assign({},CYF.form[CYF.mod]||{});
   if(p.avant!=null)form.avant=String(p.avant);if(p.apres!=null)form.apres=String(p.apres);
@@ -23567,7 +23573,8 @@ function cyfSearchResHTML(res){
   const m=res.matches[list[CYF.selM]];const rows=cyfRows(m.g);
   h+=`<div class="cyf-info">${cyfEsc(cyfName(m.g))} · N° ${rows[m.base].t} (L ${rows[m.base].L}) · ${cyfEsc(m.info||'')}</div>`;
   const w=cyfWinParts(m);
-  h+=cyfWinTablesHTML(m.g,w.main,w.after,m.hl,{mark:new Set([m.base,m.res]),cap:cyfName(m.g)+' — tirage N° '+cyfMatchLabel(m)});
+  const _all=w.main.concat(w.after);const _cap=state.cyfSet==='claude'&&_all.length?cyfName(m.g)+' T '+rows[_all[0]].t+' - '+rows[_all[_all.length-1]].t:cyfName(m.g)+' — tirage N° '+cyfMatchLabel(m);
+  h+=cyfWinTablesHTML(m.g,w.main,w.after,m.hl,{mark:new Set([m.base,m.res]),cap:_cap});
   h+=`<div class="cyf-legend"><span class="cyf-r">Draw1</span> <span class="cyf-y">résultat</span> <span class="cyf-c">bankers / draws</span> <span class="cyf-g">paire</span> · lignes grisées en bas = tirages après le résultat · double-clic ou appui long sur une ligne pour Sauvegarder / Comparer / prochain Banker</div>`;
   return h;
 }
@@ -23820,8 +23827,28 @@ function cyfAddToGroup(name,recs){
   recs.forEach(r=>{if(r&&!seen.has(r.g+'|'+r.t+'|'+r.role)){G.rows.push(r);seen.add(r.g+'|'+r.t+'|'+r.role);}});
   return cyfGroupsSave(gs)?G:null;
 }
+function cyfSaveDlgClose(){const o=document.getElementById('cyfSaveDlg');if(o)o.remove();}
+function cyfSaveGroupName(res){const md=CYF_MOD_BY[CYF.mod];const nm=String(md?(md.t||md.name||md.label||md.n):'Module').replace(/[^0-9A-Za-zÀ-ÿ]+/g,'');const gs=[...new Set(res.matches.map(m=>m.g))];const lot=gs.length===1?cyfName(gs[0]).replace(/[^0-9A-Za-zÀ-ÿ]+/g,''):'All';return nm+'-'+lot;}
+function cyfSaveDlgGo(){const res=CYF.res;if(!res)return cyfSaveDlgClose();const inp=document.getElementById('cyfSaveN');const N=Math.max(0,Math.min(20,cyfInt(inp?inp.value:'1',1)));const name=cyfSaveGroupName(res);
+  const recs=[];res.matches.forEach(m=>{for(let a=0;a<=N;a++)recs.push(cyfRowRec(m.g,m.res+a,a===0?'résultat':'après '+a));});
+  const G2=cyfAddToGroup(name,recs.filter(Boolean));cyfSaveDlgClose();
+  if(G2){CYF.grp=G2.id;if(typeof toast==='function')toast(recs.filter(Boolean).length+' lignes enregistrées dans '+name);cyfRefresh();}}
+function cyfSaveDlgOpen(){const res=CYF.res;cyfSaveDlgClose();const name=cyfSaveGroupName(res);const o=document.createElement('div');o.id='cyfSaveDlg';
+  o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit';
+  o.innerHTML='<div style="background:#fff;color:#222;border-radius:14px;max-width:420px;width:100%;padding:20px 20px 14px;box-shadow:0 10px 40px rgba(0,0,0,.3)">'+
+  '<div style="font-size:18px;font-weight:700;margin-bottom:12px">Sauvegarder les lignes</div>'+
+  '<div style="font-size:14px;line-height:1.45;margin-bottom:14px">Les résultats seront automatiquement enregistrés dans le groupe <b>'+name.replace(/</g,'&lt;')+'</b>.</div>'+
+  '<div style="font-size:14px;font-weight:600">Les lignes à sauvegarder</div>'+
+  '<div style="font-size:12px;color:#666;margin:2px 0 6px">Par défaut les lignes en dessous des résultats seront sauvegardées (1)</div>'+
+  '<input id="cyfSaveN" type="number" min="0" max="20" value="1" style="width:100%;box-sizing:border-box;padding:9px 10px;font-size:16px;border:1px solid #bbb;border-radius:8px">'+
+  '<div style="font-size:12px;color:#666;margin-top:10px">Pour voir les Statistiques, ouvrez 💾 Sauvegarde des tirages.</div>'+
+  '<div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">'+
+  '<button onclick="cyfSaveDlgClose()" style="padding:8px 16px;border:none;background:none;color:#1a73e8;font-weight:600;font-size:14px;cursor:pointer">Annuler</button>'+
+  '<button onclick="cyfSaveDlgGo()" style="padding:8px 16px;border:none;border-radius:8px;background:#1a73e8;color:#fff;font-weight:600;font-size:14px;cursor:pointer">Sauvegarder</button></div></div>';
+  o.addEventListener('click',e=>{if(e.target===o)cyfSaveDlgClose();});document.body.appendChild(o);const i=document.getElementById('cyfSaveN');if(i){i.focus();i.select();}}
 function cyfSaveLines(){
   const res=CYF.res;if(!res||!res.matches||!res.matches.length)return;
+  if(state.cyfSet==='claude'){cyfSaveDlgOpen();return;}
   const nS=prompt('Combien de lignes après la ligne résultat faut-il sauvegarder ?','1');if(nS==null)return;
   const N=Math.max(0,Math.min(20,cyfInt(nS,1)));
   const groups=cyfGroups(res);const G=groups.find(x=>x.key===CYF.selG)||groups[0];

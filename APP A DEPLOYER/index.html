@@ -21489,7 +21489,7 @@ function vRowHTML(it,ri,C){
   // pareil dans les deux (jamais masqué, cf. numSpan).
   const _dvMode=C.dvMode;
   const _savedRA=state.repereAlways, _savedRA2=state.repere2Always, _savedSup=_DV_SUPPRESS;
-  if(_dvMode==='rep'){state.repereAlways=true;state.repere2Always=true;_DV_SUPPRESS=false;}
+  if(_dvMode==='rep'){_DV_SUPPRESS=false;} // volet « avec » : les repérés suivent la case « 🎯 vue repérés » (décochée = pas de repérés)
   else if(_dvMode==='norep'){state.repereAlways=false;state.repere2Always=false;_DV_SUPPRESS=true;}
   try{
   let out='';

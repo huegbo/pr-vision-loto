@@ -23084,7 +23084,8 @@ const CYF_MODS=[
   {n:33,id:'ra4',t:'Recherche Automatique 4',claude:true},
   {n:39,id:'pick',t:'Pickin | Oblique',claude:true},
   {n:'Oracle',id:'orbt',t:'Tester une stratégie sur l’historique',claude:true},
-  {n:'Oracle',id:'orpred',t:'Prédictions sauvegardées (vérification automatique)',claude:true}
+  {n:'Oracle',id:'orpred',t:'Prédictions sauvegardées (vérification automatique)',claude:true},
+  {n:'Oracle',id:'orcheck',t:'Vérifier mes numéros',claude:true}
 ];
 // Méthodes (Grok) : sa liste d'origine. Modules Claude : tous les modules qui tournent ici (ceux de Grok copiés + les 10 refaits), sans renvoi vers l'onglet Modules.
 
@@ -23119,7 +23120,7 @@ function orBacktestRes(f){const g=f.g,R=cyfRows(g);if(!R||R.length<40)return{err
  h+='<div style="font-size:12.5px;color:#475569;margin:6px 0 10px">Pour chaque tirage, la liste est calculée <b>uniquement avec les tirages d’avant</b>, puis comparée au tirage sorti. Repère : en jouant '+k+' numéros <b>au hasard</b>, on attrape au moins 1 numéro '+pc(c1)+' du temps et au moins 2 numéros (ambe) '+pc(c2)+' du temps.</div>';
  res.forEach((r,i)=>{const d=r.p2-c2;const col=d>0.01?'#15803D':d<-0.01?'#B91C1C':'#475569';h+='<div style="border:1px solid #E2E8F0;border-radius:10px;padding:8px 10px;margin:6px 0;'+(i===0?'background:#F0FDF4;border-color:#86EFAC':'background:#fff')+'"><div style="font-weight:700;color:#12343B;font-size:13.5px">'+(i===0?'🏆 ':'')+cyfEsc(r.st.name)+'</div><div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:#334155;margin-top:4px"><span>Ambe ou mieux : <b>'+pc(r.p2)+'</b></span><span style="color:'+col+';font-weight:700">'+(d>=0?'+':'')+(d*100).toFixed(1)+' pts vs hasard</span><span>Au moins 1 : '+pc(r.p1)+'</span><span>Moyenne : '+r.avg.toFixed(2)+' n°</span></div><div style="font-size:11px;color:#64748B;margin-top:2px">Tirages avec 0 / 1 / 2 / 3 / 4 / 5 numéros trouvés : '+r.dist.join(' / ')+'</div></div>';});
  h+='<div style="margin-top:14px;font-weight:700;color:#0F5A63">Listes proposées pour le prochain tirage</div>';
- res.forEach((r,i)=>{h+='<div style="padding:8px 0;border-bottom:1px solid #EEF2F4"><div style="font-size:12.5px;color:#334155;margin-bottom:3px">'+cyfEsc(r.st.name)+'</div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">'+r.next.map(v=>orBall(v,false)).join('')+'<button onclick="orSaveNext('+i+')" style="margin-left:8px;padding:5px 10px;border-radius:8px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-weight:700;cursor:pointer">💾 Sauvegarder</button></div></div>';});
+ res.forEach((r,i)=>{h+='<div style="padding:8px 0;border-bottom:1px solid #EEF2F4"><div style="font-size:12.5px;color:#334155;margin-bottom:3px">'+cyfEsc(r.st.name)+'</div><div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px">'+r.next.map(v=>orBall(v,false)).join('')+'<button onclick="orShareNext('+i+')" title="Partager sur WhatsApp" style="margin-left:6px;padding:5px 9px;border-radius:8px;border:1.5px solid #16A34A;background:#fff;color:#15803D;font-weight:700;cursor:pointer">📲 WhatsApp</button><button onclick="orSaveNext('+i+')" style="margin-left:8px;padding:5px 10px;border-radius:8px;border:1.5px solid #0F5A63;background:#fff;color:#0F5A63;font-weight:700;cursor:pointer">💾 Sauvegarder</button></div></div>';});
  h+='<div style="font-size:11.5px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:8px;margin-top:10px">Ces résultats décrivent le passé : une stratégie qui a fait mieux que le hasard sur une période peut faire moins bien ensuite.</div>';
  return{kind:'html',html:h};}
 const OR_LS='fl90_oracle_predictions';
@@ -23135,10 +23136,22 @@ function orPredRes(){const L=orPredLoad();if(!L.length)return{kind:'html',html:'
  L.forEach(p=>{const R=cyfRows(p.g)||[];const r=R.find(x=>x.t>p.afterT);let res,ballHTML;
   if(r){const act=new Set(orNums(r));const h=p.nums.filter(v=>act.has(v)).length;done++;if(h>=1)ext++;if(h>=2)amb++;ballHTML=p.nums.map(v=>orBall(v,act.has(v))).join('');res='<b style="color:'+(h>=2?'#15803D':h===1?'#B45309':'#64748B')+'">'+OR_LBL[Math.min(5,h)]+'</b><div style="font-size:11px;color:#64748B">T'+r.t+' du '+r.d+'/'+r.y+' : '+orNums(r).join(' ')+'</div>';}
   else{wait++;ballHTML=p.nums.map(v=>orBall(v,false)).join('');res='<span style="color:#0369A1">⏳ en attente du tirage après T'+p.afterT+'</span>';}
-  rows+='<tr style="border-bottom:1px solid #E2E8F0;vertical-align:top"><td style="padding:6px;font-size:12px;white-space:nowrap">'+cyfEsc(String(p.saved||'').slice(0,10).split('-').reverse().join('/'))+'</td><td style="padding:6px;font-size:12.5px"><b>'+cyfEsc(cyfName(p.g))+'</b><div style="font-size:11px;color:#64748B">'+cyfEsc(p.strat||'')+'</div></td><td style="padding:6px">'+ballHTML+'</td><td style="padding:6px;font-size:12.5px">'+res+'</td><td><button onclick="orDelPred(\''+p.id+'\')" title="Supprimer" style="border:none;background:none;cursor:pointer;font-size:15px">🗑</button></td></tr>';});
+  rows+='<tr style="border-bottom:1px solid #E2E8F0;vertical-align:top"><td style="padding:6px;font-size:12px;white-space:nowrap">'+cyfEsc(String(p.saved||'').slice(0,10).split('-').reverse().join('/'))+'</td><td style="padding:6px;font-size:12.5px"><b>'+cyfEsc(cyfName(p.g))+'</b><div style="font-size:11px;color:#64748B">'+cyfEsc(p.strat||'')+'</div></td><td style="padding:6px">'+ballHTML+'</td><td style="padding:6px;font-size:12.5px">'+res+'</td><td style="white-space:nowrap"><button onclick="orShare(\''+p.nums.join(' ')+'\',\''+cyfEsc(cyfName(p.g)).replace(/'/g,'')+'\')" title="Partager sur WhatsApp" style="border:none;background:none;cursor:pointer;font-size:15px">📲</button><button onclick="orDelPred(\''+p.id+'\')" title="Supprimer" style="border:none;background:none;cursor:pointer;font-size:15px">🗑</button></td></tr>';});
  let h='<div class="cyf-resbar"><b class="cyf-cnt">Prédictions ('+L.length+')</b><span class="cyf-desc">'+done+' vérifiées · '+wait+' en attente'+(done?' · au moins 1 numéro : '+ext+' · ambe ou mieux : '+amb:'')+'</span></div>';
  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%"><tr style="background:#0F5A63;color:#fff;font-size:12.5px"><th style="padding:6px;text-align:left">Date</th><th style="text-align:left">Loto</th><th style="text-align:left">Numéros (vert = sorti)</th><th style="text-align:left">Résultat</th><th></th></tr>'+rows+'</table></div>';
  h+='<div style="font-size:11.5px;color:#64748B;margin-top:8px">Les prédictions restent sur cet appareil. Chaque liste est comparée au premier tirage sorti après son enregistrement.</div>';
+ return{kind:'html',html:h};}
+function orShare(nums,label){const L=String(nums).split(/[^0-9]+/).filter(Boolean);const txt='🎯 '+(label?label+' — ':'')+'mes numéros : '+L.join(' - ')+'\n(Forecast Loto 90)';const u='https://wa.me/?text='+encodeURIComponent(txt);try{window.open(u,'_blank');}catch(e){location.href=u;}}
+function orShareNext(i){const x=(CYF._orNext||[])[i];if(x)orShare(x.nums.join(' '),cyfName(x.g)+' · '+x.name);}
+function orCheckRes(f){const g=f.g,R=cyfRows(g);if(!R||!R.length)return{error:'Aucun tirage pour ce loto.'};
+ const nums=[...new Set(String(f.nums||'').split(/[^0-9]+/).map(Number).filter(v=>v>=1&&v<=90))];if(!nums.length)return{error:'Entrez vos numéros (entre 1 et 90), séparés par des espaces.'};
+ let ix=R.byT?R.byT[cyfInt(f.t,-1)]:null;if(ix==null)ix=R.length-1;const nb=Math.max(1,Math.min(200,cyfInt(f.nb,1)));const mac=f.mac==='1';const set=new Set(nums);
+ let rows='',best=0,cnt2=0;
+ for(let i=ix;i>ix-nb&&i>=0;i--){const r=R[i];const A=orNums(r);const M=mac&&Array.isArray(r.m)?r.m.slice(0,5).filter(v=>v>=1&&v<=90):[];const h=A.filter(v=>set.has(v)).length,hm=M.filter(v=>set.has(v)).length;best=Math.max(best,h);if(h>=2)cnt2++;
+  rows+='<div style="border-bottom:1px solid #EEF2F4;padding:7px 0"><div style="font-size:12.5px;color:#334155"><b>T'+r.t+'</b> du '+r.d+'/'+r.y+' — <b style="color:'+(h>=2?'#15803D':h===1?'#B45309':'#64748B')+'">'+OR_LBL[Math.min(5,h)]+'</b>'+(mac&&M.length?' · machine : '+hm+' trouvé(s)':'')+'</div><div>'+A.map(v=>orBall(v,set.has(v))).join('')+(M.length?' <span style="color:#94A3B8;margin:0 4px">|</span>'+M.map(v=>orBall(v,set.has(v))).join(''):'')+'</div></div>';}
+ let h='<div class="cyf-resbar"><b class="cyf-cnt">'+cyfEsc(cyfName(g))+'</b><span class="cyf-desc">'+nums.length+' numéros vérifiés sur '+Math.min(nb,ix+1)+' tirage(s)'+(nb>1?' · ambe ou mieux : '+cnt2+' fois':'')+'</span></div>';
+ h+='<div style="margin:6px 0">Mes numéros : '+nums.map(v=>orBall(v,false)).join('')+' <button onclick="orShare(\''+nums.join(' ')+'\',\''+cyfEsc(cyfName(g)).replace(/'/g,'')+'\')" style="margin-left:6px;padding:5px 9px;border-radius:8px;border:1.5px solid #16A34A;background:#fff;color:#15803D;font-weight:700;cursor:pointer">📲 WhatsApp</button></div>';
+ h+='<div style="font-size:11.5px;color:#64748B;margin-bottom:4px">En vert : vos numéros sortis.</div>'+rows;
  return{kind:'html',html:h};}
 function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet='claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
 function quickMyModsHTML(){if(typeof CYF_MODS==='undefined')return '';const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);const L=CYF_MODS.filter(m=>m.id).slice().sort((a,b)=>k(a)-k(b));
@@ -23290,6 +23303,9 @@ function cyfFormHTML(id){
     h+=r+`<div class="cyf-row">${cyfField('Nombre de lignes',cyfNum('nb',cyfF('nb','20')))}${cyfField('Sens',cyfSelect('inv',[['0','Non inversé'],['1','Inversé']],cyfF('inv','0')))}${cyfField('Lignes avant',cyfNum('bef',cyfF('bef','0')))}${cyfField('Lignes après la dernière plage',cyfNum('aft',cyfF('aft','5')))}<label class="cyf-fld" style="flex:0 0 auto"><span>&nbsp;</span>${cyfBtn('Appliquer','cyfApplyWindow()')}</label></div>`+go;
   }else if(id==='orbt'){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Stratégie',cyfSelect('st',[['all','⚖️ Comparer toutes les stratégies']].concat(OR_STRATS.map(x=>[x.id,x.name])),cyfF('st','all')))}</div><div class="cyf-row">${cyfField('Numéros par liste',cyfSelect('k',[['5','5 numéros'],['10','10 numéros'],['15','15 numéros']],cyfF('k','10')))}${cyfField('Tirages testés (les plus récents)',cyfNum('nt',cyfF('nt','200')))}</div>`+go;
+  }else if(id==='orcheck'){
+    const g=cyfF('g',GAME.key);const R=cyfRows(g);
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',g,null,null,true),'1 1 220px')}${cyfField('Mes numéros (séparés par des espaces)',`<input data-k="nums" value="${cyfEsc(cyfF('nums',''))}" placeholder="ex : 12 45 78 3 90" style="${CYF_SEL};width:100%">`,'2 1 240px')}</div><div class="cyf-row">${cyfField('À partir du tirage N°',cyfNum('t',cyfF('t',R.length?R[R.length-1].t:''),'N°'))}${cyfField('Nombre de tirages vérifiés',cyfNum('nb',cyfF('nb','1')))}${cyfField('Numéros machine',cyfSelect('mac',[['0','Non'],['1','Oui, aussi la machine']],cyfF('mac','0')))}</div>`+go;
   }else if(id==='orpred'){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Mes numéros (séparés par des espaces)',`<input data-k="nums" value="${cyfEsc(cyfF('nums',''))}" placeholder="ex : 12 45 78 3 90" style="${CYF_SEL};width:100%">`,'2 1 240px')}</div><div class="cyf-row" style="margin-top:6px;gap:8px;flex-wrap:wrap">${cyfBtn('💾 Enregistrer ma liste','orAddManual()')}${cyfBtn('↻ Vérifier / Actualiser','cyfRun()','ghost')}</div>`;
   }else if(id==='combi'){
@@ -23409,6 +23425,7 @@ function cyfCompute(id,f,m){
   }
   if(id==='orbt')return orBacktestRes(f);
   if(id==='orpred')return orPredRes();
+  if(id==='orcheck')return orCheckRes(f);
   if(id==='combi'){const n=Math.max(0,Math.min(90,cyfInt(f.nb,0)));return{kind:'combi',n};}
   if(id==='bauto'){
     const rows=cyfRows(f.g);const W=Math.max(5,Math.min(1000,cyfInt(f.w,50))),C=Math.max(1,Math.min(20,cyfInt(f.c,5)));

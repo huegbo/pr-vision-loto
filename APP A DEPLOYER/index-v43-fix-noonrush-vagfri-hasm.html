@@ -16083,10 +16083,10 @@ function goNav(id){
   if(id==='v2'){location.href='v2/';return;}
   if(id==='modules')id='mesmodules';
   window._navLastId=String(id);
-  if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes'&&id!=='mesmodules')_closePagePanels();
+  if(id!=='tirageJour'&&id!=='affiche'&&id!=='pronostic'&&id!=='conversion'&&id!=='classif'&&id!=='methodes'&&id!=='mesmodules'&&id!=='oracle')_closePagePanels();
   // Onglets principaux : fermer aussi les filtres pays, sinon le rendu s'arrête dessus
   // et le contenu de l'onglet cliqué n'apparaît pas. goNav('0'|'1'|'2') arrive en chaîne.
-  if(['0','1','2','modules','modules44','search','compareGames','methodes','mesmodules'].includes(String(id))){
+  if(['0','1','2','modules','modules44','search','compareGames','methodes','mesmodules','oracle'].includes(String(id))){
     ['beninFiltreOpen','ghanaFiltreOpen','ghAlphaFiltreOpen','nigeriaFiltreOpen','togoFiltreOpen','camerounFiltreOpen','ciFiltreOpen','itFiltreOpen','multiFiltreOpen'].forEach(k=>{state[k]=false;});
   }
   if(id==='compareGames'){goCompareGames();return;}
@@ -16111,7 +16111,7 @@ function goNav(id){
     state.conversionOpen=opening;state.showSearchHub=false;
     if(opening){state.convElements=ELM_DEF.map(c=>c.key);state.convShowOrig=true;} // s'ouvre avec tout coché par défaut
   }
-  else if(id==='methodes'||id==='mesmodules'){const set=id==='mesmodules'?'claude':'grok';const on=!(state.methodesOpen&&(state.cyfSet||'grok')===set);_closePagePanels();state.methodesOpen=on;state.showSearchHub=false;if(on){state.cyfSet=set;if(CYF.mod&&!cyfInSet(CYF_MOD_BY[CYF.mod])){CYF.mod=null;CYF.res=null;}}}
+  else if(id==='methodes'||id==='mesmodules'||id==='oracle'){const set=id==='mesmodules'?'claude':id==='oracle'?'oracle':'grok';const on=!(state.methodesOpen&&(state.cyfSet||'grok')===set);_closePagePanels();state.methodesOpen=on;state.showSearchHub=false;if(on){state.cyfSet=set;if(CYF.mod&&!cyfInSet(CYF_MOD_BY[CYF.mod])){CYF.mod=null;CYF.res=null;}if(set==='oracle'&&!CYF.mod){CYF.mod='orbt';}}}
   else if(id==='listes'){openMyLists();return;}
   else{state.tab=/^\d+$/.test(String(id))?+id:id;state.showSearchHub=false;if(+id===0)state.navMode='years';}
   render();
@@ -16190,6 +16190,7 @@ function bottomNavHTML(){
     [2,'📊','Analyses'],
     ['modules','🧩','Modules'],
     ['methodes','🔮','Méthodes'],
+    ['oracle','🎯','Oracle'],
     ['search','🔎','Recherche'],
     ['listes','📋','Listes'],
     ['benin','🇧🇯','Bénin'],
@@ -16210,7 +16211,7 @@ function bottomNavHTML(){
   ];
   return`<div class="topstrip"></div><div class="topnav" style="position:fixed;left:50%;transform:translateX(-50%);width:calc(100% - 20px);max-width:2200px;top:calc(10px + env(safe-area-inset-top));background:linear-gradient(180deg,#16436B,#1C5480);border-radius:18px;padding:4px;box-shadow:0 8px 26px rgba(15,46,78,.5);display:flex;flex-wrap:wrap;align-items:stretch;overflow:hidden;z-index:900">
     ${items.map(([id,ic,lbl],i)=>{
-      const isActive=id==='modules'?((state.showSearchHub&&state.hubView==='cyb')||(state.methodesOpen&&state.cyfSet==='claude')):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='methodes'?(state.methodesOpen&&state.cyfSet!=='claude'):(id==='mesmodules'?(state.methodesOpen&&state.cyfSet==='claude'):(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))))));
+      const isActive=id==='modules'?((state.showSearchHub&&state.hubView==='cyb')||(state.methodesOpen&&state.cyfSet==='claude')):id==='search'?(state.showSearchHub&&state.hubView!=='cyb'):(id==='benin'?state.beninFiltreOpen:(id==='ghana'?state.ghanaFiltreOpen:(id==='ghalpha'?state.ghAlphaFiltreOpen:(id==='nigeria'?state.nigeriaFiltreOpen:(id==='togo'?state.togoFiltreOpen:(id==='cameroun'?state.camerounFiltreOpen:(id==='cotedivoire'?state.ciFiltreOpen:(id==='italie'?state.itFiltreOpen:(id==='multi'?state.multiFiltreOpen:(id==='affiche'?state.afficheOpen:(id==='tirageJour'?state.tirageJourOpen:(id==='pronostic'?state.pronosticOpen:(id==='conversion'?state.conversionOpen:(id==='oracle'?(state.methodesOpen&&state.cyfSet==='oracle'):id==='methodes'?(state.methodesOpen&&(state.cyfSet||'grok')==='grok'):(id==='mesmodules'?(state.methodesOpen&&state.cyfSet==='claude'):(id==='classif'?state.classifTabOpen:(id==='compareGames'?(state.tab===0&&state.navMode==='games'&&!state.showSearchHub):(state.tab===id&&!state.showSearchHub))))))))))))))))));
       return`<div data-id="${id}" onclick="goNav('${id}')" style="flex:1 0 auto;min-width:64px;text-align:center;padding:4px 5px;cursor:pointer;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap;color:${isActive?'#fff':'#CDE7E2'};${i?'border-left:1px solid rgba(205,231,226,.28);':''}">
         <span style="font-size:16px;display:block;margin-bottom:3px;${isActive?'':'opacity:.85'}">${ic}</span>
         <span style="text-transform:uppercase;${isActive?'border-bottom:2px solid #CDE7E2;padding-bottom:1px':''}">${lbl}</span>
@@ -23154,10 +23155,10 @@ function orCheckRes(f){const g=f.g,R=cyfRows(g);if(!R||!R.length)return{error:'A
  h+='<div style="margin:6px 0">Mes numéros : '+nums.map(v=>orBall(v,false)).join('')+' <button onclick="orShare(\''+nums.join(' ')+'\',\''+cyfEsc(cyfName(g)).replace(/'/g,'')+'\')" style="margin-left:6px;padding:5px 9px;border-radius:8px;border:1.5px solid #16A34A;background:#fff;color:#15803D;font-weight:700;cursor:pointer">📲 WhatsApp</button></div>';
  h+='<div style="font-size:11.5px;color:#64748B;margin-bottom:4px">En vert : vos numéros sortis.</div>'+rows;
  return{kind:'html',html:h};}
-function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet='claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
+function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet=(CYF_MOD_BY[id]&&CYF_MOD_BY[id].n==='Oracle')?'oracle':'claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
 function quickMyModsHTML(){if(typeof CYF_MODS==='undefined')return '';const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);const L=CYF_MODS.filter(m=>m.id).slice().sort((a,b)=>k(a)-k(b));
   return '<optgroup label="🧩 Modules (nouvelle version)">'+L.map(m=>'<option value="openMyModule(\''+m.id+'\')">🧩 '+(typeof m.n==='number'?m.n+'-) ':'')+String(m.t).replace(/</g,'&lt;')+(m.nap?' ('+m.nap+' numéros sur une ligne)':'')+'</option>').join('')+'</optgroup>';}
-function cyfInSet(m){if(!m)return false;return state.cyfSet==='claude'?!!m.id:!m.claude;}
+function cyfInSet(m){if(!m)return false;if(state.cyfSet==='oracle')return m.n==='Oracle';return state.cyfSet==='claude'?(!!m.id&&m.n!=='Oracle'):!m.claude;}
 function cyfSetList(){const L=CYF_MODS.filter(cyfInSet);if(state.cyfSet!=='claude')return L;const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);return L.slice().sort((a,b)=>k(a)-k(b));}
 const CYF_MOD_BY={};CYF_MODS.forEach(m=>{if(m.id)CYF_MOD_BY[m.id]=m;});
 const CYF={view:'modules',mod:null,form:{},res:null,selG:null,selK:null,selM:0,tool:null,color:'#FDE047',paint:false,menu:null,grp:null,grpView:'table',statTab:'b',statRes:false,drop:false,info:null};
@@ -23174,7 +23175,7 @@ function cyfOpenMod(key){
   }
   if(!CYF_MOD_BY[key])return;
   cyfPushRecent(key);CYF.view='modules';CYF.mod=key;CYF.res=null;CYF.selG=null;CYF.selK=null;CYF.selM=0;
-  cyfRefresh();
+  if(state.cyfSet==='oracle')render();else cyfRefresh();
   try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
 }
 function cyfRefresh(){const el=document.getElementById('cyf-root');if(el)el.innerHTML=cyfBodyHTML();else render();}
@@ -24149,7 +24150,7 @@ function methPageHTML(){
   return`<div id="app-content">
   <div class="header" style="background:#0F5A63;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-size:15px;font-weight:700">${state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>
+      <div style="font-size:15px;font-weight:700">${state.cyfSet==='oracle'?'🎯 Oracle du Loto':state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>${state.cyfSet==='oracle'?[['orbt','📊 Tester une stratégie'],['orpred','💾 Mes prédictions'],['orcheck','✅ Vérifier mes numéros']].map(([k,l])=>`<button onclick="cyfOpenMod('${k}')" style="padding:6px 11px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:700;${CYF.mod===k?'background:#fff;color:#0F5A63':'background:rgba(255,255,255,.18);color:#fff'}">${l}</button>`).join(''):''}
       ${state.cyfSet==='claude'?`<button onclick="goNav('modules44')" style="padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">← Liste des 44 modules</button>`:''}<button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
     </div>
   </div>

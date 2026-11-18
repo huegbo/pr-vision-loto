@@ -19941,6 +19941,16 @@ function cumPc(x){x=x-((x>>>1)&0x55555555);x=(x&0x33333333)+((x>>>2)&0x33333333)
 function cumMask(arr){const m=[0,0,0];arr.forEach(v=>{v=+v;if(v>=1&&v<=90)m[(v-1)>>5]|=1<<((v-1)&31);});return m;}
 function cumHit(a,b){return cumPc(a[0]&b[0])+cumPc(a[1]&b[1])+cumPc(a[2]&b[2]);}
 function cumOr(a,b){return[a[0]|b[0],a[1]|b[1],a[2]|b[2]];}
+// Paire de listes croisée : chacune des 2 listes donne au moins 1 numéro dans chacun des N derniers tirages
+function cumPairCross(D,src,need){const ND=D.length;const S=src.filter(x=>{for(let d=ND-need;d<ND;d++)if(cumHit(x.m,D[d])<1)return false;return true;});S.forEach(x=>{x.hh=D.map(d=>cumHit(x.m,d));});
+  let best=null,cnt=0;for(let i=0;i<S.length;i++)for(let j=i+1;j<S.length;j++){const A=S[i],B=S[j];if(cumHit(A.m,B.m)>1)continue;const m=cumOr(A.m,B.m);let st=0;for(let d=ND-1;d>=0;d--){if(A.hh[d]>0&&B.hh[d]>0&&cumHit(m,D[d])>=2)st++;else break;}if(st<need||(need===2&&st!==2))continue;cnt++;const sz=cumPc(m[0])+cumPc(m[1])+cumPc(m[2]);const sc=st*1000-sz;if(!best||sc>best.sc)best={sc,st,objs:[A,B],m};}
+  if(best)best.cnt=cnt;return best;}
+function cumPutPair(id,b,label){const PAL=['#DC2626','#2563EB'],EMO=['🔴','🔵'];const inM=(m,v)=>!!(m[(v-1)>>5]&(1<<((v-1)&31)));let ex=state.userLists.find(l=>l.id===id);
+  if(!b){if(ex)state.userLists=state.userLists.filter(l=>l.id!==id);return;}
+  const nums=[];for(let v=1;v<=90;v++)if(inM(b.m,v))nums.push(v);const o={};nums.forEach(v=>{const q=b.objs.findIndex(x=>inM(x.m,v));o[v]={bg:PAL[Math.max(0,q)],fg:'#fff',style:'fill'};});
+  const name=label+' : '+b.objs.map((x,q)=>EMO[q]+' '+x.no).join(' + ')+' (chaque liste donne un numéro différent '+b.st+' tirages de suite · '+b.cnt+' paire'+(b.cnt>1?'s':'')+' possible'+(b.cnt>1?'s':'')+')';
+  const parts=b.objs.map((x,q)=>({no:x.no,name:x.l.name,col:PAL[q],nums:Object.keys(x.l.nums).map(Number).sort((a,c)=>a-c)}));
+  if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});}
 const CUM_TG=[['matinal',9],['diamant',13],['cash',13],['benz',13],['million',13],['kadoo',13],['sam',13],['detente',16],['gold',18],['boom',18],['prestige',18],['super',18],['king',18],['bingo',18]];
 function cumTogoRows(){const out=[];CUM_TG.forEach(([k,h])=>{if(!GAMES[k])return;let R;try{R=cyfRows(k);}catch(e){return;}R.slice(-40).forEach(r=>{const [dd,mm]=String(r.d).split('/').map(Number);out.push({k,t:r.t,d:r.d,y:r.y,n:r.n.slice(0,5),o:(+r.y)*1e6+mm*1e4+dd*100+h});});});out.sort((a,b)=>a.o-b.o);return out.slice(-60);}
 function cumBuildTogo(){const T=cumTogoRows();if(T.length<4)return;const sig=T[T.length-1].k+T[T.length-1].t;if(state._cumTgSig===sig)return;state._cumTgSig=sig;
@@ -19954,6 +19964,7 @@ function cumBuildTogo(){const T=cumTogoRows();if(T.length<4)return;const sig=T[T
     const name='Cumul Togo '+k+' listes (tous les lotos du Togo, jour même + jours d’avant : '+last3+') : '+b.objs.map((x,q)=>EMO[q]+' '+x.no).join(' + ')+' ('+nums.length+' n°, ≥2 sortis '+st+' tirages de suite)';
     const parts=b.objs.map((x,q)=>({no:x.no,name:x.l.name,col:PAL[q],nums:Object.keys(x.l.nums).map(Number).sort((a,c)=>a-c)}));
     if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});});
+  cumPutPair(9400033,cumPairCross(D,src,3),'Paire croisée Togo 3 derniers tirages ('+last3+')');cumPutPair(9400032,cumPairCross(D,src,2),'Nouvelle paire croisée Togo, 2 derniers tirages seulement ('+T.slice(-2).map(r=>cyfName(r.k)+' '+r.d).join(', ')+')');
   try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}}
 function cumBuild(){try{cumBuildTogo();}catch(e){}
   const g=GAME&&GAME.key;if(!g)return;let R;try{R=cyfRows(g);}catch(e){return;}if(!R||R.length<4)return;
@@ -19979,10 +19990,12 @@ function cumBuild(){try{cumBuildTogo();}catch(e){}
       const parts=b.ix.map((i,q)=>({no:src[i].no,name:src[i].l.name,col:PAL[q],nums:Object.keys(src[i].l.nums).map(Number).sort((x,y)=>x-y)}));
       if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});});
   });
+  const srcAll=state.userLists.filter(l=>(l.id>=9100001&&l.id<9400000)).map(l=>({l,m:cumMask(Object.keys(l.nums)),no:lpNo(String(l.id),l)}));
+  cumPutPair(9400043,cumPairCross(D,srcAll,3),'Paire croisée '+cyfName(g)+' 3 derniers tirages');cumPutPair(9400042,cumPairCross(D,srcAll,2),'Nouvelle paire croisée '+cyfName(g)+', 2 derniers tirages seulement');
   try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}
 }
 function lpEnsureNo(){let mx=0,ch=false;state.userLists.forEach(l=>{if(!lpIsSysId(l.id)&&l.no)mx=Math.max(mx,l.no);});state.userLists.slice().sort((a,b)=>a.id-b.id).forEach(l=>{if(!lpIsSysId(l.id)&&!l.no){l.no=++mx;ch=true;}});if(ch)try{ulSaveAll();}catch(e){}}
-function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400021&&id<9400030)return 'CT'+(id-9400020);if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
+function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400031&&id<9400040)return 'PT'+(id-9400030);if(id>=9400041&&id<9400050)return 'PX'+(id-9400040);if(id>=9400021&&id<9400030)return 'CT'+(id-9400020);if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
 function lpAll(){
   const out=[];lpEnsureNo();
   if(Object.keys(state.lists.A.nums||{}).length)out.push({key:'A',no:'A',grp:'Listes principales',name:state.lists.A.name,nums:state.lists.A.nums,on:!!state.lists.A.on});

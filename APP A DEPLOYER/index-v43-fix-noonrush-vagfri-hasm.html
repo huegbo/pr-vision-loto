@@ -19935,14 +19935,39 @@ function ulSaveAll(){
 }
 // Listes affichées dans les tableaux : bouton + panneau (à la place de « 🎯 vue repérés »).
 // Cocher une ou plusieurs listes les affiche tout de suite ; couleur au choix par liste ; ➕ créer, ✏️ modifier.
-function lpIsSysId(id){return (id>=9100001&&id<9300000)||(id>=9300001&&id<9400000);}
+function lpIsSysId(id){return (id>=9100001&&id<9300000)||(id>=9300001&&id<9500000);}
+// ── Cumuls : 2, 3 ou 4 listes dont l'ensemble donne au moins 2 numéros dans chacun des 3 derniers tirages du loto affiché ──
+function cumPc(x){x=x-((x>>>1)&0x55555555);x=(x&0x33333333)+((x>>>2)&0x33333333);return(((x+(x>>>4))&0x0F0F0F0F)*0x01010101)>>>24;}
+function cumMask(arr){const m=[0,0,0];arr.forEach(v=>{v=+v;if(v>=1&&v<=90)m[(v-1)>>5]|=1<<((v-1)&31);});return m;}
+function cumHit(a,b){return cumPc(a[0]&b[0])+cumPc(a[1]&b[1])+cumPc(a[2]&b[2]);}
+function cumOr(a,b){return[a[0]|b[0],a[1]|b[1],a[2]|b[2]];}
+function cumBuild(){
+  const g=GAME&&GAME.key;if(!g)return;let R;try{R=cyfRows(g);}catch(e){return;}if(!R||R.length<4)return;
+  const sig=g+'|'+R.length;if(state._cumSig===sig)return;state._cumSig=sig;
+  const D=R.slice(-60).map(r=>cumMask(r.n.slice(0,5)));const L3=D.slice(-3);
+  const src=state.userLists.filter(l=>(l.id>=9100001&&l.id<9400000)).map(l=>({l,m:cumMask(Object.keys(l.nums)),no:lpNo(String(l.id),l)})).filter(x=>L3.some(d=>cumHit(x.m,d)>0));
+  const score=m=>{if(!L3.every(d=>cumHit(m,d)>=2))return null;let st=0;for(let i=D.length-1;i>=0;i--){if(cumHit(m,D[i])>=2)st++;else break;}let tot=0;D.forEach(d=>{if(cumHit(m,d)>=2)tot++;});const sz=cumPc(m[0])+cumPc(m[1])+cumPc(m[2]);return st*10000+tot*100-sz;};
+  const best={2:null,3:null,4:null};const n=src.length;
+  for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const m2=cumOr(src[i].m,src[j].m);const s2=score(m2);if(s2!=null&&(!best[2]||s2>best[2].s))best[2]={s:s2,ix:[i,j],m:m2};
+    for(let k=j+1;k<n;k++){const m3=cumOr(m2,src[k].m);const s3=score(m3);if(s3!=null&&(!best[3]||s3>best[3].s))best[3]={s:s3,ix:[i,j,k],m:m3};}}
+  if(best[3]){for(let l=0;l<n;l++){if(best[3].ix.includes(l))continue;const m4=cumOr(best[3].m,src[l].m);const s4=score(m4);if(s4!=null&&(!best[4]||s4>best[4].s))best[4]={s:s4,ix:best[3].ix.concat(l),m:m4};}}
+  const COLS={2:'#16A34A',3:'#EA580C',4:'#2563EB'};
+  [2,3,4].forEach(k=>{const id=9400000+k;let ex=state.userLists.find(l=>l.id===id);const b=best[k];
+    if(!b){if(ex){state.userLists=state.userLists.filter(l=>l.id!==id);}return;}
+    const nums=[];for(let v=1;v<=90;v++)if(b.m[(v-1)>>5]&(1<<((v-1)&31)))nums.push(v);
+    const st=Math.floor(b.s/10000);const col=ex&&ex.nums&&Object.values(ex.nums)[0]?Object.values(ex.nums)[0].bg:COLS[k];
+    const o={};nums.forEach(v=>{o[v]={bg:col,fg:lpFg(col),style:'fill'};});
+    const name='Cumul '+k+' listes '+cyfName(g)+' : '+b.ix.map(i=>src[i].no).join(' + ')+' ('+nums.length+' n°, ≥2 sortis '+st+' tirages de suite)';
+    if(ex){ex.nums=o;ex.name=name;}else state.userLists.push({id,name,nums:o,on:false});});
+  try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}
+}
 function lpEnsureNo(){let mx=0,ch=false;state.userLists.forEach(l=>{if(!lpIsSysId(l.id)&&l.no)mx=Math.max(mx,l.no);});state.userLists.slice().sort((a,b)=>a.id-b.id).forEach(l=>{if(!lpIsSysId(l.id)&&!l.no){l.no=++mx;ch=true;}});if(ch)try{ulSaveAll();}catch(e){}}
-function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
+function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
 function lpAll(){
   const out=[];lpEnsureNo();
   if(Object.keys(state.lists.A.nums||{}).length)out.push({key:'A',no:'A',grp:'Listes principales',name:state.lists.A.name,nums:state.lists.A.nums,on:!!state.lists.A.on});
   if(Object.keys(state.lists.B.nums||{}).length)out.push({key:'B',no:'H',grp:'Listes principales',name:state.lists.B.name,nums:state.lists.B.nums,on:!!state.lists.B.on});
-  state.userLists.forEach(l=>{const g=(l.id>=9100001&&l.id<9300000)?'Listes picking':(l.id>=9300001&&l.id<9400000)?'Listes obliques':'Mes listes';out.push({key:String(l.id),no:lpNo(String(l.id),l),grp:g,name:l.name,nums:l.nums,on:!!l.on});});
+  state.userLists.forEach(l=>{const g=(l.id>=9100001&&l.id<9300000)?'Listes picking':(l.id>=9300001&&l.id<9400000)?'Listes obliques':(l.id>=9400001&&l.id<9500000)?'Cumuls (3 derniers tirages)':'Mes listes';out.push({key:String(l.id),no:lpNo(String(l.id),l),grp:g,name:l.name,nums:l.nums,on:!!l.on});});
   return out;
 }
 function lpObj(key){return(key==='A'||key==='B')?state.lists[key]:state.userLists.find(l=>String(l.id)===String(key));}
@@ -19957,10 +19982,11 @@ function listPickerHTML(){
   const all=lpAll();const on=all.filter(x=>x.on);const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const btn=`<button type="button" data-testid="list-picker" onclick="state.lpOpen=!state.lpOpen;render()" title="Choisir les listes dont les numéros sont colorés dans les tableaux" style="padding:3px 9px;font-size:10.5px;font-weight:700;border-radius:8px;cursor:pointer;border:1.5px solid #7C3AED;background:${on.length?'#7C3AED':'#fff'};color:${on.length?'#fff':'#7C3AED'}">📋 Listes affichées${on.length?' ('+on.length+')':' : aucune'} ${state.lpOpen?'▴':'▾'}</button>`;
   if(!state.lpOpen)return btn;
+  try{const _s=state._cumSig;cumBuild();if(state._cumSig!==_s){return listPickerHTML();}}catch(e){}
   const q=String(state.lpQ||'').toLowerCase().trim();
   const row=x=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 4px;border-bottom:1px solid #F1EEF9"><label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0"><input type="checkbox" ${x.on?'checked':''} onchange="lpToggle('${x.key}',this.checked)"><b title="Numéro de la liste" style="flex:0 0 auto;min-width:34px;text-align:center;padding:1px 5px;border-radius:6px;background:#EDE9FE;color:#5B21B6;font-size:10px">${x.no||''}</b><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:${x.on?700:500};color:${x.on?'#4C1D95':'#333'}">${esc(x.name)}</span><span style="color:#888;font-size:10px">(${Object.keys(x.nums).length})</span></label><input type="color" value="${lpFirstColor(x.nums)}" title="Couleur de cette liste" onchange="lpColor('${x.key}',this.value)" style="width:30px;height:22px;padding:0;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer"><button type="button" onclick="lpEdit('${x.key}')" title="Modifier cette liste (ajouter ou retirer des numéros, renommer)" style="padding:1px 7px;font-size:11px;border-radius:6px;border:1px solid #7C3AED;background:#fff;color:#7C3AED;cursor:pointer">✏️</button></div>`;
   const shown=all.filter(x=>!q||x.name.toLowerCase().includes(q)||String(x.no).toLowerCase()===q.replace(/\s+/g,''));
-  const groups=['Listes principales','Mes listes','Listes picking','Listes obliques'];
+  const groups=['Cumuls (3 derniers tirages)','Listes principales','Mes listes','Listes picking','Listes obliques'];
   let body='';
   if(on.length&&!q)body+=`<div style="font-weight:700;color:#7C3AED;margin:4px 0 2px">✔ Affichées maintenant</div>`+on.map(row).join('');
   groups.forEach(g=>{const L=shown.filter(x=>x.grp===g&&(q||!x.on));if(!L.length)return;const big=L.length>12&&!q;body+=big?`<details style="margin-top:4px"><summary style="cursor:pointer;font-weight:700;color:#5B21B6">${g} (${L.length})</summary>${L.map(row).join('')}</details>`:`<div style="font-weight:700;color:#5B21B6;margin:6px 0 2px">${g}</div>`+L.map(row).join('');});

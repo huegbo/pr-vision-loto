@@ -19941,7 +19941,21 @@ function cumPc(x){x=x-((x>>>1)&0x55555555);x=(x&0x33333333)+((x>>>2)&0x33333333)
 function cumMask(arr){const m=[0,0,0];arr.forEach(v=>{v=+v;if(v>=1&&v<=90)m[(v-1)>>5]|=1<<((v-1)&31);});return m;}
 function cumHit(a,b){return cumPc(a[0]&b[0])+cumPc(a[1]&b[1])+cumPc(a[2]&b[2]);}
 function cumOr(a,b){return[a[0]|b[0],a[1]|b[1],a[2]|b[2]];}
-function cumBuild(){
+const CUM_TG=[['matinal',9],['diamant',13],['cash',13],['benz',13],['million',13],['kadoo',13],['sam',13],['detente',16],['gold',18],['boom',18],['prestige',18],['super',18],['king',18],['bingo',18]];
+function cumTogoRows(){const out=[];CUM_TG.forEach(([k,h])=>{if(!GAMES[k])return;let R;try{R=cyfRows(k);}catch(e){return;}R.slice(-40).forEach(r=>{const [dd,mm]=String(r.d).split('/').map(Number);out.push({k,t:r.t,d:r.d,y:r.y,n:r.n.slice(0,5),o:(+r.y)*1e6+mm*1e4+dd*100+h});});});out.sort((a,b)=>a.o-b.o);return out.slice(-60);}
+function cumBuildTogo(){const T=cumTogoRows();if(T.length<4)return;const sig=T[T.length-1].k+T[T.length-1].t;if(state._cumTgSig===sig)return;state._cumTgSig=sig;
+  const D=T.map(r=>cumMask(r.n));const src=state.userLists.filter(l=>(l.id>=9100001&&l.id<9400000)).map(l=>({l,m:cumMask(Object.keys(l.nums)),no:lpNo(String(l.id),l)}));
+  const best=cumBestAt(D,src);const PAL=['#DC2626','#2563EB','#16A34A','#F59E0B'],EMO=['🔴','🔵','🟢','🟠'];const inM=(m,v)=>!!(m[(v-1)>>5]&(1<<((v-1)&31)));
+  const last3=T.slice(-3).map(r=>cyfName(r.k)+' '+r.d).join(', ');
+  [2,3,4].forEach(k=>{const id=9400020+k;let ex=state.userLists.find(l=>l.id===id);const b=best[k];
+    if(!b){if(ex)state.userLists=state.userLists.filter(l=>l.id!==id);return;}
+    const nums=[];for(let v=1;v<=90;v++)if(inM(b.m,v))nums.push(v);const st=Math.floor(b.s/10000);
+    const o={};nums.forEach(v=>{const q=b.objs.findIndex(x=>inM(x.m,v));o[v]={bg:PAL[Math.max(0,q)],fg:'#fff',style:'fill'};});
+    const name='Cumul Togo '+k+' listes (tous les lotos du Togo, jour même + jours d’avant : '+last3+') : '+b.objs.map((x,q)=>EMO[q]+' '+x.no).join(' + ')+' ('+nums.length+' n°, ≥2 sortis '+st+' tirages de suite)';
+    const parts=b.objs.map((x,q)=>({no:x.no,name:x.l.name,col:PAL[q],nums:Object.keys(x.l.nums).map(Number).sort((a,c)=>a-c)}));
+    if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});});
+  try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}}
+function cumBuild(){try{cumBuildTogo();}catch(e){}
   const g=GAME&&GAME.key;if(!g)return;let R;try{R=cyfRows(g);}catch(e){return;}if(!R||R.length<4)return;
   const sig=g+'|'+R.length;if(state._cumSig===sig)return;state._cumSig=sig;
   const D=R.slice(-60).map(r=>cumMask(r.n.slice(0,5)));const ND=D.length;const L3=D.slice(-3);
@@ -19968,7 +19982,7 @@ function cumBuild(){
   try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}
 }
 function lpEnsureNo(){let mx=0,ch=false;state.userLists.forEach(l=>{if(!lpIsSysId(l.id)&&l.no)mx=Math.max(mx,l.no);});state.userLists.slice().sort((a,b)=>a.id-b.id).forEach(l=>{if(!lpIsSysId(l.id)&&!l.no){l.no=++mx;ch=true;}});if(ch)try{ulSaveAll();}catch(e){}}
-function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
+function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400021&&id<9400030)return 'CT'+(id-9400020);if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
 function lpAll(){
   const out=[];lpEnsureNo();
   if(Object.keys(state.lists.A.nums||{}).length)out.push({key:'A',no:'A',grp:'Listes principales',name:state.lists.A.name,nums:state.lists.A.nums,on:!!state.lists.A.on});
@@ -23202,7 +23216,7 @@ function cumBestAt(D,src){// D = masques des tirages jusqu'au tirage précédent
   for(let i=0;i<n;i++)for(let j=i+1;j<n;j++){const m2=cumOr(S[i].m,S[j].m);const s2=score(m2);if(s2!=null&&(!best[2]||s2>best[2].s))best[2]={s:s2,ix:[i,j],m:m2};
     for(let k=j+1;k<n;k++){const m3=cumOr(m2,S[k].m);const s3=score(m3);if(s3!=null&&(!best[3]||s3>best[3].s))best[3]={s:s3,ix:[i,j,k],m:m3};}}
   if(best[3])for(let l=0;l<n;l++){if(best[3].ix.includes(l))continue;const m4=cumOr(best[3].m,S[l].m);const s4=score(m4);if(s4!=null&&(!best[4]||s4>best[4].s))best[4]={s:s4,ix:best[3].ix.concat(l),m:m4};}
-  [2,3,4].forEach(k=>{if(best[k])best[k].nos=best[k].ix.map(i=>S[i].no);});return best;}
+  [2,3,4].forEach(k=>{if(best[k]){best[k].nos=best[k].ix.map(i=>S[i].no);best[k].objs=best[k].ix.map(i=>S[i]);}});return best;}
 function cumChance2(n){const T=nCr(90,5);return 1-nCr(90-n,5)/T-n*nCr(90-n,4)/T;}
 function orCumRes(f){const g=f.g;let R;try{R=cyfRows(g);}catch(e){}if(!R||R.length<70)return{error:'Pas assez de tirages pour ce loto.'};
  const nt=Math.max(5,Math.min(100,cyfInt(f.nt,30)));const M=R.map(r=>cumMask(r.n.slice(0,5)));

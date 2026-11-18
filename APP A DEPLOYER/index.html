@@ -19991,11 +19991,13 @@ function cumBuild(){try{cumBuildTogo();}catch(e){}
       if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});});
   });
   const srcAll=state.userLists.filter(l=>(l.id>=9100001&&l.id<9400000)).map(l=>({l,m:cumMask(Object.keys(l.nums)),no:lpNo(String(l.id),l)}));
+  {const id=9400051;let ex=state.userLists.find(l=>l.id===id);let best=null;srcAll.forEach(x=>{let st=0;for(let d=ND-1;d>=0;d--){if(cumHit(x.m,D[d])>=2)st++;else break;}if(st>=2&&(!best||st>best.st))best={x,st};});
+   if(!best){if(ex)state.userLists=state.userLists.filter(l=>l.id!==id);}else{const nums=Object.keys(best.x.l.nums).map(Number);const o={};nums.forEach(v=>{o[v]={bg:'#DC2626',fg:'#fff',style:'fill'};});const name='Liste seule '+cyfName(g)+' : '+best.x.no+' (≥2 numéros '+best.st+' tirages de suite)';const parts=[{no:best.x.no,name:best.x.l.name,col:'#DC2626',nums:nums.sort((a,c)=>a-c)}];if(ex){ex.nums=o;ex.name=name;ex.parts=parts;}else state.userLists.push({id,name,nums:o,on:false,parts});}}
   cumPutPair(9400043,cumPairCross(D,srcAll,3),'Paire croisée '+cyfName(g)+' 3 derniers tirages');cumPutPair(9400042,cumPairCross(D,srcAll,2),'Nouvelle paire croisée '+cyfName(g)+', 2 derniers tirages seulement');
   try{lsSet('loto_user_lists',JSON.stringify(state.userLists));ulRebuild();}catch(e){}
 }
 function lpEnsureNo(){let mx=0,ch=false;state.userLists.forEach(l=>{if(!lpIsSysId(l.id)&&l.no)mx=Math.max(mx,l.no);});state.userLists.slice().sort((a,b)=>a.id-b.id).forEach(l=>{if(!lpIsSysId(l.id)&&!l.no){l.no=++mx;ch=true;}});if(ch)try{ulSaveAll();}catch(e){}}
-function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id>=9400031&&id<9400040)return 'PT'+(id-9400030);if(id>=9400041&&id<9400050)return 'PX'+(id-9400040);if(id>=9400021&&id<9400030)return 'CT'+(id-9400020);if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
+function lpNo(key,l){if(key==='A')return 'A';if(key==='B')return 'H';const id=+key;if(id===9400051)return 'L2';if(id>=9400031&&id<9400040)return 'PT'+(id-9400030);if(id>=9400041&&id<9400050)return 'PX'+(id-9400040);if(id>=9400021&&id<9400030)return 'CT'+(id-9400020);if(id>=9400011&&id<9400020)return 'CX'+(id-9400010);if(id>=9400001&&id<9500000)return 'C'+(id-9400000);if(id>=9100001&&id<9200000)return 'P'+(id-9100000);if(id>=9200001&&id<9250000)return 'P'+(id-9200000)+'.1';if(id>=9250001&&id<9300000)return 'P'+(id-9250000)+'.2';if(id>=9300001&&id<9400000)return 'O'+(id-9300000);return 'M'+((l&&l.no)||'?');}
 function lpAll(){
   const out=[];lpEnsureNo();
   if(Object.keys(state.lists.A.nums||{}).length)out.push({key:'A',no:'A',grp:'Listes principales',name:state.lists.A.name,nums:state.lists.A.nums,on:!!state.lists.A.on});
@@ -23156,7 +23158,8 @@ const CYF_MODS=[
   {n:'Oracle',id:'orcum',t:'Tester les cumuls de listes',claude:true},
   {n:'Oracle',id:'orsys',t:'Système réduit (jouer moins de paires)',claude:true},
   {n:'Oracle',id:'orrank',t:'Classement des méthodes (suivi)',claude:true},
-  {n:'Oracle',id:'orcls',t:'Listes riches en dérivés du dernier tirage',claude:true}
+  {n:'Oracle',id:'orcls',t:'Listes riches en dérivés du dernier tirage',claude:true},
+  {n:'Oracle',id:'or2s',t:'Liste qui donne 2 numéros sur des tirages successifs',claude:true}
 ];
 // Méthodes (Grok) : sa liste d'origine. Modules Claude : tous les modules qui tournent ici (ceux de Grok copiés + les 10 refaits), sans renvoi vers l'onglet Modules.
 
@@ -23294,6 +23297,23 @@ function orClsRes(f){const g=f.g;let R;try{R=cyfRows(g);}catch(e){}if(!R||R.leng
  h+='<div style="font-size:12px;color:#334155;margin:4px 0">Dérivés : '+[...D.keys()].sort((a,b)=>a-b).join(' ')+'</div><div style="font-weight:700;color:#0F5A63;margin-top:8px">Listes qui contiennent le plus de dérivés (pour le prochain tirage)</div>';
  top.forEach(o=>{h+='<div style="border-bottom:1px solid #EEF2F4;padding:6px 0"><div style="font-size:12.5px"><b>'+cyfEsc(o.x.no)+'</b> '+cyfEsc(o.x.name)+' — <b>'+o.c+'</b> dérivé'+(o.c>1?'s':'')+'</div><div>'+o.x.nums.map(v=>'<span title="'+cyfEsc((D.get(v)||[]).join(', '))+'" style="display:inline-block;min-width:24px;padding:3px 5px;margin:2px;border-radius:7px;text-align:center;font-weight:700;'+(D.has(v)?'background:#7C3AED;color:#fff':'background:#EEF4F5;color:#12343B')+'">'+v+'</span>').join('')+'</div><div style="font-size:11px;color:#64748B">'+o.x.nums.filter(v=>D.has(v)).map(v=>v+' = '+(D.get(v)||[]).join(', ')).join(' · ')+'</div></div>';});
  h+='<div style="border:1px solid #E2E8F0;border-radius:10px;padding:8px 10px;margin-top:10px;background:#F8FAFC"><div style="font-weight:700;color:#0F5A63">Test sur les '+n+' derniers tirages</div><div style="font-size:13px">La liste n°1 du tirage d’avant a donné au moins 1 numéro <b>'+ok1+' fois</b> ('+pc(ok1/n)+', hasard '+pc(c1)+') et au moins 2 numéros <b>'+ok2+' fois</b> ('+pc(ok2/n)+', hasard '+pc(c2)+').</div><details><summary style="cursor:pointer;font-size:12px;color:#0F5A63">Voir tirage par tirage</summary>'+rows.slice().reverse().map(x=>'<div style="font-size:12px">T'+x.t+' · '+cyfEsc(x.no)+' → '+(x.h.length?'<b style="color:#15803D">'+x.h.join(', ')+'</b>':'rien')+'</div>').join('')+'</details></div>';
+ return{kind:'html',html:h};}
+function or2sRes(f){const g=f.g;let R;try{R=cyfRows(g);}catch(e){}if(!R||R.length<5)return{error:'Pas assez de tirages.'};
+ const K=Math.max(2,Math.min(10,cyfInt(f.k,2))),H=Math.max(1,Math.min(5,cyfInt(f.h,2)));const M=R.map(r=>cumMask(r.n.slice(0,5)));const N=R.length;
+ const src=state.userLists.filter(l=>(l.id>=9100001&&l.id<9400000)).map(l=>({no:lpNo(String(l.id),l),name:l.name,m:cumMask(Object.keys(l.nums)),nums:[...new Set(Object.keys(l.nums).map(Number))].sort((a,b)=>a-b)}));
+ const hitNums=(x,i)=>R[i].n.slice(0,5).filter(v=>x.nums.includes(v));
+ // 1) séries en cours (jusqu'au dernier tirage)
+ const cur=[];src.forEach(x=>{let st=0;for(let i=N-1;i>=0;i--){if(cumHit(x.m,M[i])>=H)st++;else break;}if(st>=K)cur.push({x,st});});cur.sort((a,b)=>b.st-a.st);
+ // 2) historique : toutes les séries >= K, et ce qui s'est passé au tirage suivant
+ const occ=[];let cont=0,cont2=0;src.forEach(x=>{let st=0;for(let i=0;i<N-1;i++){if(cumHit(x.m,M[i])>=H)st++;else st=0;if(st>=K){const nx=cumHit(x.m,M[i+1]);occ.push({x,end:i,st:K,next:nx});}}});
+ occ.forEach(o=>{if(o.next>=1)cont++;if(o.next>=2)cont2++;});
+ const T=nCr(90,5);const tot=occ.length;occ.sort((a,b)=>b.end-a.end);
+ let h='<div class="cyf-resbar"><b class="cyf-cnt">'+cyfEsc(cyfName(g))+'</b><span class="cyf-desc">au moins '+H+' numéros d’une même liste sur '+K+' tirages de suite ou plus</span></div>';
+ h+='<div style="font-weight:700;color:#0F5A63;margin:8px 0 4px">En cours (jusqu’au dernier tirage T'+R[N-1].t+')</div>';
+ if(!cur.length)h+='<div style="font-size:13px;color:#64748B">Aucune liste ne donne '+H+' numéros sur les '+K+' derniers tirages.</div>';
+ cur.slice(0,10).forEach(o=>{h+='<div style="border:1px solid #BBF7D0;background:#F0FDF4;border-radius:10px;padding:7px 9px;margin:5px 0"><div style="font-size:13px"><b>'+cyfEsc(o.x.no)+'</b> '+cyfEsc(o.x.name)+' — <b>'+o.st+' tirages de suite</b></div><div>'+o.x.nums.map(v=>orBall(v,false)).join('')+'</div><div style="font-size:12px;color:#334155;margin-top:3px">'+Array.from({length:o.st},(_,q)=>N-o.st+q).map(i=>'T'+R[i].t+' : <b style="color:#B91C1C">'+hitNums(o.x,i).join(', ')+'</b>').join(' · ')+'</div></div>';});
+ h+='<div style="border:1px solid #E2E8F0;border-radius:10px;padding:8px 10px;margin-top:10px;background:#F8FAFC"><div style="font-weight:700;color:#0F5A63">Dans tout l’historique ('+N+' tirages)</div><div style="font-size:13px">Ce cas (une liste à '+H+' numéros ou plus, '+K+' tirages de suite) est arrivé <b>'+tot+' fois</b>. Au tirage suivant, la liste a encore donné au moins 1 numéro <b>'+cont+' fois</b> ('+(tot?Math.round(cont/tot*100):0)+' %, hasard ≈ '+Math.round((1-nCr(85,5)/T)*100)+' %) et au moins 2 numéros <b>'+cont2+' fois</b> ('+(tot?(cont2/tot*100).toFixed(1):0)+' %, hasard ≈ '+((1-nCr(85,5)/T-5*nCr(85,4)/T)*100).toFixed(1)+' %), pour une liste de 5 numéros.</div>';
+ h+='<details style="margin-top:4px"><summary style="cursor:pointer;font-size:12px;color:#0F5A63">Voir les cas les plus récents</summary>'+occ.slice(0,60).map(o=>'<div style="font-size:12px;border-bottom:1px solid #EEF2F4;padding:2px 0"><b>'+cyfEsc(o.x.no)+'</b> · '+o.st+' tirages jusqu’au T'+R[o.end].t+' ('+R[o.end].d+'/'+R[o.end].y+') : '+Array.from({length:o.st},(_,q)=>o.end-o.st+1+q).map(i=>hitNums(o.x,i).join('-')).join(' / ')+' → suivant : '+(o.next?'<b style="color:#15803D">'+hitNums(o.x,o.end+1).join(', ')+'</b>':'rien')+'</div>').join('')+'</details></div>';
  return{kind:'html',html:h};}
 function openMyModule(id){try{_closePagePanels();}catch(_){}state.showSearchHub=false;state.cyfSet=(CYF_MOD_BY[id]&&CYF_MOD_BY[id].n==='Oracle')?'oracle':'claude';state.methodesOpen=true;CYF.view='modules';cyfOpenMod(id);render();try{window.scrollTo(0,0);}catch(_){}}
 function quickMyModsHTML(){if(typeof CYF_MODS==='undefined')return '';const k=m=>typeof m.n==='number'?m.n:(m.n==='RA8'?37.5:100);const L=CYF_MODS.filter(m=>m.id).slice().sort((a,b)=>k(a)-k(b));
@@ -23447,6 +23467,8 @@ function cyfFormHTML(id){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Stratégie',cyfSelect('st',[['all','⚖️ Comparer toutes les stratégies']].concat(OR_STRATS.map(x=>[x.id,x.name])),cyfF('st','all')))}</div><div class="cyf-row">${cyfField('Numéros par liste',cyfSelect('k',[['5','5 numéros'],['10','10 numéros'],['15','15 numéros']],cyfF('k','10')))}${cyfField('Tirages testés (les plus récents)',cyfNum('nt',cyfF('nt','200')))}</div>`+go;
   }else if(id==='orcum'){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Tirages testés (les plus récents)',cyfNum('nt',cyfF('nt','30')))}</div><div style="font-size:12px;color:#64748B;margin:4px 0">Pour chaque tirage testé, l’appli refait le cumul C2 / C3 / C4 avec les 3 tirages d’avant seulement, puis regarde s’il a donné au moins 2 numéros au tirage suivant. Le calcul peut prendre quelques secondes.</div>`+go;
+  }else if(id==='or2s'){
+    h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Tirages successifs (minimum)',cyfNum('k',cyfF('k','2')))}${cyfField('Numéros par tirage (minimum)',cyfNum('h',cyfF('h','2')))}</div><div style="font-size:12px;color:#64748B;margin:4px 0">Cherche une seule liste qui donne au moins 2 numéros dans chaque tirage, plusieurs tirages de suite (comme un picking plan, mais avec 2 numéros par ligne).</div>`+go;
   }else if(id==='orcls'){
     h+=`<div class="cyf-row">${cyfField('Choisir la Loto',cyfGameSel('g',cyfF('g',GAME.key)),'1 1 220px')}${cyfField('Tirages testés',cyfNum('nt',cyfF('nt','30')))}</div><div style="font-size:12px;color:#64748B;margin:4px 0">On prend les dérivés (Counter, Bonanza, Malta, Key, Turning, Partner, Shadow, Code, Equiv, Miroir) des 5 numéros du dernier tirage, puis on cherche les listes qui en contiennent le plus.</div>`+go;
   }else if(id==='orrank'){
@@ -23580,6 +23602,7 @@ function cyfCompute(id,f,m){
   if(id==='orsys')return orSysRes(f);
   if(id==='orrank')return orRankRes(f);
   if(id==='orcls')return orClsRes(f);
+  if(id==='or2s')return or2sRes(f);
   if(id==='combi'){const n=Math.max(0,Math.min(90,cyfInt(f.nb,0)));return{kind:'combi',n};}
   if(id==='bauto'){
     const rows=cyfRows(f.g);const W=Math.max(5,Math.min(1000,cyfInt(f.w,50))),C=Math.max(1,Math.min(20,cyfInt(f.c,5)));
@@ -24302,7 +24325,7 @@ function methPageHTML(){
   return`<div id="app-content">
   <div class="header" style="background:#0F5A63;color:#fff;padding:10px 14px;margin-top:calc(66px + env(safe-area-inset-top))">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div style="font-size:15px;font-weight:700">${state.cyfSet==='oracle'?'🎯 Oracle du Loto':state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>${state.cyfSet==='oracle'?[['orrank','🏆 Classement'],['orbt','📊 Tester une stratégie'],['orcum','🧮 Tester les cumuls'],['orsys','💰 Système réduit'],['orcls','🧬 Dérivés'],['orpred','💾 Mes prédictions'],['orcheck','✅ Vérifier mes numéros']].map(([k,l])=>`<button onclick="cyfOpenMod('${k}')" style="padding:6px 11px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:700;${CYF.mod===k?'background:#fff;color:#0F5A63':'background:rgba(255,255,255,.18);color:#fff'}">${l}</button>`).join(''):''}
+      <div style="font-size:15px;font-weight:700">${state.cyfSet==='oracle'?'🎯 Oracle du Loto':state.cyfSet==='claude'?'🧩 Modules — nouvelle version':'🔮 Méthodes — Les modules de forecast (Cybetcast)'}</div>${state.cyfSet==='oracle'?[['orrank','🏆 Classement'],['orbt','📊 Tester une stratégie'],['orcum','🧮 Tester les cumuls'],['orsys','💰 Système réduit'],['orcls','🧬 Dérivés'],['or2s','✌️ 2 n° de suite'],['orpred','💾 Mes prédictions'],['orcheck','✅ Vérifier mes numéros']].map(([k,l])=>`<button onclick="cyfOpenMod('${k}')" style="padding:6px 11px;border:none;border-radius:6px;cursor:pointer;font-size:12.5px;font-weight:700;${CYF.mod===k?'background:#fff;color:#0F5A63':'background:rgba(255,255,255,.18);color:#fff'}">${l}</button>`).join(''):''}
       ${state.cyfSet==='claude'?`<button onclick="goNav('modules44')" style="padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">← Liste des 44 modules</button>`:''}<button onclick="state.methodesOpen=false;render()" style="margin-left:auto;padding:5px 11px;background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">✕ Fermer</button>
     </div>
   </div>

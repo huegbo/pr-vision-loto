@@ -20004,7 +20004,9 @@ function lpAll(){
   return out;
 }
 function lpObj(key){return(key==='A'||key==='B')?state.lists[key]:state.userLists.find(l=>String(l.id)===String(key));}
-function lpToggle(key,on){const o=lpObj(key);if(!o)return;o.on=!!on;ulSaveAll();render();}
+function lpModeGet(){try{return localStorage.getItem('fl90_lp_mode')||'add';}catch(e){return 'add';}}
+function lpModeSet(m){try{localStorage.setItem('fl90_lp_mode',m);}catch(e){}render();}
+function lpToggle(key,on){const o=lpObj(key);if(!o)return;if(on&&lpModeGet()==='rep'){state.lists.A.on=false;state.lists.B.on=false;state.userLists.forEach(l=>{l.on=false;});}o.on=!!on;ulSaveAll();render();}
 function lpNone(){state.lists.A.on=false;state.lists.B.on=false;state.userLists.forEach(l=>{l.on=false;});ulSaveAll();render();}
 function lpFg(hex){const h=hex.replace('#','');const r=parseInt(h.substr(0,2),16),g=parseInt(h.substr(2,2),16),b=parseInt(h.substr(4,2),16);return(r*299+g*587+b*114)/1000>150?'#111':'#fff';}
 function lpColor(key,hex){const o=lpObj(key);if(!o||!/^#[0-9a-fA-F]{6}$/.test(hex))return;Object.keys(o.nums).forEach(n=>{o.nums[n]=Object.assign({},o.nums[n],{bg:hex,fg:lpFg(hex)});});o.on=true;ulSaveAll();render();}
@@ -20027,7 +20029,7 @@ function listPickerHTML(){
   if(!body)body='<div style="color:#888;padding:6px">Aucune liste trouvée.</div>';
   return btn+`<div data-testid="list-panel" style="flex-basis:100%;margin-top:4px;border:1.5px solid #7C3AED;border-radius:10px;background:#FAF8FF;padding:8px;font-size:11px;max-height:340px;overflow:auto">
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px"><input type="text" placeholder="Chercher une liste (ex. P7, P7.1, O12, M3, 44 72, HOT…)" value="${esc(state.lpQ||'')}" oninput="state.lpQ=this.value;clearTimeout(window._lpT);window._lpT=setTimeout(()=>{render();const i=document.querySelector('[data-testid=list-panel] input[type=text]');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length);}},250)" style="flex:1;min-width:160px;padding:4px 6px;border:1px solid #C4B5FD;border-radius:6px;font-size:11px"><button type="button" onclick="lpNew()" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:6px;border:none;background:#7C3AED;color:#fff;cursor:pointer">➕ Nouvelle liste</button><button type="button" onclick="lpNone()" style="padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #C62828;background:#fff;color:#C62828;cursor:pointer">Aucune</button><button type="button" onclick="state.lpOpen=false;render()" style="padding:4px 10px;font-size:11px;border-radius:6px;border:1px solid #888;background:#fff;color:#555;cursor:pointer">Fermer</button></div>
-    <div style="color:#666;font-size:10px;margin-bottom:4px">Cochez une ou plusieurs listes : elles s'affichent tout de suite. Le carré de couleur change la couleur de toute la liste. ✏️ pour ajouter ou retirer des numéros.</div>${body}</div>`;
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 0 6px"><b style="font-size:11px;color:#5B21B6">Quand je coche une liste :</b>${[['add','➕ l’ajouter aux autres'],['rep','🔄 décocher les autres']].map(([k,t])=>'<button type="button" onclick="lpModeSet(\''+k+'\')" style="padding:3px 9px;font-size:11px;border-radius:7px;cursor:pointer;font-weight:700;border:1.5px solid #7C3AED;'+(lpModeGet()===k?'background:#7C3AED;color:#fff':'background:#fff;color:#7C3AED')+'">'+t+'</button>').join('')}</div><div style="color:#666;font-size:10px;margin-bottom:4px">Cochez une ou plusieurs listes : elles s'affichent tout de suite. Le carré de couleur change la couleur de toute la liste. ✏️ pour ajouter ou retirer des numéros.</div>${body}</div>`;
 }
 function ulClose(){const o=document.getElementById('ul-overlay');if(o)o.remove();}
 function ulChanged(){ulSaveAll();ulRender();render();}

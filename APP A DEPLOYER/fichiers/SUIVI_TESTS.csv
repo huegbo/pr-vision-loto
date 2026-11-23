@@ -10,6 +10,15 @@ date_enregistrement;experience;jeu;date_tirage;liste;resultat;trouves;hasard_att
 22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 21H;21/11/2026;14 19 28 47 49 66 74 77 79 88;44 66 15 80 32;1;0,556
 22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 23H;21/11/2026;13 17 19 22 33 55 59 77 88 90;23 1 7 20 22;1;0,556
 22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Réveil 7h;22/11/2026;9 25 27 55 58 66 75 76 88 89;10 66 37 1 12;1;0,556
-22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 21H;22/11/2026;14 19 28 47 49 66 74 77 79 88;;;0,556
-22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 23H;22/11/2026;13 17 19 22 33 55 59 77 88 90;;;0,556
-22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Réveil 7h;23/11/2026;9 25 27 55 58 66 75 76 88 89;;;0,556
+22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 21H;22/11/2026;14 19 28 47 49 66 74 77 79 88;66 49 62 81 10;2;0,556
+22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Digital 23H;22/11/2026;13 17 19 22 33 55 59 77 88 90;73 1 44 11 75;0;0,556
+22/11/2026 17:50 (rattrapage, calcul sur les tirages d avant);A chauds CI;CI Réveil 7h;23/11/2026;9 25 27 55 58 66 75 76 88 89;59 16 22 60 76;1;0,556
+23/11/2026 01:55 (tâche du soir 22/11);A chauds CI;CI Digital 21H;23/11/2026;14 19 28 47 49 66 74 77 79 88;;;0,556
+23/11/2026 01:55 (tâche du soir 22/11);A chauds CI;CI Digital 23H;23/11/2026;13 17 19 22 33 55 59 77 88 90;;;0,556
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Million 13h;19/11/2026;13 40 58 85;43 84 61 71 75;0;0,208
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Super 18h;19/11/2026;13 40 58 85;84 52 34 58 14;1;0,208
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Kadoo 13h;20/11/2026;(vide);74 40 53 24 63;-;0
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo King 18h;20/11/2026;(vide);16 26 89 23 88;-;0
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Sam 13h;21/11/2026;(vide);67 69 56 15 63;-;0
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Bingo 18h;21/11/2026;(vide);48 23 64 47 68;-;0
+23/11/2026 01:55 (rattrapage, calculé sur les tirages du matin du jour);B signal matin;Togo Détente 16h;22/11/2026;(vide);60 44 19 67 63;-;0
